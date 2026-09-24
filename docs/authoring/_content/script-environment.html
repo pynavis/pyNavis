@@ -1,0 +1,676 @@
+<!-- title: The script environment -->
+<!-- eyebrow: Scripts -->
+<!-- lead: What the runtime does between the click and the first line of your code, and every rule that follows from it. -->
+
+<p>A pyNavis script is not run the way a file is run from a terminal. There is no argument
+vector, no interpreter start-up, and no process boundary. Your file is compiled and executed
+inside a scope that the runtime prepares for it, on the same thread that is drawing the
+Navisworks window, in an interpreter that has already been alive for as long as the
+session.</p>
+
+<p>Almost every surprise in authoring comes from one of those facts. This page covers all of
+them.</p>
+
+<h2>What happens when you click</h2>
+
+<p>The path from a ribbon click to your first statement is short and entirely
+deterministic.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 322" width="700" role="img"
+     aria-label="The seven stages between a ribbon click and the end of a script run.">
+  <style>
+    .se1-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .se1-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .se1-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .se1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .se1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .se1-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .se1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="se1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="se1-lbl" x="0" y="12">Runtime</text>
+  <text class="se1-lbl" x="292" y="12">What it means for you</text>
+
+  <rect class="se1-box" x="0" y="22" width="262" height="30" rx="4"/>
+  <text class="se1-t" x="14" y="41">Click, Shift+Click or a chord</text>
+  <text class="se1-m" x="292" y="41">Shift+Click swaps in config.py, nothing else.</text>
+  <path class="se1-arw" d="M131 52 V 62" marker-end="url(#se1-a)"/>
+
+  <rect class="se1-box" x="0" y="64" width="262" height="30" rx="4"/>
+  <text class="se1-t" x="14" y="83">Run gate</text>
+  <text class="se1-m" x="292" y="83">One script at a time, process-wide.</text>
+  <path class="se1-arw" d="M131 94 V 104" marker-end="url(#se1-a)"/>
+
+  <rect class="se1-box" x="0" y="106" width="262" height="30" rx="4"/>
+  <text class="se1-t" x="14" y="125">Engine resolved</text>
+  <text class="se1-m" x="292" y="125">bundle.yaml, then extension.yaml, then ironpython.</text>
+  <path class="se1-arw" d="M131 136 V 146" marker-end="url(#se1-a)"/>
+
+  <rect class="se1-hot" x="0" y="148" width="262" height="30" rx="4"/>
+  <text class="se1-t" x="14" y="167">Fresh scope, five globals set</text>
+  <text class="se1-mono" x="292" y="167">__file__ __commandpath__ __title__</text>
+  <path class="se1-arw" d="M131 178 V 188" marker-end="url(#se1-a)"/>
+
+  <rect class="se1-box" x="0" y="190" width="262" height="30" rx="4"/>
+  <text class="se1-t" x="14" y="209">Search paths set, cache pruned</text>
+  <text class="se1-m" x="292" y="209">Your bundle and lib modules are dropped.</text>
+  <path class="se1-arw" d="M131 220 V 230" marker-end="url(#se1-a)"/>
+
+  <rect class="se1-hot" x="0" y="232" width="262" height="30" rx="4"/>
+  <text class="se1-t" x="14" y="251">script.py executed from source</text>
+  <text class="se1-m" x="292" y="251">Top to bottom. Never imported, always fresh.</text>
+  <path class="se1-arw" d="M131 262 V 272" marker-end="url(#se1-a)"/>
+
+  <rect class="se1-box" x="0" y="274" width="262" height="30" rx="4"/>
+  <text class="se1-t" x="14" y="293">Teardown in a finally</text>
+  <text class="se1-m" x="292" y="293">Progress dialogs closed, gate released.</text>
+
+  <text class="se1-m" x="0" y="318">The scope is discarded at the end: nothing you define survives to the next run.</text>
+</svg>
+</div>
+<figcaption>Every run walks the same seven stages. An error anywhere from stage four onward
+is formatted and written to the output window; the teardown still happens.</figcaption>
+</figure>
+
+<h2>The five injected globals</h2>
+
+<p>The runtime sets exactly five names in your scope before executing your file. This is the
+complete list for a <code>*.pushbutton</code> and every kind built on one. Everything else you
+see is either something you defined or something Python itself provides.</p>
+
+<div class="note">
+<span class="note-t">A dockpane's script.py gets a sixth: __pane__</span>
+<p>A <code>*.dockpane</code>'s <code>script.py</code> runs once, when the panel's content is
+built, with these same five plus <code>__pane__</code>, a proxy over the panel itself
+(<code>Find</code>, <code>Content</code>, <code>Title</code>, <code>BundleKey</code>,
+<code>Visible</code>). See <a href="buttons.html#dockpane-a-real-navisworks-dock-panel">Buttons,
+stacks and pulldowns</a> and <a href="api-reference.html#panes"><code>pynavis.panes</code></a>.</p>
+</div>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><td><code>__file__</code></td><td>str</td>
+    <td>Full path of the file being executed. On a Shift+Click run this is the
+        <code>config.py</code> path, not <code>script.py</code>.</td></tr>
+<tr><td><code>__commandpath__</code></td><td>str</td>
+    <td>The bundle folder. This is where <code>icon.png</code>, your data files and your
+        bundle-local modules live.</td></tr>
+<tr><td><code>__title__</code></td><td>str</td>
+    <td>The <em>resolved</em> title: <code>bundle.yaml</code> first, then a
+        <code>__title__</code> in the script, then the folder name with its numeric prefix
+        stripped. It stays the button's title on a Shift+Click run.</td></tr>
+<tr><td><code>__selfinit__</code></td><td>bool</td>
+    <td><code>False</code> on every ordinary run, click and Shift+Click alike. Only a
+        <code>*.smartbutton</code> ever sees <code>True</code>, on its extra ribbon-build run,
+        which is also the only run where <code>__button__</code> exists, and a run with a
+        smaller scope: <code>__commandpath__</code> and <code>__title__</code> do not exist
+        there. See
+        <a href="buttons.html#smartbutton-sets-its-own-title-tooltip-and-icon-at-build-time">Buttons,
+        stacks and pulldowns</a>.</td></tr>
+<tr><td><code>__pynavis__</code></td><td>host object</td>
+    <td>The runtime host singleton, your door back into the C# side.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>You can see all five at once. This is one of the few scripts where <code>print</code> is
+the right call, because opening the output window is the entire point of it:</p>
+
+<pre data-lang="python" data-file="Probe.pushbutton\script.py">
+"""Prints the environment the runtime handed this script."""
+print('__file__        %s' % __file__)
+print('__commandpath__ %s' % __commandpath__)
+print('__title__       %s' % __title__)
+print('__selfinit__    %s' % __selfinit__)
+print('__pynavis__     %s' % __pynavis__)
+print('version         %s' % __pynavis__.Version)
+print('dark theme      %s' % __pynavis__.IsDarkTheme)
+print('__name__        %r' % __name__)
+</pre>
+
+<p><code>__pynavis__</code> is the same object <code>pynavis.script.get_host()</code> returns,
+so you rarely touch the global directly. Its members:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Member</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>.Version</code></td><td>Runtime assembly version string.</td></tr>
+<tr><td><code>.IsDarkTheme</code></td><td>True when the host UI renders dark. Theme your own dialogs with this.</td></tr>
+<tr><td><code>.ScriptPath</code></td><td>The running command's script path.</td></tr>
+<tr><td><code>.CommandPath</code></td><td>The running command's bundle folder.</td></tr>
+<tr><td><code>.CommandTitle</code></td><td>The running command's resolved title.</td></tr>
+<tr><td><code>.CommandBundleKey</code></td><td>The running command's bundle key. It is what
+    toggle state and <code>pynavis.panes</code>' default target are keyed on.</td></tr>
+<tr><td><code>.WriteHtml(html)</code></td><td>Appends an HTML fragment to the output window.</td></tr>
+<tr><td><code>.HasOpenOutput</code></td><td>True once this run has actually opened an output
+    window, so a script can decide whether a summary is worth writing.</td></tr>
+<tr><td><code>.SetOutputTitle(title)</code></td><td>Renames the output window away from
+    <code>pyNavis - &lt;button title&gt;</code>.</td></tr>
+<tr><td><code>.SaveOutput(path)</code></td><td>Writes the output window's transcript to a
+    file.</td></tr>
+<tr><td><code>.Progress(fraction, label)</code></td><td>Shows or updates the output window progress bar, fraction 0 to 1.</td></tr>
+<tr><td><code>.ElementLink(item, label)</code></td><td>HTML for a link that selects a model item.</td></tr>
+<tr><td><code>.GetToggleState()</code> / <code>.SetToggleState(on)</code></td>
+    <td>The running bundle's session toggle flag. See
+    <a href="buttons.html#toggle-a-button-with-on-off-state">toggle</a>.</td></tr>
+<tr><td><code>.GetEnvVar(name)</code> / <code>.SetEnvVar(name, value)</code></td>
+    <td>A session-scoped, case-insensitive string store shared by every bundle. Setting
+    <code>None</code> removes the entry.</td></tr>
+<tr><td><code>.LogMessage(level, source, message)</code></td>
+    <td>Writes one line to the pyNavis log. Level is one of <code>debug</code>,
+    <code>info</code>, <code>success</code>, <code>warning</code>,
+    <code>error</code>.</td></tr>
+<tr><td><code>.LogSource</code></td><td>Read/write. The label log lines are tagged with while
+    something that is not a command is running.</td></tr>
+<tr><td><code>.Reload()</code></td><td>Rescans extension folders and rebuilds the ribbon.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><code>.SetCommandContext(...)</code> and <code>.SetCurrentOutput(...)</code> also exist and
+belong to the runtime. Calling either from a script points the whole host at the wrong tool;
+there is no reason to.</p>
+
+<p>Prefer the Python wrappers. <a href="api-reference.html"><code>pynavis.script</code></a>
+exposes the read-only members as functions, and
+<a href="user-interface.html"><code>pynavis.output</code></a> wraps the HTML and progress
+members in something you would want to call twice.</p>
+
+<pre data-lang="python">
+from pynavis import script
+
+script.get_host()          # the __pynavis__ object, even outside a script scope
+script.get_script_path()   # str, the executing command's script.py
+script.get_command_path()  # str, the bundle folder
+script.get_title()         # str, the resolved title
+script.get_host_version()  # str, runtime assembly version
+script.is_dark_theme()     # bool
+script.reload_pynavis()    # rescan and rebuild the ribbon, no restart
+</pre>
+
+<div class="note">
+<span class="note-t">Outside a run they go stale, not blank</span>
+<p>The host keeps the context of the <em>most recent</em> run. Call
+<code>script.get_title()</code> from a console or a unit test and you get whatever ran last,
+or <code>None</code> if nothing has. Only trust these inside a command.</p>
+</div>
+
+<h2><code>__name__</code> is <code>'__main__'</code></h2>
+
+<p>A hosted scope has no <code>__name__</code> of its own, so <code>if __name__ ==
+'__main__':</code> would be false and the body of such a script would silently never run. Both
+engines therefore set the name explicitly before your first statement, and both have a test
+that proves it. The familiar guard works:</p>
+
+<pre data-lang="python" data-file="Count.pushbutton\script.py">
+"""Counts the selection."""
+from pynavis import selection, toast
+
+
+def main():
+    items = selection.get_items()
+    toast.success('%d selected' % len(items))
+
+
+if __name__ == '__main__':      # true on IronPython and on CPython
+    main()
+</pre>
+
+<p>That is the only name Python itself would have given you. Everything else in the scope is
+either one of the five injected globals or something you defined.</p>
+
+<div class="note">
+<span class="note-t">The guard is not a way to make a file importable</span>
+<p>Because a bundle script always runs with <code>__name__ == '__main__'</code>, the guard
+never <em>excludes</em> anything here. A module you want to import from elsewhere as well
+should be a separate file beside <code>script.py</code>, with <code>script.py</code> importing
+it and calling in; that module is imported normally and gets its own real module name. If you
+really need one file to behave both ways, guard on something you control, such as the presence
+of <code>__commandpath__</code>.</p>
+</div>
+
+<p>Module-level code is still the shorter and more common style, and every shipped bundle uses
+it. Defining helper functions is fine and encouraged; just make sure something calls them.</p>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="python">"""Counts the selection."""
+from pynavis import selection, toast
+
+items = selection.get_items()
+toast.success('%d selected' % len(items))
+</pre>
+</div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="python">"""Counts the selection."""
+from pynavis import selection, toast
+
+def main():
+    items = selection.get_items()
+    toast.success('%d selected' % len(items))
+
+# nothing calls main(), so the script does nothing
+</pre>
+</div>
+</div>
+
+<div class="note warn">
+<span class="note-t">Names that are not API</span>
+<p><code>__window__</code> appears in a stale comment in the runtime source and is set by
+nothing. Do not use it. On CPython you will also find <code>__pynavis_source__</code> and
+<code>__pynavis_file__</code> in the scope; they are internals of the engine's compile shim,
+are absent on IronPython, and must not be relied on.</p>
+</div>
+
+<h2>Choosing an engine</h2>
+
+<p>The engine is a per-bundle choice, resolved once when the bundle is parsed:</p>
+
+<ol>
+  <li>The <code>engine:</code> key in the bundle's <code>bundle.yaml</code>.</li>
+  <li>The <code>engine:</code> key in the extension's <code>extension.yaml</code>, which sets
+    a default for every bundle in it.</li>
+  <li><code>ironpython</code>.</li>
+</ol>
+
+<pre data-lang="yaml" data-file="Analyse.pushbutton\bundle.yaml">
+title: Analyse quantities
+engine: cpython
+</pre>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>&nbsp;</th><th><code>ironpython</code></th><th><code>cpython</code></th></tr></thead>
+<tbody>
+<tr><td><strong>Version</strong></td><td>IronPython 3.4</td><td>Whatever is installed on the machine</td></tr>
+<tr><td><strong>Ships with pyNavis</strong></td><td>Yes, including a 3.4-era stdlib</td><td>No, it locates an installed Python</td></tr>
+<tr><td><strong>Hosting</strong></td><td>The DLR, one engine per session</td><td>pythonnet, one interpreter per process</td></tr>
+<tr><td><strong>Created</strong></td><td>At boot</td><td>Lazily, on the first click of a CPython bundle</td></tr>
+<tr><td><strong>Per run</strong></td><td>A fresh scope</td><td>A fresh scope</td></tr>
+<tr><td><strong>Subclass .NET and COM types</strong></td><td>Yes</td><td>No</td></tr>
+<tr><td><strong>Compiled wheels</strong></td><td>No</td><td>Yes</td></tr>
+<tr><td><strong>Shut down</strong></td><td>With the session</td><td>Never, only with the process</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The CPython DLL is looked for in three places, in order: the <code>"cpython"</code> key in
+<code>%APPDATA%\pyNavis\config.json</code>, then the <code>PYNAVIS_CPYTHON</code> environment
+variable, then the registry under <code>SOFTWARE\Python\PythonCore</code>, current user before
+local machine. Either of the first two may name a <code>python3XX.dll</code> directly or the
+folder that holds one. The registry scan accepts versions 3.7 to 3.13 and prefers the newest.
+If nothing is found, the first click on a CPython bundle raises a message naming both the
+config key and python.org.</p>
+
+<p>Because the interpreter is initialised once and never shut down, changing the key takes
+effect on the next Navisworks start, not on Reload. The <strong>Settings</strong> window says
+so when you edit it.</p>
+
+<div class="note trap">
+<span class="note-t">A typo in <code>engine:</code> ships a broken button</span>
+<p>The engine id is matched case-insensitively against exactly two strings,
+<code>ironpython</code> and <code>cpython</code>. Anything else raises
+<code>NotSupportedException: Unknown engine '&lt;id&gt;'.</code> <strong>at click time</strong>,
+not at load time. So <code>engine: python3</code> produces a button that appears on the
+ribbon, looks completely normal, and fails the moment a user presses it. The message lands in
+the output window and in the log.</p>
+</div>
+
+<p>Only pushbuttons honour <code>engine:</code>. Setting it on a pulldown does nothing; the
+key belongs on each pushbutton inside it, or on the extension.</p>
+
+<h2>Module search paths</h2>
+
+<p>Two sets of paths combine on every run. The <strong>per-bundle</strong> set is the bundle's
+own folder plus its extension's <code>lib\</code> folder when that folder exists. The
+<strong>engine-global</strong> set is the bundled stdlib, which only IronPython ever sees, the
+directory holding the <code>pynavis</code> package, and every <code>*.lib</code> folder found
+under the extension roots. The diagram below leaves the <code>*.lib</code> folders out for
+room; they sit immediately after <code>pynavislib</code> on both engines, in the order they
+were discovered, so they are always ahead of a bundle's own folder and of an extension's
+<code>lib\</code>. <a href="anatomy.html">Anatomy of an extension</a> covers what they
+are.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 288" width="700" role="img"
+     aria-label="Module search path order compared for the IronPython and CPython engines.">
+  <style>
+    .se2-t   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .se2-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .se2-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .se2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .se2-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .se2-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .se2-dim { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+  </style>
+  <defs>
+    <marker id="se2-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="se2-lbl" transform="translate(11,182) rotate(-90)">Searched first</text>
+  <path d="M20 24 V 200" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#se2-a)"/>
+
+  <text class="se2-t" x="36" y="14" font-weight="600">IronPython</text>
+  <rect class="se2-box" x="36" y="24" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="48" y="42">engine defaults</text>
+  <rect class="se2-box" x="36" y="58" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="48" y="76">&lt;runtime&gt;\lib</text>
+  <text class="se2-m"    x="230" y="76">bundled stdlib</text>
+  <rect class="se2-box" x="36" y="92" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="48" y="110">pynavislib</text>
+  <rect class="se2-hot" x="36" y="126" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="48" y="144">&lt;bundle folder&gt;</text>
+  <rect class="se2-hot" x="36" y="160" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="48" y="178">&lt;extension&gt;\lib</text>
+
+  <text class="se2-m" x="36" y="210">Your folders come after the stdlib:</text>
+  <text class="se2-m" x="36" y="226">a module named os.py stays harmless.</text>
+
+  <line x1="356" y1="0" x2="356" y2="240" stroke="var(--line)" stroke-width="1"/>
+
+  <text class="se2-t" x="382" y="14" font-weight="600">CPython</text>
+  <rect class="se2-box" x="382" y="24" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="394" y="42">pynavislib</text>
+  <rect class="se2-hot" x="382" y="58" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="394" y="76">&lt;bundle folder&gt;</text>
+  <rect class="se2-hot" x="382" y="92" width="300" height="28" rx="3"/>
+  <text class="se2-mono" x="394" y="110">&lt;extension&gt;\lib</text>
+  <rect class="se2-box" x="382" y="126" width="300" height="62" rx="3"/>
+  <text class="se2-mono" x="394" y="146">the interpreter's own sys.path</text>
+  <text class="se2-m"    x="394" y="164">CPython stdlib, then site-packages</text>
+  <text class="se2-m"    x="394" y="180">(the bundled &lt;runtime&gt;\lib is never added)</text>
+
+  <text class="se2-m" x="382" y="210">Your folders come first: a module named</text>
+  <text class="se2-m" x="382" y="226">os.py in a bundle shadows the real one.</text>
+
+  <rect class="se2-dim" x="0" y="250" width="700" height="34" rx="4"/>
+  <text class="se2-t" x="14" y="272">Both engines prune your bundle and lib modules from the cache before every run.</text>
+</svg>
+</div>
+<figcaption>The two engines order the same ingredients differently. The consequence is
+CPython-only, and it is a shadowing hazard.</figcaption>
+</figure>
+
+<div class="note warn">
+<span class="note-t">Do not name a module after a stdlib module on CPython</span>
+<p>Because your bundle folder and your <code>lib\</code> folder are searched ahead of the
+interpreter's own <code>sys.path</code>, a file called <code>json.py</code>,
+<code>types.py</code> or <code>select.py</code> next to your script will be imported instead
+of the real one, by your code <em>and</em> by anything else that imports it during the run.
+Prefix your modules, or put them in a package folder with a name you own.</p>
+</div>
+
+<p>CPython restores <code>sys.path</code>, <code>sys.stdout</code> and <code>sys.stderr</code>
+in a <code>finally</code>, so a run cannot leak its paths or its output redirection into the
+next one. If <code>pynavislib</code> cannot be found on disk at all, the runtime logs an error
+at boot and <code>import pynavis</code> fails for every bundle.</p>
+
+<h2>The module cache and the edit loop</h2>
+
+<p>Before every run that has bundle search paths, the engine walks
+<code>sys.modules</code> and deletes every module whose <code>__file__</code> sits under your
+bundle folder or your extension's <code>lib\</code> folder. Paths are compared lowercased with
+a trailing backslash appended, so <code>C:\a</code> does not match <code>C:\ab</code>.</p>
+
+<p><code>script.py</code> itself is never in that cache: it is read and executed from source
+on every run, never imported. Together those two facts give you an edit loop with no ceremony
+in the common case.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 236" width="700" role="img"
+     aria-label="Three columns showing which edits need nothing, which need Reload, and which need a restart.">
+  <style>
+    .se3-t   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .se3-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .se3-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .se3-h   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink);
+               font-weight: 600; }
+    .se3-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .se3-hd  { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
+    .se3-acc { fill: var(--accent); }
+  </style>
+
+  <text class="se3-m" x="0" y="12">You edited &#8230;</text>
+
+  <rect class="se3-box" x="0" y="22" width="216" height="168" rx="4"/>
+  <rect class="se3-hd"  x="0" y="22" width="216" height="34" rx="4"/>
+  <rect class="se3-acc" x="0" y="22" width="3.5" height="34"/>
+  <text class="se3-h"    x="14" y="44">Just click again</text>
+  <text class="se3-mono" x="14" y="80">script.py</text>
+  <text class="se3-mono" x="14" y="102">config.py</text>
+  <text class="se3-mono" x="14" y="124">modules in the bundle</text>
+  <text class="se3-mono" x="14" y="146">modules in &lt;ext&gt;\lib</text>
+  <text class="se3-m"    x="14" y="170">Dropped from the cache</text>
+  <text class="se3-m"    x="14" y="184">before every run.</text>
+
+  <rect class="se3-box" x="242" y="22" width="216" height="168" rx="4"/>
+  <rect class="se3-hd"  x="242" y="22" width="216" height="34" rx="4"/>
+  <rect class="se3-acc" x="242" y="22" width="3.5" height="34"/>
+  <text class="se3-h"    x="256" y="44">Click Reload</text>
+  <text class="se3-mono" x="256" y="80">bundle.yaml</text>
+  <text class="se3-mono" x="256" y="102">folder names, new bundles</text>
+  <text class="se3-mono" x="256" y="124">icons, shortcuts</text>
+  <text class="se3-mono" x="256" y="146">the pynavis library</text>
+  <text class="se3-m"    x="256" y="170">Rescan, plus a targeted</text>
+  <text class="se3-m"    x="256" y="184">cache drop for pynavislib.</text>
+
+  <rect class="se3-box" x="484" y="22" width="216" height="168" rx="4"/>
+  <rect class="se3-hd"  x="484" y="22" width="216" height="34" rx="4"/>
+  <rect class="se3-acc" x="484" y="22" width="3.5" height="34"/>
+  <text class="se3-h"    x="498" y="44">Restart Navisworks</text>
+  <text class="se3-mono" x="498" y="80">the PyNavis .NET runtime</text>
+  <text class="se3-mono" x="498" y="102">the "cpython" config key</text>
+  <text class="se3-mono" x="498" y="124">the "pynavislib" path</text>
+  <text class="se3-m"    x="498" y="170">Loaded once per process</text>
+  <text class="se3-m"    x="498" y="184">and never released.</text>
+
+  <text class="se3-m" x="0" y="220">The stdlib is never invalidated on either engine, and never needs to be.</text>
+</svg>
+</div>
+<figcaption>The first column is where you will spend your day. Reaching for Reload out of
+habit costs a second, so people do; it is genuinely unnecessary for script and module
+edits.</figcaption>
+</figure>
+
+<p>Splitting a large tool across files therefore costs you nothing in turnaround:</p>
+
+<pre data-lang="tree">
+MyTools.extension\
+  lib\
+    acme_geometry.py        # edits picked up on the next run
+  MyTools.tab\
+    Model.panel\
+      Analyse.pushbutton\
+        script.py           # re-read from source on every run
+        rules.py            # edits picked up on the next run
+</pre>
+
+<h2>Importing</h2>
+
+<p><code>import pynavis</code> gives you exactly one public name,
+<code>pynavis.__version__</code>. There are no re-exports, no <code>__all__</code> and no
+automatic submodule import, so the package itself is nearly free to import and you always name
+what you want.</p>
+
+<p>Every shipped bundle uses the same style: <code>from pynavis import</code> with the modules
+in alphabetical order, at module level, immediately after the docstring.</p>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="python">"""Groups the active clash test."""
+from pynavis import clash, forms, toast
+</pre>
+</div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="python">"""Groups the active clash test."""
+import pynavis
+pynavis.clash.walk_tests()  # AttributeError
+</pre>
+</div>
+</div>
+
+<p>What an import costs depends entirely on which module it is. Three tiers:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Modules</th><th>Needs at import time</th><th>Consequence</th></tr></thead>
+<tbody>
+<tr><td><code>settings</code>, <code>memory</code>, <code>clashgroup</code>,
+        <code>viewpoints</code>, <code>section</code>, <code>output</code>,
+        <code>sets</code>, <code>props</code>, <code>clashtest</code>, <code>export</code>,
+        <code>viewstate</code>, <code>xl</code></td>
+    <td>Nothing beyond the stdlib</td>
+    <td>They import the API lazily inside the functions that need it, so they load anywhere,
+        including in a unit test with no Navisworks.</td></tr>
+<tr><td><code>forms</code>, <code>toast</code>, <code>script</code>, <code>panes</code></td>
+    <td>The <code>PyNavis.Runtime</code> assembly</td>
+    <td>Always present wherever a pyNavis script runs.</td></tr>
+<tr><td><code>app</code>, <code>doc</code>, <code>selection</code>, <code>clash</code></td>
+    <td>A live Navisworks session</td>
+    <td>They import <code>pynavis._api</code> at module load, which raises
+        <code>ImportError('pynavis: could not load the Navisworks .NET API ...')</code> outside
+        one.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>That last tier is why a tool whose dialog you want to open outside Navisworks uses a
+guarded import. This is the pattern the shipped clash grouper uses so its options dialog still
+works when there is no model:</p>
+
+<pre data-lang="python">
+from pynavis import forms, settings, toast
+
+try:
+    from pynavis import clash
+except ImportError:
+    clash = None
+
+if clash is None:
+    toast.error('No Navisworks session', 'Open a model and run this again.')
+else:
+    ...
+</pre>
+
+<div class="note">
+<span class="note-t">Underscored modules are private</span>
+<p><code>_api</code>, <code>_com</code>, <code>_query</code>, <code>_xlsx</code> and every
+other underscore-prefixed module are implementation. They change without notice. If you find
+yourself importing one, the thing you want probably belongs in the public surface, so say
+so.</p>
+</div>
+
+<h2>One script at a time</h2>
+
+<p>A long script pumps the Windows message loop so the window can repaint, and pumping
+dispatches queued input, including another click on a ribbon button. Rather than run two
+scripts over one document, the runtime holds a process-wide gate. A second click while one
+script is running is refused with a toast reading
+&ldquo;<em>&lt;title&gt;</em> is still running&rdquo; and &ldquo;Wait for it to finish, then
+try again.&rdquo;</p>
+
+<p>This is not something you can opt out of, and it is worth designing around: a job that
+takes thirty seconds should say so. Use
+<a href="user-interface.html">the output window's progress bar</a> and check for
+cancellation in your loop.</p>
+
+<p>For a modal progress dialog with its own cancel button, use
+<code>pynavis.forms.progress</code>, a context manager over the runtime's progress window:
+<code>update(fraction, label)</code> reports and returns <code>False</code> once the user has
+cancelled, and <code>check()</code> raises <code>forms.Cancelled</code> instead. The shipped
+Sets From Excel importer does exactly this:</p>
+
+<pre data-lang="python">
+from pynavis import forms
+
+with forms.progress('Importing sets', 'Starting') as p:
+    for i, item in enumerate(items):
+        p.check()                        # raises forms.Cancelled on cancel
+        p.update(float(i) / len(items), 'Set %d' % (i + 1))
+</pre>
+
+<div class="note">
+<span class="note-t">The raw runtime type is still reachable</span>
+<p>A script that needs the C# scope itself (the Smart Clash Grouper drives its whole write
+phase with one) imports <code>PyNavis.Runtime.Forms.ProgressScope</code> and calls
+<code>Begin</code>/<code>Report</code>/<code>Dispose</code> directly;
+<code>forms.progress</code> is the same window with the ceremony folded away.</p>
+</div>
+
+<h2>Output and errors</h2>
+
+<p>The output window is created <strong>lazily, on the first write</strong>, and is titled
+<code>pyNavis - &lt;button title&gt;</code>. A script that writes nothing shows no window at
+all, which is exactly the behaviour you want from a tool that just did its job.</p>
+
+<div class="note warn">
+<span class="note-t">This is why <code>print</code> is the wrong tool for status</span>
+<p>A one-line <code>print('Done')</code> opens a whole window to hold six characters. Use
+<code>pynavis.toast</code> for statuses and reserve the output window for real reports, tables
+and links. On a user cancel, say nothing at all.</p>
+</div>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="python">from pynavis import toast
+
+toast.success('Exported 412 items', path)
+</pre>
+</div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="python">print('Exported 412 items')
+# opens a window to say one line
+</pre>
+</div>
+</div>
+
+<p>An uncaught exception is formatted by the engine that raised it, IronPython through
+<code>ExceptionOperations.FormatException</code> and CPython through
+<code>PythonException.Format()</code>, then written to the output window in the error colour
+and copied to <code>%APPDATA%\pyNavis\logs\pyNavis.log</code>. You do not need a top-level
+<code>try</code> to see a traceback; add one only when you can turn the failure into a better
+message.</p>
+
+<p>Whatever happens, <code>ProgressScope.CloseAll()</code> runs in the runtime's
+<code>finally</code>. A crashed script cannot leave a modal progress dialog on screen and lock
+the user out of Navisworks. Your own <code>try/finally</code> is still the first line of
+defence; this is the backstop.</p>
+
+<h2>Threading</h2>
+
+<div class="note trap">
+<span class="note-t">Do not start threads that touch the model</span>
+<p>Your script runs on the Navisworks UI thread and the Navisworks API is not thread-safe.
+A worker thread calling into the document will corrupt state or crash the process, sometimes
+immediately, sometimes on a later unrelated operation. On CPython there is a second
+constraint: a single interpreter, a single lock, and one run at a time process-wide.</p>
+</div>
+
+<p>If a job is slow, the answer is progress reporting and a cancel check, not concurrency.
+Work that genuinely belongs off the main thread belongs in a separate process instead: write
+the input to disk, run something external, read the result back.</p>
+
+<div class="cards">
+  <a href="settings.html"><span class="c-t">Settings and per-tool state</span>
+    <span class="c-d">The config.py convention and where a tool keeps what the user chose.</span></a>
+  <a href="api-reference.html"><span class="c-t">Python API reference</span>
+    <span class="c-d">Every module in the pynavis library, with signatures.</span></a>
+  <a href="troubleshooting.html"><span class="c-t">Troubleshooting</span>
+    <span class="c-d">Failure modes, their log lines, and what to do about them.</span></a>
+</div>

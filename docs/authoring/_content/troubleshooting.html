@@ -1,0 +1,1028 @@
+<!-- title: Troubleshooting -->
+<!-- eyebrow: Practice -->
+<!-- lead: Every way a bundle fails, listed by what you actually see, with the cause, the fix, and the log line that proves it. -->
+
+<p>pyNavis fails quietly by design. A bundle the parser cannot use is skipped so that one bad
+folder never takes the rest of your ribbon with it. That is the right behaviour and it is also
+why a broken tool looks like nothing at all happened.</p>
+
+<p>The log is the compensation. There is no debugger inside Navisworks, so the runtime writes
+a reason for every skip to <code>%APPDATA%\pyNavis\logs\pyNavis.log</code>. This page is
+organised by symptom; each entry ends with the line to search for.</p>
+
+<h2>Nothing appeared on the ribbon</h2>
+
+<div class="note tip">
+<span class="note-t">Look at the toast first</span>
+<p>After every boot and every Reload, pyNavis counts the bundle folders it had to drop and
+toasts <em>N bundle folders were skipped</em>, quoting the first one in full and pointing at
+the log folder for the rest. If you saw that toast, the answer is already on screen and the
+rest of this section is just the detail. If you did not, the problem is more likely a
+misspelled <code>.extension</code>, <code>.tab</code> or <code>.panel</code>, or a root that
+is not registered, since those are the cases the scan cannot see.</p>
+</div>
+
+<p>Work down this in order. Each question is cheaper to check than the one below it.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 470" width="700" role="img"
+     aria-label="Decision flowchart from a missing button down to its cause.">
+  <style>
+    .tb1-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .tb1-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .tb1-mono{ font: 10.5px Consolas, monospace; fill: var(--ink); }
+    .tb1-lbl { font: 10px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .tb1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .tb1-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .tb1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="tb1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="tb1-lbl" x="0"   y="12">Check</text>
+  <text class="tb1-lbl" x="372" y="12">If no, this is your cause</text>
+
+  <rect class="tb1-hot" x="0" y="20" width="290" height="32" rx="4"/>
+  <text class="tb1-t" x="14" y="41">My button did not appear</text>
+  <path class="tb1-arw" d="M145 52 V 66" marker-end="url(#tb1-a)"/>
+
+  <rect class="tb1-box" x="0" y="68" width="290" height="38" rx="4"/>
+  <text class="tb1-t" x="14" y="86">Is the extension root registered?</text>
+  <text class="tb1-mono" x="14" y="101">config.json &#8250; extensions</text>
+  <path class="tb1-arw" d="M292 87 H 368" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="316" y="82">no</text>
+  <rect class="tb1-box" x="372" y="68" width="328" height="38" rx="4"/>
+  <text class="tb1-mono" x="386" y="93">pynavis extensions add &lt;dir&gt;</text>
+  <path class="tb1-arw" d="M145 106 V 122" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="152" y="119">yes</text>
+
+  <rect class="tb1-box" x="0" y="124" width="290" height="38" rx="4"/>
+  <text class="tb1-t" x="14" y="142">Are all four suffixes exact?</text>
+  <text class="tb1-mono" x="14" y="157">.extension .tab .panel .pushbutton</text>
+  <path class="tb1-arw" d="M292 143 H 368" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="316" y="138">no</text>
+  <rect class="tb1-box" x="372" y="124" width="328" height="38" rx="4"/>
+  <text class="tb1-t" x="386" y="142">Typo in a suffix</text>
+  <text class="tb1-m" x="386" y="156">Case is free, spelling is not. No log line.</text>
+  <path class="tb1-arw" d="M145 162 V 178" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="152" y="175">yes</text>
+
+  <rect class="tb1-box" x="0" y="180" width="290" height="38" rx="4"/>
+  <text class="tb1-t" x="14" y="198">Is .extension directly under the root?</text>
+  <text class="tb1-m" x="14" y="212">not one folder deeper</text>
+  <path class="tb1-arw" d="M292 199 H 368" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="316" y="194">no</text>
+  <rect class="tb1-box" x="372" y="180" width="328" height="38" rx="4"/>
+  <text class="tb1-t" x="386" y="198">Nesting is not searched</text>
+  <text class="tb1-m" x="386" y="212">Move it up, or register the inner folder.</text>
+  <path class="tb1-arw" d="M145 218 V 234" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="152" y="231">yes</text>
+
+  <rect class="tb1-box" x="0" y="236" width="290" height="38" rx="4"/>
+  <text class="tb1-t" x="14" y="254">Does the bundle hold a script.py?</text>
+  <text class="tb1-m" x="14" y="268">exact file name, in the bundle folder</text>
+  <path class="tb1-arw" d="M292 255 H 368" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="316" y="250">no</text>
+  <rect class="tb1-box" x="372" y="236" width="328" height="38" rx="4"/>
+  <text class="tb1-t" x="386" y="254">Button dropped silently</text>
+  <text class="tb1-m" x="386" y="268">No script.py means no button. No log line.</text>
+  <path class="tb1-arw" d="M145 274 V 290" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="152" y="287">yes</text>
+
+  <rect class="tb1-box" x="0" y="292" width="290" height="38" rx="4"/>
+  <text class="tb1-t" x="14" y="310">Stack 2 or 3, pulldown at least 1?</text>
+  <text class="tb1-m" x="14" y="324">counted after bad buttons are dropped</text>
+  <path class="tb1-arw" d="M292 311 H 368" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="316" y="306">no</text>
+  <rect class="tb1-box" x="372" y="292" width="328" height="38" rx="4"/>
+  <text class="tb1-t" x="386" y="310">Container skipped, and logged</text>
+  <text class="tb1-mono" x="386" y="324">a stack needs 2 or 3 - skipped.</text>
+  <path class="tb1-arw" d="M145 330 V 346" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="152" y="343">yes</text>
+
+  <rect class="tb1-box" x="0" y="348" width="290" height="38" rx="4"/>
+  <text class="tb1-t" x="14" y="366">Did the panel and tab get items?</text>
+  <text class="tb1-m" x="14" y="380">empty panels and tabs are not added</text>
+  <path class="tb1-arw" d="M292 367 H 368" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="316" y="362">no</text>
+  <rect class="tb1-box" x="372" y="348" width="328" height="38" rx="4"/>
+  <text class="tb1-t" x="386" y="366">The whole tab disappears</text>
+  <text class="tb1-m" x="386" y="380">One broken button can take the tab with it.</text>
+  <path class="tb1-arw" d="M145 386 V 402" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="152" y="399">yes</text>
+
+  <rect class="tb1-box" x="0" y="404" width="290" height="38" rx="4"/>
+  <text class="tb1-t" x="14" y="422">Did you click Reload?</text>
+  <text class="tb1-m" x="14" y="436">folder changes need a rescan</text>
+  <path class="tb1-arw" d="M292 423 H 368" marker-end="url(#tb1-a)"/>
+  <text class="tb1-m" x="316" y="418">no</text>
+  <rect class="tb1-hot" x="372" y="404" width="328" height="38" rx="4"/>
+  <text class="tb1-t" x="386" y="428">Click Reload on the pyNavis panel</text>
+
+  <text class="tb1-m" x="0" y="462">All yes and still nothing: open the log. Every skip
+    the parser makes says why.</text>
+</svg>
+</div>
+<figcaption>The parser drops what it cannot render rather than failing the build, so a
+missing button is always one of these, in this order.</figcaption>
+</figure>
+
+<h3>The extension root is not registered</h3>
+
+<p><strong>Cause.</strong> The runtime scans only the folders listed under
+<code>"extensions"</code> in <code>%APPDATA%\pyNavis\config.json</code>, plus the two defaults,
+<code>%APPDATA%\pyNavis\extensions</code> and <code>%PROGRAMDATA%\pyNavis\extensions</code>
+if that folder exists. A perfectly formed extension anywhere else is never seen.</p>
+
+<p><strong>Fix.</strong> Register the folder that <em>contains</em> your
+<code>.extension</code> folder, not the <code>.extension</code> folder itself.</p>
+
+<pre data-lang="powershell">
+pynavis extensions add D:\NavisTools
+pynavis extensions list
+</pre>
+
+<p>Or edit the file by hand, remembering that JSON needs doubled backslashes:</p>
+
+<pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
+{
+  "extensions": [
+    "D:\\NavisTools"
+  ]
+}
+</pre>
+
+<p><strong>Log.</strong> Every root produces a line, whether or not it found anything. A root
+that is missing from the log was never in the config; a root reporting
+<code>0 extension(s)</code> is registered but empty.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.418 [INFO ] Extension root 'D:\NavisTools': 0 extension(s).
+</pre>
+
+<h3>A folder suffix is misspelled</h3>
+
+<p><strong>Cause.</strong> Suffixes are matched case-insensitively but they must be the exact
+word. <code>Count.pushButton</code> and <code>Count.PUSHBUTTON</code> both work.
+<code>Count.pushbuttons</code>, <code>Count.push-button</code> and <code>Count.button</code>
+are invisible.</p>
+
+<p><strong>Fix.</strong> Check all four levels: <code>.extension</code>, <code>.tab</code>,
+<code>.panel</code>, <code>.pushbutton</code>, and <code>.stack</code> or
+<code>.pulldown</code> where you use them.</p>
+
+<p><strong>Log.</strong> A folder inside a <code>.panel</code> whose name contains a dot is
+taken to be an attempted bundle, so a bad bundle suffix is reported and counted into the
+<em>N bundle folders were skipped</em> toast after the scan:</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.427 [ERROR] 'D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\Count.pushbuttons' is not a bundle kind pyNavis knows (check the folder suffix) - skipped.
+</pre>
+
+<p>A misspelled <code>.extension</code>, <code>.tab</code> or <code>.panel</code> is the silent
+case: those three levels are found by globbing for the pattern, so a folder that does not
+match is never looked at and there is nothing to report.</p>
+
+<h3>The .extension folder is nested too deep</h3>
+
+<p><strong>Cause.</strong> <code>.extension</code> folders are found <em>directly</em> under
+a registered root. The scan does not recurse. Putting
+<code>D:\NavisTools\Team\MyTools.extension</code> under a root of
+<code>D:\NavisTools</code> finds nothing.</p>
+
+<p><strong>Fix.</strong> Move the extension up a level, or register
+<code>D:\NavisTools\Team</code> as a root of its own. Both are legitimate; registering several
+roots is normal and they are all scanned.</p>
+
+<h3>The pushbutton has no script.py</h3>
+
+<p><strong>Cause.</strong> A <code>.pushbutton</code> folder without a file named exactly
+<code>script.py</code> is not a button and is dropped. A folder holding only
+<code>config.py</code>, or holding <code>Script.py</code> on a machine where you later copy
+the folder to a case-sensitive share, hits this.</p>
+
+<p><strong>Fix.</strong> Add <code>script.py</code>. There is no way to make a button that
+only has a Shift+Click action.</p>
+
+<p><strong>Log.</strong> Reported, and counted into the skipped-bundles toast. This one
+cascades: the dropped button may empty a stack, a pulldown, a panel or a whole tab, and only
+the first line names the real cause.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.429 [ERROR] 'D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\Count.pushbutton' has no script.py - skipped.
+</pre>
+
+<p>The dockpane equivalent is <code>pane.xaml</code>: a <code>*.dockpane</code> folder
+without one is skipped, though that skip is logged
+(<code>Dockpane '&lt;dir&gt;' has no pane.xaml - skipped.</code>), and its
+<code>script.py</code> is optional.</p>
+
+<h3>A stack has the wrong number of buttons</h3>
+
+<p><strong>Cause.</strong> A <code>.stack</code> renders as two or three small rows and
+nothing else. One button, or four, cannot be laid out, so the whole stack is skipped rather
+than rendered wrong. The count is taken <em>after</em> buttons without a
+<code>script.py</code> have been dropped, so a stack of three where one is broken becomes a
+stack of two and still works, and a stack of two where one is broken disappears entirely.</p>
+
+<p><strong>Fix.</strong> Two or three <code>.pushbutton</code> folders inside the
+<code>.stack</code> folder. For anything else use a <code>.pulldown</code>.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.431 [ERROR] Stack 'D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\01_Pick.stack' holds 4 button(s); a stack needs 2 or 3 - skipped.
+</pre>
+
+<h3>A pulldown has no usable pushbuttons</h3>
+
+<p><strong>Cause.</strong> A <code>.pulldown</code> with zero valid buttons has nothing to
+show when opened, so it is skipped. Usually every child is missing its
+<code>script.py</code>, or the children have the wrong suffix.</p>
+
+<p><strong>Fix.</strong> At least one <code>.pushbutton</code> child with a
+<code>script.py</code>. Unlike stacks there is no upper limit.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.436 [ERROR] Pulldown 'D:\NavisTools\MyTools.extension\MyTools.tab\Tools.panel\05_More.pulldown' has no usable pushbuttons - skipped.
+</pre>
+
+<h3>The whole tab is missing, not just one button</h3>
+
+<p><strong>Cause.</strong> A panel with no items is not added to its tab, and a tab with no
+panels is not added to the ribbon. Emptiness propagates upward, so one broken button in a
+one-button extension removes the tab.</p>
+
+<p><strong>Fix.</strong> Fix the button. There is no log line for the empty panel or the empty
+tab, but there will be one for whatever emptied them, or the silent cases above.</p>
+
+<h3>Two extensions want the same tab</h3>
+
+<p><strong>Cause.</strong> A tab's identity is built from the extension name and the tab
+folder name. Two copies of the same extension on two registered roots, which is exactly what
+you get when a development copy and an installed copy are both present, produce the same id.
+The second one loses.</p>
+
+<p><strong>Fix.</strong> Unregister one root, or rename one extension's folder or its
+<code>name:</code> in <code>extension.yaml</code>.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:03.902 [ERROR] Ribbon tab 'PYNAVIS_TAB_MyTools_MyTools' already exists - skipped (duplicate extension?).
+</pre>
+
+<h3>An old loader is still in the Navisworks Plugins folder</h3>
+
+<p><strong>Cause.</strong> pyNavis now installs as a per-user Autodesk bundle under
+<code>%APPDATA%\Autodesk\ApplicationPlugins\pyNavis.bundle</code>. Earlier versions, and old
+developer deployments, copied the loader into <code>&lt;Navisworks&gt;\Plugins\PyNavis</code>
+instead. Navisworks loads both locations, so if that folder survives you get two loaders in
+one process: two boots in the log, duplicate tab ids, and buttons that behave as if something
+else is fighting them.</p>
+
+<p><strong>Fix.</strong> Close Navisworks and delete
+<code>&lt;Navisworks&gt;\Plugins\PyNavis</code> by hand. That folder is under the Navisworks
+install directory, so deleting it does need an administrator, which is the last time pyNavis
+asks anything of one. The setup program warns when it finds the folder; it does not remove it
+for you, because doing so would need the elevation the rest of the install avoids.</p>
+
+<h3>You did not click Reload</h3>
+
+<p><strong>Cause.</strong> The ribbon is built from a scan. New folders, renamed folders and
+new <code>bundle.yaml</code> values are picked up by a rescan, not by the next click.</p>
+
+<p><strong>Fix.</strong> Click <strong>Reload</strong> on the pyNavis panel. It rebuilds
+without restarting Navisworks and re-activates the tab you were on.</p>
+
+<h2>The buttons are in the wrong order</h2>
+
+<h3>10 comes before 2</h3>
+
+<p><strong>Cause.</strong> Folders are sorted lexicographically, not numerically, so
+<code>10_Export</code> sorts before <code>2_Import</code>. This bites the moment a panel grows
+past nine tools.</p>
+
+<p><strong>Fix.</strong> Zero-pad every prefix to a fixed width, and pad them all the same:
+<code>02_</code>, <code>10_</code>. Leave gaps if you expect to insert tools later.</p>
+
+<h3>The number is showing in the title</h3>
+
+<p><strong>Cause.</strong> The ordering prefix is stripped only when it is <em>two or
+more</em> digits followed by an underscore. A single-digit <code>1_Keep</code> keeps its
+prefix, and because underscores render as spaces the button reads &ldquo;1 Keep&rdquo;.</p>
+
+<p><strong>Fix.</strong> Always use two digits. <code>01_Keep</code> shows as
+&ldquo;Keep&rdquo;. The rule is deliberate, so that a tool genuinely called
+<code>1_Thing</code> keeps its name, and a <code>title:</code> in <code>bundle.yaml</code>
+overrides all of it anyway.</p>
+
+<h2>The title or tooltip is wrong</h2>
+
+<h3>My edit had no effect</h3>
+
+<p><strong>Cause.</strong> Metadata resolves most-specific first and stops at the first hit:
+<code>bundle.yaml</code> beats the script, which beats the folder name. Adding a
+<code>__title__</code> to a script that already has <code>title:</code> in its
+<code>bundle.yaml</code> changes nothing.</p>
+
+<p><strong>Fix.</strong> Edit the winning source, then Reload. Both title and tooltip are read
+by the parser, so both need a Reload.</p>
+
+<h3>A comment ended up in the value</h3>
+
+<p><strong>Cause.</strong> The <code>bundle.yaml</code> reader is a deliberately small flat
+parser. It skips lines that <em>begin</em> with <code>#</code>, but it does not strip a
+trailing comment. Everything after the first colon, trimmed, is the value.</p>
+
+<pre data-lang="yaml" data-file="bundle.yaml">
+# this whole line is ignored
+title: Count selection    # this becomes part of the title
+</pre>
+
+<p>That button is labelled <code>Count selection    # this becomes part of the title</code>.</p>
+
+<p><strong>Fix.</strong> Put comments on their own line. Quotes are stripped only when they
+wrap the whole value, so <code>title: "Count selection"</code> is fine but
+<code>title: "Count" selection</code> keeps its quotes.</p>
+
+<h3>__title__ is being ignored</h3>
+
+<p><strong>Cause.</strong> The scanner is a regular expression over the file, not a parser. It
+requires <code>__title__</code> at the start of a line, at column 0, assigned a simple quoted
+string on the same line.</p>
+
+<pre data-lang="python">
+__title__ = 'Clash report'          # found
+__title__ = "Clash report"          # found
+
+    __title__ = 'Clash report'      # indented: not found
+__title__ = TITLE                   # not a literal: not found
+__title__ = ('Clash '               # spans lines: not found
+             'report')
+</pre>
+
+<p><strong>Fix.</strong> One line, column 0, a plain quoted string. For anything more
+complicated use <code>bundle.yaml</code>.</p>
+
+<h3>The docstring is not becoming a tooltip</h3>
+
+<p><strong>Cause.</strong> A docstring counts only when it is the very first statement in the
+file. Comments and blank lines above it are skipped, but any actual code before it is not:
+after an <code>import</code>, the triple-quoted string is just a string.</p>
+
+<pre data-lang="python">
+# a comment above the docstring is fine
+"""This becomes the tooltip."""
+import csv
+</pre>
+
+<pre data-lang="python">
+import csv
+"""This is a no-op string, not a tooltip."""
+</pre>
+
+<h3>There is no tooltip at all</h3>
+
+<p><strong>Cause.</strong> Tooltips have no third fallback. Titles fall back to the folder
+name; tooltips do not fall back to anything.</p>
+
+<p><strong>Fix.</strong> Give the script a docstring, or add <code>tooltip:</code> to
+<code>bundle.yaml</code>. See <a href="bundle-yaml.html">The bundle.yaml reference</a> for the
+full precedence table.</p>
+
+<h2>The script does nothing</h2>
+
+<div class="note">
+<span class="note-t">The main guard is not the cause</span>
+<p>Both engines set <code>__name__</code> to <code>'__main__'</code> before your first
+statement, so <code>if __name__ == '__main__':</code> is true in a bundle script, a hook and a
+<code>startup.py</code> alike. If you are debugging a script that does nothing, the guard is
+not what is stopping it; look further down this section.</p>
+</div>
+
+<h3>The work is in a function nobody calls</h3>
+
+<p><strong>Cause.</strong> Defining <code>run()</code> and never calling it produces a script
+that loads cleanly and does nothing. This is the usual version of "my script does nothing",
+and it raises nothing and opens no window, so there is no clue on screen.</p>
+
+<pre data-lang="python" data-file="Do not do this">
+from pynavis import selection, toast
+
+def main():
+    toast.success('%d selected' % len(selection.get_items()))
+
+# nothing calls main()
+</pre>
+
+<pre data-lang="python" data-file="Do this">
+from pynavis import selection, toast
+
+toast.success('%d selected' % len(selection.get_items()))
+</pre>
+
+<p><strong>Fix.</strong> End the file with the call. If you want to be certain the script is
+running at all, drop a <code>toast.info('here')</code> at the top; it will tell you in half a
+second whether the problem is the button or the body.</p>
+
+<h2>An empty window opens</h2>
+
+<h3>A window appears with almost nothing in it</h3>
+
+<p><strong>Cause.</strong> Something called <code>print()</code>. The output window is created
+lazily on the first write, so a stray <code>print</code>, a debug line, or a library that
+prints a warning is enough to materialise a whole window for one line of text.</p>
+
+<p><strong>Fix.</strong> Use <code>toast</code> for one-line status. Use the output window
+when you have a report worth a window: a table, a list of problems, a summary with links.</p>
+
+<pre data-lang="python">
+from pynavis import toast
+
+toast.success('Exported 412 row(s)', path)     # a corner toast, no window
+</pre>
+
+<p>The distinction is a rule, not a preference. See
+<a href="user-interface.html">Talking to the user</a> for which of the four surfaces a given
+message belongs on.</p>
+
+<h2>Errors</h2>
+
+<h3>ImportError: could not load the Navisworks .NET API</h3>
+
+<pre data-lang="text">
+ImportError: pynavis: could not load the Navisworks .NET API (Autodesk.Navisworks.Api).
+This module only works inside a Navisworks session running pyNavis.
+</pre>
+
+<p><strong>Cause.</strong> You touched an API-bound module where the assembly cannot
+resolve. <code>app</code>, <code>doc</code>, <code>selection</code> and <code>clash</code>
+load the API the moment they are imported; most of the other model-facing domains
+(<code>sets</code>, <code>viewpoints</code>, <code>viewstate</code>, <code>section</code>,
+<code>memory</code>, <code>clashtest</code>, <code>export</code>) import cleanly anywhere
+and raise the same error at the first call that needs the host. Either way it means outside
+a live Navisworks session, or at import time in a context that does not have one yet.</p>
+
+<p><strong>Fix.</strong> Inside Navisworks, nothing is wrong with these imports. Outside it,
+in a unit test or a build step, do not import them: keep the logic under test in a pure module
+that has no <code>pynavis</code> import at all, the way <code>clashgroup</code> and
+<code>viewpoints.plan_renames</code> are built. See
+<a href="cookbook.html">Split pure logic from API calls</a>.</p>
+
+<p>When a script must still run in a session that may not have the feature, guard the import
+and degrade:</p>
+
+<pre data-lang="python">
+try:
+    from pynavis import clash
+except ImportError:
+    clash = None
+
+if clash is None:
+    forms.alert('Clash Detective is not available in this Navisworks edition.')
+else:
+    ...
+</pre>
+
+<h3>NotSupportedException: Unknown engine</h3>
+
+<pre data-lang="text">
+NotSupportedException: Unknown engine 'cpyton'.
+</pre>
+
+<p><strong>Cause.</strong> A typo in <code>engine:</code> in <code>bundle.yaml</code> or
+<code>extension.yaml</code>. The only two valid values are <code>ironpython</code> and
+<code>cpython</code>.</p>
+
+<p><strong>Fix.</strong> Correct the value and Reload.</p>
+
+<div class="note warn">
+<span class="note-t">This one fails at click time</span>
+<p>The engine id is not validated during discovery, only when a script is about to run. The
+button therefore appears, looks completely normal, and throws the moment it is pressed. A
+button that builds fine and fails on first click is almost always this.</p>
+</div>
+
+<h3>import pynavis fails entirely</h3>
+
+<p><strong>Cause.</strong> The runtime could not find the library folder, so nothing on the
+<code>pynavis</code> namespace is importable by any script.</p>
+
+<p><strong>Fix.</strong> Check the <code>"pynavislib"</code> key in
+<code>config.json</code>, or confirm that a <code>pynavislib</code> folder sits beside
+<code>PyNavis.Runtime.dll</code> in the runtime directory. This is logged once at startup, not
+per script, so search the top of the log.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.401 [ERROR] pynavislib not found (config 'pynavislib' key or &lt;runtime&gt;\pynavislib) - 'import pynavis' will fail.
+</pre>
+
+<h3>import os fails on IronPython</h3>
+
+<p><strong>Cause.</strong> IronPython uses the Python standard library that ships with
+pyNavis. If that folder is missing, every stdlib import fails while <code>pynavis</code>
+itself, which is loaded from a different path, may still work. The result is confusing: your
+own imports succeed and <code>import csv</code> does not.</p>
+
+<p><strong>Fix.</strong> Reinstall, or point the runtime at a valid stdlib. CPython bundles are
+unaffected, since they use the interpreter's own library.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.399 [ERROR] Python stdlib not found at 'C:\Users\you\AppData\Roaming\pyNavis\2026\runtime\Lib' - 'import os' etc. will fail on IronPython.
+</pre>
+
+<h3>A traceback appeared in the output window</h3>
+
+<p><strong>Cause.</strong> Your script raised. This is not a bug in the runtime; the engine
+catches the exception and formats the traceback into the output window on purpose, because
+there is no console and no debugger to send it to.</p>
+
+<p><strong>Fix.</strong> Read the frames from the bottom up. The last frame is your line. If
+you want the tool to fail politely instead, catch the exception yourself and report it with
+<code>toast.error(message, detail)</code>.</p>
+
+<h2>A keyboard shortcut is not working</h2>
+
+<h3>The chord does nothing</h3>
+
+<p><strong>Cause.</strong> A binding fires only when all four conditions hold: the key went
+down, it is not an auto-repeat from a held key, the Navisworks main window is the foreground
+window, and focus is not in a text input.</p>
+
+<p>The last one is stricter than it sounds. When the runtime cannot determine what has focus,
+it assumes you are typing and does not fire, because stealing a keystroke from a search box is
+worse than missing a shortcut.</p>
+
+<p><strong>Fix.</strong> Click on the model view, then try again. If the chord works there and
+not elsewhere, focus is the answer.</p>
+
+<h3>The chord was rejected as invalid</h3>
+
+<p><strong>Cause.</strong> A binding needs <kbd>Ctrl</kbd> or <kbd>Alt</kbd> unless
+<code>shortcuts.allowBareKeys</code> is set to true in <code>config.json</code>.
+<kbd>Shift</kbd> alone does not count as a modifier. The key itself must also be in the
+supported set.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Supported keys</th><th>Not supported</th></tr></thead>
+<tbody>
+<tr><td><code>A</code> to <code>Z</code></td>
+    <td><kbd>Esc</kbd>, <kbd>Tab</kbd>, <kbd>Space</kbd>, <kbd>Enter</kbd></td></tr>
+<tr><td><code>0</code> to <code>9</code></td>
+    <td><kbd>Del</kbd>, <kbd>Ins</kbd>, <kbd>Backspace</kbd></td></tr>
+<tr><td><code>F1</code> to <code>F24</code></td>
+    <td>Numpad keys of any kind</td></tr>
+<tr><td><code>Left</code>, <code>Up</code>, <code>Right</code>, <code>Down</code></td>
+    <td>Punctuation: <code>,</code> <code>.</code> <code>/</code> <code>-</code></td></tr>
+<tr><td><code>Home</code>, <code>End</code>, <code>PgUp</code>, <code>PgDn</code></td>
+    <td>Two keys in one chord</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><strong>Fix.</strong> Rewrite the binding. The parser reports the exact reason, so a
+rejected chord is never a mystery: <code>'Shift+M': bindings need Ctrl or Alt</code>,
+<code>'Ctrl+Esc': unknown token 'Esc'</code>, <code>'Ctrl+A+B': more than one key</code>.</p>
+
+<h3>Two tools want the same chord</h3>
+
+<p><strong>Cause.</strong> A chord maps to exactly one tool. When two bundles ask for it, the
+first in ribbon order wins and the second is dropped.</p>
+
+<p><strong>Fix.</strong> Change one of them, in <code>bundle.yaml</code> or as a user override.
+The Shortcuts editor on the pyNavis panel shows conflicts directly, which is faster than
+reading the log.</p>
+
+<pre data-lang="text">
+'pyNavis.tab/Tools.panel/Clash_Report.pushbutton' wants Ctrl+Shift+R but 'pyNavis.tab/General.panel/Reload.pushbutton' already has it - first wins
+</pre>
+
+<h3>A config.json override does nothing</h3>
+
+<p><strong>Cause.</strong> Overrides are keyed by <strong>BundleKey</strong>: the bundle
+folder path relative to its <code>.extension</code> folder, with forward slashes, with every
+suffix kept and every <code>NN_</code> prefix kept. It is not the title, and it is not the
+stripped name.</p>
+
+<pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
+{
+  "shortcuts": {
+    "allowBareKeys": false,
+    "bindings": {
+      "pyNavis.tab/Memory.panel/01_Memorize.pushbutton": "Ctrl+Alt+M",
+      "pyNavis.tab/Memory.panel/02_Recall.pushbutton": null
+    }
+  }
+}
+</pre>
+
+<p><code>null</code> disables a binding the bundle declared. A key that matches no tool is
+ignored and logged.</p>
+
+<pre data-lang="text">
+shortcut override for unknown tool 'pyNavis.tab/Memory.panel/Memorize.pushbutton' ignored
+</pre>
+
+<p><strong>Fix.</strong> <kbd>Alt</kbd>+Click the button to open its folder in Explorer and
+read the path off the address bar, or use the Shortcuts editor, which writes the key for you.
+See <a href="shortcuts.html">Keyboard shortcuts</a>.</p>
+
+<h3>The chord runs script.py even though it has Shift in it</h3>
+
+<p><strong>Cause.</strong> Working as designed. Keyboard chords always run the primary script.
+Modifier click actions and keyboard bindings are separate mechanisms that happen to use the
+same modifier keys, so <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> runs
+<code>script.py</code>, never <code>config.py</code>.</p>
+
+<p><strong>Fix.</strong> There is no chord for the secondary action. Shift-click the button.</p>
+
+<h2>A dock panel will not open</h2>
+
+<h3>The toggle warns that no slot is free</h3>
+
+<pre data-lang="text">
+No panel slot free for Clash navigator
+Every pyNavis panel slot is claimed. Add more with Panel slots on the pyNavis tab, then restart Navisworks.
+</pre>
+
+<p><strong>Cause.</strong> Five dock panel slots ship in the loader, and every
+<code>*.dockpane</code> bundle claims one for life, recorded in <code>config.json</code>
+under <code>panes.assignments</code>. A bundle that finds nothing free still renders its
+ribbon toggle; the toggle just cannot open a panel, and says so when clicked.</p>
+
+<p><strong>Fix.</strong> Click <strong>Panel slots</strong> on the pyNavis tab, enter how
+many extra slots you want, and restart Navisworks. Slots are Navisworks plugins, and the
+host scans for plugins only at startup; claiming a freed or new slot afterwards is
+automatic. <a href="settings.html">Settings and per-tool state</a> covers what the
+<code>panes</code> section records and why not to edit it.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:03.897 [ERROR] 1 dockpane(s) have no free slot (5 available): Clash navigator
+2026-09-20 09:14:03.899 [INFO ] Panes configured: 5 claimed of 5 slot(s).
+</pre>
+
+<h3>The toggle says the slot is ready after restart</h3>
+
+<pre data-lang="text">
+Panel slot ready after restart
+This panel's new slot was just generated. It registers the next time Navisworks restarts, not after Reload.
+</pre>
+
+<p><strong>Cause.</strong> <strong>Panel slots</strong> generated new slots this session and
+a Reload let your bundle claim one, but the plugin type behind that slot does not exist in
+the running host yet.</p>
+
+<p><strong>Fix.</strong> Restart Navisworks. Nothing else is wrong.</p>
+
+<h3>Fewer slots than you asked for</h3>
+
+<pre data-lang="text">
+Only 5 panel slots are available
+Navisworks did not load the extra slots. Re-run Panel slots, then restart.
+</pre>
+
+<p><strong>Cause.</strong> <code>config.json</code> asks for extra slots, but the generated
+<code>PyNavisPanes.dll</code> did not load, and Navisworks says nothing when it ignores a
+plugin DLL. The runtime counts the slots that actually registered and trusts that count, so
+a bundle is never assigned to a slot that does not exist and then silently fail to open.</p>
+
+<p><strong>Fix.</strong> Run <strong>Panel slots</strong> again to regenerate the satellite,
+then restart Navisworks. The log names the shortfall:</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:03.891 [ERROR] Config asks for 8 panel slots but Navisworks registered 5. PyNavisPanes.dll did not load - re-run Panel slots and restart Navisworks. Until then the extra panels are unavailable.
+</pre>
+
+<h3>Changing the slot count fails, or reports access denied</h3>
+
+<pre data-lang="text">
+Could not add panel slots
+The current panel slots are in use, so Navisworks must be restarted before the slot count can change.
+</pre>
+
+<p><strong>Cause.</strong> Navisworks maps every plugin DLL into memory at startup and keeps
+the file mapped for the whole session, so a satellite that loaded can never be deleted or
+overwritten while Navisworks runs. Windows reports an attempt as
+<code>ERROR_ACCESS_DENIED</code>, which looks exactly like a permissions problem and is not
+one: no amount of privilege releases a mapped file. The runtime detects the loaded satellite
+up front and asks for the restart rather than letting the write fail.</p>
+
+<p><strong>Fix.</strong> Restart Navisworks, then set the count. Permissions are almost never
+the real cause here, because the satellite is written next to the loader in
+<code>%APPDATA%\Autodesk\ApplicationPlugins\pyNavis.bundle\Contents\&lt;year&gt;</code>, a
+folder you own. If the write genuinely fails there, something outside pyNavis is holding the
+folder open, usually a security tool or a sync client.</p>
+
+<h3>View &gt; Windows says pyNavis Panel 3, not your title</h3>
+
+<p><strong>Cause.</strong> Working as designed. Navisworks builds that menu from the plugin
+records, which are declared once per slot, so it always lists every slot as
+<em>pyNavis Panel N</em>, claimed or not. Your bundle's title appears on the ribbon toggle
+and on the panel's own title bar once it is open.</p>
+
+<p><strong>Fix.</strong> Open panels from their ribbon toggles and the naming never
+matters. An unclaimed slot opened from the menu shows <em>Panel slot N is not in use</em>
+with a hint to fill it.</p>
+
+<h3>The panel opens empty or shows an error card</h3>
+
+<p><strong>Cause.</strong> <code>pane.xaml</code> failed to load, its root produced nothing
+displayable, or <code>script.py</code> raised while wiring the content. A broken panel is
+deliberately contained: it shows the failure inside its own pane and logs the detail rather
+than taking Navisworks down during a dock layout restore.</p>
+
+<p><strong>Fix.</strong> Read the log, fix the file, and click <strong>Reload</strong>:
+open panels are re-contented on every Reload. A script failure also toasts
+<em>Panel script failed</em> with the bundle title.</p>
+
+<pre data-lang="text">
+2026-09-20 10:02:17.204 [ERROR] Dockpane 'Clash navigator': pane.xaml failed to load
+</pre>
+
+<h2>A hook or startup.py is not running</h2>
+
+<h3>A hook failed three times and went quiet</h3>
+
+<pre data-lang="text">
+Hook MyTools:selection-changed disabled after 3 failures
+Fix the script, then Reload pyNavis to re-enable it.
+</pre>
+
+<p><strong>Cause.</strong> Three consecutive failures disable a hook until the next Reload,
+so a hook that raises on every selection change cannot fail its way through a whole
+session. A success resets the count, so an occasional failure never accumulates into a
+disable. Every failure is logged with its traceback before the third one toasts.</p>
+
+<p><strong>Fix.</strong> Search the log for <code>Hook MyTools:selection-changed
+failed</code>, fix the script, and click <strong>Reload</strong>, which resets hook health
+for every hook.</p>
+
+<h3>A hook does not fire while a tool is running</h3>
+
+<p><strong>Cause.</strong> Working as designed. While a script holds the
+one-script-at-a-time gate, every event except <code>before-command</code> and
+<code>after-command</code> skips its hooks rather than running a hook's Python on top of the
+command's. See <a href="hooks.html">Hooks</a> for the full rules, including the debounced
+events.</p>
+
+<pre data-lang="text">
+2026-09-20 10:41:02.118 [INFO ] Hook MyTools:selection-changed skipped: 'Smart Clash Grouper' is running.
+</pre>
+
+<h3>startup.py failed</h3>
+
+<pre data-lang="text">
+MyTools startup.py failed
+See the log; the extension's buttons still loaded.
+</pre>
+
+<p><strong>Cause.</strong> The extension's <code>startup.py</code> raised at boot or at
+Reload. This is deliberately not fatal: discovery carries on and the extension's ribbon
+still builds, minus whatever the startup script was supposed to prepare.</p>
+
+<p><strong>Fix.</strong> The log carries the traceback, labelled
+<code>[startup MyTools]</code> rather than with the last command clicked. Fix the script and
+click <strong>Reload</strong>; <code>startup.py</code> runs again at the start of every
+Reload.</p>
+
+<h2>The icon is wrong</h2>
+
+<h3>The button is text only</h3>
+
+<p><strong>Cause.</strong> There is no <code>icon.png</code> in the bundle folder. Every
+variant falls back to <code>icon.png</code> and to nothing else, so a bundle shipping only
+<code>icon.dark.png</code> has no icon in either theme.</p>
+
+<p><strong>Fix.</strong> Ship <code>icon.png</code> first, then add variants. Reload after
+adding an icon: icons are read by the parser.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>File</th><th>Size</th><th>Used for</th><th>Falls back to</th></tr></thead>
+<tbody>
+<tr><td><code>icon.png</code></td><td>96&times;96</td><td>Large buttons, light theme</td>
+    <td>Nothing. Required.</td></tr>
+<tr><td><code>icon.dark.png</code></td><td>96&times;96</td><td>Large buttons, dark theme</td>
+    <td><code>icon.png</code></td></tr>
+<tr><td><code>icon.small.png</code></td><td>32&times;32</td><td>Stacks and pulldown menus</td>
+    <td><code>icon.png</code></td></tr>
+<tr><td><code>icon.small.dark.png</code></td><td>32&times;32</td><td>Stacks and menus, dark</td>
+    <td><code>icon.png</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>The icon is clipped, blurred or enormous</h3>
+
+<p><strong>Cause.</strong> Wrong pixel size, or not square. A 32&times;32 image used as
+<code>icon.png</code> is scaled up on a large button; a 96&times;96 image standing in for a
+missing small variant is scaled down and loses its detail; a non-square image is stretched.</p>
+
+<p><strong>Fix.</strong> Produce exactly 96&times;96 and 32&times;32 PNGs, both square, with
+transparent backgrounds. <a href="icons.html">Icons</a> covers the drawing rules and the
+generator that produces the shipped set. Never hand-edit a shipped icon: change the generator
+and re-run it.</p>
+
+<h2>My edits do not take effect</h2>
+
+<p>Three loops, and the cost of each is very different. Knowing which loop an edit falls into
+saves more time than any other single fact in this guide.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 300" width="700" role="img"
+     aria-label="Three nested loops: run again, Reload, restart Navisworks.">
+  <style>
+    .tb2-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .tb2-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .tb2-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .tb2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .tb2-o   { fill: var(--paper);   stroke: var(--line-strong); stroke-width: 1; }
+    .tb2-mid { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
+    .tb2-in  { fill: var(--paper);   stroke: var(--accent);      stroke-width: 1.4; }
+  </style>
+
+  <rect class="tb2-o"   x="10"  y="20" width="680" height="250" rx="8"/>
+  <text class="tb2-lbl" x="28"  y="40">Restart Navisworks</text>
+  <text class="tb2-m"   x="674" y="40" text-anchor="end">minutes</text>
+  <text class="tb2-mono" x="28" y="259">PyNavis.Runtime.dll, config.json paths, *.lib add/remove, panel slots</text>
+
+  <rect class="tb2-mid" x="60"  y="52" width="580" height="186" rx="7"/>
+  <text class="tb2-lbl" x="78"  y="72">Click Reload</text>
+  <text class="tb2-m"   x="624" y="72" text-anchor="end">one click</text>
+  <text class="tb2-mono" x="78" y="227">bundle.yaml, icons, folder names, shortcuts, hooks, startup.py, pynavislib</text>
+
+  <rect class="tb2-in"  x="110" y="84" width="480" height="122" rx="6"/>
+  <text class="tb2-lbl" x="128" y="104">Just press the button again</text>
+  <text class="tb2-m"   x="574" y="104" text-anchor="end">no wait</text>
+  <text class="tb2-mono" x="128" y="130">script.py</text>
+  <text class="tb2-mono" x="128" y="150">config.py</text>
+  <text class="tb2-mono" x="128" y="170">modules beside script.py</text>
+  <text class="tb2-mono" x="128" y="190">&lt;extension&gt;\lib\*.py</text>
+
+  <text class="tb2-m" x="10" y="292">The runtime drops bundle and lib modules from the cache
+    before every run, which is why the inner loop has no step in it at all.</text>
+</svg>
+</div>
+<figcaption>Most authoring happens in the innermost loop. If you find yourself clicking
+Reload after every code change, you are paying for something you do not need.</figcaption>
+</figure>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>What you edited</th><th>What it takes</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>script.py</code> or <code>config.py</code></td><td>Nothing, just run it again</td>
+    <td>The file is read and compiled on every run.</td></tr>
+<tr><td>A module beside <code>script.py</code></td><td>Nothing, just run it again</td>
+    <td>Bundle modules are dropped from the cache before each run.</td></tr>
+<tr><td>A module in <code>&lt;extension&gt;\lib</code></td><td>Nothing, just run it again</td>
+    <td>Same cache eviction as bundle modules.</td></tr>
+<tr><td>An existing hook script's contents</td><td>Nothing, wait for the event</td>
+    <td>Hook files are read from disk each time their event fires.</td></tr>
+<tr><td><code>bundle.yaml</code> or <code>extension.yaml</code></td><td>Reload</td>
+    <td>Read by the parser at discovery, not at run time.</td></tr>
+<tr><td>Any <code>icon*.png</code></td><td>Reload</td>
+    <td>Icons are resolved when the ribbon is built.</td></tr>
+<tr><td>Folder names, new or deleted bundles</td><td>Reload</td>
+    <td>The tree is rescanned only on discovery.</td></tr>
+<tr><td>Shortcut bindings or overrides</td><td>Reload</td>
+    <td>The keyboard map is rebuilt with the ribbon.</td></tr>
+<tr><td>A new hook file, or one disabled by failures</td><td>Reload</td>
+    <td>The hook list is built at discovery, and Reload resets hook health.</td></tr>
+<tr><td><code>startup.py</code></td><td>Reload</td>
+    <td>It runs at boot and at the start of every Reload.</td></tr>
+<tr><td><code>pane.xaml</code> or a dockpane's <code>script.py</code></td><td>Reload</td>
+    <td>Open panels are re-contented when the ribbon rebuilds.</td></tr>
+<tr><td>A module inside a <code>*.lib</code> folder</td><td>Reload</td>
+    <td>Shared library paths are evicted on Reload, not per run.</td></tr>
+<tr><td>The <code>pynavis</code> library</td><td>Reload</td>
+    <td>Library modules are not evicted per run, only your own.</td></tr>
+<tr><td><code>config.json</code> extension roots</td><td>Reload</td>
+    <td>Roots are read when extensions are loaded.</td></tr>
+<tr><td><code>config.json</code> <code>theme</code> or the two <code>ribbon</code> hints</td>
+    <td>Reload</td>
+    <td>Theme and markers are resolved while captions and icons are made.</td></tr>
+<tr><td>Adding or removing a whole <code>*.lib</code> folder</td><td>Restart Navisworks</td>
+    <td>The engine search path is fixed at boot; Reload toasts a reminder.</td></tr>
+<tr><td><code>config.json</code> <code>cpython</code> or <code>pynavislib</code></td>
+    <td>Restart Navisworks</td>
+    <td>They are baked into the engine configuration at boot, and the CPython interpreter is
+        never shut down. The Settings window says so when you change either.</td></tr>
+<tr><td><code>config.json</code> <code>runtime&lt;year&gt;</code></td>
+    <td>Restart Navisworks</td>
+    <td>The loader reads it before anything else exists.</td></tr>
+<tr><td>The panel slot count</td><td>Restart Navisworks</td>
+    <td>Slots are plugins, and Navisworks scans for plugins only at startup.</td></tr>
+<tr><td>The C# runtime</td><td>Restart Navisworks</td>
+    <td>The assembly is loaded into the process once.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>A second click is refused</h2>
+
+<h3>A toast says something is still running</h3>
+
+<pre data-lang="text">
+Clash report is still running
+Wait for it to finish, then try again.
+</pre>
+
+<p><strong>Cause.</strong> One script runs at a time, process-wide. A long script pumps the
+message loop so the window can repaint, and a pump dispatches queued input, including the
+second click you just made. The gate refuses it rather than running two scripts over one
+document.</p>
+
+<p><strong>Fix.</strong> Wait. If a script is hung and never finishes, restart Navisworks: the
+gate is released when the run ends, and there is no way to cancel a script from outside it.
+Build cancellation into long tools yourself, the way the shipped grouper and viewpoint
+managers do.</p>
+
+<pre data-lang="text">
+2026-09-20 09:22:41.118 [INFO ] Refused 'Clash report': 'Smart Clash Grouper' is still running.
+</pre>
+
+<h2>Where to look</h2>
+
+<h3>The logs</h3>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>File</th><th>Written by</th><th>Read it when</th></tr></thead>
+<tbody>
+<tr><td><code>%APPDATA%\pyNavis\logs\pyNavis.log</code></td><td>The runtime</td>
+    <td>Anything after the plugin has loaded: discovery, ribbon, shortcuts, script runs.</td></tr>
+<tr><td><code>%APPDATA%\pyNavis\logs\loader.log</code></td><td>The loader plugin</td>
+    <td>pyNavis is not there at all: no tab, no Reload button, nothing.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>A healthy startup looks like this. Every line is one you can search for, and the count
+lines are the ones that matter most.</p>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+2026-09-20 09:14:02.372 [INFO ] ==== pyNavis runtime booting ====
+2026-09-20 09:14:02.380 [INFO ] Runtime assembly: C:\Users\you\AppData\Roaming\pyNavis\2026\runtime\PyNavis.Runtime.dll
+2026-09-20 09:14:02.391 [INFO ] Navisworks API assembly: 23.0.1400.86
+2026-09-20 09:14:02.418 [INFO ] Extension root 'D:\NavisTools': 1 extension(s).
+2026-09-20 09:14:02.427 [INFO ] Extension root 'C:\Users\you\AppData\Roaming\pyNavis\extensions': 1 extension(s).
+2026-09-20 09:14:02.430 [INFO ] Boot sequence complete (ribbon build may be deferred until ribbon exists).
+2026-09-20 09:14:03.884 [INFO ] Shortcuts: 5 binding(s) active.
+2026-09-20 09:14:03.896 [INFO ] Running startup.py for 'MyTools'.
+2026-09-20 09:14:03.902 [INFO ] Panes configured: 1 claimed of 5 slot(s).
+2026-09-20 09:14:03.951 [INFO ] Ribbon built: 2 tab(s), 27 button(s).
+2026-09-20 09:14:03.958 [INFO ] Hooks configured: 1 (MyTools:doc-opened).
+</pre>
+
+<p>If <code>Ribbon built</code> reports fewer buttons than you expect, the difference is
+accounted for above it. If <code>Shortcuts</code> reports fewer bindings than you declared,
+the rejected ones are named on the lines around it. If <code>Panes configured</code> claims
+fewer panels than you have, the overflow line above it names the bundles left out. Clicking
+Reload writes <code>==== pyNavis reload ====</code> and repeats the whole sequence, so the
+newest run is always at the bottom.</p>
+
+<h3>Alt+Click to open the folder</h3>
+
+<p><kbd>Alt</kbd>+Click any pyNavis button to open its bundle folder in Explorer with
+<code>script.py</code> already selected. It is the fastest way to confirm which file a button
+is actually running, which matters as soon as two copies of an extension exist on disk.</p>
+
+<h3>The Console</h3>
+
+<p>The Console on the pyNavis panel is an interactive Python prompt inside the live session,
+with the same environment your scripts get. It is the right tool for the questions that are
+hard to answer by reading code: what type is this, what does that property actually return,
+how many items are really selected.</p>
+
+<pre data-lang="python">
+from pynavis import doc, selection
+items = selection.get_items()
+len(items)
+doc.get_property(items[0], 'Item', 'Type').ToDisplayString()
+[c.DisplayName for c in items[0].PropertyCategories]
+</pre>
+
+<p>Run a snippet with the Run button or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; <kbd>Up</kbd> and
+<kbd>Down</kbd> at the edges of the input recall history. Its namespace survives between
+runs within one window, so you can build up state across several snippets rather than
+rewriting the setup each time. Printed text and expression values echo straight into the
+transcript, and anything you render through <code>pynavis.output</code> opens the console's
+own output window, titled for the console, rather than appending to whichever tool ran
+last.</p>
+
+<div class="cards">
+  <a href="anatomy.html"><span class="c-t">Anatomy of an extension</span>
+    <span class="c-d">The discovery rules behind every silent skip on this page.</span></a>
+  <a href="script-environment.html"><span class="c-t">The script environment</span>
+    <span class="c-d">What the runtime injects, what it caches, and why the main guard never
+      fires.</span></a>
+  <a href="cookbook.html"><span class="c-t">Cookbook</span>
+    <span class="c-d">Complete recipes that avoid most of these failures by
+      construction.</span></a>
+</div>

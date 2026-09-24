@@ -1,0 +1,66 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Reset speed settings" Width="404" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+  <StackPanel Margin="16">
+
+    <!-- Each section's checkbox IS its header: one tick says both "this section
+         exists" and "reset this", instead of repeating the name in a trailing
+         "Reset Linear Speed?" row. Unticking greys the inputs below it, so the
+         window shows what it will and will not touch without being read. -->
+
+    <Border BorderBrush="#33000000" BorderThickness="1" CornerRadius="4"
+            Padding="12,10,12,12" Margin="0,0,0,10">
+      <StackPanel>
+        <CheckBox x:Name="LinearCheck" Content="Linear speed" FontWeight="SemiBold"/>
+        <TextBlock Margin="20,4,0,0" TextWrapping="Wrap" Opacity="0.65" FontSize="11.5"
+                   Text="How fast Walk and Fly move. Stored in the unit you pick and converted to the model's own units when it is applied."/>
+        <StackPanel Orientation="Horizontal" Margin="20,8,0,0"
+                    IsEnabled="{Binding IsChecked, ElementName=LinearCheck}">
+          <TextBox x:Name="LinearBox" Width="82" Height="24"
+                   VerticalContentAlignment="Center"/>
+          <ComboBox x:Name="UnitBox" Width="80" Height="24" Margin="8,0,0,0"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <Border BorderBrush="#33000000" BorderThickness="1" CornerRadius="4"
+            Padding="12,10,12,12" Margin="0,0,0,10">
+      <StackPanel>
+        <CheckBox x:Name="AngularCheck" Content="Angular speed" FontWeight="SemiBold"/>
+        <TextBlock Margin="20,4,0,0" TextWrapping="Wrap" Opacity="0.65" FontSize="11.5"
+                   Text="How fast the camera turns."/>
+        <StackPanel Orientation="Horizontal" Margin="20,8,0,0"
+                    IsEnabled="{Binding IsChecked, ElementName=AngularCheck}">
+          <TextBox x:Name="AngularBox" Width="82" Height="24"
+                   VerticalContentAlignment="Center"/>
+          <TextBlock Text="deg/sec" VerticalAlignment="Center" Margin="8,0,0,0"
+                     Opacity="0.75"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <Border BorderBrush="#33000000" BorderThickness="1" CornerRadius="4"
+            Padding="12,10,12,12" Margin="0,0,0,4">
+      <StackPanel>
+        <CheckBox x:Name="FovCheck" Content="Field of view" FontWeight="SemiBold"/>
+        <TextBlock Margin="20,4,0,0" TextWrapping="Wrap" Opacity="0.65" FontSize="11.5"
+                   Text="The horizontal angle the camera sees, converted through the viewport's aspect ratio. Perspective views only."/>
+        <StackPanel Orientation="Horizontal" Margin="20,8,0,0"
+                    IsEnabled="{Binding IsChecked, ElementName=FovCheck}">
+          <TextBox x:Name="FovBox" Width="82" Height="24"
+                   VerticalContentAlignment="Center"/>
+          <TextBlock Text="degrees" VerticalAlignment="Center" Margin="8,0,0,0"
+                     Opacity="0.75"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button x:Name="ResetButton" Content="Reset" Width="84" Height="26" Margin="0,0,8,0"/>
+      <Button x:Name="OkButton" Content="Save" Width="84" Height="26" Margin="0,0,8,0"
+              IsDefault="True"/>
+      <Button x:Name="CancelButton" Content="Cancel" Width="84" Height="26" IsCancel="True"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

@@ -1,0 +1,781 @@
+<!-- title: The bundle.yaml reference -->
+<!-- eyebrow: Bundles -->
+<!-- lead: Every key the runtime reads, what it falls back to, and the exact rules of the very small parser that reads the file. -->
+
+<p>A bundle is a folder. <code>bundle.yaml</code> is the optional file inside it that names
+the button, describes it, picks its engine and binds its keys. Nothing in it is required:
+a bundle with no <code>bundle.yaml</code> at all still produces a working button, because
+every value has a fallback.</p>
+
+<pre data-lang="tree">
+Count.pushbutton\
+  script.py       # required: no script.py, no button
+  bundle.yaml     # optional: metadata only
+  icon.png        # optional
+</pre>
+
+<p>The file is read once, at discovery time. Change it and click <strong>Reload</strong> on
+the pyNavis panel; there is no need to restart Navisworks.</p>
+
+<h2>It is not YAML</h2>
+
+<p>This is the single most useful thing to know about the file. pyNavis does not use a YAML
+library. It uses a forty-line reader that walks the file one line at a time and produces a
+flat dictionary of strings. The name and the <code>.yaml</code> extension are a convention
+inherited from pyRevit, not a promise of YAML semantics.</p>
+
+<p>The whole algorithm, in order:</p>
+
+<ol>
+  <li>Split the text on <code>\n</code>. Trim a trailing <code>\r</code>, then trim
+    whitespace from both ends of the line.</li>
+  <li>Skip the line if it is now empty, or if it starts with <code>#</code>.</li>
+  <li>Find the <em>first</em> <code>:</code>. If there is none, or it is the first character,
+    skip the line.</li>
+  <li>The key is everything before that colon, trimmed and lowercased.</li>
+  <li>The value is everything after that colon, trimmed.</li>
+  <li>If the value is two characters or longer and starts and ends with the same quote
+    character, <code>&quot;</code> or <code>'</code>, remove exactly one character from each
+    end.</li>
+  <li>Store it. A key seen twice keeps the last value.</li>
+</ol>
+
+<p>That is all of it. There is no escape processing, no type coercion, no schema, and no
+error reporting. A file that cannot be read, or that does not exist, yields an empty
+dictionary and the bundle falls back on its defaults.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 292" width="700" role="img"
+     aria-label="Four example bundle.yaml lines on the left and the key and value each one produces on the right.">
+  <style>
+    .by-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .by-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .by-mono{ font: 13px Consolas, monospace; fill: var(--ink); }
+    .by-dim { font: 13px Consolas, monospace; fill: var(--muted); }
+    .by-key { font: 13px Consolas, monospace; fill: var(--ink); }
+    .by-sep { font: 13px Consolas, monospace; fill: var(--accent); font-weight: 700; }
+    .by-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+              text-transform: uppercase; letter-spacing: .07em; }
+    .by-hk  { fill: var(--accent); opacity: .14; }
+    .by-hv  { fill: var(--frame); opacity: .13; }
+    .by-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+    .by-ws  { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 2; }
+  </style>
+  <defs>
+    <marker id="by-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="by-lbl" x="5"   y="18">The line in the file</text>
+  <text class="by-lbl" x="340" y="18">What the parser stores</text>
+  <line x1="0" y1="28" x2="700" y2="28" stroke="var(--line)" stroke-width="1"/>
+
+  <!-- row 1: trailing comment -->
+  <rect class="by-hk" x="5"  y="42" width="42" height="19" rx="2"/>
+  <rect class="by-hv" x="55" y="42" width="99" height="19" rx="2"/>
+  <text class="by-key" x="8"  y="56">title</text>
+  <text class="by-sep" x="44" y="56">:</text>
+  <text class="by-mono" x="58" y="56">Export  # CSV</text>
+  <path class="by-arw" d="M250 51 H 320" marker-end="url(#by-a)"/>
+  <text class="by-dim" x="340" y="56">title</text>
+  <text class="by-mono" x="396" y="56">Export  # CSV</text>
+  <text class="by-m"   x="340" y="73">A trailing comment is part of the value.</text>
+
+  <!-- row 2: first colon wins -->
+  <rect class="by-hk" x="5"  y="92" width="56" height="19" rx="2"/>
+  <rect class="by-hv" x="69" y="92" width="92" height="19" rx="2"/>
+  <text class="by-key" x="8"  y="106">tooltip</text>
+  <text class="by-sep" x="58" y="106">:</text>
+  <text class="by-mono" x="72" y="106">Ratio is 3:1</text>
+  <path class="by-arw" d="M250 101 H 320" marker-end="url(#by-a)"/>
+  <text class="by-dim" x="340" y="106">tooltip</text>
+  <text class="by-mono" x="404" y="106">Ratio is 3:1</text>
+  <text class="by-m"   x="340" y="123">Only the first colon splits; later ones are text.</text>
+
+  <!-- row 3: indent + quotes -->
+  <rect class="by-ws" x="5"  y="142" width="28" height="19" rx="2"/>
+  <rect class="by-hk" x="35" y="142" width="49" height="19" rx="2"/>
+  <rect class="by-hv" x="95" y="142" width="70" height="19" rx="2"/>
+  <text class="by-key" x="38" y="156">engine</text>
+  <text class="by-sep" x="84" y="156">:</text>
+  <text class="by-mono" x="98" y="156">'cpython'</text>
+  <path class="by-arw" d="M250 151 H 320" marker-end="url(#by-a)"/>
+  <text class="by-dim" x="340" y="156">engine</text>
+  <text class="by-mono" x="396" y="156">cpython</text>
+  <text class="by-m"   x="340" y="173">Indentation is trimmed away; one quote layer is removed.</text>
+
+  <!-- row 4: full-line comment -->
+  <text class="by-dim" x="8" y="206"># engine: cpython</text>
+  <path class="by-arw" d="M250 201 H 320" marker-end="url(#by-a)"/>
+  <text class="by-m"  x="340" y="205">Nothing. A line starting with # is skipped whole.</text>
+
+  <line x1="0" y1="232" x2="700" y2="232" stroke="var(--line)" stroke-width="1"/>
+  <text class="by-m" x="5" y="252">Highlighted left to right: the key, lowercased; the first
+    colon, which is the only separator;</text>
+  <text class="by-m" x="5" y="270">and the value, trimmed. Everything the parser does happens
+    on one line, in that order.</text>
+</svg>
+</div>
+<figcaption>The parser has no concept of structure. It sees lines, a first colon, and two
+strings.</figcaption>
+</figure>
+
+<h2>Inputs that surprise people</h2>
+
+<p>Most of these are consequences of the rules above rather than special cases, but they are
+worth reading once so you recognise them when a value comes out wrong.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Line</th><th>Key</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>title: Export  # for CSV</code></td><td><code>title</code></td>
+    <td><code>Export  # for CSV</code></td>
+    <td>Trailing comments are not a thing. Only whole-line comments are.</td></tr>
+<tr><td><code>&nbsp;&nbsp;&nbsp;&nbsp;title: Export</code></td><td><code>title</code></td>
+    <td><code>Export</code></td>
+    <td>The line is trimmed first, so indentation carries no meaning. An indented line is a
+        top-level key.</td></tr>
+<tr><td><code>TITLE: Export</code></td><td><code>title</code></td><td><code>Export</code></td>
+    <td>Keys are lowercased. <code>Title:</code>, <code>TITLE:</code> and
+        <code>tItLe:</code> are the same key.</td></tr>
+<tr><td><code>tooltip: Ratio is 3:1</code></td><td><code>tooltip</code></td>
+    <td><code>Ratio is 3:1</code></td>
+    <td>The split is on the first colon, so colons in prose are safe.</td></tr>
+<tr><td><code>title: "Export"</code></td><td><code>title</code></td><td><code>Export</code></td>
+    <td>One matching layer of quotes is removed.</td></tr>
+<tr><td><code>title: ""Export""</code></td><td><code>title</code></td>
+    <td><code>"Export"</code></td>
+    <td>Exactly one layer, never two, and there is no escape syntax.</td></tr>
+<tr><td><code>tooltip: "A" or "B"</code></td><td><code>tooltip</code></td>
+    <td><code>A" or "B</code></td>
+    <td>The test is only that the first and last characters match. They do not have to be a
+        pair.</td></tr>
+<tr><td><code>title: "Export'</code></td><td><code>title</code></td>
+    <td><code>"Export'</code></td>
+    <td>Mismatched quotes are left alone and become part of the value.</td></tr>
+<tr><td><code>title Export</code></td><td>none</td><td>none</td>
+    <td>No colon, so the line is discarded silently.</td></tr>
+<tr><td><code>: Export</code></td><td>none</td><td>none</td>
+    <td>The colon is at index 0, which the parser treats as no key.</td></tr>
+<tr><td><code>title: A</code> then <code>title: B</code></td><td><code>title</code></td>
+    <td><code>B</code></td><td>Duplicate keys overwrite. The last one wins.</td></tr>
+<tr><td><code>title:</code></td><td><code>title</code></td><td>empty string</td>
+    <td>The key exists with an empty value, which is not the same as being absent.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note trap">
+<span class="note-t">An empty value still counts</span>
+<p><code>title:</code> with nothing after it gives you a button labelled with an empty string,
+not a button labelled from the folder name. Fallbacks only apply when the key is
+<em>missing</em>, not when it is present and blank. If you want the default back, delete the
+line.</p>
+</div>
+
+<h2>What the file cannot express</h2>
+
+<p>Because the parser only ever produces flat string pairs, none of the following work. They
+do not raise an error either; they parse into keys you will never read again.</p>
+
+<ul>
+  <li><strong>Nesting.</strong> An indented block is just more top-level keys, and the parent
+    line becomes a key with an empty value.</li>
+  <li><strong>Lists.</strong> A line of <code>- item</code> has no colon and is dropped.</li>
+  <li><strong>Multi-line values.</strong> There is no <code>|</code> or <code>&gt;</code>
+    handling. A tooltip is one line.</li>
+  <li><strong>Anchors, aliases, tags, documents.</strong> None of the YAML machinery
+    exists.</li>
+  <li><strong>Types.</strong> Every value is a string. There are no booleans, numbers or
+    nulls.</li>
+</ul>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="yaml"># Export the current selection
+title: Export points
+tooltip: Writes every selected item to a CSV file.
+engine: ironpython
+shortcut: Ctrl+Shift+E
+keytip: EP</pre></div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="yaml">title: Export points  # to CSV
+tooltip: >
+  Writes every selected
+  item to a CSV file.
+options:
+  - csv
+  - json</pre></div>
+</div>
+
+<p>In the second file the title keeps the comment, <code>tooltip</code> is literally
+<code>&gt;</code>, the two prose lines vanish for having no colon, <code>options</code> is an
+empty string, and the two list lines vanish as well. Nothing warns you.</p>
+
+<h2>The keys a pushbutton reads</h2>
+
+<p>Exactly eight, and nothing else in the file is looked at. The same eight apply to the three
+kinds that are parsed as pushbuttons: <code>*.nobutton</code>, <code>*.toggle</code> and
+<code>*.smartbutton</code>, wherever they sit, including inside a <code>*.slideout</code>.
+<code>context:</code> is the one key a nobutton reads to no effect, because greying needs a
+rendered control.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Falls back to</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>title</code></td>
+    <td><code>__title__</code> in the script, then the folder name with any
+        <code>NN_</code> prefix removed and underscores turned into spaces</td>
+    <td>The caption on the button. A literal <code>\n</code> breaks it onto a second line,
+        see below.</td></tr>
+<tr><td><code>tooltip</code></td>
+    <td>The script's module docstring, then nothing</td>
+    <td>The hover tooltip. The ribbon appends the resolved shortcut in brackets, so a bound
+        tool shows <code>Writes a CSV. (Ctrl+Shift+E)</code>.</td></tr>
+<tr><td><code>engine</code></td>
+    <td>The extension's <code>engine</code>, then <code>ironpython</code></td>
+    <td><code>ironpython</code> or <code>cpython</code>, matched case-insensitively.</td></tr>
+<tr><td><code>shortcut</code></td><td>nothing</td>
+    <td>The author's default chord, for example <code>Ctrl+Shift+E</code>. Users can rebind
+        or disable it. See <a href="shortcuts.html">Shortcuts and keytips</a>.</td></tr>
+<tr><td><code>keytip</code></td><td>generated from the title</td>
+    <td>The letters shown for Alt navigation of the ribbon, uppercased.</td></tr>
+<tr><td><code>context</code></td><td>nothing; absent means always enabled</td>
+    <td>Greys the button out unless a document condition holds. See below.</td></tr>
+<tr><td><code>min_host_version</code></td><td>nothing; absent means no floor</td>
+    <td>Oldest Navisworks release this button supports, as a year. See below.</td></tr>
+<tr><td><code>max_host_version</code></td><td>nothing; absent means no ceiling</td>
+    <td>Newest Navisworks release this button supports, as a year. See below.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note warn">
+<span class="note-t">A bad engine id fails at click time, not at load time</span>
+<p>Discovery does not validate the engine name. <code>engine: python3</code> builds a
+perfectly normal-looking button; clicking it raises
+<code>Unknown engine 'python3'.</code> into the output window and nothing runs. If a tool
+does nothing but open a window with that message, check this line first.</p>
+</div>
+
+<h2>context: enabling and disabling a button</h2>
+
+<p>Without a <code>context:</code> key a button is always enabled, exactly as before. With
+one, the runtime reads a small boolean expression and re-evaluates it against the live
+document on every hub event, flipping the button's enabled state to match. It never blocks a
+click by itself; it only decides whether the button can be clicked at all.</p>
+
+<p>Seven condition names, answered from one snapshot of the active document:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Condition</th><th>True when</th></tr></thead>
+<tbody>
+<tr><td><code>doc</code></td><td>A document is open with at least one model appended.</td></tr>
+<tr><td><code>selection</code></td><td>The current selection is not empty.</td></tr>
+<tr><td><code>clash-tests</code></td><td>Clash Detective has at least one test.</td></tr>
+<tr><td><code>clash-results</code></td><td>At least one clash test has at least one
+    result.</td></tr>
+<tr><td><code>viewpoints</code></td><td>The document has at least one saved viewpoint or
+    folder.</td></tr>
+<tr><td><code>selection-sets</code></td><td>The document has at least one saved selection
+    set.</td></tr>
+<tr><td><code>multi-model</code></td><td>More than one model is appended to the document.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Combine names with <code>&amp;</code> (and), <code>|</code> (or) and <code>!</code> (not).
+<code>!</code> binds tightest, then <code>&amp;</code>, then <code>|</code>, and both binary
+operators are left-associative. There is no way to write parentheses: <code>(</code> is not
+part of the vocabulary and produces <code>Unexpected character '(' in context rule</code>.
+Split the rule across two buttons, or simplify the condition, when a different grouping is
+genuinely needed. The word forms <code>and</code>, <code>or</code> and <code>not</code>, and
+the doubled <code>&amp;&amp;</code> and <code>||</code>, are not accepted either.</p>
+
+<pre data-lang="yaml">
+context: doc
+context: selection & clash-tests
+context: viewpoints | selection-sets
+context: selection & !multi-model
+</pre>
+
+<p>A condition name that does not match one of the seven above is legal syntax and evaluates
+to false forever, but discovery says so rather than staying silent:</p>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Bundle 'D:\NavisTools\...\Export.pushbutton': unknown context condition 'selction'.
+</pre>
+
+<p>A rule that fails to parse outright, for instance a stray leading operator, is also logged,
+and the button falls back to always enabled rather than never enabled:</p>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Bundle 'D:\NavisTools\...\Export.pushbutton': bad context rule - Unexpected '&' in context
+rule '& selection'. Button stays always enabled.
+</pre>
+
+<div class="note">
+<span class="note-t">One snapshot per event, not one per button</span>
+<p>The seven conditions are read into a set once per hub event, and every gated button on the
+ribbon is checked against that same set. Gating a hundred buttons costs one pass over the
+document, not a hundred.</p>
+</div>
+
+<h2>min_host_version and max_host_version: gating on the Navisworks release</h2>
+
+<p>Two keys, each a bare year. Either can be used alone, and neither is required.</p>
+
+<pre data-lang="yaml" data-file="Clash_Demo.pushbutton\bundle.yaml">
+title: New clash API demo
+min_host_version: 2024
+</pre>
+
+<p>A ceiling on its own, for a tool that drives something the host later removed:</p>
+
+<pre data-lang="yaml" data-file="Legacy_Report.pushbutton\bundle.yaml">
+title: Legacy clash report
+max_host_version: 2025
+</pre>
+
+<p>Or both, for a tool that only works inside one window of releases:</p>
+
+<pre data-lang="yaml" data-file="Bridge.pushbutton\bundle.yaml">
+title: Bridge export
+min_host_version: 2024
+max_host_version: 2026
+</pre>
+
+<p>An out-of-range button still renders exactly like any other: it is not greyed out and it
+is not hidden. The check happens on click, before the script runs, and shows a warning toast
+in place of running it:</p>
+
+<pre data-lang="text">
+Requires Navisworks 2024 or newer (this is 2023).
+Requires Navisworks 2026 or older (this is 2027).
+</pre>
+
+<div class="note trap">
+<span class="note-t">The block happens at click time, exactly like a bad engine id</span>
+<p>A version-gated button that can never run on the installed release still looks completely
+normal on the ribbon; there is no visual difference until someone clicks it. There is no
+context condition for "the running host year" either, so combine
+<code>min_host_version</code>/<code>max_host_version</code> with <code>context:</code> when
+you want both a greyed-out state and a version floor.</p>
+</div>
+
+<p>A value that is not a whole number is logged and ignored, leaving that side of the range
+open rather than failing the bundle. The test is a plain integer parse, so <code>2024</code>
+works and <code>2024.1</code>, <code>v2024</code> and <code>20.0</code> do not:</p>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Bundle 'D:\NavisTools\...\Export.pushbutton': min_host_version 'v2024' is not a year - ignored.
+</pre>
+
+<p>The host's own year is derived from the Navisworks API assembly version. On the rare
+install where that cannot be read, the gate is disabled entirely and every button runs,
+because refusing to run on a host you cannot identify is the worse failure. The gate also
+covers only the two runs that go through the script executor, a click or a chord: a
+<code>*.smartbutton</code>'s build-time run and a <code>*.dockpane</code>'s
+<code>script.py</code> are not version checked.</p>
+
+<h2>The keys a pulldown reads</h2>
+
+<p>A <code>*.pulldown</code> folder may carry its own <code>bundle.yaml</code> describing the
+menu button itself. It reads three keys: <code>title</code>, <code>tooltip</code> and
+<code>keytip</code>. <code>shortcut</code> and <code>engine</code> are ignored there, because
+a pulldown does not run anything; only the pushbuttons inside it do.</p>
+
+<p><code>*.splitbutton</code> and <code>*.splitpushbutton</code> are parsed exactly the same
+way and read the identical three keys. <a href="buttons.html">Buttons, stacks and
+pulldowns</a> covers what makes their header click different from a plain pulldown's.</p>
+
+<h2>The keys a urlbutton reads</h2>
+
+<p>A <code>*.urlbutton</code> has no <code>script.py</code>, so <code>engine</code> and
+<code>shortcut</code> are not read: there is no code for either of them to apply to. It reads
+four keys, one of them required.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Falls back to</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>url</code></td><td>nothing; required</td>
+    <td>The address opened on click. Missing or blank and the bundle is dropped.</td></tr>
+<tr><td><code>title</code></td><td>the folder name, prefix stripped</td>
+    <td>The button caption.</td></tr>
+<tr><td><code>tooltip</code></td><td>the <code>url</code> value itself</td>
+    <td>Hover tooltip. There is no docstring to fall back to.</td></tr>
+<tr><td><code>keytip</code></td><td>generated from the title</td>
+    <td>Alt-navigation letters.</td></tr>
+</tbody>
+</table>
+</div>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Urlbutton 'D:\NavisTools\...\Documentation.urlbutton' has no url: in bundle.yaml - skipped.
+</pre>
+
+<h2>The keys a linkbutton reads</h2>
+
+<p>A <code>*.linkbutton</code> also has no <code>script.py</code>. Its required key is
+<code>plugin</code>, the target add-in's id in <code>Id.DeveloperId</code> form, the same
+identity Navisworks itself uses to find a registered plugin.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Falls back to</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>plugin</code></td><td>nothing; required</td>
+    <td>The other add-in's plugin id. Missing or blank and the bundle is dropped.</td></tr>
+<tr><td><code>title</code></td><td>the folder name, prefix stripped</td>
+    <td>The button caption.</td></tr>
+<tr><td><code>tooltip</code></td><td>nothing</td>
+    <td>Hover tooltip. There is no docstring and no fallback.</td></tr>
+<tr><td><code>keytip</code></td><td>generated from the title</td>
+    <td>Alt-navigation letters.</td></tr>
+</tbody>
+</table>
+</div>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Linkbutton 'D:\NavisTools\...\Legacy_Tool.linkbutton' has no plugin: in bundle.yaml - skipped.
+</pre>
+
+<h2>The keys a dockpane reads</h2>
+
+<p>A <code>*.dockpane</code> renders as a ribbon toggle rather than a button that runs and
+returns, but its <code>bundle.yaml</code> is parsed by the same reader and reads five keys.
+There is no <code>width</code> or <code>height</code> key: a pane's size belongs to the slot it
+lands in, identical for all five compile-time slots, not to the bundle that borrows one.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Falls back to</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>title</code></td><td>the folder name, prefix stripped</td>
+    <td>The ribbon toggle's caption.</td></tr>
+<tr><td><code>tooltip</code></td><td>nothing</td>
+    <td>Hover tooltip. There is no docstring to fall back to.</td></tr>
+<tr><td><code>engine</code></td><td>the extension's <code>engine</code>, then
+    <code>ironpython</code></td>
+    <td>The engine <code>script.py</code> runs under, when the bundle has one.</td></tr>
+<tr><td><code>keytip</code></td><td>generated from the title</td>
+    <td>Alt-navigation letters. Assigned to the ribbon toggle exactly like any other
+        button's.</td></tr>
+<tr><td><code>shortcut</code></td><td>nothing</td>
+    <td>Parsed and stored, but not wired to anything: <code>ShortcutManager</code> dispatches
+        through <code>ScriptExecutor.Run</code>, which a dockpane click never goes through.
+        Treat this key as reserved, not as a working chord, in this release.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><code>pane.xaml</code> in the bundle folder is required; a folder without one is skipped
+(<code>Dockpane '&lt;dir&gt;' has no pane.xaml - skipped.</code>). <code>script.py</code> is
+optional, unlike a pushbutton where its absence is what makes the folder invisible.
+<a href="buttons.html#dockpane-a-real-navisworks-dock-panel">Buttons, stacks and pulldowns</a>
+covers what the toggle does and what <code>__pane__</code> exposes.</p>
+
+<h2>The keys an extension reads</h2>
+
+<p>An <code>*.extension</code> folder may carry <code>extension.yaml</code>, a different
+filename read by the same parser. It has two keys.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Falls back to</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>name</code></td><td>The folder name minus <code>.extension</code></td>
+    <td>Identifies the extension and feeds the generated tab ids.</td></tr>
+<tr><td><code>engine</code></td><td><code>ironpython</code></td>
+    <td>The default engine for every pushbutton in the extension. A bundle's own
+        <code>engine</code> still overrides it.</td></tr>
+</tbody>
+</table>
+</div>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 150" width="700" role="img"
+     aria-label="Engine resolution: the bundle's engine key wins, otherwise the extension's, otherwise ironpython.">
+  <style>
+    .be-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .be-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .be-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .be-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .be-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+              text-transform: uppercase; letter-spacing: .07em; }
+  </style>
+  <defs>
+    <marker id="be-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="be-lbl" x="0" y="16">Engine</text>
+
+  <rect class="be-box" x="0" y="32" width="200" height="52" rx="4"/>
+  <text class="be-mono" x="14" y="54">Count.pushbutton</text>
+  <text class="be-m"    x="14" y="72">bundle.yaml, engine:</text>
+
+  <path d="M206 58 H 254" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#be-a)"/>
+  <text class="be-m" x="210" y="50">if absent</text>
+
+  <rect class="be-box" x="260" y="32" width="200" height="52" rx="4"/>
+  <text class="be-mono" x="274" y="54">MyTools.extension</text>
+  <text class="be-m"    x="274" y="72">extension.yaml, engine:</text>
+
+  <path d="M466 58 H 514" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#be-a)"/>
+  <text class="be-m" x="470" y="50">if absent</text>
+
+  <rect class="be-box" x="520" y="32" width="176" height="52" rx="4"/>
+  <text class="be-mono" x="534" y="54">ironpython</text>
+  <text class="be-m"    x="534" y="72">the built-in default</text>
+
+  <text class="be-m" x="0" y="118">Set the extension default once when a whole extension needs
+    CPython, and override</text>
+  <text class="be-m" x="0" y="136">a single bundle when only one tool does.</text>
+</svg>
+</div>
+<figcaption>The same two-step fallback applies to every pushbutton in the extension.</figcaption>
+</figure>
+
+<h2>Folders that read nothing</h2>
+
+<p>Four folder kinds have no configuration file at all, and putting one there is a common
+way to lose an afternoon.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Folder</th><th>Config file</th><th>Title comes from</th></tr></thead>
+<tbody>
+<tr><td><code>*.tab</code></td><td>None</td><td>The folder name</td></tr>
+<tr><td><code>*.panel</code></td><td>None</td><td>The folder name</td></tr>
+<tr><td><code>*.stack</code></td><td>None</td><td>Nothing: a stack has no visible label</td></tr>
+<tr><td><code>*.slideout</code></td><td>None</td>
+    <td>Nothing: the flyout is labelled by the panel</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note trap">
+<span class="note-t">bundle.yaml inside a .stack or a .slideout is read by nothing</span>
+<p>Stacks are parsed by walking straight to the <code>*.pushbutton</code> folders inside them,
+and a slideout is parsed by walking straight to the panel items inside it. Neither folder's own
+<code>bundle.yaml</code> is ever opened, and neither is looked at for an icon. If you want a
+title on a stacked row, put it in the pushbutton's <code>bundle.yaml</code>, one level down.
+There is also no <code>panel.yaml</code> or <code>tab.yaml</code>; rename the folder
+instead.</p>
+</div>
+
+<h2>How title and tooltip actually resolve</h2>
+
+<p>Metadata resolves most specific first: <strong>bundle.yaml, then the script, then the
+folder name</strong>. The two chains are not the same length, which matters.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 244" width="700" role="img"
+     aria-label="Title resolves through bundle.yaml, then __title__, then the folder name. Tooltip resolves through bundle.yaml, then the docstring, then nothing.">
+  <style>
+    .bp-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .bp-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .bp-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .bp-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .bp-out { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 3; }
+    .bp-lbl { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink);
+              font-weight: 600; }
+    .bp-acc { fill: var(--accent); }
+  </style>
+  <defs>
+    <marker id="bp-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <!-- title lane -->
+  <rect class="bp-acc" x="0" y="34" width="2.5" height="48"/>
+  <text class="bp-lbl" x="12" y="52">Title</text>
+  <text class="bp-m"   x="12" y="70">always ends</text>
+  <text class="bp-m"   x="12" y="84">with a value</text>
+
+  <rect class="bp-box" x="100" y="30" width="164" height="52" rx="4"/>
+  <text class="bp-mono" x="114" y="52">bundle.yaml</text>
+  <text class="bp-m"    x="114" y="70">title:</text>
+
+  <path d="M270 56 H 306" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#bp-a)"/>
+  <text class="bp-m" x="272" y="48">then</text>
+
+  <rect class="bp-box" x="312" y="30" width="176" height="52" rx="4"/>
+  <text class="bp-mono" x="326" y="52">script.py</text>
+  <text class="bp-m"    x="326" y="70">__title__ = '...'</text>
+
+  <path d="M494 56 H 530" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#bp-a)"/>
+  <text class="bp-m" x="496" y="48">then</text>
+
+  <rect class="bp-box" x="536" y="30" width="160" height="52" rx="4"/>
+  <text class="bp-mono" x="550" y="52">folder name</text>
+  <text class="bp-m"    x="550" y="70">01_Count &#8594; Count</text>
+
+  <line x1="0" y1="112" x2="700" y2="112" stroke="var(--line)" stroke-width="1"/>
+
+  <!-- tooltip lane -->
+  <rect class="bp-acc" x="0" y="136" width="2.5" height="48"/>
+  <text class="bp-lbl" x="12" y="154">Tooltip</text>
+  <text class="bp-m"   x="12" y="172">may end with</text>
+  <text class="bp-m"   x="12" y="186">nothing at all</text>
+
+  <rect class="bp-box" x="100" y="132" width="164" height="52" rx="4"/>
+  <text class="bp-mono" x="114" y="154">bundle.yaml</text>
+  <text class="bp-m"    x="114" y="172">tooltip:</text>
+
+  <path d="M270 158 H 306" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#bp-a)"/>
+  <text class="bp-m" x="272" y="150">then</text>
+
+  <rect class="bp-box" x="312" y="132" width="176" height="52" rx="4"/>
+  <text class="bp-mono" x="326" y="154">script.py</text>
+  <text class="bp-m"    x="326" y="172">module docstring</text>
+
+  <path d="M494 158 H 530" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#bp-a)"/>
+  <text class="bp-m" x="496" y="150">then</text>
+
+  <rect class="bp-out" x="536" y="132" width="160" height="52" rx="4"/>
+  <text class="bp-m" x="550" y="154">no tooltip</text>
+  <text class="bp-m" x="550" y="172">the button has none</text>
+
+  <text class="bp-m" x="0" y="220">The shortcut is appended to whatever tooltip survives, so a
+    bound tool with no tooltip still shows its chord.</text>
+</svg>
+</div>
+<figcaption>Title has three sources and cannot fail. Tooltip has two, and a bundle with
+neither simply has no tooltip.</figcaption>
+</figure>
+
+<h3>Breaking a long caption onto two lines</h3>
+
+<p>A large button is as wide as its caption, so four long names can eat half the ribbon. A
+literal <code>\n</code> in the title breaks it:</p>
+
+<pre data-lang="yaml" data-bare="true">title: Export\nViewpoints</pre>
+
+<p>The break applies to the <strong>large vertical caption only</strong>: on the ribbon the
+button reads <code>Export</code> over <code>Viewpoints</code>, while everywhere the name
+appears as text, it stays one line with the break as a single space. That includes the log,
+toasts, the output window title, the generated keytip letters, the Shortcuts editor and
+<code>__title__</code> inside the script. Spaces around the break are optional, so
+<code>Export \n Viewpoints</code> gives the same two lines.</p>
+
+<p>A stacked or menu row draws its caption beside the icon rather than under it, so those
+never wrap: the same bundle used in a <code>.stack</code> shows the one-line form. Use one
+break, not several; the ribbon gives a large button room for two lines.</p>
+
+<h2>How the script is scanned</h2>
+
+<p>When <code>bundle.yaml</code> does not supply a title or tooltip, the runtime reads
+<code>script.py</code> as text and looks for two things with a regular expression and a small
+hand-written scan. It is not a Python parser, and the difference shows.</p>
+
+<h3>__title__</h3>
+
+<p>The pattern is an assignment to <code>__title__</code> that <strong>starts at column
+zero</strong>, using a single or double quoted string. That is the entire grammar.</p>
+
+<pre data-lang="python" data-file="works">
+__title__ = 'Export points'
+__title__="Export points"
+__title__  =  'Export points'     # the trailing comment is fine here
+</pre>
+
+<pre data-lang="python" data-file="silently does not work">
+    __title__ = 'Export points'   # indented: the pattern is anchored to column zero
+__title__ = """Export points"""   # triple quotes are not matched
+__title__ = 'Export ' + 'points'  # only the first literal is taken: "Export "
+__title__ = f'Export {kind}'      # the f is not a quote, so no match at all
+__title__ = TITLES['export']      # no quote after the equals sign
+</pre>
+
+<p>Nothing reports these. The button falls back to the folder name and looks like it ignored
+your script.</p>
+
+<h3>The docstring</h3>
+
+<p>The scan skips blank lines and lines starting with <code>#</code>, then requires the next
+content to open with <code>&quot;&quot;&quot;</code> or <code>'''</code>. It takes everything up
+to the next occurrence of the same delimiter and trims it. If the first real statement is
+anything else, there is no docstring, and the search stops there: a triple-quoted string
+further down the file is never found.</p>
+
+<pre data-lang="python" data-file="works">
+# Licence header comments are skipped.
+
+"""Exports the current selection to CSV."""
+from pynavis import selection
+</pre>
+
+<pre data-lang="python" data-file="silently does not work">
+from pynavis import selection
+
+"""Exports the current selection to CSV."""
+</pre>
+
+<div class="note tip">
+<span class="note-t">Use the docstring, and reach for bundle.yaml when you need more</span>
+<p>A one-line docstring is the cheapest possible tooltip and keeps the description next to the
+code it describes. Move to <code>tooltip:</code> when the tooltip and the docstring want to
+say different things, or when the docstring is long enough to make an unwieldy tooltip: the
+tooltip is a single line either way, so long text just gets awkward.</p>
+</div>
+
+<h2>Keys that do nothing</h2>
+
+<p>Every key in the file is parsed, but only the ones listed above are ever read. Anything
+else sits in a dictionary that nobody queries. This matters most if you are arriving from
+pyRevit, because several familiar keys have no equivalent here.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Status in pyNavis</th></tr></thead>
+<tbody>
+<tr><td><code>author</code></td><td>Not read anywhere. There is no author display.</td></tr>
+<tr><td><code>min_navis</code>, <code>max_navis</code>, <code>version</code></td>
+    <td>Not read. The real keys are <code>min_host_version</code> and
+        <code>max_host_version</code>, both a bare year; see above.</td></tr>
+<tr><td><code>highlight</code>, <code>beta</code></td><td>Not read. There are no badges.</td></tr>
+<tr><td><code>layout</code>, <code>collapsed</code>, <code>panel background</code></td>
+    <td>Not read. Panel layout comes from folder names and ordering only.</td></tr>
+<tr><td><code>modules</code></td>
+    <td>Not read. The search path is the bundle folder plus the extension's
+        <code>lib\</code>.</td></tr>
+<tr><td><code>help_url</code>, <code>hyperlink</code></td>
+    <td>Not read. Link to your docs from a toast or the output window instead.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>None of these produce a warning, in the log or anywhere else. If a key is not in the
+tables on this page, assume it does nothing.</p>
+
+<h2>A complete example</h2>
+
+<pre data-lang="yaml" data-file="Survey.tab\Export.panel\01_Points.pushbutton\bundle.yaml">
+# Points exporter. Comments have to live on their own line.
+title: Export points
+tooltip: Writes every selected item to a CSV file, one row per item.
+engine: ironpython
+shortcut: Ctrl+Shift+E
+keytip: EP
+</pre>
+
+<div class="cards">
+  <a href="anatomy.html"><span class="c-t">Anatomy of an extension</span>
+    <span class="c-d">Folder suffixes, ordering prefixes, stacks and pulldowns.</span></a>
+  <a href="shortcuts.html"><span class="c-t">Shortcuts and keytips</span>
+    <span class="c-d">Valid chords, user overrides, and when a chord will not fire.</span></a>
+  <a href="click-actions.html"><span class="c-t">Click actions and config.py</span>
+    <span class="c-d">What Shift and Alt do, and how the secondary script runs.</span></a>
+</div>

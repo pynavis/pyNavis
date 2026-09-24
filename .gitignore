@@ -1,0 +1,18 @@
+# Build outputs
+bin/
+obj/
+*.user
+
+# Autodesk reference DLLs are not redistributable (refs/README.md); keep only the README
+refs/*
+!refs/README.md
+
+# Python
+__pycache__/
+*.pyc
+
+# Excel temp
+~$*
+
+# Release packaging output (tools/package.ps1)
+dist/

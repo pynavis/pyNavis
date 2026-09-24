@@ -1,0 +1,299 @@
+<!-- title: Your first button -->
+<!-- eyebrow: Start -->
+<!-- lead: Build a working Navisworks tool from an empty folder in about five minutes, then extend it with an icon, a tooltip, a keyboard shortcut and a settings dialog. -->
+
+<p>This page builds one real tool end to end. Every later page goes deeper on one part of
+what happens here, so it is worth typing along rather than skimming.</p>
+
+<p>The tool counts what is selected in the model and reports it. Small, but it exercises the
+whole path: discovery, metadata, the injected globals, the <code>pynavis</code> library and
+the toast surface.</p>
+
+<h2>Before you start</h2>
+
+<p>You need Navisworks with pyNavis installed, and a folder that pyNavis scans for
+extensions. Check which folders those are: open
+<code>%APPDATA%\pyNavis\config.json</code> and look at the <code>"extensions"</code> array.</p>
+
+<pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
+{
+  "extensions": [
+    "D:\\NavisTools"
+  ]
+}
+</pre>
+
+<p>If the file does not exist or has no <code>"extensions"</code> key, pyNavis is reading from
+its default root, <code>%APPDATA%\pyNavis\extensions</code>, where the shipped extension sits.
+You can either put your extension there or create the config file above. A folder you own is
+easier to work in, so this guide assumes <code>D:\NavisTools</code>.</p>
+
+<div class="note tip">
+<span class="note-t">Shortcut</span>
+<p>The command line does this for you:
+<code>pynavis extensions add D:\NavisTools</code>. Run
+<code>pynavis extensions list</code> to confirm what is registered.</p>
+</div>
+
+<h2>Step 1: create the folders</h2>
+
+<p>Four nested folders, and the suffixes are what matter. The names before the suffixes are
+yours to choose and become the labels you see.</p>
+
+<pre data-lang="tree" data-file="D:\NavisTools">
+D:\NavisTools\
+  MyTools.extension\
+    MyTools.tab\
+      Selection.panel\
+        Count.pushbutton\
+          script.py
+</pre>
+
+<p>Create them in Explorer or in one line:</p>
+
+<pre data-lang="powershell">
+New-Item -ItemType Directory -Force `
+  D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\Count.pushbutton
+</pre>
+
+<div class="note warn">
+<span class="note-t">Watch the suffixes</span>
+<p><code>.extension</code>, <code>.tab</code>, <code>.panel</code> and
+<code>.pushbutton</code> are matched literally, though case does not matter. A folder named
+<code>Count.pushButton</code> works. <code>Count.pushbuttons</code> or
+<code>Count.button</code> builds nothing; because it sits inside a panel, the runtime does at
+least say so, in the log and in a toast. A misspelled <code>.extension</code>,
+<code>.tab</code> or <code>.panel</code> is the genuinely silent one.</p>
+</div>
+
+<h2>Step 2: write the script</h2>
+
+<p>Create <code>script.py</code> inside <code>Count.pushbutton</code>:</p>
+
+<pre data-lang="python" data-file="Count.pushbutton\script.py">
+"""Counts the items in the current selection."""
+from pynavis import selection, toast
+
+items = selection.get_items()
+
+if items:
+    toast.success('%d item(s) selected' % len(items))
+else:
+    toast.info('Nothing selected', 'Pick something in the model and run this again.')
+</pre>
+
+<p>Three things are already happening that you did not configure:</p>
+
+<ul>
+  <li>The <strong>button label</strong> is <em>Count</em>, taken from the folder name.</li>
+  <li>The <strong>tooltip</strong> is <em>Counts the items in the current selection.</em>,
+    taken from the module docstring on the first line.</li>
+  <li>The script runs on <strong>IronPython</strong>, the default engine.</li>
+</ul>
+
+<h2>Step 3: load it</h2>
+
+<p>Start Navisworks, or if it is already open, click <strong>Reload</strong> on the pyNavis
+panel. A new <strong>MyTools</strong> tab appears with a <strong>Selection</strong> panel and
+a <strong>Count</strong> button on it.</p>
+
+<p>Select a few objects and click the button. A toast appears in the corner of the
+Navisworks window with the count.</p>
+
+<div class="note trap">
+<span class="note-t">Nothing appeared</span>
+<p>Watch for a warning toast reading <em>N bundle folders were skipped</em>: pyNavis shows one
+after every scan that had to drop something, and quotes the first problem in full. The rest
+are in <code>%APPDATA%\pyNavis\logs\pyNavis.log</code>. The most common causes are a typo in a
+bundle suffix, a missing <code>script.py</code>, or an extension root that is not in
+<code>config.json</code>. The last of those is the one that produces no toast and no log line
+at all, because the scan never reaches the folder.
+<a href="troubleshooting.html">Troubleshooting</a> lists every failure mode with its log
+line.</p>
+</div>
+
+<h2>Step 4: add metadata</h2>
+
+<p>The folder name is a poor title once you want spaces and punctuation, and the docstring
+is a poor tooltip once you want more than a sentence. Add a <code>bundle.yaml</code> beside
+the script:</p>
+
+<pre data-lang="yaml" data-file="Count.pushbutton\bundle.yaml">
+title: Count selection
+tooltip: Reports how many objects are currently selected.
+shortcut: Ctrl+Shift+K
+</pre>
+
+<p>Click Reload. The button is now labelled <em>Count selection</em>, the tooltip reads
+better, and pressing <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> anywhere in the Navisworks
+main window runs it without touching the ribbon.</p>
+
+<p>Metadata resolves in a fixed order, most specific first:</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 118" width="700" role="img"
+     aria-label="Title resolution order: bundle.yaml, then the script, then the folder name.">
+  <style>
+    .qs-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .qs-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .qs-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .qs-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+  </style>
+  <defs>
+    <marker id="qs-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <rect class="qs-box" x="0" y="24" width="180" height="52" rx="4"/>
+  <text class="qs-mono" x="14" y="46">bundle.yaml</text>
+  <text class="qs-m"    x="14" y="64">title: / tooltip:</text>
+
+  <path d="M186 50 H 236" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#qs-a)"/>
+  <text class="qs-m" x="192" y="42">if absent</text>
+
+  <rect class="qs-box" x="242" y="24" width="190" height="52" rx="4"/>
+  <text class="qs-mono" x="256" y="46">script.py</text>
+  <text class="qs-m"    x="256" y="64">__title__ / docstring</text>
+
+  <path d="M438 50 H 488" stroke="var(--frame)" stroke-width="1.25" marker-end="url(#qs-a)"/>
+  <text class="qs-m" x="444" y="42">if absent</text>
+
+  <rect class="qs-box" x="494" y="24" width="196" height="52" rx="4"/>
+  <text class="qs-mono" x="508" y="46">Count.pushbutton</text>
+  <text class="qs-m"    x="508" y="64">folder name, prefix stripped</text>
+
+  <text class="qs-m" x="0" y="104">Tooltips have no third fallback: without a yaml tooltip or a
+    docstring, the button simply has none.</text>
+</svg>
+</div>
+</figure>
+
+<h2>Step 5: add an icon</h2>
+
+<p>Without an icon the button renders as text only. Drop a 96&times;96 PNG named
+<code>icon.png</code> into the bundle folder and Reload.</p>
+
+<pre data-lang="tree">
+Count.pushbutton\
+  script.py
+  bundle.yaml
+  icon.png            # 96x96, large buttons
+  icon.dark.png       # 96x96, dark theme
+  icon.small.png      # 32x32, stacks and pulldown menus
+  icon.small.dark.png # 32x32, dark theme
+</pre>
+
+<p>Only <code>icon.png</code> is required; the other three fall back to it. Supplying all
+four is what makes a tool look native in both themes and at both sizes.
+<a href="icons.html">Icons</a> covers the drawing rules and the generator that produces the
+shipped set.</p>
+
+<h2>Step 6: add a settings dialog</h2>
+
+<p>A bundle can ship a second script called <code>config.py</code>. Shift-clicking the
+button runs it instead of <code>script.py</code>, which is where a tool's options live.</p>
+
+<pre data-lang="python" data-file="Count.pushbutton\config.py">
+"""Options for Count selection."""
+from pynavis import forms, settings, toast
+
+TOOL = 'count_selection'
+DEFAULTS = {'warn_above': 1000}
+
+values = settings.load(TOOL, DEFAULTS)
+answer = forms.ask_string(
+    'Warn when the selection is larger than:',
+    default=str(values['warn_above']),
+    title='Count selection',
+)
+
+if answer is not None:                      # None means cancelled: change nothing
+    try:
+        values['warn_above'] = int(answer)
+    except ValueError:
+        toast.error('That is not a whole number')
+    else:
+        settings.save(TOOL, values)
+        toast.success('Saved', 'Warning above %d items.' % values['warn_above'])
+</pre>
+
+<p>Now read it back in the main script:</p>
+
+<pre data-lang="python" data-file="Count.pushbutton\script.py">
+"""Counts the items in the current selection."""
+from pynavis import selection, settings, toast
+
+TOOL = 'count_selection'
+DEFAULTS = {'warn_above': 1000}
+
+values = settings.load(TOOL, DEFAULTS)
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick something in the model and run this again.')
+elif len(items) > values['warn_above']:
+    toast.warning('%d item(s) selected' % len(items), 'That is a large selection.')
+else:
+    toast.success('%d item(s) selected' % len(items))
+</pre>
+
+<p><code>settings.load</code> never raises. A missing, empty or corrupt settings file yields
+a fresh copy of your defaults, and keys you have since removed from <code>DEFAULTS</code> are
+dropped rather than leaking back in.</p>
+
+<h2>The three click actions</h2>
+
+<p>Your bundle now responds to all three, and you only wrote code for two of them:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Action</th><th>Runs</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Click</td><td><code>script.py</code></td><td>The primary action.</td></tr>
+<tr><td><kbd>Shift</kbd>+Click</td><td><code>config.py</code></td>
+    <td>Same engine, same globals. Without a <code>config.py</code>, an informational
+        toast says the action is not defined.</td></tr>
+<tr><td><kbd>Alt</kbd>+Click</td><td>Nothing</td>
+    <td>Opens the bundle folder in Explorer with <code>script.py</code> selected. Built in,
+        and the fastest way back to your own code.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note">
+<span class="note-t">Keyboard shortcuts always run the primary script</span>
+<p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> runs <code>script.py</code>, not
+<code>config.py</code>, even though the chord contains Shift. Modifier click actions and
+keyboard chords are separate mechanisms.</p>
+</div>
+
+<h2>What you have built</h2>
+
+<pre data-lang="tree">
+D:\NavisTools\
+  MyTools.extension\
+    MyTools.tab\
+      Selection.panel\
+        Count.pushbutton\
+          script.py            # the primary action
+          config.py            # Shift+Click, the settings dialog
+          bundle.yaml          # title, tooltip, shortcut
+          icon.png             # 96x96
+</pre>
+
+<p>That is a complete pyNavis tool. Everything else in these docs is a richer way to present
+it on the ribbon, a script that runs itself when something happens in the model, or a larger
+slice of the Navisworks API to point it at.</p>
+
+<div class="cards">
+  <a href="anatomy.html"><span class="c-t">Anatomy of an extension</span>
+    <span class="c-d">Ordering, stacks, pulldowns, and how discovery really works.</span></a>
+  <a href="buttons.html"><span class="c-t">Buttons, stacks and pulldowns</span>
+    <span class="c-d">The other eleven bundle kinds, from toggles to dock panels.</span></a>
+  <a href="user-interface.html"><span class="c-t">Talking to the user</span>
+    <span class="c-d">Toasts, dialogs, progress and the HTML output window.</span></a>
+  <a href="cookbook.html"><span class="c-t">Cookbook</span>
+    <span class="c-d">Working recipes for the jobs tools usually need to do.</span></a>
+</div>

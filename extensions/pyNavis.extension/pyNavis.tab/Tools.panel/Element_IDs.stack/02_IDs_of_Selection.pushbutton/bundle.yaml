@@ -1,0 +1,3 @@
+title: IDs of Selection
+tooltip: Copy the Revit element IDs of the current selection to the clipboard, ready to paste into Select by IDs or back into Revit. Shift+Click for settings.
+context: selection

@@ -1,0 +1,3 @@
+title: Old Only
+tooltip: Declares max_host_version 2024. On this machine (2026) clicking must warn "Requires Navisworks 2024 or older" and do nothing else.
+max_host_version: 2024

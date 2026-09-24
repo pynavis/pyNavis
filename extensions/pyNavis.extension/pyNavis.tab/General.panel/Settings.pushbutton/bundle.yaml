@@ -1,0 +1,2 @@
+title: Settings
+tooltip: Theme, ribbon hints, where extensions load from, and the engine paths. Everything pyNavis keeps in config.json that you are meant to change.

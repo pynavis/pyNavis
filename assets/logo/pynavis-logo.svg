@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1483 512" width="1483" height="512">
+  <title>pyNavis</title>
+  <rect width="512" height="512" rx="112" fill="#1F2329"/>
+  <polygon points="74.7,100.5 142.6,100.5 152.1,112.7 152.1,397.9 84.2,445.4 74.7,433.2" fill="#0F5C4E"/>
+  <polygon points="74.7,100.5 163.0,100.5 172.5,112.7 383.0,384.3 315.1,404.7 305.6,392.5" fill="#0F5C4E"/>
+  <polygon points="305.6,161.6 373.5,141.2 383.0,153.5 383.0,384.3 315.1,404.7 305.6,392.5" fill="#0F5C4E"/>
+  <polygon points="305.6,107.3 353.1,66.6 427.8,93.7 437.3,105.9 383.0,153.5 315.1,173.8 305.6,161.6" fill="#0F5C4E"/>
+  <polygon points="74.7,100.5 142.6,100.5 142.6,385.7 74.7,433.2" fill="#1FA38A"/>
+  <polygon points="142.6,186.1 142.6,229.5 110.0,144.6" fill="#0F5C4E"/>
+  <polygon points="74.7,100.5 163.0,100.5 373.5,372.1 305.6,392.5" fill="#178571"/>
+  <polygon points="305.6,392.5 289.6,372.1 305.6,304.2" fill="#0F5C4E"/>
+  <polygon points="305.6,392.5 305.6,161.6 373.5,141.2 373.5,372.1" fill="#1FA38A"/>
+  <polygon points="305.6,161.6 305.6,107.3 353.1,66.6 427.8,93.7 373.5,141.2" fill="#1FA38A"/>
+  <polygon points="305.6,161.6 373.5,141.2 346.3,168.4" fill="#0F5C4E"/>
+  <polygon points="353.1,100.5 387.0,90.3 376.9,103.9" fill="#1F2E4A"/>
+  <text x="568" y="345" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="250"><tspan font-weight="400" fill="#3D4451">py</tspan><tspan font-weight="600" fill="#178571">Navis</tspan></text>
+</svg>

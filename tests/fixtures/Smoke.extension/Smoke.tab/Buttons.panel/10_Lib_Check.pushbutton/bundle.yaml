@@ -1,0 +1,2 @@
+title: Lib Check
+tooltip: Imports smoke_libcheck from the sibling Smoke.lib folder and toasts its greeting. Needs a Navisworks restart after Smoke.lib first appears.

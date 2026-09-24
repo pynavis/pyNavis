@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The LOADER. The only assembly deployed into <Navisworks>\Plugins\PyNavis\.
+    Must stay tiny and reference ONLY the Navisworks API + framework assemblies;
+    everything else resolves at runtime via AssemblyResolver.
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>PyNavis</AssemblyName>
+    <RootNamespace>PyNavis</RootNamespace>
+    <OutputType>Library</OutputType>
+    <OutputPath>$(PyNavisBinRoot)</OutputPath>
+    <ReferencesNavisApi>true</ReferencesNavisApi>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Compile-time only: Private=false + ExcludeAssets keep the runtime and its
+         dependencies out of the Plugins folder; at runtime AssemblyResolver finds
+         PyNavis.Runtime.dll in the pyNavis runtime dir. -->
+    <ProjectReference Include="..\PyNavis.Runtime\PyNavis.Runtime.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime;native;contentFiles</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PyNavis.Tests" />
+  </ItemGroup>
+
+</Project>

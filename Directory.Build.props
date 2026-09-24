@@ -1,0 +1,107 @@
+<Project>
+
+  <!--
+    pyNavis multi-version build machinery.
+    Select the target Navisworks release with:  dotnet build -p:NavisVersion=2024
+    (defaults to 2026). NavisApiDir resolution order:
+      1. explicit -p:NavisApiDir=...
+      2. env var NAVIS_API_DIR_<year>
+      3. registry HKLM\SOFTWARE\Autodesk\Navisworks Manage\<regver>\Location : Path
+      4. checked-in reference DLLs at refs\<year>\   (not redistributable - keep private)
+      5. default install paths on C: and D:
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NavisVersion Condition="'$(NavisVersion)' == ''">2026</NavisVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Navisworks' internal version is simply year - 2003 (2023 -> 20.0 ... 2027 -> 24.0). -->
+    <NavisRegVersion>$([MSBuild]::Subtract($(NavisVersion), 2003)).0</NavisRegVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NavisApiDir Condition="'$(NavisApiDir)' == ''">$([System.Environment]::GetEnvironmentVariable('NAVIS_API_DIR_$(NavisVersion)'))</NavisApiDir>
+    <NavisApiDir Condition="'$(NavisApiDir)' == ''">$([MSBuild]::GetRegistryValueFromView('HKEY_LOCAL_MACHINE\SOFTWARE\Autodesk\Navisworks Manage\$(NavisRegVersion)\Location', 'Path', null, RegistryView.Registry64))</NavisApiDir>
+    <NavisApiDir Condition="'$(NavisApiDir)' == '' AND Exists('$(MSBuildThisFileDirectory)refs\$(NavisVersion)')">$(MSBuildThisFileDirectory)refs\$(NavisVersion)</NavisApiDir>
+    <NavisApiDir Condition="'$(NavisApiDir)' == '' AND Exists('C:\Program Files\Autodesk\Navisworks Manage $(NavisVersion)')">C:\Program Files\Autodesk\Navisworks Manage $(NavisVersion)</NavisApiDir>
+    <NavisApiDir Condition="'$(NavisApiDir)' == '' AND Exists('D:\Program Files\Autodesk\Navisworks Manage $(NavisVersion)')">D:\Program Files\Autodesk\Navisworks Manage $(NavisVersion)</NavisApiDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      AdWindows.dll (ribbon injection) ships only with full Navisworks installs - API
+      reference drops for other years usually lack it. Resolution order:
+        1. explicit -p:AdWindowsDir=...
+        2. next to the resolved Navisworks API
+        3. refs\<year>\
+        4. any full install, newest first (cross-version compile ref; safe because the
+           loader resolves AdWindows to the host's own loaded copy at runtime)
+    -->
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('$(NavisApiDir)\AdWindows.dll')">$(NavisApiDir)</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('$(MSBuildThisFileDirectory)refs\$(NavisVersion)\AdWindows.dll')">$(MSBuildThisFileDirectory)refs\$(NavisVersion)</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('C:\Program Files\Autodesk\Navisworks Manage 2027\AdWindows.dll')">C:\Program Files\Autodesk\Navisworks Manage 2027</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('D:\Program Files\Autodesk\Navisworks Manage 2027\AdWindows.dll')">D:\Program Files\Autodesk\Navisworks Manage 2027</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('C:\Program Files\Autodesk\Navisworks Manage 2026\AdWindows.dll')">C:\Program Files\Autodesk\Navisworks Manage 2026</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('D:\Program Files\Autodesk\Navisworks Manage 2026\AdWindows.dll')">D:\Program Files\Autodesk\Navisworks Manage 2026</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('C:\Program Files\Autodesk\Navisworks Manage 2025\AdWindows.dll')">C:\Program Files\Autodesk\Navisworks Manage 2025</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('D:\Program Files\Autodesk\Navisworks Manage 2025\AdWindows.dll')">D:\Program Files\Autodesk\Navisworks Manage 2025</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('C:\Program Files\Autodesk\Navisworks Manage 2024\AdWindows.dll')">C:\Program Files\Autodesk\Navisworks Manage 2024</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('D:\Program Files\Autodesk\Navisworks Manage 2024\AdWindows.dll')">D:\Program Files\Autodesk\Navisworks Manage 2024</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('C:\Program Files\Autodesk\Navisworks Manage 2023\AdWindows.dll')">C:\Program Files\Autodesk\Navisworks Manage 2023</AdWindowsDir>
+    <AdWindowsDir Condition="'$(AdWindowsDir)' == '' AND Exists('D:\Program Files\Autodesk\Navisworks Manage 2023\AdWindows.dll')">D:\Program Files\Autodesk\Navisworks Manage 2023</AdWindowsDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PyNavisBinRoot>$(MSBuildThisFileDirectory)bin\$(NavisVersion)\</PyNavisBinRoot>
+  </PropertyGroup>
+
+  <!--
+    API surface that only newer releases have. NAVIS_PICK_SNAPS: View.PickItemFromPoint
+    takes a PickPrimitives mask and PickItemResult carries Normal and ResultBits (2025+).
+    Older releases pick the surface point only, with no snap and no normal.
+  -->
+  <PropertyGroup Condition="$([System.Int32]::Parse('$(NavisVersion)')) &gt;= 2025">
+    <DefineConstants>$(DefineConstants);NAVIS_PICK_SNAPS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="PyNavis.NavisVersion" Value="$(NavisVersion)" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Projects opt in with <ReferencesNavisApi>true</ReferencesNavisApi>. -->
+  <ItemGroup Condition="'$(ReferencesNavisApi)' == 'true'">
+    <Reference Include="Autodesk.Navisworks.Api">
+      <HintPath>$(NavisApiDir)\Autodesk.Navisworks.Api.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Projects opt in with <ReferencesAdWindows>true</ReferencesAdWindows>. -->
+  <ItemGroup Condition="'$(ReferencesAdWindows)' == 'true'">
+    <Reference Include="AdWindows">
+      <HintPath>$(AdWindowsDir)\AdWindows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="EnsureNavisApiDir" BeforeTargets="ResolveAssemblyReferences" Condition="'$(ReferencesNavisApi)' == 'true'">
+    <Error Condition="'$(NavisApiDir)' == '' OR !Exists('$(NavisApiDir)\Autodesk.Navisworks.Api.dll')"
+           Text="Could not locate Autodesk.Navisworks.Api.dll for Navisworks $(NavisVersion). Set NAVIS_API_DIR_$(NavisVersion) or place reference DLLs in refs\$(NavisVersion)\. (Resolved NavisApiDir: '$(NavisApiDir)')" />
+  </Target>
+
+  <Target Name="EnsureAdWindowsDir" BeforeTargets="ResolveAssemblyReferences" Condition="'$(ReferencesAdWindows)' == 'true'">
+    <Error Condition="'$(AdWindowsDir)' == '' OR !Exists('$(AdWindowsDir)\AdWindows.dll')"
+           Text="Could not locate AdWindows.dll for the Navisworks $(NavisVersion) build. Place it next to Autodesk.Navisworks.Api.dll, in refs\$(NavisVersion)\, or install any Navisworks release (the newest install's copy is picked up automatically). (Resolved AdWindowsDir: '$(AdWindowsDir)')" />
+    <Warning Condition="'$(AdWindowsDir)' != '' AND '$(AdWindowsDir)' != '$(NavisApiDir)' AND '$(AdWindowsDir)' != '$(MSBuildThisFileDirectory)refs\$(NavisVersion)'"
+             Text="Navisworks $(NavisVersion) build is compiling against AdWindows.dll from '$(AdWindowsDir)' (cross-version reference; at runtime the loader binds to the host's own AdWindows)." />
+  </Target>
+
+</Project>

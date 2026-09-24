@@ -1,0 +1,593 @@
+<!-- title: Icons -->
+<!-- eyebrow: Bundles -->
+<!-- lead: Four PNGs per bundle, why they are the sizes they are, and the drawing language behind the shipped set. -->
+
+<p>A bundle with no icon renders as a text-only button. It works, but it looks like a
+placeholder next to the native Navisworks ribbon, and on a stack row or in a pulldown menu it
+is nearly unreadable. Icons are the cheapest thing you can do to make a tool look like it
+belongs.</p>
+
+<p>Icons are plain PNG files sitting beside <code>script.py</code>. There is no manifest entry
+and no reference in <code>bundle.yaml</code>: the runtime looks for four fixed file names in
+the bundle folder and uses what it finds.</p>
+
+<h2>The four files</h2>
+
+<p>Both <code>.pushbutton</code> and <code>.pulldown</code> folders carry icons. A
+<code>.stack</code> folder never does, because a stack has no button of its own; each of its
+children supplies its own art.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>File</th><th>Slot</th><th>Size</th></tr></thead>
+<tbody>
+<tr><td><code>icon.png</code></td>
+    <td>Large button, light theme</td><td>96&times;96</td></tr>
+<tr><td><code>icon.dark.png</code></td>
+    <td>Large button, dark theme</td><td>96&times;96</td></tr>
+<tr><td><code>icon.small.png</code></td>
+    <td>Stack rows and pulldown menu rows, light theme</td><td>32&times;32</td></tr>
+<tr><td><code>icon.small.dark.png</code></td>
+    <td>Stack rows and pulldown menu rows, dark theme</td><td>32&times;32</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The theme is chosen once when the ribbon is built, so a bundle only ever shows two of its
+four files in a given session. Clicking <strong>Reload</strong> re-reads the host theme and
+rebuilds, which is how a tool follows you when you switch Navisworks between light and
+dark.</p>
+
+<div class="note">
+<span class="note-t">Two kinds also read a pressed/on state</span>
+<p>A <code>*.toggle</code> reads <code>icon.on.png</code>/<code>icon.on.dark.png</code> and
+<code>icon.off.png</code>/<code>icon.off.dark.png</code> in place of the plain
+<code>icon.png</code> pair; see <a href="buttons.html#toggle-a-button-with-on-off-state">toggle: a
+button with on/off state</a>. A <code>*.dockpane</code> keeps the ordinary four above for its
+closed state and additionally reads <code>icon.on.png</code>/<code>icon.on.dark.png</code>,
+shown on its ribbon toggle while the panel is open; see
+<a href="buttons.html#dockpane-a-real-navisworks-dock-panel">dockpane: a real Navisworks dock
+panel</a>. Neither file is required - a dockpane with no on-art just never visibly
+presses.</p>
+</div>
+
+<h2>The fallback chain</h2>
+
+<p>Only <code>icon.png</code> is genuinely required. The other three fall back to it, and
+this is the exact code that decides:</p>
+
+<pre data-lang="text">
+var large = Find("icon.png");
+return (large,
+        Find("icon.dark.png")       ?? large,
+        Find("icon.small.png")      ?? large,
+        Find("icon.small.dark.png") ?? large);
+</pre>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 254" width="700" role="img"
+     aria-label="Three icon variants each fall back directly to icon.png; nothing chains between variants.">
+  <style>
+    .ic1-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ic1-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ic1-mono{ font: 12px Consolas, monospace; fill: var(--ink); }
+    .ic1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ic1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .ic1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="ic1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="ic1-lbl" x="24"  y="12">The one required file</text>
+  <text class="ic1-lbl" x="392" y="12">The three optional variants</text>
+
+  <rect class="ic1-box" x="24" y="74" width="196" height="68" rx="4"/>
+  <text class="ic1-mono" x="40" y="104">icon.png</text>
+  <text class="ic1-m"    x="40" y="124">96&#215;96, always read</text>
+
+  <rect class="ic1-box" x="392" y="18" width="272" height="52" rx="4"/>
+  <text class="ic1-mono" x="408" y="40">icon.dark.png</text>
+  <text class="ic1-m"    x="408" y="58">large button, dark theme</text>
+
+  <rect class="ic1-box" x="392" y="84" width="272" height="52" rx="4"/>
+  <text class="ic1-mono" x="408" y="106">icon.small.png</text>
+  <text class="ic1-m"    x="408" y="124">stack and menu rows</text>
+
+  <rect class="ic1-box" x="392" y="150" width="272" height="52" rx="4"/>
+  <text class="ic1-mono" x="408" y="172">icon.small.dark.png</text>
+  <text class="ic1-m"    x="408" y="190">stack and menu rows, dark</text>
+
+  <path class="ic1-arw" d="M386 44 H 300 V 92 H 228"  marker-end="url(#ic1-a)"/>
+  <path class="ic1-arw" d="M386 110 H 228"            marker-end="url(#ic1-a)"/>
+  <path class="ic1-arw" d="M386 176 H 300 V 128 H 228" marker-end="url(#ic1-a)"/>
+
+  <text class="ic1-m" x="256" y="66">if missing</text>
+  <text class="ic1-m" x="256" y="150">if missing</text>
+
+  <text class="ic1-m" x="24" y="230">Every arrow points at icon.png. A missing dark variant
+    does not borrow the small one,</text>
+  <text class="ic1-m" x="24" y="246">and a missing small dark variant does not borrow
+    icon.small.png.</text>
+</svg>
+</div>
+<figcaption>The fallback is a star, not a chain. Each variant is resolved independently
+against <code>icon.png</code> and nothing else.</figcaption>
+</figure>
+
+<div class="note warn">
+<span class="note-t">There is no chaining between variants</span>
+<p>If you ship <code>icon.png</code> and <code>icon.small.png</code> only, the dark theme uses
+your light 96&times;96 art in <em>both</em> slots: <code>icon.dark.png</code> falls back to
+<code>icon.png</code>, and so does <code>icon.small.dark.png</code>. Your carefully simplified
+small drawing is not used in dark mode at all. Ship all four, or ship exactly one.</p>
+</div>
+
+<div class="note trap">
+<span class="note-t">No icon.png means no icon at all</span>
+<p>If <code>icon.png</code> is absent, all four paths are null even when the other three files
+exist on disk. The runtime sets <code>ShowImage = false</code> and the button renders as text.
+A bundle holding only <code>icon.dark.png</code> is a bundle with no icon.</p>
+</div>
+
+<h2>Why 96 and 32</h2>
+
+<p>The sizes are not arbitrary and they are not a style choice. AdWindows, the ribbon
+framework Navisworks uses, draws <code>Image</code> and <code>LargeImage</code> at their
+<strong>natural WPF size</strong> and never scales them to fit the slot. A 96&times;96 PNG
+stamped at the usual 96 DPI is 96 logical pixels wide, so before this was handled a large
+button showed the top-left corner of the art clipped into its 32-pixel slot, and a pulldown
+menu row showed an enormous image.</p>
+
+<p>The runtime fixes this on load by re-stamping the DPI so the bitmap's <em>logical</em> size
+matches the slot while its pixel data is untouched:</p>
+
+<pre data-lang="text">
+var dpi = 96.0 * image.PixelWidth / logicalSize;
+</pre>
+
+<p>Large buttons load with <code>logicalSize = 32</code>, small rows and menu lists with
+<code>logicalSize = 16</code>. A 96-pixel image asked to occupy 32 logical pixels is stamped
+at 288 DPI, so it lays out as 32 units wide but still hands the compositor three times the
+pixel data. That is what keeps the art crisp at 150% and 200% display scaling instead of
+being flattened to 32 real pixels.</p>
+
+<p>Each slot is loaded independently from the best available path:</p>
+
+<pre data-lang="text">
+largePath = large ?? small;      LargeImage = Load(largePath, 32)
+smallPath = small ?? large;      Image      = Load(smallPath, 16)
+</pre>
+
+<p>Pulldowns additionally set <code>ListImageSize = RibbonImageSize.Standard</code> so their
+menu rows draw the 16-unit slot, which is why the small art matters most inside a
+pulldown.</p>
+
+<div class="note">
+<span class="note-t">Ship square art</span>
+<p>Non-square or odd-sized PNGs load without error, but the scale factor is
+<code>pixelWidth / logicalSize</code>, computed from the width alone. A 96&times;64 image
+therefore lays out 32 units wide and 21 units tall, and a 64&times;64 image is simply smaller
+than everything beside it. PNG is the contract; other formats are untested and unused.</p>
+</div>
+
+<p>A file that cannot be decoded logs <code>Could not load icon '&lt;path&gt;'</code> and
+yields null for that slot, so a corrupt <code>icon.png</code> looks exactly like a missing
+one.</p>
+
+<h2>The drawing language</h2>
+
+<p>The shipped icons follow one rule, and it is worth adopting even if you draw your own set
+by hand:</p>
+
+<p><strong>Neutral ink draws the thing. A solid accent mark draws the action.</strong> Colour
+therefore always means the same thing: it is the verb. A user scanning the panel reads the
+grey shape to find <em>what</em> a tool operates on, and the blue mark to find <em>what it
+does to it</em>.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 262" width="700" role="img"
+     aria-label="The Memorize glyph on a 0 to 96 grid, with the ink tray and the accent arrow labelled.">
+  <style>
+    .ic2-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ic2-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ic2-mono{ font: 11px Consolas, monospace; fill: var(--muted); }
+    .ic2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ic2-grid{ stroke: var(--line); stroke-width: 1; }
+    .ic2-edge{ stroke: var(--line-strong); stroke-width: 1; fill: none; }
+    .ic2-ink { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .ic2-acc { stroke: var(--accent); fill: none; stroke-linecap: round; }
+    .ic2-lead{ stroke: var(--frame); stroke-width: 1; fill: none; }
+  </style>
+
+  <text class="ic2-lbl" x="40" y="16">Memorize, shown at 2x</text>
+
+  <g class="ic2-grid">
+    <path d="M64 30 V222 M112 30 V222 M160 30 V222 M208 30 V222"/>
+    <path d="M40 54 H232 M40 102 H232 M40 150 H232 M40 198 H232"/>
+  </g>
+  <rect class="ic2-edge" x="40" y="30" width="192" height="192"/>
+  <text class="ic2-mono" x="40" y="240">0,0</text>
+  <text class="ic2-mono" x="196" y="240">96,96</text>
+
+  <path class="ic2-ink" stroke-width="16" d="M68 134 V202 H204 V104"/>
+  <path class="ic2-ink" stroke-width="12" d="M100 178 H172"/>
+  <path class="ic2-acc" stroke-width="18" d="M136 50 V83"/>
+  <path fill="var(--accent)" d="M115.6 83.4 H156.4 L136 114 z"/>
+
+  <path class="ic2-lead" d="M232 190 H 268"/>
+  <text class="ic2-t" x="276" y="186">Ink shape: the noun</text>
+  <text class="ic2-m" x="276" y="204">The open tray is the memory register. It is shared by
+    eight</text>
+  <text class="ic2-m" x="276" y="220">Memory glyphs, so the family reads as one family.</text>
+
+  <path class="ic2-lead" d="M156 70 H 268"/>
+  <text class="ic2-t" x="276" y="66">Accent mark: the verb</text>
+  <text class="ic2-m" x="276" y="84">An arrow pointing into the tray means store. Reverse it
+    and</text>
+  <text class="ic2-m" x="276" y="100">the same drawing means recall.</text>
+
+  <text class="ic2-t" x="276" y="132">One weight, rounded caps</text>
+  <text class="ic2-m" x="276" y="150">Everything is drawn in a 0..96 space at 4x and
+    downsampled,</text>
+  <text class="ic2-m" x="276" y="166">so edges stay clean without hinting.</text>
+</svg>
+</div>
+<figcaption>The same ink shape plus a different accent mark is a different tool. That is the
+whole system, and it is why a panel of twenty icons stays legible.</figcaption>
+</figure>
+
+<p>Cohesion comes from reusing marks rather than from a common outline. Two families carry
+the shipped set: the open tray, which is the memory register and appears in eight Memory
+glyphs, and the spark, which always means a collision.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 172" width="700" role="img"
+     aria-label="Six shared drawing marks: tray, spark, plus, dots, tilted box and eye.">
+  <style>
+    .ic3-n   { font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .ic3-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ic3-ink { stroke: var(--ink); fill: none; stroke-width: 8;
+               stroke-linecap: round; stroke-linejoin: round; }
+    .ic3-acc { stroke: var(--accent); fill: none; stroke-width: 8; stroke-linecap: round; }
+    .ic3-cell{ fill: none; stroke: var(--line); stroke-width: 1; }
+  </style>
+
+  <rect class="ic3-cell" x="12"  y="20" width="96" height="96" rx="3"/>
+  <rect class="ic3-cell" x="128" y="20" width="96" height="96" rx="3"/>
+  <rect class="ic3-cell" x="244" y="20" width="96" height="96" rx="3"/>
+  <rect class="ic3-cell" x="360" y="20" width="96" height="96" rx="3"/>
+  <rect class="ic3-cell" x="476" y="20" width="96" height="96" rx="3"/>
+  <rect class="ic3-cell" x="592" y="20" width="96" height="96" rx="3"/>
+
+  <path class="ic3-ink" d="M26 72 V106 H94 V72"/>
+
+  <g class="ic3-acc">
+    <path d="M176 42 V94"/>
+    <path d="M153.4 55 L198.6 81"/>
+    <path d="M153.4 81 L198.6 55"/>
+  </g>
+
+  <g class="ic3-acc">
+    <path d="M272 68 H312"/>
+    <path d="M292 48 V88"/>
+  </g>
+
+  <g fill="var(--ink)">
+    <circle cx="382" cy="68" r="7"/>
+    <circle cx="408" cy="68" r="7"/>
+    <circle cx="434" cy="68" r="7"/>
+  </g>
+
+  <path class="ic3-ink" d="M501.5 36.4 L561.6 58.3 L546.6 99.6 L486.4 77.7 z"/>
+  <path class="ic3-acc" stroke-width="6" d="M516.2 31.1 L553.7 44.8"/>
+
+  <g class="ic3-ink">
+    <path d="M604.3 56.4 A 38 34 0 0 1 675.7 56.4"/>
+    <path d="M675.7 79.6 A 38 34 0 0 1 604.3 79.6"/>
+  </g>
+  <circle cx="640" cy="68" r="9" fill="var(--ink)"/>
+
+  <text class="ic3-n" x="60"  y="136" text-anchor="middle">tray</text>
+  <text class="ic3-n" x="176" y="136" text-anchor="middle">spark</text>
+  <text class="ic3-n" x="292" y="136" text-anchor="middle">plus</text>
+  <text class="ic3-n" x="408" y="136" text-anchor="middle">dots</text>
+  <text class="ic3-n" x="524" y="136" text-anchor="middle">tilted_box</text>
+  <text class="ic3-n" x="640" y="136" text-anchor="middle">eye</text>
+
+  <text class="ic3-m" x="60"  y="156" text-anchor="middle">memory register</text>
+  <text class="ic3-m" x="176" y="156" text-anchor="middle">a collision</text>
+  <text class="ic3-m" x="292" y="156" text-anchor="middle">add to</text>
+  <text class="ic3-m" x="408" y="156" text-anchor="middle">a list</text>
+  <text class="ic3-m" x="524" y="156" text-anchor="middle">fitted section</text>
+  <text class="ic3-m" x="640" y="156" text-anchor="middle">inspect</text>
+</svg>
+</div>
+<figcaption>The shared marks, drawn at their real proportions. Ink marks name a thing, accent
+marks name an action, and the same mark always means the same thing.</figcaption>
+</figure>
+
+<h2>The palette</h2>
+
+<p>Four colours per theme, and no gradients, shadows or outlines. Ink is a desaturated
+blue-grey rather than black so it sits at the same visual weight as the native Navisworks
+glyphs.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 226" width="700" role="img" data-literal-colors="true"
+     aria-label="The light and dark icon palettes: ink, accent, alert and paper for each theme.">
+  <style>
+    .ic4-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ic4-n   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ic4-h   { font: 11.5px Consolas, monospace; fill: var(--muted); }
+    .ic4-hd  { font: 11.5px Consolas, monospace; fill: #A0A0A0; }
+    .ic4-nd  { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: #E8E8E8; }
+    .ic4-sw  { stroke: var(--line-strong); stroke-width: 1; }
+  </style>
+
+  <text class="ic4-lbl" x="16" y="14">Light theme</text>
+  <rect class="ic4-sw" x="16"  y="24" width="64" height="44" rx="3" fill="#3D4451"/>
+  <rect class="ic4-sw" x="176" y="24" width="64" height="44" rx="3" fill="#0078D4"/>
+  <rect class="ic4-sw" x="336" y="24" width="64" height="44" rx="3" fill="#C42B1C"/>
+  <rect class="ic4-sw" x="496" y="24" width="64" height="44" rx="3" fill="#FFFFFF"/>
+  <text class="ic4-n" x="90"  y="44">ink</text>
+  <text class="ic4-h" x="90"  y="60">#3D4451</text>
+  <text class="ic4-n" x="250" y="44">accent</text>
+  <text class="ic4-h" x="250" y="60">#0078D4</text>
+  <text class="ic4-n" x="410" y="44">alert</text>
+  <text class="ic4-h" x="410" y="60">#C42B1C</text>
+  <text class="ic4-n" x="570" y="44">paper</text>
+  <text class="ic4-h" x="570" y="60">#FFFFFF</text>
+
+  <rect x="0" y="90" width="700" height="94" rx="4" fill="#202020"/>
+  <text class="ic4-lbl" x="16" y="110" fill="#A0A0A0">Dark theme</text>
+  <rect class="ic4-sw" x="16"  y="120" width="64" height="44" rx="3" fill="#E8E8E8"/>
+  <rect class="ic4-sw" x="176" y="120" width="64" height="44" rx="3" fill="#4CC2FF"/>
+  <rect class="ic4-sw" x="336" y="120" width="64" height="44" rx="3" fill="#FF5F52"/>
+  <rect class="ic4-sw" x="496" y="120" width="64" height="44" rx="3" fill="#202020"/>
+  <text class="ic4-nd" x="90"  y="140">ink</text>
+  <text class="ic4-hd" x="90"  y="156">#E8E8E8</text>
+  <text class="ic4-nd" x="250" y="140">accent</text>
+  <text class="ic4-hd" x="250" y="156">#4CC2FF</text>
+  <text class="ic4-nd" x="410" y="140">alert</text>
+  <text class="ic4-hd" x="410" y="156">#FF5F52</text>
+  <text class="ic4-nd" x="570" y="140">paper</text>
+  <text class="ic4-hd" x="570" y="156">#202020</text>
+
+  <text class="ic4-h" x="16" y="208" fill="var(--muted)">Paper is never painted into the file.
+    Icons are transparent; paper is what they are drawn to sit on.</text>
+</svg>
+</div>
+<figcaption>Alert red is the exception, not a third brand colour. It appears exactly once in
+the entire shipped set.</figcaption>
+</figure>
+
+<div class="note warn">
+<span class="note-t">One red icon, and only one</span>
+<p>Alert red is used on <strong>Purge</strong> and nowhere else, because Purge is the only
+destructive tool in the set. The generator says it plainly: <em>alert red appears exactly ONCE
+in the whole set, on Purge, because it is the only destructive tool. Do not add a second.</em>
+Red means "this deletes something you cannot get back". Spend it once and it keeps
+working.</p>
+</div>
+
+<h2>Small icons are separate drawings</h2>
+
+<p>The 32-pixel files are not resized copies of the 96-pixel ones. They are drawn by a
+different branch of the same function, with fewer elements and a heavier relative stroke, and
+then rendered down. The generator carries two weights:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Constant</th><th>Value</th><th>Relative stroke</th><th>Used for</th></tr></thead>
+<tbody>
+<tr><td><code>WEIGHT_LARGE</code></td><td>8</td><td>8 of 96, about 8%</td>
+    <td>The 96&times;96 files</td></tr>
+<tr><td><code>WEIGHT_SMALL</code></td><td>14</td><td>14 of 96, about 15%</td>
+    <td>The 32&times;32 files</td></tr>
+</tbody>
+</table>
+</div>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 234" width="700" role="img"
+     aria-label="The Memorize glyph at 96 pixels, at 32 pixels actual size, and the 32 pixel drawing enlarged.">
+  <style>
+    .ic5-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ic5-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ic5-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .ic5-cell{ fill: none; stroke: var(--line); stroke-width: 1; }
+    .ic5-ink { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .ic5-acc { stroke: var(--accent); fill: none; stroke-linecap: round; }
+  </style>
+
+  <text class="ic5-lbl" x="40"  y="30">icon.png</text>
+  <text class="ic5-lbl" x="210" y="30">icon.small.png</text>
+  <text class="ic5-lbl" x="300" y="30">the same small art, enlarged</text>
+
+  <rect class="ic5-cell" x="40"  y="56"  width="96" height="96" rx="3"/>
+  <rect class="ic5-cell" x="210" y="120" width="32" height="32" rx="2"/>
+  <rect class="ic5-cell" x="300" y="56"  width="96" height="96" rx="3"/>
+
+  <path class="ic5-ink" stroke-width="8" d="M54 108 V142 H122 V108"/>
+  <path class="ic5-ink" stroke-width="6" d="M70 130 H106"/>
+  <path class="ic5-acc" stroke-width="9" d="M88 66 V82.7"/>
+  <path fill="var(--accent)" d="M77.8 82.7 H98.2 L88 98 z"/>
+
+  <path class="ic5-ink" stroke-width="4.67" d="M212.7 138 V149.3 H239.3 V138"/>
+  <path class="ic5-acc" stroke-width="5" d="M226 122 V127.5"/>
+  <path fill="var(--accent)" d="M221.2 127.5 H230.8 L226 134.7 z"/>
+
+  <path class="ic5-ink" stroke-width="14" d="M308 110 V144 H388 V110"/>
+  <path class="ic5-acc" stroke-width="15" d="M348 62 V78.4"/>
+  <path fill="var(--accent)" d="M333.6 78.4 H362.4 L348 100 z"/>
+
+  <text class="ic5-mono" x="40"  y="172">96 x 96, stroke 8</text>
+  <text class="ic5-m"    x="40"  y="190">The tray has a shelf line,</text>
+  <text class="ic5-m"    x="40"  y="206">the arrow has a slim shaft.</text>
+
+  <text class="ic5-mono" x="300" y="172">32 x 32, stroke 14</text>
+  <text class="ic5-m"    x="300" y="190">The shelf line is gone, the tray is</text>
+  <text class="ic5-m"    x="300" y="206">wider, the arrow head is fatter.</text>
+
+  <text class="ic5-m" x="474" y="190">Downscaling the left drawing would</text>
+  <text class="ic5-m" x="474" y="206">leave a 2.7 pixel stroke and a shelf</text>
+  <text class="ic5-m" x="474" y="222">line one pixel from the tray floor.</text>
+</svg>
+</div>
+<figcaption>Left and centre are drawn at true relative scale. At 32 pixels a detail either
+survives at three pixels or it becomes grey mush, so it is removed rather than shrunk.</figcaption>
+</figure>
+
+<p>The practical rules for a small variant: drop anything under about a fifth of the canvas,
+thicken every stroke, push the shape closer to the edges, and keep exactly one accent mark.
+If you cannot say what the tool does with two shapes, the small icon is not the place to
+try.</p>
+
+<h2>The generator</h2>
+
+<p>Every icon in the shipped pyNavis extension is produced by <code>tools/make_icons.py</code>,
+a dev-time CPython script that needs Pillow. It never ships into Navisworks and is never
+loaded by an engine, so it is free to use modern syntax.</p>
+
+<pre data-lang="powershell">
+python tools/make_icons.py                    # regenerate every bundle's icon files
+python tools/make_icons.py --sheet out.png    # regenerate, and write a contact sheet
+python tools/make_icons.py --sheet-only --sheet out.png   # only the sheet, touch no bundle
+</pre>
+
+<p>The contact sheet renders the whole set against light and dark plates at both densities,
+which is how you review a change without opening Navisworks.</p>
+
+<div class="note warn">
+<span class="note-t">Never hand-edit an icon</span>
+<p>The rule is in the module docstring and it is not negotiable: <em>Never hand-edit an icon.
+Change the drawing here and re-run.</em> A retouched PNG is silently reverted by the next
+person who runs the generator, and the retouch is invisible in the diff that matters.</p>
+</div>
+
+<p>A glyph is one function taking a drawing context. The <code>c.small</code> flag selects the
+simplified branch, so both densities live side by side and cannot drift apart:</p>
+
+<pre data-lang="python" data-file="tools/make_icons.py">
+def ic_memorize(c):
+    if c.small:
+        small_tray(c)
+        c.arrow_v(48, 6, 44, color=c.t['accent'], w=15, head=24)
+    else:
+        tray(c)
+        c.line([(30, 74), (66, 74)], w=6)
+        c.arrow_v(48, 10, 42, color=c.t['accent'], w=9, head=17)
+</pre>
+
+<p>The context works in the 0..96 space regardless of the output size, and supplies the
+primitives:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Helper</th><th>What it draws</th></tr></thead>
+<tbody>
+<tr><td><code>Ctx</code></td>
+    <td>The canvas itself, in 0..96 coordinates, with <code>line</code>, <code>circle</code>,
+        <code>disc</code>, <code>rrect</code>, <code>poly</code> and <code>arrow_v</code>.</td></tr>
+<tr><td><code>tray</code>, <code>small_tray</code></td>
+    <td>The open-top memory register, so "into" and "out of" both read.</td></tr>
+<tr><td><code>spark</code></td>
+    <td>The three-armed collision mark, always in accent.</td></tr>
+<tr><td><code>dots</code></td>
+    <td>Three ink discs: a list or a set of items.</td></tr>
+<tr><td><code>plus</code></td>
+    <td>An accent cross: add.</td></tr>
+<tr><td><code>tilted_box</code></td>
+    <td>A section box square to the objects rather than to the world; the tilt is the tool.</td></tr>
+<tr><td><code>edge_mark</code></td>
+    <td>A short accent line standing just outside one edge of a tilted box: the plane that
+        edge represents.</td></tr>
+<tr><td><code>eye</code></td>
+    <td>Two arcs meeting at the corners, pupil left free for whatever the tool inspects.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Bundles are registered in the <code>ICONS</code> dictionary, keyed by the bundle path
+relative to <code>extensions\pyNavis.extension\pyNavis.tab</code>:</p>
+
+<pre data-lang="python" data-file="tools/make_icons.py">
+ICONS = {
+    'Tools.panel/Smart_Clash_Grouper.pushbutton': ic_grouper,
+    'Memory.panel/01_Memorize.pushbutton': ic_memorize,
+    'Memory.panel/03_Set.stack/01_Add.pushbutton': ic_add,
+    'Memory.panel/05_Memory.pulldown': ic_memory_menu,
+}
+</pre>
+
+<p>Two smaller tables carry the stateful art. A <code>*.toggle</code> registers in
+<code>TOGGLES</code> with an (off drawing, on drawing) pair and gets
+<code>icon.off(.dark).png</code> and <code>icon.on(.dark).png</code> at 96 instead of a plain
+<code>icon.png</code>, plus small files rendered from the off state. A <code>*.dockpane</code>
+keeps its ordinary <code>ICONS</code>-style entry, drawn as the closed state, and adds one
+entry in <code>DOCKPANE_ON</code> for the on art: <code>icon.on(.dark).png</code> at 96 only,
+because a dockpane button never renders at the small size.</p>
+
+<div class="note trap">
+<span class="note-t">Create the folder first</span>
+<p><code>write_all()</code> hard-fails with a <code>SystemExit</code> listing every registered
+bundle whose folder does not exist, and writes nothing at all. Add the bundle folder before
+you add the <code>ICONS</code> entry, or the whole run aborts.</p>
+</div>
+
+<h2>If you are not using the generator</h2>
+
+<p>You do not have to. The generator is how the shipped set is made, not a requirement of the
+runtime. Any 96&times;96 and 32&times;32 PNGs with the four fixed names work, whatever produced
+them: Figma, Illustrator, Inkscape, an icon font export, or a screenshot if you insist.</p>
+
+<p>What is worth borrowing is the visual language, because your extension sits on the same
+ribbon as the shipped one:</p>
+
+<ul>
+  <li><strong>Transparent background.</strong> Never bake in white or grey; the ribbon
+    background changes with the theme.</li>
+  <li><strong>One accent colour, used for the verb.</strong> Two accents in one glyph and the
+    eye has nothing to land on.</li>
+  <li><strong>Match the ink weight.</strong> Roughly 8% of the canvas at 96, roughly 15% at 32.
+    A hairline icon beside the shipped set reads as broken rather than as delicate.</li>
+  <li><strong>Draw the small size separately.</strong> Export at 32 from a simplified artboard,
+    not from the 96 one.</li>
+  <li><strong>Check both themes.</strong> A dark grey glyph is invisible on a dark ribbon.
+    Swapping ink to a near-white is usually the whole dark variant.</li>
+</ul>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li><code>icon.png</code> exists and is 96&times;96. Without it there is no icon at all.</li>
+  <li>All four files present, or exactly one. Partial sets fall back in ways you did not
+    intend.</li>
+  <li>Square, transparent PNG.</li>
+  <li>The small pair is a simplified drawing, not a resize.</li>
+  <li>The dark pair is checked against a dark ribbon, not against a white page.</li>
+  <li>Accent colour marks the action, and red is reserved for destruction.</li>
+  <li><strong>Reload</strong> after adding or changing a file; icons are read at ribbon build
+    time.</li>
+</ul>
+
+<div class="cards">
+  <a href="buttons.html"><span class="c-t">Buttons, stacks and pulldowns</span>
+    <span class="c-d">Which slot each icon lands in, and how the three shapes render.</span></a>
+  <a href="shortcuts.html"><span class="c-t">Shortcuts and keytips</span>
+    <span class="c-d">Chord grammar, user overrides, and Alt navigation.</span></a>
+  <a href="style-guide.html"><span class="c-t">Style guide</span>
+    <span class="c-d">Titles, tooltips and toasts that match the shipped tools.</span></a>
+</div>

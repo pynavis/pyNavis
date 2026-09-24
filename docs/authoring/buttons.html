@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buttons, stacks and pulldowns - pyNavis authoring</title>
+<meta name="description" content="The three things a panel holds most often, what each one costs you in space, and nine narrower kinds for when a plain button is not quite the shape you need.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<a href="tools.html"><span class="num">03</span>Bundled tools</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
+<a href="buttons.html" class="active"><span class="num">05</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">07</span>Icons</a>
+<a href="shortcuts.html"><span class="num">08</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">09</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">11</span>The script environment</a>
+<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
+<a href="settings.html"><span class="num">13</span>Settings and per-tool state</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 0.4.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Bundles</p>
+  <h1>Buttons, stacks and pulldowns</h1>
+  <p class="lead">The three things a panel holds most often, what each one costs you in space, and nine narrower kinds for when a plain button is not quite the shape you need.</p>
+  <p>A panel has room for a handful of large buttons before it starts pushing other panels off
+the ribbon. Stacks and pulldowns exist to buy that space back: a stack trades icon size for
+three tools in one column, a pulldown trades one click for an unlimited menu.</p>
+
+<p>Pushbuttons, stacks and pulldowns are folders under a <code>*.panel</code> and the three
+you will use for almost everything. A panel also understands nine narrower suffixes:
+<code>*.nobutton</code> for a keyboard-only command, <code>*.urlbutton</code> and
+<code>*.linkbutton</code> for pointing at something outside your own script, <code>*.toggle</code>
+for on/off state, <code>*.smartbutton</code> for a button that configures its own appearance,
+<code>*.splitbutton</code>/<code>*.splitpushbutton</code> for a pulldown whose header also
+runs a child, <code>*.dockpane</code> for a real Navisworks dock panel instead of a script
+that runs and returns, and <code>*.slideout</code> for the tools that belong in the panel's
+flyout rather than on its face. <a href="#more-button-kinds">More button kinds</a> covers all
+nine; a folder inside a panel whose name has a dot but is not one of these twelve suffixes is
+logged as a typo and counted into the <em>N bundle folders were skipped</em> toast pyNavis
+shows after every scan.</p>
+
+<h2 id="the-three-panel-items">The three panel items<a class="anchor" href="#the-three-panel-items" aria-label="Link to this section">#</a></h2>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>&nbsp;</th><th><code>*.pushbutton</code></th><th><code>*.stack</code></th><th><code>*.pulldown</code></th></tr></thead>
+<tbody>
+<tr><td><strong>Renders as</strong></td>
+    <td>One large button</td>
+    <td>2 or 3 small buttons in one column</td>
+    <td>One large button that opens a menu</td></tr>
+<tr><td><strong>Children</strong></td>
+    <td>None</td>
+    <td>Exactly 2 or 3 <code>*.pushbutton</code></td>
+    <td>1 or more <code>*.pushbutton</code></td></tr>
+<tr><td><strong>Has its own bundle.yaml</strong></td>
+    <td>Yes</td>
+    <td>No, it is never read</td>
+    <td>Yes, but only <code>title</code>, <code>tooltip</code>, <code>keytip</code></td></tr>
+<tr><td><strong>Has its own icon</strong></td>
+    <td>Yes</td>
+    <td>No</td>
+    <td>Yes</td></tr>
+<tr><td><strong>Runs a script</strong></td>
+    <td>Yes, <code>script.py</code></td>
+    <td>No, its children do</td>
+    <td>No, its children do</td></tr>
+<tr><td><strong>Gets a keytip</strong></td>
+    <td>Yes</td>
+    <td>Its children do</td>
+    <td>Yes, its children do not</td></tr>
+<tr><td><strong>Icon slot used</strong></td>
+    <td>Large (32 logical)</td>
+    <td>Small (16 logical)</td>
+    <td>Large for itself, small for every menu row</td></tr>
+<tr><td><strong>Panel width</strong></td>
+    <td>One narrow column</td>
+    <td>One wide column</td>
+    <td>One narrow column</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="what-a-panel-looks-like">What a panel looks like<a class="anchor" href="#what-a-panel-looks-like" aria-label="Link to this section">#</a></h2>
+
+<p>This is the shipped <em>Memory</em> panel: a large button, a three-row stack, a two-row
+stack and a pulldown with its menu open. Drawn roughly to scale, because the relative sizes
+are the whole reason to choose one over another.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 300" width="700" role="img"
+     aria-label="A ribbon panel holding a large pushbutton, a three-row stack, a two-row stack and a pulldown whose menu is open.">
+  <style>
+    .bt1-t    { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .bt1-s    { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .bt1-m    { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .bt1-mono { font: 11.5px Consolas, monospace; fill: var(--accent); }
+    .bt1-box  { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .bt1-pane { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+    .bt1-icon { fill: none; stroke: var(--frame); stroke-width: 1.4; }
+    .bt1-mark { fill: var(--accent); }
+  </style>
+
+  <!-- annotations -->
+  <text class="bt1-mono" x="22"  y="18">.pushbutton</text>
+  <text class="bt1-mono" x="106" y="18">.stack (3)</text>
+  <text class="bt1-mono" x="232" y="18">.stack (2)</text>
+  <text class="bt1-mono" x="358" y="18">.pulldown</text>
+
+  <!-- panel frame -->
+  <rect class="bt1-pane" x="8" y="26" width="444" height="126" rx="3"/>
+  <text class="bt1-m" x="230" y="170" text-anchor="middle">Memory</text>
+
+  <!-- large pushbutton -->
+  <rect class="bt1-box"  x="22" y="32" width="76" height="112" rx="3"/>
+  <rect class="bt1-icon" x="44" y="46" width="32" height="32" rx="2"/>
+  <circle class="bt1-mark" cx="68" cy="54" r="4"/>
+  <text class="bt1-t" x="60" y="102" text-anchor="middle">Memorize</text>
+
+  <!-- three-row stack -->
+  <rect class="bt1-box"  x="106" y="32"  width="118" height="34" rx="2"/>
+  <rect class="bt1-icon" x="114" y="41"  width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="138" y="54">Add</text>
+  <rect class="bt1-box"  x="106" y="68"  width="118" height="34" rx="2"/>
+  <rect class="bt1-icon" x="114" y="77"  width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="138" y="90">Subtract</text>
+  <rect class="bt1-box"  x="106" y="104" width="118" height="34" rx="2"/>
+  <rect class="bt1-icon" x="114" y="113" width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="138" y="126">Intersect</text>
+
+  <!-- two-row stack -->
+  <rect class="bt1-box"  x="232" y="53" width="118" height="34" rx="2"/>
+  <rect class="bt1-icon" x="240" y="62" width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="264" y="75">Prev</text>
+  <rect class="bt1-box"  x="232" y="89" width="118" height="34" rx="2"/>
+  <rect class="bt1-icon" x="240" y="98" width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="264" y="111">Next</text>
+
+  <!-- pulldown -->
+  <rect class="bt1-box"  x="358" y="32" width="80" height="112" rx="3"/>
+  <rect class="bt1-icon" x="382" y="46" width="32" height="32" rx="2"/>
+  <circle class="bt1-mark" cx="406" cy="54" r="4"/>
+  <text class="bt1-t" x="398" y="102" text-anchor="middle">Memory</text>
+  <path class="bt1-mark" d="M391 112 L405 112 L398 120 z"/>
+
+  <!-- open menu -->
+  <rect class="bt1-box" x="358" y="158" width="252" height="104" rx="3"/>
+  <rect class="bt1-icon" x="370" y="170" width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="396" y="183">Show Contents</text>
+  <rect class="bt1-icon" x="370" y="202" width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="396" y="215">Save as Set</text>
+  <rect class="bt1-icon" x="370" y="234" width="16" height="16" rx="2"/>
+  <text class="bt1-s"    x="396" y="247">Purge</text>
+  <text class="bt1-m" x="622" y="183">the pulldown's</text>
+  <text class="bt1-m" x="622" y="199">children</text>
+
+  <text class="bt1-m" x="8" y="286">The pulldown draws its large icon; every stack row and every menu row draws the small one.</text>
+</svg>
+</div>
+<figcaption>Four panel items, six tools. The three-row stack occupies the same vertical space
+as one large button and holds three times as much.</figcaption>
+</figure>
+
+<h2 id="pushbuttons">Pushbuttons<a class="anchor" href="#pushbuttons" aria-label="Link to this section">#</a></h2>
+
+<p>A <code>*.pushbutton</code> placed directly on a panel is a large button: 32-logical icon
+on top, label underneath, one click runs <code>script.py</code>. It is the default and it is
+what a tool should be unless you have a reason otherwise.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Memory.panel</span>\
+  <span class="tok-f">01_Memorize.pushbutton</span>\
+    <span class="tok-k">script.py</span>              <span class="tok-c"># required</span>
+    <span class="tok-k">config.py</span>              <span class="tok-c"># optional, Shift+Click</span>
+    <span class="tok-k">bundle.yaml</span>            <span class="tok-c"># title, tooltip, engine, shortcut, keytip</span>
+    <span class="tok-k">icon.png</span>               <span class="tok-c"># 96x96</span>
+    <span class="tok-k">icon.dark.png</span>
+    <span class="tok-k">icon.small.png</span>         <span class="tok-c"># 32x32, used if this button ever moves into a stack</span>
+    <span class="tok-k">icon.small.dark.png</span></code></pre></div>
+
+<p>Only <code>script.py</code> is required. Without it the folder is dropped and the reason is
+logged, <code>'&lt;dir&gt;' has no script.py - skipped.</code>, which is also one of the lines
+that feeds the warning toast after a scan. A missing or misnamed script is still the first
+thing to check when a button does not appear.</p>
+
+<div class="note tip">
+<span class="note-t">Ship the small icons anyway</span>
+<p>A top-level button uses the large slot, but a bundle you may later move into a stack or a
+pulldown will need the small art. Generating all four variants costs nothing and means
+reorganising a panel never degrades an icon. See <a href="icons.html">Icons</a>.</p>
+</div>
+
+<h2 id="stacks">Stacks<a class="anchor" href="#stacks" aria-label="Link to this section">#</a></h2>
+
+<p>A <code>*.stack</code> renders as two or three small buttons filling one panel column. Each
+row is a full button with its own script, icon, tooltip, shortcut and keytip; the stack itself
+is only a container.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Memory.panel</span>\
+  <span class="tok-f">03_Set.stack</span>\                    <span class="tok-c"># no script.py, no bundle.yaml, no icon</span>
+    <span class="tok-f">01_Add.pushbutton</span>\
+      <span class="tok-k">script.py</span>
+      <span class="tok-k">icon.small.png</span>
+    <span class="tok-f">02_Subtract.pushbutton</span>\
+      <span class="tok-k">script.py</span>
+      <span class="tok-k">icon.small.png</span>
+    <span class="tok-f">03_Intersect.pushbutton</span>\
+      <span class="tok-k">script.py</span>
+      <span class="tok-k">icon.small.png</span></code></pre></div>
+
+<div class="note warn">
+<span class="note-t">A stack has no bundle of its own</span>
+<p>The parser never opens <code>bundle.yaml</code> inside a <code>.stack</code> folder and
+never looks for an icon there. The folder name is not shown anywhere either: it exists purely
+to group and to sort. Put your metadata on the children.</p>
+</div>
+
+<div class="note tip">
+<span class="note-t">Only pushbuttons, and the parser says so</span>
+<p>A stack collects <code>*.pushbutton</code> folders and nothing else. Any other
+bundle-looking folder inside it is logged, <code>'&lt;dir&gt;' is ignored: a stack holds only
+*.pushbutton folders.</code>, so a toggle or a nested stack you dropped in there is not a
+silent miss. Pulldowns and the two split buttons enforce the same rule with the same
+message.</p>
+</div>
+
+<h3 id="the-2-or-3-rule">The 2-or-3 rule<a class="anchor" href="#the-2-or-3-rule" aria-label="Link to this section">#</a></h3>
+
+<p>The underlying ribbon control holds two or three rows and nothing else. Rather than let it
+render wrong, pyNavis drops the stack at parse time and says so:</p>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\logs\pyNavis.log</span><button class="copy-btn" type="button">Copy</button></div><pre><code>Stack &#x27;D:\NavisTools\...\03_Set.stack&#x27; holds 1 button(s); a stack needs 2 or 3 - skipped.</code></pre></div>
+
+<p>The count is of <em>usable</em> children, so a stack of three where one child lost its
+<code>script.py</code> survives as a two-row stack, and a stack of two where one child broke
+disappears entirely. That is the usual way a working stack vanishes after an edit.</p>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre><span class="tok-f">03_Set.stack</span>\
+  <span class="tok-f">01_Add.pushbutton</span>\
+  <span class="tok-f">02_Subtract.pushbutton</span>\
+  <span class="tok-f">03_Intersect.pushbutton</span>\</pre></div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre><span class="tok-f">03_Set.stack</span>\
+  <span class="tok-f">01_Add.pushbutton</span>\
+  <span class="tok-f">02_Subtract.pushbutton</span>\
+  <span class="tok-f">03_Intersect.pushbutton</span>\
+  <span class="tok-f">04_Invert.pushbutton</span>\    <span class="tok-c"># 4 rows: the whole stack is dropped</span>
+  <span class="tok-f">05_Grow.stack</span>\           <span class="tok-c"># nested stacks are logged and ignored</span></pre></div>
+</div>
+
+<h3 id="when-to-use-a-stack">When to use a stack<a class="anchor" href="#when-to-use-a-stack" aria-label="Link to this section">#</a></h3>
+
+<ul>
+  <li>Two or three tools that belong to one idea and are used at similar frequency, such as
+    <em>Add</em>, <em>Subtract</em>, <em>Intersect</em>.</li>
+  <li>Tools whose meaning survives a 16-pixel icon and a short label. A stack row is
+    horizontal, so a long title makes the column wide and eats the space you were trying to
+    save.</li>
+  <li>Never for a single tool: a one-button stack does not render.</li>
+</ul>
+
+<h2 id="pulldowns">Pulldowns<a class="anchor" href="#pulldowns" aria-label="Link to this section">#</a></h2>
+
+<p>A <code>*.pulldown</code> is a large button with no default action. Clicking it opens a
+menu of its children. It is the only item that scales past three tools without consuming panel
+width, so it is where the long tail goes.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Memory.panel</span>\
+  <span class="tok-f">05_Memory.pulldown</span>\
+    <span class="tok-k">bundle.yaml</span>                    <span class="tok-c"># title, tooltip, keytip only</span>
+    <span class="tok-k">icon.png</span>                       <span class="tok-c"># 96x96, the face of the button</span>
+    <span class="tok-k">icon.dark.png</span>
+    <span class="tok-k">icon.small.png</span>                 <span class="tok-c"># 32x32</span>
+    <span class="tok-k">icon.small.dark.png</span>
+    <span class="tok-f">01_Show_Contents.pushbutton</span>\
+      <span class="tok-k">script.py</span>
+    <span class="tok-f">02_Save_as_Set.pushbutton</span>\
+      <span class="tok-k">script.py</span>
+    <span class="tok-f">03_Purge.pushbutton</span>\
+      <span class="tok-k">script.py</span></code></pre></div>
+
+<div class="code"><div class="code-head"><span>05_Memory.pulldown\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Memory
+<span class="tok-k">tooltip</span>: Inspect the memory, promote it to a set, or delete stored memory files</code></pre></div>
+
+<h3 id="what-a-pulldown-s-bundle-yaml-can-say">What a pulldown's bundle.yaml can say<a class="anchor" href="#what-a-pulldown-s-bundle-yaml-can-say" aria-label="Link to this section">#</a></h3>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>On a pulldown</th></tr></thead>
+<tbody>
+<tr><td><code>title</code></td><td>Read. Falls back to the folder name with the prefix stripped.</td></tr>
+<tr><td><code>tooltip</code></td><td>Read. There is no docstring to fall back to, so without this key the button has no tooltip.</td></tr>
+<tr><td><code>keytip</code></td><td>Read. Overrides the assigned Alt-navigation letters.</td></tr>
+<tr><td><code>shortcut</code></td><td>Ignored. A pulldown has no action to trigger, so there is nothing for a chord to run.</td></tr>
+<tr><td><code>engine</code></td><td>Ignored. A pulldown runs no code. Put <code>engine:</code> on the children.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The children are ordinary pushbuttons and lose nothing by being in a menu. Each may declare
+its own <code>engine</code>, its own <code>shortcut</code>, its own <code>config.py</code>, and
+each responds to <kbd>Shift</kbd>+Click and <kbd>Alt</kbd>+Click exactly as a top-level button
+does.</p>
+
+<div class="note">
+<span class="note-t">Menu rows get no keytip</span>
+<p>Alt-navigation assigns letters to top-level buttons, stack rows and the pulldown itself, but
+not to a pulldown's children: once the menu is open you arrow through it. If a buried tool
+needs to be reachable from the keyboard, give it a <code>shortcut:</code> instead.
+<a href="shortcuts.html">Shortcuts</a> explains both mechanisms.</p>
+</div>
+
+<h3 id="the-empty-pulldown-rule">The empty-pulldown rule<a class="anchor" href="#the-empty-pulldown-rule" aria-label="Link to this section">#</a></h3>
+
+<p>One usable child is enough. Zero is not:</p>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\logs\pyNavis.log</span><button class="copy-btn" type="button">Copy</button></div><pre><code>Pulldown &#x27;D:\NavisTools\...\05_Memory.pulldown&#x27; has no usable pushbuttons - skipped.</code></pre></div>
+
+<p>A pulldown folder that contains a <code>.stack</code> or another <code>.pulldown</code> and
+nothing else counts as empty: only <code>*.pushbutton</code> children are collected, and each
+nested container is logged as <code>'&lt;dir&gt;' is ignored: a pulldown holds only
+*.pushbutton folders.</code> before the pulldown itself is dropped for being empty.</p>
+
+<h2 id="more-button-kinds">More button kinds<a class="anchor" href="#more-button-kinds" aria-label="Link to this section">#</a></h2>
+
+<p>Nine more panel-item suffixes, each a narrow variation on a pushbutton, a pulldown or the
+panel itself rather than a new concept. All nine sort into the panel by folder name exactly
+like the three above, and every icon rule from <a href="icons.html">Icons</a> applies unless a
+section below says otherwise.</p>
+
+<h3 id="nobutton-a-command-with-no-ribbon-presence">nobutton: a command with no ribbon presence<a class="anchor" href="#nobutton-a-command-with-no-ribbon-presence" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.nobutton</code> is parsed exactly like a pushbutton, <code>script.py</code> and
+<code>bundle.yaml</code> and all, but the ribbon never draws it. It exists to be reached only
+by a keyboard <code>shortcut:</code> or a user binding from the Shortcuts editor.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Utility.panel</span>\
+  <span class="tok-f">Rebuild_Index.nobutton</span>\
+    <span class="tok-k">script.py</span>
+    <span class="tok-k">bundle.yaml</span>         <span class="tok-c"># give it a shortcut, since there is no button to click</span></code></pre></div>
+
+<div class="code"><div class="code-head"><span>Rebuild_Index.nobutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Rebuild index
+<span class="tok-k">tooltip</span>: Rebuilds the property index this session caches.
+<span class="tok-k">shortcut</span>: Ctrl+Alt+R</code></pre></div>
+
+<p>Everything else about it is an ordinary bundle: the same <code>bundle.yaml</code> keys, the
+same <code>min_host_version</code>/<code>max_host_version</code> gating, the same engine
+resolution. It still counts toward the tools listed for shortcut binding, so it appears in the
+Shortcuts editor beside every ordinary button.</p>
+
+<p>Two things do not carry over, because both need a control to act on. <code>context:</code>
+is parsed but never evaluated: greying is applied to rendered buttons, and a nobutton is never
+rendered, so a chord fires it whatever the document holds. And there is no way to reach
+<code>config.py</code>, because <kbd>Shift</kbd>+Click needs a button and a keyboard chord
+always runs the primary script. If a nobutton needs options, give them their own bundle.</p>
+
+<div class="note tip">
+<span class="note-t">Give it a shortcut, or nothing can reach it</span>
+<p>A nobutton with no author <code>shortcut:</code> still loads. Without one, and without a
+user override added in the Shortcuts editor, there is no way to run it at all.</p>
+</div>
+
+<h3 id="urlbutton-opens-a-link">urlbutton: opens a link<a class="anchor" href="#urlbutton-opens-a-link" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.urlbutton</code> ships no <code>script.py</code>. Its whole job is a
+<code>url:</code> key in <code>bundle.yaml</code>; clicking it opens that address in the
+default browser and runs nothing else.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Help.panel</span>\
+  <span class="tok-f">Documentation.urlbutton</span>\
+    <span class="tok-k">bundle.yaml</span>
+    <span class="tok-k">icon.png</span></code></pre></div>
+
+<div class="code"><div class="code-head"><span>Documentation.urlbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Documentation
+<span class="tok-k">url</span>: https://example.com/docs</code></pre></div>
+
+<p>If the address cannot be opened, the failure is logged and toasted rather than raised into
+the ribbon. <a href="bundle-yaml.html#the-keys-a-urlbutton-reads">bundle.yaml</a> has the full
+key table.</p>
+
+<h3 id="linkbutton-runs-another-navisworks-plugin">linkbutton: runs another Navisworks plugin<a class="anchor" href="#linkbutton-runs-another-navisworks-plugin" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.linkbutton</code> also ships no script. Its required key is <code>plugin:</code>,
+the target add-in's plugin id in <code>Id.DeveloperId</code> form. Use it to put someone
+else's plugin on your own panel instead of sending users hunting through the Add-Ins tab.</p>
+
+<div class="code"><div class="code-head"><span>Legacy_Tool.linkbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Legacy Tool
+<span class="tok-k">plugin</span>: LegacyTool.ACME</code></pre></div>
+
+<p>A plugin id that is not registered, or that resolves to something other than an add-in
+plugin, toasts a warning naming the id instead of failing silently.
+<a href="bundle-yaml.html#the-keys-a-linkbutton-reads">bundle.yaml</a> has the full key
+table.</p>
+
+<h3 id="toggle-a-button-with-on-off-state">toggle: a button with on/off state<a class="anchor" href="#toggle-a-button-with-on-off-state" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.toggle</code> is a pushbutton that also tracks a session-scoped boolean and swaps
+its icon to match. <code>script.py</code> and <code>bundle.yaml</code> work exactly as they do
+on a plain pushbutton; the additions are two extra icon pairs and two functions in
+<code>pynavis.script</code>.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Snap.toggle</span>\
+  <span class="tok-k">script.py</span>
+  <span class="tok-k">bundle.yaml</span>
+  <span class="tok-k">icon.on.png</span>          <span class="tok-c"># 96x96, shown while the toggle is on</span>
+  <span class="tok-k">icon.on.dark.png</span>
+  <span class="tok-k">icon.off.png</span>         <span class="tok-c"># 96x96, shown while the toggle is off, and at startup</span>
+  <span class="tok-k">icon.off.dark.png</span></code></pre></div>
+
+<div class="code"><div class="code-head"><span>Snap.toggle\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Grid snap
+<span class="tok-k">tooltip</span>: Turns grid snapping on and off for this session.
+<span class="tok-k">shortcut</span>: Ctrl+Shift+G</code></pre></div>
+
+<div class="code"><div class="code-head"><span>Snap.toggle\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Turns grid snapping on and off.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> script, toast
+
+on = <span class="tok-k">not</span> script.get_toggle_state()
+script.set_toggle_state(on)
+toast.info(<span class="tok-s">&#x27;Snap &#x27;</span> + (<span class="tok-s">&#x27;on&#x27;</span> <span class="tok-k">if</span> on <span class="tok-k">else</span> <span class="tok-s">&#x27;off&#x27;</span>))</code></pre></div>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Icon file</th><th>Falls back to</th></tr></thead>
+<tbody>
+<tr><td><code>icon.off.png</code></td><td><code>icon.png</code></td></tr>
+<tr><td><code>icon.off.dark.png</code></td><td><code>icon.off.png</code></td></tr>
+<tr><td><code>icon.on.png</code></td><td><code>icon.png</code></td></tr>
+<tr><td><code>icon.on.dark.png</code></td><td><code>icon.on.png</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Every toggle starts off. <code>script.get_toggle_state()</code> reads the current state;
+<code>script.set_toggle_state(on)</code> sets it and repaints the icon immediately.</p>
+
+<div class="note warn">
+<span class="note-t">Session-scoped, not saved, and not settable from outside the toggle</span>
+<p>Toggle state lives in memory for the running session, keyed by the bundle's own path. It
+survives Reload, because Reload rebuilds the ribbon without resetting state, but it does not
+survive a restart, and there is no way to set it from anywhere except the toggle's own
+<code>script.py</code> or <code>config.py</code>: <code>get_toggle_state</code> and
+<code>set_toggle_state</code> act on whichever bundle is currently running, and neither a hook
+nor <code>startup.py</code> runs as a particular bundle. A toggle that must come back on after
+a restart needs its own <code>pynavis.settings</code> entry, read by its own
+<code>script.py</code> on the first click of a new session.</p>
+</div>
+
+<h3 id="smartbutton-sets-its-own-title-tooltip-and-icon-at-build-time">smartbutton: sets its own title, tooltip and icon at build time<a class="anchor" href="#smartbutton-sets-its-own-title-tooltip-and-icon-at-build-time" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.smartbutton</code> runs <code>script.py</code> twice: once while the ribbon is
+being built, so the script can configure its own appearance before anyone sees it, and once
+per click, exactly like a pushbutton. A global, <code>__selfinit__</code>, tells the script
+which run it is in.</p>
+
+<div class="code"><div class="code-head"><span>ClashCount.smartbutton\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">if</span> __selfinit__:
+    __button__.Title = <span class="tok-s">&#x27;Clash (0)&#x27;</span>
+    __button__.Enabled = <span class="tok-k">True</span>
+<span class="tok-k">else</span>:
+    <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> toast
+    toast.info(<span class="tok-s">&#x27;Clicked!&#x27;</span>)</code></pre></div>
+
+<p>On the build-time run, <code>__selfinit__</code> is <code>True</code> and
+<code>__button__</code> is a small proxy over the live ribbon control:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Member</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>__button__.Title</code></td><td>Read/write. The button caption.</td></tr>
+<tr><td><code>__button__.Enabled</code></td><td>Read/write. Greys the button out when set to
+    False.</td></tr>
+<tr><td><code>__button__.Tooltip</code></td><td>Write-only. The hover tooltip.</td></tr>
+<tr><td><code>__button__.SetIcon(path)</code></td><td>Points both the light and dark icon
+    slots at the given PNG.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>On a normal click, <code>__selfinit__</code> is <code>False</code> and
+<code>__button__</code> does not exist at all: guard on <code>__selfinit__</code>, exactly as
+the example does, or a click-time run raises <code>NameError</code>.</p>
+
+<p>The build-time run's scope is smaller than a click's in the other direction too: it gets
+only <code>__file__</code>, <code>__selfinit__</code>, <code>__button__</code> and
+<code>__pynavis__</code>, so <code>__commandpath__</code> and <code>__title__</code> do not
+exist there. A script that touches either outside the click branch works on every click and
+then fails its selfinit run. Derive the bundle folder from <code>__file__</code> in the
+selfinit branch instead; <code>pynavis.script.get_command_path()</code> is no substitute,
+because a build-time run sets no command context and would read back whichever command ran
+last. Anything a selfinit run prints lands in the log, labelled
+<code>[selfinit &lt;bundle key&gt;]</code>, never in an output window.</p>
+
+<div class="note trap">
+<span class="note-t">The selfinit run happens once per Reload, not once per click</span>
+<p>The build-time run fires while the ribbon is under construction, before the button is
+clickable, and nothing repeats it until the next Reload rebuilds the tab. It is the place to
+set an initial appearance from saved state, not to poll a value that changes while pyNavis is
+running; drive that from a hook instead. A selfinit run that raises is logged, and the button
+still renders with its folder-derived title and still runs normal clicks.</p>
+</div>
+
+<h3 id="splitbutton-and-splitpushbutton-a-pulldown-whose-header-also-runs-a-child">splitbutton and splitpushbutton: a pulldown whose header also runs a child<a class="anchor" href="#splitbutton-and-splitpushbutton-a-pulldown-whose-header-also-runs-a-child" aria-label="Link to this section">#</a></h3>
+
+<p>Both are pulldowns in every other respect: a folder of <code>*.pushbutton</code> children,
+their own <code>bundle.yaml</code> reading <code>title</code>, <code>tooltip</code> and
+<code>keytip</code>, their own icon set. The only difference from a plain
+<code>*.pulldown</code> is what clicking the large header itself does.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>&nbsp;</th><th><code>*.pulldown</code></th><th><code>*.splitbutton</code></th><th><code>*.splitpushbutton</code></th></tr></thead>
+<tbody>
+<tr><td>Clicking the header</td><td>Opens the menu</td>
+    <td>Runs the last child that was run, this session</td>
+    <td>Always runs the first child, by folder order</td></tr>
+<tr><td>Menu arrow</td><td>Only way in</td>
+    <td>Opens the menu, same as a plain pulldown</td>
+    <td>Opens the menu, same as a plain pulldown</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Export.panel</span>\
+  <span class="tok-f">01_Points.splitbutton</span>\
+    <span class="tok-k">bundle.yaml</span>                <span class="tok-c"># title, tooltip, keytip</span>
+    <span class="tok-k">icon.png</span>
+    <span class="tok-f">01_CSV.pushbutton</span>\
+      <span class="tok-k">script.py</span>
+    <span class="tok-f">02_IFC.pushbutton</span>\
+      <span class="tok-k">script.py</span></code></pre></div>
+
+<div class="code"><div class="code-head"><span>01_Points.splitbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Export points
+<span class="tok-k">tooltip</span>: Exports the selection. The arrow picks the format.
+<span class="tok-k">keytip</span>: EP</code></pre></div>
+
+<p>A splitbutton with nothing run yet this session falls back to the first child, the same as
+a splitpushbutton always does, so the very first click always has a defined target.</p>
+
+<h3 id="dockpane-a-real-navisworks-dock-panel">dockpane: a real Navisworks dock panel<a class="anchor" href="#dockpane-a-real-navisworks-dock-panel" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.dockpane</code> is not a script that runs and returns: it opens a real Navisworks
+dock panel whose content is <code>pane.xaml</code>, and its ribbon button is a toggle that
+follows whether the panel is open, not a button you click to fire an action. It follows in
+both directions and at all times: Navisworks closing the panel itself (its close button, a
+workspace change) releases the toggle, and a Reload that rebuilds the ribbon while the panel
+stays open seeds the new button already pressed.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code>Live_View.dockpane\
+  pane.xaml     <span class="tok-c"># required - a plain element, not a &amp;lt;Window&amp;gt;</span>
+  <span class="tok-k">script.py</span>     <span class="tok-c"># optional, runs once when the panel&#x27;s content is built</span>
+  <span class="tok-k">bundle.yaml</span>   <span class="tok-c"># optional</span>
+  <span class="tok-k">icon.png</span>, <span class="tok-k">icon.dark.png</span>, <span class="tok-k">icon.small.png</span>, <span class="tok-k">icon.small.dark.png</span>
+  <span class="tok-k">icon.on.png</span>, <span class="tok-k">icon.on.dark.png</span>   <span class="tok-c"># optional - the pressed state while the panel is open</span></code></pre></div>
+
+<div class="code"><div class="code-head"><span>Live_View.dockpane\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Live view
+<span class="tok-k">tooltip</span>: A docked summary of the current selection.
+<span class="tok-k">engine</span>: ironpython
+<span class="tok-k">keytip</span>: LV</code></pre></div>
+
+<p>If <code>script.py</code> exists it runs once, when the panel's content is built, with the
+same five globals as any other bundle plus a sixth, <code>__pane__</code>:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Member</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>__pane__.Find(name)</code></td>
+    <td>The named element from <code>pane.xaml</code>, or <code>None</code>.</td></tr>
+<tr><td><code>__pane__.Content</code></td>
+    <td>The root element <code>pane.xaml</code> produced.</td></tr>
+<tr><td><code>__pane__.Title</code></td>
+    <td>The panel's resolved title, read-only.</td></tr>
+<tr><td><code>__pane__.BundleKey</code></td>
+    <td>The panel's own bundle key, for calling <code>pynavis.panes</code> on itself.</td></tr>
+<tr><td><code>__pane__.Visible</code></td>
+    <td>Read/write. Shows or hides the panel.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="code"><div class="code-head"><span>Live_View.dockpane\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection
+
+label = __pane__.Find(<span class="tok-s">&#x27;Summary&#x27;</span>)
+label.Text = <span class="tok-s">&#x27;Selected: %d&#x27;</span> % len(selection.get_items())</code></pre></div>
+
+<div class="note warn">
+<span class="note-t">panes.show()/hide()/toggle() default to the wrong panel from an event handler</span>
+<p><code>pynavis.panes</code> resolves a missing <code>bundle_key</code> to whichever pyNavis
+command most recently ran, which is correct while <code>script.py</code> itself is running but
+wrong from inside an event handler wired up in it (a button's <code>Click</code>, a timer):
+the user may have clicked other tools by the time it fires. From inside a panel's own event
+handler, pass the bundle key explicitly, or read/write <code>__pane__.Visible</code>
+instead.</p>
+</div>
+
+<p>There is no <code>config.py</code>, no Shift+Click and no Alt+Click-to-config for a
+dockpane. Alt+Click still opens the bundle folder; a plain click toggles the panel open and
+shut instead of running a script that returns.</p>
+
+<p>Five panel slots ship with pyNavis, and a new <code>*.dockpane</code> bundle claims a free
+one on the next Reload, the same as any other new bundle. The claim is recorded in
+<code>config.json</code> under <code>panes.assignments</code> and kept for life: Navisworks
+remembers a dock pane's position, size and open state per slot, so holding the same slot is
+what lets your panel come back where the user docked it, and lets a reinstalled extension pick
+its old slot and layout straight back up.</p>
+
+<div class="note trap">
+<span class="note-t">The claim key does not include the extension's name</span>
+<p>A claim is keyed by the bundle's path relative to its <em>own</em> extension folder, so
+two different extensions can produce the identical key: a
+<code>Tools.tab/Main.panel/Live_View.dockpane</code> in each of two installed extensions
+collides. The runtime cannot tell the two claims apart; it logs
+<code>Two dockpane bundles share the key '&lt;key&gt;' - their extensions will cross slot
+ownership. Bundle keys must be unique.</code> and the two panes end up fighting over one slot
+and one saved dock layout. Name your tab, panel or dockpane folders distinctively enough that
+the relative path is yours alone.</p>
+</div>
+
+<p>Claiming a slot is instant; minting more of them (via the <strong>Panel slots</strong>
+button on the pyNavis tab, or <code>pynavis.panes.add_slots(count)</code>) needs a restart,
+because Navisworks only discovers dock panels by scanning types at startup. Until that restart
+the count can be changed again freely; once the generated assembly has loaded, it is locked
+for every later session, and changing the count then means closing Navisworks and deleting
+<code>PyNavisPanes.dll</code> from the pyNavis bundle by hand, which is what the error tells
+you. A
+dockpane that loses the scramble for a slot still renders its ribbon toggle; clicking it
+toasts instead of doing nothing, and the toast tells apart genuine overflow (every slot
+claimed; add more, then restart) from a slot minted this session that just needs the restart
+it already announced.
+<a href="bundle-yaml.html#the-keys-a-dockpane-reads">bundle.yaml</a> has the full key table.</p>
+
+<p>The panel's title bar shows your bundle's <code>title:</code>, but Navisworks'
+<strong>View &gt; Windows</strong> menu always lists the slot name, "pyNavis Panel N", because
+that menu reads the docking library's own labels rather than the window caption. The same menu
+lists every slot whether a bundle has claimed it or not, so a clean install shows five entries
+and generating extra slots adds more; opening an unclaimed one gives a panel reading "Panel
+slot N is not in use". Neither is something a bundle can change.</p>
+
+<h3 id="slideout-the-tools-behind-the-panel-title">slideout: the tools behind the panel title<a class="anchor" href="#slideout-the-tools-behind-the-panel-title" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.slideout</code> is the one panel item that is not a button at all and has no
+bundle of its own. It is a marker folder: everything inside it is emitted after a panel break,
+so the host hides it until the user clicks the panel title along the bottom of the panel, the
+same flyout the native Tags panel uses. It costs no ribbon width, which is the point.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Export.panel</span>\
+  <span class="tok-f">01_Points.pushbutton</span>\      <span class="tok-c"># on the face of the panel</span>
+  <span class="tok-f">02_Mesh.pushbutton</span>\
+  99_More.slideout\          <span class="tok-c"># no bundle.yaml, no icon, no script.py</span>
+    <span class="tok-f">01_Settings.pushbutton</span>\
+      <span class="tok-k">script.py</span>
+    <span class="tok-f">02_Formats.pulldown</span>\
+      <span class="tok-k">bundle.yaml</span>
+      <span class="tok-f">01_CSV.pushbutton</span>\
+        <span class="tok-k">script.py</span>
+    <span class="tok-f">03_Docs.urlbutton</span>\
+      <span class="tok-k">bundle.yaml</span></code></pre></div>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>&nbsp;</th><th>Behaviour</th></tr></thead>
+<tbody>
+<tr><td><strong>Children</strong></td>
+    <td>Any of the other panel item kinds, not just <code>*.pushbutton</code>. Stacks,
+        pulldowns, toggles, smartbuttons, split buttons, and url and link buttons all work
+        inside one. A <code>*.dockpane</code> is the one exception, see below.</td></tr>
+<tr><td><strong>Its own bundle.yaml</strong></td>
+    <td>No, it is never read. Nor is an icon, nor a <code>script.py</code>.</td></tr>
+<tr><td><strong>Title</strong></td>
+    <td>Never shown. The flyout is labelled by the panel, not by the slideout folder.</td></tr>
+<tr><td><strong>Ordering</strong></td>
+    <td>Its children keep folder order inside the flyout. Where the <code>.slideout</code>
+        folder itself sorts among the panel's other folders does not matter, because its
+        contents always render after the break.</td></tr>
+<tr><td><strong>Several per panel</strong></td>
+    <td>Allowed. Their contents concatenate in folder order into one flyout; a panel has only
+        one break.</td></tr>
+<tr><td><strong>Nesting</strong></td>
+    <td>One level. A <code>.slideout</code> inside a <code>.slideout</code> is logged and its
+        contents are dropped.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\logs\pyNavis.log</span><button class="copy-btn" type="button">Copy</button></div><pre><code>Slideout &#x27;D:\NavisTools\...\99_More.slideout\Extra.slideout&#x27; sits inside another slideout - skipped.</code></pre></div>
+
+<p>Buttons in the flyout are ordinary buttons. They get keytips, they take
+<code>shortcut:</code>, <code>context:</code> and the host version keys, and
+<kbd>Shift</kbd>+Click and <kbd>Alt</kbd>+Click behave exactly as they do on the panel face.
+Their <a href="anatomy.html">bundle key</a> keeps the <code>.slideout</code> folder in the
+path, so moving a tool into or out of a slideout orphans any user shortcut override that
+pointed at it.</p>
+
+<div class="note tip">
+<span class="note-t">A panel can be entirely a slideout</span>
+<p>If every item on a panel sits inside a <code>.slideout</code>, the panel still renders: it
+just has an empty face and a full flyout. That is a reasonable shape for a panel of rarely
+used maintenance tools that you still want grouped under their own name.</p>
+</div>
+
+<div class="note tip">
+<span class="note-t">A dockpane can live in a slideout</span>
+<p>A <code>*.dockpane</code> inside a <code>.slideout</code> claims a panel slot exactly like
+one on the face of the panel; only its ribbon toggle moves into the flyout. Its bundle key
+includes the slideout folder, so <code>T.tab/P.panel/More.slideout/S.dockpane</code> is the
+key you will see under <code>panes.assignments</code>.</p>
+</div>
+
+<h2 id="mixing-them-on-one-panel">Mixing them on one panel<a class="anchor" href="#mixing-them-on-one-panel" aria-label="Link to this section">#</a></h2>
+
+<p>Panel items are sorted once, by folder name, before anything knows what type they are. The
+three types interleave freely and are never grouped, so the panel order is exactly the order
+you see in Explorer.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 226" width="700" role="img"
+     aria-label="Five folders sorted by name on the left produce five panel items in the same order on the right, mixing buttons, stacks and a pulldown.">
+  <style>
+    .bt2-mono { font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .bt2-m    { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .bt2-s    { font: 9.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .bt2-lbl  { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+                text-transform: uppercase; letter-spacing: .07em; }
+    .bt2-box  { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .bt2-pane { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+    .bt2-icon { fill: none; stroke: var(--frame); stroke-width: 1.3; }
+    .bt2-badge{ fill: none; stroke: var(--accent); stroke-width: 1.2; }
+    .bt2-num  { font: 9px Consolas, monospace; fill: var(--accent); }
+    .bt2-mark { fill: var(--accent); }
+  </style>
+
+  <text class="bt2-lbl" x="0"   y="14">Sorted folder names</text>
+  <text class="bt2-lbl" x="336" y="14">Resulting panel</text>
+
+  <text class="bt2-mono" x="0" y="44">Memory.panel</text>
+
+  <circle class="bt2-badge" cx="10" cy="66"  r="7"/>
+  <text class="bt2-num"  x="10" y="69" text-anchor="middle">1</text>
+  <text class="bt2-mono" x="26" y="70">01_Memorize.pushbutton</text>
+
+  <circle class="bt2-badge" cx="10" cy="90"  r="7"/>
+  <text class="bt2-num"  x="10" y="93" text-anchor="middle">2</text>
+  <text class="bt2-mono" x="26" y="94">02_Recall.pushbutton</text>
+
+  <circle class="bt2-badge" cx="10" cy="114" r="7"/>
+  <text class="bt2-num"  x="10" y="117" text-anchor="middle">3</text>
+  <text class="bt2-mono" x="26" y="118">03_Set.stack</text>
+
+  <circle class="bt2-badge" cx="10" cy="138" r="7"/>
+  <text class="bt2-num"  x="10" y="141" text-anchor="middle">4</text>
+  <text class="bt2-mono" x="26" y="142">04_Step.stack</text>
+
+  <circle class="bt2-badge" cx="10" cy="162" r="7"/>
+  <text class="bt2-num"  x="10" y="165" text-anchor="middle">5</text>
+  <text class="bt2-mono" x="26" y="166">05_Memory.pulldown</text>
+
+  <!-- panel -->
+  <rect class="bt2-pane" x="336" y="30" width="354" height="142" rx="3"/>
+  <text class="bt2-m" x="513" y="190" text-anchor="middle">Memory</text>
+
+  <circle class="bt2-badge" cx="372" cy="22" r="7"/>
+  <text class="bt2-num" x="372" y="25" text-anchor="middle">1</text>
+  <rect class="bt2-box"  x="346" y="38" width="52" height="126" rx="3"/>
+  <rect class="bt2-icon" x="360" y="52" width="24" height="24" rx="2"/>
+  <text class="bt2-s" x="372" y="100" text-anchor="middle">Memorize</text>
+
+  <circle class="bt2-badge" cx="428" cy="22" r="7"/>
+  <text class="bt2-num" x="428" y="25" text-anchor="middle">2</text>
+  <rect class="bt2-box"  x="402" y="38" width="52" height="126" rx="3"/>
+  <rect class="bt2-icon" x="416" y="52" width="24" height="24" rx="2"/>
+  <text class="bt2-s" x="428" y="100" text-anchor="middle">Recall</text>
+
+  <circle class="bt2-badge" cx="497" cy="22" r="7"/>
+  <text class="bt2-num" x="497" y="25" text-anchor="middle">3</text>
+  <rect class="bt2-box"  x="458" y="38"  width="78" height="40" rx="2"/>
+  <rect class="bt2-icon" x="464" y="50"  width="14" height="14" rx="2"/>
+  <text class="bt2-s"    x="484" y="62">Add</text>
+  <rect class="bt2-box"  x="458" y="81"  width="78" height="40" rx="2"/>
+  <rect class="bt2-icon" x="464" y="93"  width="14" height="14" rx="2"/>
+  <text class="bt2-s"    x="484" y="105">Subtract</text>
+  <rect class="bt2-box"  x="458" y="124" width="78" height="40" rx="2"/>
+  <rect class="bt2-icon" x="464" y="136" width="14" height="14" rx="2"/>
+  <text class="bt2-s"    x="484" y="148">Intersect</text>
+
+  <circle class="bt2-badge" cx="579" cy="22" r="7"/>
+  <text class="bt2-num" x="579" y="25" text-anchor="middle">4</text>
+  <rect class="bt2-box"  x="540" y="38"  width="78" height="40" rx="2"/>
+  <rect class="bt2-icon" x="546" y="50"  width="14" height="14" rx="2"/>
+  <text class="bt2-s"    x="566" y="62">Prev</text>
+  <rect class="bt2-box"  x="540" y="81"  width="78" height="40" rx="2"/>
+  <rect class="bt2-icon" x="546" y="93"  width="14" height="14" rx="2"/>
+  <text class="bt2-s"    x="566" y="105">Next</text>
+  <rect class="bt2-box"  x="540" y="124" width="78" height="40" rx="2"/>
+  <rect class="bt2-icon" x="546" y="136" width="14" height="14" rx="2"/>
+  <text class="bt2-s"    x="566" y="148">Clear</text>
+
+  <circle class="bt2-badge" cx="648" cy="22" r="7"/>
+  <text class="bt2-num" x="648" y="25" text-anchor="middle">5</text>
+  <rect class="bt2-box"  x="622" y="38" width="52" height="126" rx="3"/>
+  <rect class="bt2-icon" x="636" y="52" width="24" height="24" rx="2"/>
+  <text class="bt2-s" x="648" y="100" text-anchor="middle">Memory</text>
+  <path class="bt2-mark" d="M642 110 L654 110 L648 117 z"/>
+
+  <text class="bt2-m" x="0" y="214">One sort, over mixed types. Renaming 03_Set.stack to 06_Set.stack moves it to the end of the panel.</text>
+</svg>
+</div>
+<figcaption>Five folders, five panel items, same order. Because the sort runs before the type
+is known, a stack can sit between two large buttons purely by how you number it.</figcaption>
+</figure>
+
+<h2 id="icons-at-each-size">Icons at each size<a class="anchor" href="#icons-at-each-size" aria-label="Link to this section">#</a></h2>
+
+<p>The size an item renders at decides which icon it asks for, which is why the four-variant
+icon set exists.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Where it renders</th><th>Icon file used</th><th>Drawn at</th></tr></thead>
+<tbody>
+<tr><td>Large pushbutton on a panel</td><td><code>icon.png</code> / <code>icon.dark.png</code></td><td>32 logical pixels</td></tr>
+<tr><td>Row in a stack</td><td><code>icon.small.png</code> / <code>icon.small.dark.png</code></td><td>16 logical pixels</td></tr>
+<tr><td>The pulldown button itself</td><td><code>icon.png</code> / <code>icon.dark.png</code></td><td>32 logical pixels</td></tr>
+<tr><td>Row in a pulldown menu</td><td><code>icon.small.png</code> / <code>icon.small.dark.png</code></td><td>16 logical pixels</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Every missing variant falls back to <code>icon.png</code>, so a bundle that ships only the
+one file still renders everywhere. It is loaded at the slot's logical size rather than being
+scaled from the large art, which keeps it from clipping, but a 96&times;96 drawing rarely reads
+well at 16 pixels. A menu of pulldown rows is where that shows worst.</p>
+
+<div class="note">
+<span class="note-t">Themes are resolved at build time</span>
+<p>Whether the light or dark art is used is decided once, when the ribbon is built. If you
+change the Navisworks theme, click <strong>Reload</strong> to pick up the other set.</p>
+</div>
+
+<h2 id="choosing-between-the-three">Choosing between the three<a class="anchor" href="#choosing-between-the-three" aria-label="Link to this section">#</a></h2>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Situation</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>A tool people reach for every day</td><td>A large pushbutton, at the left of the panel</td></tr>
+<tr><td>Two or three variations on one action</td><td>A stack</td></tr>
+<tr><td>Four or more related tools</td><td>A pulldown</td></tr>
+<tr><td>One rarely used tool</td><td>A pulldown row, or the far right of a panel</td></tr>
+<tr><td>A tool with a long name</td><td>A pulldown row: menus have horizontal room, stacks do not</td></tr>
+<tr><td>Settings for an existing tool</td><td>Not a button at all: add <code>config.py</code> and let
+    <kbd>Shift</kbd>+Click open it. See <a href="click-actions.html">Click actions</a>.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="identity-on-the-ribbon">Identity on the ribbon<a class="anchor" href="#identity-on-the-ribbon" aria-label="Link to this section">#</a></h2>
+
+<p>Each rendered control gets a deterministic id, which is worth knowing when you read a log
+line or wonder why a duplicate got dropped.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Control</th><th>Id</th><th>Derived from</th></tr></thead>
+<tbody>
+<tr><td>Button</td><td><code>PYNAVIS_BTN_&lt;hash&gt;</code></td><td>The lowercased full path of its <code>script.py</code></td></tr>
+<tr><td>Pulldown</td><td><code>PYNAVIS_PULL_&lt;hash&gt;</code></td><td>The lowercased pulldown folder path</td></tr>
+<tr><td>Dock pane toggle</td><td><code>PYNAVIS_PANE_&lt;hash&gt;</code></td><td>The lowercased dockpane folder path</td></tr>
+<tr><td>Tab</td><td><code>PYNAVIS_TAB_&lt;name&gt;</code></td><td>Extension name plus tab name, sanitised. See <a href="anatomy.html">Anatomy</a>.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Because button ids come from the script path, the same bundle copied to two extension roots
+produces two different ids and renders twice. Tab ids come from names, so the duplicate tab is
+caught and dropped. That asymmetry is why an accidentally duplicated extension usually shows up
+as a missing tab rather than a doubled one.</p>
+
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+
+<ul>
+  <li><strong>A stack with four children.</strong> Split it into two stacks, or promote it to a
+    pulldown.</li>
+  <li><strong><code>bundle.yaml</code> inside a <code>.stack</code> folder.</strong> Never read.
+    Move the keys down onto the children.</li>
+  <li><strong>An icon inside a <code>.stack</code> folder.</strong> Never read either.</li>
+  <li><strong><code>shortcut:</code> on a pulldown.</strong> Ignored. Put it on the child you
+    actually want the chord to run.</li>
+  <li><strong>A <code>.pulldown</code> nested inside a <code>.pulldown</code>.</strong> There
+    are no submenus. Flatten it, or use a second pulldown on the panel. Put it in a
+    <code>*.slideout</code> instead if the goal was to get it off the panel face.</li>
+  <li><strong>A <code>.slideout</code> inside a <code>.slideout</code>.</strong> One level
+    only; the inner one is logged and its contents never render.</li>
+  <li><strong>Relying on a large icon in a menu.</strong> Draw the 32&times;32 variants for
+    anything that lives in a stack or a pulldown.</li>
+</ul>
+
+<div class="cards">
+  <a href="bundle-yaml.html"><span class="c-t">bundle.yaml</span>
+    <span class="c-d">Every key, which item types read it, and the precedence rules.</span></a>
+  <a href="icons.html"><span class="c-t">Icons</span>
+    <span class="c-d">The four variants, the drawing rules, and the generator.</span></a>
+  <a href="shortcuts.html"><span class="c-t">Shortcuts and keytips</span>
+    <span class="c-d">Chords, Alt-navigation, and how users rebind them.</span></a>
+</div>
+  <div class="pagenav">
+<a href="anatomy.html"><span class="dir">Previous</span><span class="ttl">Anatomy of an extension</span></a>
+<a class="next" href="bundle-yaml.html"><span class="dir">Next</span><span class="ttl">The bundle.yaml reference</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#the-three-panel-items">The three panel items</a>
+<a href="#what-a-panel-looks-like">What a panel looks like</a>
+<a href="#pushbuttons">Pushbuttons</a>
+<a href="#stacks">Stacks</a>
+<a href="#the-2-or-3-rule" class="h3">The 2-or-3 rule</a>
+<a href="#when-to-use-a-stack" class="h3">When to use a stack</a>
+<a href="#pulldowns">Pulldowns</a>
+<a href="#what-a-pulldown-s-bundle-yaml-can-say" class="h3">What a pulldown&#x27;s bundle.yaml can say</a>
+<a href="#the-empty-pulldown-rule" class="h3">The empty-pulldown rule</a>
+<a href="#more-button-kinds">More button kinds</a>
+<a href="#nobutton-a-command-with-no-ribbon-presence" class="h3">nobutton: a command with no ribbon presence</a>
+<a href="#urlbutton-opens-a-link" class="h3">urlbutton: opens a link</a>
+<a href="#linkbutton-runs-another-navisworks-plugin" class="h3">linkbutton: runs another Navisworks plugin</a>
+<a href="#toggle-a-button-with-on-off-state" class="h3">toggle: a button with on/off state</a>
+<a href="#smartbutton-sets-its-own-title-tooltip-and-icon-at-build-time" class="h3">smartbutton: sets its own title, tooltip and icon at build time</a>
+<a href="#splitbutton-and-splitpushbutton-a-pulldown-whose-header-also-runs-a-child" class="h3">splitbutton and splitpushbutton: a pulldown whose header also runs a child</a>
+<a href="#dockpane-a-real-navisworks-dock-panel" class="h3">dockpane: a real Navisworks dock panel</a>
+<a href="#slideout-the-tools-behind-the-panel-title" class="h3">slideout: the tools behind the panel title</a>
+<a href="#mixing-them-on-one-panel">Mixing them on one panel</a>
+<a href="#icons-at-each-size">Icons at each size</a>
+<a href="#choosing-between-the-three">Choosing between the three</a>
+<a href="#identity-on-the-ribbon">Identity on the ribbon</a>
+<a href="#common-mistakes">Common mistakes</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

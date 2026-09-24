@@ -1,0 +1,313 @@
+<!-- title: Hooks -->
+<!-- eyebrow: Bundles -->
+<!-- lead: Scripts that run themselves, triggered by something happening in Navisworks rather than by a click. -->
+
+<p>Every tool covered so far runs because someone pressed a button. A hook runs because a
+document opened, the selection changed, or Navisworks is shutting down. It lives in a fixed
+folder at the root of an extension, named after the event it answers, and needs no
+<code>bundle.yaml</code> and no ribbon presence at all.</p>
+
+<pre data-lang="tree">
+MyTools.extension\
+  hooks\
+    doc-opened.py           # runs every time a document finishes opening
+    selection-changed.py    # runs, debounced, after the selection settles
+</pre>
+
+<p>The file name, minus <code>.py</code>, must match one of fourteen event names exactly. A
+name that does not match is not silently ignored the way an unrecognised bundle suffix is;
+discovery logs it and moves on.</p>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Hook 'D:\NavisTools\MyTools.extension\hooks\doc-open.py': unknown event 'doc-open' - skipped.
+Valid names: doc-opened, doc-closed, doc-saved, model-appended, model-removed,
+selection-changed, selection-sets-changed, viewpoints-changed, viewpoint-recalled,
+camera-moved, app-init, app-closing, before-command, after-command.
+</pre>
+
+<h2>The fourteen events</h2>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>File name</th><th>Fires when</th></tr></thead>
+<tbody>
+<tr><td><code>doc-opened.py</code></td><td>A document finishes opening (including the file
+    that loads when Navisworks starts with one on the command line).</td></tr>
+<tr><td><code>doc-closed.py</code></td><td>The active document closes down to nothing, or a
+    new empty document replaces it.</td></tr>
+<tr><td><code>doc-saved.py</code></td><td>The active document is saved.</td></tr>
+<tr><td><code>model-appended.py</code></td><td>A model is appended to the active document.</td></tr>
+<tr><td><code>model-removed.py</code></td><td>A model is removed from the active document.</td></tr>
+<tr><td><code>selection-changed.py</code></td><td>The current selection changes.
+    Debounced.</td></tr>
+<tr><td><code>selection-sets-changed.py</code></td><td>A selection set is added, removed or
+    edited. Debounced.</td></tr>
+<tr><td><code>viewpoints-changed.py</code></td><td>A saved viewpoint or folder is added,
+    removed or edited. The <em>tree</em>, not the view you are looking through.</td></tr>
+<tr><td><code>viewpoint-recalled.py</code></td><td>A saved viewpoint is activated, by clicking
+    it or otherwise. Not debounced: one per recall. <code>__event__['viewpoint']</code> holds
+    its name.</td></tr>
+<tr><td><code>camera-moved.py</code></td><td>The view moves: orbit, pan, zoom, walk.
+    Debounced.</td></tr>
+<tr><td><code>app-init.py</code></td><td>The ribbon finishes building, at boot and after
+    every Reload.</td></tr>
+<tr><td><code>app-closing.py</code></td><td>Navisworks is shutting down.</td></tr>
+<tr><td><code>before-command.py</code></td><td>Just before any pyNavis button's script runs,
+    ribbon click or chord alike.</td></tr>
+<tr><td><code>after-command.py</code></td><td>Just after that script finishes, success or
+    failure.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note trap">
+<span class="note-t">Three viewpoint events, and the plural is not the obvious one</span>
+<p><code>viewpoints-changed</code> is the saved-viewpoints <em>tree</em> being edited, so it
+fires when someone adds, renames or deletes a saved view - not when the view on screen
+changes. The one that fires when a saved view is <em>activated</em> is the singular
+<code>viewpoint-recalled</code>, and the one that fires when the camera itself moves is
+<code>camera-moved</code>. Leaving a saved view is not a recall of anything: orbiting away
+from one fires <code>camera-moved</code> only, and <code>viewpoint-recalled</code> stays
+quiet until another saved view is activated.</p>
+<p>Choosing the wrong one costs you more than usual here, because the mistake is invisible: all
+three names are valid, so nothing is logged. You simply get a hook that never runs.</p>
+</div>
+
+<div class="note trap">
+<span class="note-t">camera-moved gives you the resting view, not the journey</span>
+<p>The underlying Navisworks event fires continuously while the user drags, so
+<code>camera-moved</code> is debounced by 250ms like the selection events. One long orbit
+produces one run, once the user stops. That is what makes it usable at all - undebounced, it
+would run your Python script many times a second - but it does mean you cannot use it to
+follow motion frame by frame. If you see a burst of runs from a single gesture, something is
+wrong with the debounce, not with your script.</p>
+</div>
+
+<p>These are the runtime's own normalised names, not a re-export of raw Navisworks API events.
+A model going from zero to one model, for instance, is <code>doc-opened</code> plus
+<code>model-appended</code>, never a separate "first model" event.</p>
+
+<div class="note trap">
+<span class="note-t">model-appended and model-removed are inferred from a count</span>
+<p>The Navisworks API reports only that the model collection changed, not which model changed.
+The runtime compares the model count before and after: the new count is checked against the
+old one with <code>&gt;=</code>, so a rise <em>or a tie</em> fires <code>model-appended</code>,
+and only a fall fires <code>model-removed</code>. A same-count swap (one model out, a
+different one in) therefore reads as <code>model-appended</code>, not a no-op. If the swap
+happens as two separate collection changes (a remove, then an append), both events fire in
+turn.</p>
+</div>
+
+<h2>What a hook script looks like</h2>
+
+<pre data-lang="python" data-file="MyTools.extension\hooks\doc-opened.py">
+from pynavis import doc, toast
+toast.info('Opened ' + (doc.get_title() or 'untitled'))
+</pre>
+
+<p>A hook is a script like any other: top-level code (or a <code>main()</code> behind the
+usual <code>if __name__ == '__main__':</code> guard, which both engines make true), the same
+engines, the same <code>pynavis</code> library. It runs on the
+extension's default engine, resolved the same way a bundle's does: the extension's own
+<code>engine:</code> in <code>extension.yaml</code>, or <code>ironpython</code> if that is
+absent. There is no per-hook <code>engine:</code> override.</p>
+
+<h2>The contract</h2>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Property</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Thread</td><td>The UI thread, synchronously. The Navisworks API is not thread-safe,
+    and hooks run on the same thread every button click does.</td></tr>
+<tr><td>While a command runs</td><td>Skipped. Every event except <code>before-command</code> and
+    <code>after-command</code> runs no hooks while a pyNavis command is running, so a script
+    that pumps the message loop cannot have its own run re-entered; each skip is logged, and
+    events that arrive after the command ends behave normally again.</td></tr>
+<tr><td>Engine</td><td>The extension's default engine. See above.</td></tr>
+<tr><td>Module search paths</td><td>The <code>hooks\</code> folder, then the extension's
+    <code>lib\</code> if it has one. A bundle's own folder is not on a hook's path and a
+    hook's folder is not on a bundle's.</td></tr>
+<tr><td>Output</td><td>The pyNavis log, never an output window. There is no ribbon button
+    behind a hook for a window to be titled after, so writes that would normally open one are
+    routed to <code>%APPDATA%\pyNavis\logs\pyNavis.log</code> instead. Every line is labelled
+    with the hook that wrote it (<code>[hook MyTools:doc-opened]</code>), and
+    <code>pynavis.script.get_logger()</code> names its lines the same way, so hook output
+    never reads as if it came from the last button clicked.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>The injected globals</h3>
+
+<p>Three names, not the usual five: a hook has no bundle folder, no resolved title and no
+build-time run, so <code>__commandpath__</code>, <code>__title__</code> and
+<code>__selfinit__</code> do not exist.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Global</th><th>Type</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td><code>__file__</code></td><td>str</td><td>Full path of the hook script.</td></tr>
+<tr><td><code>__pynavis__</code></td><td>host object</td>
+    <td>The runtime host singleton, same object <code>pynavis.script.get_host()</code>
+        returns.</td></tr>
+<tr><td><code>__event__</code></td><td>dict</td>
+    <td>The event that triggered this run:
+        <code>{'name': ..., 'command': ..., 'viewpoint': ...}</code>.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><code>__event__['name']</code> is the kebab-case event name from the table above, always
+present. <code>__event__['command']</code> is the clicked button's bundle key
+(<a href="anatomy.html">the same key</a> that identifies it in
+<code>config.json</code>'s shortcut bindings), present only for <code>before-command</code>
+and <code>after-command</code>; it is <code>None</code> for every other event.</p>
+
+<p><code>__event__['viewpoint']</code> is the recalled saved view's name, present only for
+<code>viewpoint-recalled</code> and <code>None</code> everywhere else. It is captured at the
+moment the event is raised rather than read back when your script runs, so it names the view
+that was actually recalled even if the user has clicked on to another one since.</p>
+
+<pre data-lang="python" data-file="MyTools.extension\hooks\after-command.py">
+from pynavis import toast
+
+if __event__['command'] and 'Export' in __event__['command']:
+    toast.info('Ran ' + __event__['command'])
+</pre>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 176" width="700" role="img"
+     aria-label="A Navisworks event is normalised, optionally debounced, then dispatched to every matching hook on the UI thread, with output routed to the log.">
+  <style>
+    .hk-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .hk-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .hk-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .hk-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+              text-transform: uppercase; letter-spacing: .07em; }
+    .hk-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .hk-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .hk-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="hk-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="hk-lbl" x="0" y="14">One event, start to finish</text>
+
+  <rect class="hk-box" x="0" y="26" width="142" height="46" rx="4"/>
+  <text class="hk-t" x="12" y="46">Navisworks API</text>
+  <text class="hk-m" x="12" y="62">e.g. selection changes</text>
+
+  <path class="hk-arw" d="M148 49 H 190" marker-end="url(#hk-a)"/>
+
+  <rect class="hk-box" x="196" y="26" width="150" height="46" rx="4"/>
+  <text class="hk-t" x="208" y="46">Normalised + debounced</text>
+  <text class="hk-m" x="208" y="62">250ms for the three chatty ones</text>
+
+  <path class="hk-arw" d="M346 49 H 388" marker-end="url(#hk-a)"/>
+
+  <rect class="hk-hot" x="394" y="26" width="150" height="46" rx="4"/>
+  <text class="hk-t" x="406" y="46">Every matching hook</text>
+  <text class="hk-m" x="406" y="62">UI thread, in sequence</text>
+
+  <path class="hk-arw" d="M544 49 H 586" marker-end="url(#hk-a)"/>
+
+  <rect class="hk-box" x="592" y="26" width="108" height="46" rx="4"/>
+  <text class="hk-t" x="604" y="46">pyNavis.log</text>
+  <text class="hk-m" x="604" y="62">never a window</text>
+
+  <text class="hk-m" x="0" y="110">A hook that fails 3 times running is disabled until the</text>
+  <text class="hk-m" x="0" y="126">next Reload; every run past the 500ms soft budget is logged</text>
+  <text class="hk-m" x="0" y="142">so a slow hook shows up before it is disabled.</text>
+</svg>
+</div>
+<figcaption>Consumers never see the raw Navisworks event: HookRunner, the context gate and the
+toggle refresh all react to the same normalised, already-debounced signal.</figcaption>
+</figure>
+
+<h2>Debouncing</h2>
+
+<p><code>selection-changed</code>, <code>selection-sets-changed</code> and
+<code>camera-moved</code> are the three events a user can fire dozens of times a second, so
+all three are debounced 250 milliseconds before a hook ever sees them: the timer restarts on
+every raw change and only fires once activity settles. Every other event dispatches
+immediately.</p>
+
+<div class="note tip">
+<span class="note-t">Dragging a selection box fires one hook run, not one per item</span>
+<p>Without the debounce, a marquee select over a thousand items would try to run every
+<code>selection-changed</code> hook a thousand times in the time it takes to release the
+mouse. With it, the hook sees the selection exactly once, after it stops moving.</p>
+</div>
+
+<h2>The soft time budget</h2>
+
+<p>A hook has no hard timeout: nothing kills a slow one mid-run. There is a soft budget of 500
+milliseconds instead. A hook that runs longer is not stopped, but every such run is logged so
+a hook that is quietly getting in the way of the UI thread shows up.</p>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Hook MyTools:doc-opened took 812ms (soft budget 500ms) - keep hooks fast.
+</pre>
+
+<p>Because hooks run synchronously on the UI thread, a hook that is genuinely slow makes
+Navisworks feel slow every time its event fires. Keep the work small: toast a status, write a
+setting, kick off something that reports back later. Do not open a modal dialog or run a
+multi-second loop from inside one.</p>
+
+<h2>Three failures and it is disabled</h2>
+
+<p>A hook that raises, or whose engine returns a failure result, is not retried differently
+next time; it just runs again on the next matching event. Three <strong>consecutive</strong>
+failures disable it for the rest of the session, and the runtime says so once, with a toast:</p>
+
+<pre data-lang="text">
+Hook MyTools:doc-opened disabled after 3 failures
+Fix the script, then Reload pyNavis to re-enable it.
+</pre>
+
+<p>Every failure, disabling or not, is written to the log with the full traceback. A success
+in between resets the count: two failures followed by one success does not carry over toward
+the third strike. <strong>Reload always re-enables every hook</strong>, whether or not the
+underlying bug was fixed, because <code>HookRunner.Configure</code> rebuilds the hook list and
+resets health tracking from scratch on every reload.</p>
+
+<div class="note warn">
+<span class="note-t">A disabled hook is silent after the toast</span>
+<p>Once disabled, the event still fires and every other hook still runs; the broken one is
+simply skipped with no further message until Reload. If a hook you expect to see stops
+producing output, check the log for "disabled after 3 failures" before assuming the event
+itself did not fire.</p>
+</div>
+
+<h2>What you cannot do from a hook</h2>
+
+<ul>
+  <li><strong>No output window.</strong> Unlike an ordinary bundle, a hook's
+    <code>print()</code> does not open one: its output and error streams are both wired to the
+    log, so a stray <code>print()</code> lands as a log line instead of a window nobody sees.
+    A hook never sets the running command context either, so <code>pynavis.output</code> has
+    nothing well-defined to write to from inside one. Use <code>pynavis.toast</code> for
+    anything the user should notice.</li>
+  <li><strong>No per-hook engine.</strong> A hook always runs on its extension's default
+    engine; put the extension on <code>engine: cpython</code> in <code>extension.yaml</code>
+    if every hook in it needs CPython.</li>
+  <li><strong>No <code>config.py</code>, no icon, no shortcut, no ribbon presence at
+    all.</strong> A hook is pure automation. If you also want a manual trigger for the same
+    logic, put the shared work in a module under the extension's <code>lib\</code> folder and
+    call it from both the hook and an ordinary bundle.</li>
+</ul>
+
+<div class="cards">
+  <a href="anatomy.html"><span class="c-t">Anatomy of an extension</span>
+    <span class="c-d">Where hooks\, lib\ and startup.py sit relative to the rest of the tree.</span></a>
+  <a href="bundle-yaml.html"><span class="c-t">bundle.yaml</span>
+    <span class="c-d">context: gates a button on the same document state a hook can react to.</span></a>
+  <a href="script-environment.html"><span class="c-t">The script environment</span>
+    <span class="c-d">The five globals an ordinary button script gets, for comparison.</span></a>
+</div>

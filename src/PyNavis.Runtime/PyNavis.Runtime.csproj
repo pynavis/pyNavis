@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The pyNavis runtime: ribbon injection, engines, bundles, output window.
+    Deployed OUTSIDE the Navisworks Plugins folder; found by the loader's
+    AssemblyResolver. IronPython and all future dependencies live here.
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>PyNavis.Runtime</AssemblyName>
+    <RootNamespace>PyNavis.Runtime</RootNamespace>
+    <OutputType>Library</OutputType>
+    <OutputPath>$(PyNavisBinRoot)runtime\</OutputPath>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <ReferencesNavisApi>true</ReferencesNavisApi>
+    <ReferencesAdWindows>true</ReferencesAdWindows>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="IronPython" Version="3.4.2" />
+    <!-- Python standard library, copied to <output>\lib\ -->
+    <PackageReference Include="IronPython.StdLib" Version="3.4.2" />
+    <!-- CPython hosting; the interpreter itself comes from the user's machine -->
+    <PackageReference Include="pythonnet" Version="3.0.5" />
+    <!-- HTML output window; needs the Evergreen WebView2 runtime on the machine -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- JavaScriptSerializer for config.json (zero extra NuGet deps on net48) -->
+    <Reference Include="System.Web.Extensions" />
+    <!-- CSharpCodeProvider, to compile the pane slot satellite assembly -->
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PyNavis.Tests" />
+  </ItemGroup>
+
+</Project>

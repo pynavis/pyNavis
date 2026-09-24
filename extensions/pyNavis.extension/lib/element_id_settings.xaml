@@ -1,0 +1,51 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Element ID settings" Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+  <StackPanel Margin="18">
+
+    <TextBlock Text="After selecting" FontWeight="SemiBold"/>
+    <CheckBox x:Name="ZoomBox" Content="Zoom to the selection" Margin="0,8,0,0"/>
+    <CheckBox x:Name="IsolateBox" Content="Hide everything else" Margin="0,6,0,0"/>
+    <TextBlock Text="Hiding is one undo step, and Unhide All in Navisworks clears it."
+               Margin="24,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+
+    <TextBlock Text="On click" FontWeight="SemiBold" Margin="0,18,0,0"/>
+    <CheckBox x:Name="ClipboardBox" Content="Fill the box with IDs from the clipboard"
+              Margin="0,8,0,0"/>
+    <TextBlock Text="The box opens either way, and stays empty when the clipboard holds nothing that looks like element IDs. Nothing is searched or selected until you press OK."
+               Margin="24,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+
+    <TextBlock Text="How hard to look" FontWeight="SemiBold" Margin="0,18,0,0"/>
+    <CheckBox x:Name="EveryMatchBox" Content="Select every item carrying the ID"
+              Margin="0,8,0,0"/>
+    <TextBlock Text="Off, each ID selects the first element found. On, it keeps looking for every copy, for a model where the same element was exported into more than one file. Complete, and about four times slower per ID."
+               Margin="24,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+
+    <TextBlock Text="Where the ID lives" FontWeight="SemiBold" Margin="0,18,0,0"/>
+    <TextBlock Text="The property tab an NWC exported from Revit carries. A model published through design coordination has no such tab, and its &quot;Name [123456]&quot; suffix is always searched as well."
+               Margin="0,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+    <Grid Margin="0,10,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Category" VerticalAlignment="Center"
+                 Margin="0,0,10,0"/>
+      <TextBox x:Name="CategoryBox" Grid.Row="0" Grid.Column="1" Height="24"/>
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Property" VerticalAlignment="Center"
+                 Margin="0,8,10,0"/>
+      <TextBox x:Name="PropertyBox" Grid.Row="1" Grid.Column="1" Height="24" Margin="0,8,0,0"/>
+    </Grid>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+      <Button x:Name="ResetButton" Content="Reset" Width="84" Margin="0,0,8,0"/>
+      <Button x:Name="OkButton" Content="Save" Width="84" Margin="0,0,8,0" IsDefault="True"/>
+      <Button x:Name="CancelButton" Content="Cancel" Width="84" IsCancel="True"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

@@ -1,0 +1,2001 @@
+<!-- title: Cookbook -->
+<!-- eyebrow: Practice -->
+<!-- lead: Complete, runnable recipes for the jobs a Navisworks tool actually has to do, with the sharp edge on each one named. -->
+
+<p>Every recipe on this page is a whole <code>script.py</code>. Copy one into a
+<code>.pushbutton</code> folder, click Reload, and it runs. Nothing is elided, nothing is
+pseudocode, and every function called here exists in the <code>pynavis</code> library
+shipped with your install.</p>
+
+<p>They are all built the same way, because tools that touch a model have a shape. Read
+something, guard against the case where there is nothing to read, compute an answer without
+touching the API, write the answer back in one go, then say what happened.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 176" width="700" role="img"
+     aria-label="The five stages of a tool: read, guard, compute, write, report.">
+  <style>
+    .ck1-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ck1-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ck1-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .ck1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ck1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .ck1-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .ck1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="ck1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="ck1-lbl" x="0" y="12">The shape of every recipe below</text>
+
+  <rect class="ck1-box" x="0" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="14" y="46">Read</text>
+  <text class="ck1-mono" x="14" y="63">selection, doc</text>
+
+  <path class="ck1-arw" d="M120 49 H 142" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-box" x="146" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="160" y="46">Guard</text>
+  <text class="ck1-mono" x="160" y="63">if not items:</text>
+
+  <path class="ck1-arw" d="M266 49 H 288" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-hot" x="292" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="306" y="46">Compute</text>
+  <text class="ck1-m"    x="306" y="63">no API calls</text>
+
+  <path class="ck1-arw" d="M412 49 H 434" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-box" x="438" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="452" y="46">Write</text>
+  <text class="ck1-mono" x="452" y="63">one transaction</text>
+
+  <path class="ck1-arw" d="M558 49 H 580" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-box" x="584" y="26" width="116" height="46" rx="4"/>
+  <text class="ck1-t"    x="598" y="46">Report</text>
+  <text class="ck1-mono" x="598" y="63">toast / output</text>
+
+  <path class="ck1-arw" d="M205 74 V 104" marker-end="url(#ck1-a)"/>
+  <rect class="ck1-box" x="146" y="108" width="118" height="34" rx="4"/>
+  <text class="ck1-m" x="160" y="129">nothing to do</text>
+
+  <path class="ck1-arw" d="M264 125 H 620 V 78" marker-end="url(#ck1-a)"/>
+  <text class="ck1-m" x="288" y="120">one toast, then stop</text>
+
+  <text class="ck1-m" x="0" y="166">A cancelled dialog skips the report too: cancelling is
+    silent, because the user already knows what they did.</text>
+</svg>
+</div>
+<figcaption>Keeping the compute step free of API calls is what makes the middle of a tool
+testable. The last section of this page shows how far that goes.</figcaption>
+</figure>
+
+<h2>Working with the selection</h2>
+
+<h3>Act on the current selection</h3>
+
+<p>Almost every tool starts here, and the first thing it must handle is an empty selection.
+A tool that throws a traceback because nothing was picked is a tool people stop using.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Reports the bounding box of the current selection."""
+from pynavis import selection, toast
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    box = items[0].BoundingBox()
+    for item in items[1:]:
+        box.Extend(item.BoundingBox())
+    size = box.Size
+    toast.success(
+        '%d item(s) selected' % len(items),
+        '%.2f x %.2f x %.2f' % (size.X, size.Y, size.Z))
+</pre>
+
+<p><code>selection.get_items()</code> returns a plain Python list, never <code>None</code>,
+and it is empty when nothing is selected. That makes <code>if not items:</code> the whole
+guard. The list is a snapshot: changing the selection afterwards does not change the list you
+are holding.</p>
+
+<div class="note">
+<span class="note-t">Report with a toast, not a print</span>
+<p>A one-line status belongs in a <code>toast</code>. <code>print()</code> materialises the
+output window, so a script whose only output is a single <code>print</code> gives the user a
+window with one line in it. Use the output window when you have a report to show; use a toast
+when you have a sentence.</p>
+</div>
+
+<h3>Filter a selection by a property value</h3>
+
+<p>Properties are addressed by their <em>display</em> names, the ones you see in the
+Properties palette, and <code>doc.get_property</code> returns <code>None</code> when the
+category or the property is not on that item. That happens constantly in a federated model,
+so it is the normal case rather than an error.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Keeps only the selected objects whose Item / Type contains a given word."""
+from pynavis import doc, forms, selection, toast
+
+CATEGORY = 'Item'
+PROPERTY = 'Type'
+
+items = selection.get_items()
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    wanted = forms.ask_string(
+        'Keep objects whose %s contains:' % PROPERTY, title='Filter selection')
+    if wanted is not None and wanted.strip():
+        needle = wanted.strip().lower()
+        kept = []
+        for item in items:
+            value = doc.get_property(item, CATEGORY, PROPERTY)
+            if value is None:
+                continue
+            if needle in value.ToDisplayString().lower():
+                kept.append(item)
+
+        if kept:
+            selection.set_items(kept)
+            toast.success('Kept %d of %d' % (len(kept), len(items)))
+        else:
+            toast.warning('Nothing matched', 'The selection is unchanged.')
+</pre>
+
+<p><code>get_property</code> hands back a Navisworks <code>VariantData</code>, not a string.
+<code>ToDisplayString()</code> is the safe way to read one whatever its underlying type is,
+which saves you from branching on <code>IsDisplayString</code>, <code>IsDouble</code> and the
+rest.</p>
+
+<div class="note tip">
+<span class="note-t">For new tools, reach for props instead</span>
+<p><code>pynavis.props</code> supersedes <code>doc.get_property</code>: <code>props.get</code>
+does the same lookup and hands back an already-coerced Python value, so there is no
+<code>VariantData</code> to unwrap and no <code>ToDisplayString()</code> to remember. The
+recipe below uses it. <code>doc.get_property</code> stays for the tools already written
+against it, and several recipes further down this page still show it for that reason.</p>
+</div>
+
+<h3>Read properties as plain Python values</h3>
+
+<p><code>props.get(item, category, prop)</code> returns a <code>str</code>, <code>int</code>,
+<code>float</code>, <code>bool</code>, a <code>datetime</code> or an <code>(x, y, z)</code>
+tuple, whichever the property actually holds, and <code>None</code> when the item does not
+carry it. That is the whole difference: a number comes back as a number, so you compare it
+instead of parsing it.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Selects every object whose Length is over a limit, reading properties as values."""
+from pynavis import props, selection, toast
+
+LIMIT = 6.0
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    kept = []
+    unknown = 0
+    for item in items:
+        length = props.get(item, 'Item', 'Length')
+        if not isinstance(length, float):
+            unknown += 1                       # missing, or not a number
+        elif length > LIMIT:
+            kept.append(item)
+
+    if kept:
+        selection.set_items(kept)
+        toast.success('%d object(s) over %g m' % (len(kept), LIMIT),
+                      '%d had no usable Length.' % unknown if unknown else '')
+    else:
+        toast.warning('Nothing matched', 'The selection is unchanged.')
+</pre>
+
+<p>Two siblings cover the bulk cases. <code>props.all_of(item)</code> returns every property on
+an item as flat <code>{'category', 'property', 'value'}</code> rows, which is the shape
+<code>output.print_table</code> and a spreadsheet export both want.
+<code>props.value_map(item, spec)</code> pulls several named properties into one dict in a
+single call, from a <code>{key: (category, prop)}</code> spec, which is how you build one report
+row per object without a column's worth of lookups in the loop.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Builds one report row per selected object from a named set of properties."""
+from pynavis import output, props, selection, toast
+
+SPEC = {
+    'Type': ('Item', 'Type'),
+    'Level': ('Element', 'Level'),
+    'Mark': ('Element', 'Mark'),
+}
+COLUMNS = ['Type', 'Level', 'Mark']
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected')
+else:
+    rows = []
+    for item in items:
+        values = props.value_map(item, SPEC)
+        rows.append([item.DisplayName]
+                    + ['' if values[key] is None else values[key] for key in COLUMNS])
+    output.print_table(rows, ['Object'] + COLUMNS)
+</pre>
+
+<div class="note warn">
+<span class="note-t">Writing a property tab replaces it, it never merges</span>
+<p><code>props.set_custom(items, tab_name, values)</code> writes <code>values</code> as the
+<strong>whole</strong> tab on every item, so a field that was on the tab before and is left out
+of <code>values</code> this time disappears. To add one field to an existing tab, read it back
+with <code>props.get_custom(item, tab_name)</code> first, merge your value in, and pass the
+merged dictionary. It returns <code>(written, errors)</code>, because a failure inside the
+underlying write can otherwise vanish without a trace, and it batches the whole list into one
+undo entry.</p>
+</div>
+
+<div class="note trap">
+<span class="note-t">Cancelling must be silent</span>
+<p><code>forms.ask_string</code>, <code>forms.save_file</code> and
+<code>forms.open_file</code> return <code>None</code> when the user cancels, and
+<code>forms.confirm</code> returns <code>False</code>. Do nothing at all in that branch. No
+toast, no output window, no &ldquo;operation cancelled&rdquo;. The user cancelled on purpose
+and telling them so is noise.</p>
+</div>
+
+<h3>Replace the selection with a computed subset</h3>
+
+<p><code>selection.set_items</code> takes any iterable of <code>ModelItem</code> and replaces
+the current selection wholesale. It builds the .NET collection for you, so you never have to
+think about <code>ModelItemCollection</code>.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Reduces the selection to one representative object per source model."""
+from pynavis import doc, selection, toast
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected')
+else:
+    document = doc.get_doc()
+    models = document.Models
+    seen = {}
+    for item in items:
+        index = models.CreatePathId(item).ModelIndex
+        if index not in seen:
+            seen[index] = item
+
+    selection.set_items(list(seen.values()))
+    toast.success('%d model(s) represented' % len(seen),
+                  'Reduced from %d item(s).' % len(items))
+</pre>
+
+<p><code>selection.clear()</code> is the other half of the pair. There is no
+&ldquo;add to selection&rdquo; call: read the current items, extend the list, and set the
+whole thing back.</p>
+
+<h3>Isolate what you found, then frame it</h3>
+
+<p>Finding the right objects is half a tool. Showing them is the other half.
+<code>pynavis.view</code> has the three moves a tool makes straight after it changes the
+selection.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Isolates the current selection and zooms to it."""
+from pynavis import selection, toast, view
+
+items = selection.get_items()
+
+if not items:
+    view.unhide_all()
+    toast.info('Nothing selected', 'Everything is visible again.')
+else:
+    kept = view.isolate(items)
+    view.zoom_selected()
+    toast.success('Isolated %d item(s)' % kept, 'Unhide All puts the model back.')
+</pre>
+
+<p><code>view.isolate</code> hides every root item and then unhides the ones you passed, both
+inside one transaction, so Ctrl+Z restores the model in a single step and the host's own Unhide
+All clears it too. An empty list is a no-op rather than a whole-model blackout.
+<code>view.zoom_selected</code> returns <code>False</code> and logs when the host refuses the
+camera move; carry on either way, because a tool that selected the right objects has already
+done its job.</p>
+
+<h3>Keep a selection in memory and do set maths on it</h3>
+
+<p><code>pynavis.memory</code> is a pocket calculator's memory for model items: one register per
+document, kept on disk under <code>%APPDATA%\pyNavis\memory</code>, with M+, M- and MR
+equivalents. Every action returns a <code>Result</code> you hand straight to a toast, so a
+button script is two lines.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Adds the current selection to the document's memory register."""
+from pynavis import memory, toast
+
+result = memory.add()
+toast.show(result.level, result.message, result.detail)
+</pre>
+
+<p><code>memory.memorize()</code> sets the register to the selection,
+<code>memory.recall()</code> sets the selection to the register, and
+<code>memory.add()</code>, <code>memory.subtract()</code> and <code>memory.intersect()</code>
+are the set maths between the two. <code>memory.clear()</code> empties it. None of them raises
+for an expected failure: an empty selection or an empty register comes back as an error-level
+<code>Result</code> with a detail line saying what to do next.</p>
+
+<p>Two more are worth a button of their own. <code>memory.step_next()</code> and
+<code>memory.step_prev()</code> walk the register one item at a time, wrapping at both ends,
+and <code>memory.save_as_set(name)</code> promotes the whole register to a native Navisworks
+selection set.</p>
+
+<div class="note warn">
+<span class="note-t">Stepping is not a read</span>
+<p><code>memory.step_next()</code> replaces the current selection with the single item it
+landed on and flies the camera to it. Entries that no longer resolve in this document are
+skipped rather than stepped onto, so the "item 4 of 27" counter counts resolvable items, not
+stored ones. The register itself survives a Navisworks restart, because it lives in a file
+keyed off the document path, not in the session.</p>
+</div>
+
+<h2>Reading the model</h2>
+
+<h3>List every model and its source file</h3>
+
+<p>A federated model is a stack of files, and the first question anyone asks of a new one is
+what is actually in it.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Lists the loaded models and the files they came from."""
+from pynavis import doc, output, toast
+
+document = doc.get_doc()
+rows = []
+for index, model in enumerate(document.Models):
+    rows.append([index, model.RootItem.DisplayName, model.SourceFileName])
+
+if not rows:
+    toast.info('This document has no models loaded.')
+else:
+    output.print_md('## %s' % (doc.get_title() or 'Untitled document'))
+    output.print_table(rows, ['#', 'Model', 'Source file'])
+</pre>
+
+<div class="note warn">
+<span class="note-t">Iterate, never index</span>
+<p>The Navisworks collection indexer walks the collection to reach position <em>n</em>, so a
+loop over <code>node.Children[i]</code> is quadratic and gets ruinous somewhere in the low
+thousands. Always write <code>for child in node.Children:</code> and use
+<code>enumerate</code> when you need the position. The same applies to
+<code>SelectedItems</code>, <code>Models</code> and a clash test's results.</p>
+</div>
+
+<h3>Report the distinct values of a property</h3>
+
+<p>Counting the distinct values of one property across a selection is how you find out
+whether a model is tagged consistently. It is also the smallest useful report.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Counts the distinct values of one property across the selection."""
+from pynavis import doc, output, selection, toast
+
+CATEGORY = 'Item'
+PROPERTY = 'Type'
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    counts = {}
+    for item in items:
+        value = doc.get_property(item, CATEGORY, PROPERTY)
+        text = value.ToDisplayString() if value is not None else '(not set)'
+        counts[text] = counts.get(text, 0) + 1
+
+    rows = sorted(counts.items(), key=lambda pair: (-pair[1], pair[0]))
+    output.print_md('## %s / %s' % (CATEGORY, PROPERTY))
+    output.print_table([[text, count] for text, count in rows],
+                       [PROPERTY, 'Count'])
+    output.print_md('%d distinct value(s) across %d object(s).'
+                    % (len(rows), len(items)))
+</pre>
+
+<p>Sorting by <code>(-count, text)</code> rather than by count alone keeps the order stable
+between runs, which matters when the user is comparing two exports.</p>
+
+<h3>Walk saved viewpoints with their folder path</h3>
+
+<p><code>doc.walk_saved_viewpoints()</code> flattens the saved-viewpoints tree depth first
+and yields <code>(folder_names, saved_item)</code>. <code>folder_names</code> is the list of
+ancestor folder names, empty for a top-level item.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Lists every saved viewpoint with the folder it lives in."""
+from pynavis import doc, output, toast
+
+rows = []
+for folders, item in doc.walk_saved_viewpoints():
+    rows.append([
+        '/'.join(folders) or '(top level)',
+        item.DisplayName,
+        item.GetType().Name,
+    ])
+
+if not rows:
+    toast.info('This document has no saved viewpoints.')
+else:
+    output.print_table(rows, ['Folder', 'Name', 'Kind'])
+    output.print_md('%d saved item(s).' % len(rows))
+</pre>
+
+<div class="note">
+<span class="note-t">Animations come out whole</span>
+<p>The walk descends into folders only. A saved animation is a group node too, but it is
+yielded as a single item rather than being unpacked into its keyframes, which is what you
+want in a listing. Test with <code>item.GetType().Name</code> or check for a
+<code>Viewpoint</code> attribute if you need to tell the kinds apart.</p>
+</div>
+
+<h2>Producing output</h2>
+
+<h3>Export the selection to CSV</h3>
+
+<p>The save dialog, the silent cancel, the write, the toast. This is the pattern for every
+export tool you will write.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Exports the selected objects and one property to a CSV file."""
+import csv
+
+from pynavis import doc, forms, selection, toast
+
+CATEGORY = 'Item'
+PROPERTY = 'Type'
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    default_name = (doc.get_title() or 'selection') + '.csv'
+    path = forms.save_file(default_name=default_name,
+                           title='Export selection')
+    if path is not None:                       # None means cancelled: say nothing
+        with open(path, 'w') as handle:
+            writer = csv.writer(handle, lineterminator='\n')
+            writer.writerow(['Name', PROPERTY, 'Source model'])
+            for item in items:
+                value = doc.get_property(item, CATEGORY, PROPERTY)
+                writer.writerow([
+                    item.DisplayName,
+                    value.ToDisplayString() if value is not None else '',
+                    item.Model.SourceFileName if item.Model is not None else '',
+                ])
+        toast.success('Exported %d row(s)' % len(items), path)
+</pre>
+
+<p>Pass <code>lineterminator='\n'</code> to <code>csv.writer</code>. Without it the module
+writes <code>\r\n</code> into a file already opened in text mode and every row ends up with a
+blank line after it.</p>
+
+<h3>Show a table in the output window</h3>
+
+<p><code>output.print_table(rows, headers)</code> escapes your cells, styles the table to
+match the window, and works out its own alignment. A column is treated as numeric when every
+non-empty cell in it parses as a number, so numbers right-align and tabulate without you
+declaring anything.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Reports the object count and combined length per source model."""
+from pynavis import doc, output, selection, toast
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected')
+else:
+    document = doc.get_doc()
+    models = document.Models
+    per_model = {}
+    for item in items:
+        index = models.CreatePathId(item).ModelIndex
+        name = models[index].SourceFileName
+        count, length = per_model.get(name, (0, 0.0))
+        value = doc.get_property(item, 'Item', 'Length')
+        try:
+            length += float(value.ToDisplayString()) if value is not None else 0.0
+        except ValueError:
+            pass
+        per_model[name] = (count + 1, length)
+
+    rows = [[name, count, '%.2f' % length]
+            for name, (count, length) in sorted(per_model.items())]
+    output.print_table(rows, ['Source model', 'Objects', 'Length'])
+</pre>
+
+<p>Two sibling calls round the surface out. <code>output.print_md</code> renders headings,
+bold, inline code, lists and links, which is enough for the prose around a table.
+<code>output.format_table</code> returns a plain-text table you can hand to
+<code>print</code>, which is what you want when the report is going to be pasted into an
+email.</p>
+
+<h3>Link back to the model from the output window</h3>
+
+<p>A report that names an object is useful. A report where clicking the row selects the
+object is a different tool. <code>output.element_link(item, label)</code> returns an HTML
+string for a link that selects that <code>ModelItem</code>, which you embed in your own
+markup and hand to <code>output.print_html</code>.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Lists the selected objects, each with a link that reselects it."""
+from pynavis import output, selection, toast
+
+
+def escape(text):
+    return (str(text).replace('&amp;', '&amp;amp;')
+                     .replace('&lt;', '&amp;lt;')
+                     .replace('&gt;', '&amp;gt;'))
+
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected')
+else:
+    cells = ''.join(
+        '&lt;tr&gt;&lt;td&gt;%s&lt;/td&gt;&lt;td&gt;%s&lt;/td&gt;&lt;/tr&gt;'
+        % (escape(item.DisplayName), output.element_link(item, 'Show'))
+        for item in items[:200])
+    output.print_html(
+        '&lt;table class="pynavis"&gt;&lt;thead&gt;&lt;tr&gt;'
+        '&lt;th&gt;Object&lt;/th&gt;&lt;th&gt;&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;'
+        '&lt;tbody&gt;%s&lt;/tbody&gt;&lt;/table&gt;' % cells)
+    if len(items) &gt; 200:
+        output.print_md('... and %d more.' % (len(items) - 200))
+</pre>
+
+<div class="note warn">
+<span class="note-t">Hand-built HTML is yours to escape</span>
+<p><code>print_table</code> escapes every cell. <code>print_html</code> does not, because the
+whole point of it is that you are supplying markup. Any model-derived text you interpolate
+must be escaped first, and object names in a real federated model do contain angle brackets
+and ampersands. Cap the row count too: a link table of fifty thousand rows is not a report.</p>
+</div>
+
+<h3>Report progress on a long loop</h3>
+
+<p>Your script owns the UI thread for its whole run, so a long loop freezes Navisworks.
+<code>output.progress(fraction, label)</code> paints a progress bar in the output window and
+gives the user something other than a white window to look at.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Checks every selected object for a missing property."""
+from pynavis import doc, output, selection, toast
+
+CATEGORY = 'Item'
+PROPERTY = 'Type'
+
+items = selection.get_items()
+total = len(items)
+
+if not total:
+    toast.info('Nothing selected')
+else:
+    missing = []
+    for index, item in enumerate(items):
+        if index % 100 == 0:
+            output.progress(float(index) / total,
+                            'Checking %d of %d' % (index, total))
+        if doc.get_property(item, CATEGORY, PROPERTY) is None:
+            missing.append(item.DisplayName)
+    output.progress(1.0)
+
+    if not missing:
+        toast.success('All %d object(s) have %s' % (total, PROPERTY))
+    else:
+        output.print_md('## %d object(s) missing %s' % (len(missing), PROPERTY))
+        output.print_table([[name] for name in missing[:500]], ['Object'])
+</pre>
+
+<p>Update every hundredth iteration rather than every iteration: repainting is not free, and
+on a large selection the paints cost more than the work. <code>output.progress(1.0)</code>
+completes the bar, and you should always call it, including on the paths that end early.</p>
+
+<div class="note trap">
+<span class="note-t">No worker threads</span>
+<p>The Navisworks API is not thread-safe and your script already runs on the UI thread.
+Moving the loop onto a background thread to keep the window responsive corrupts the document
+or crashes the process. If a job is genuinely too long to hold the UI, cut the work, not the
+thread.</p>
+</div>
+
+<h2>Working in the 3D view</h2>
+
+<h3>Ask the user to click a point</h3>
+
+<p><code>pynavis.pick</code> borrows the document's tool for the length of one click and hands
+it straight back. It feels like the native Measure tool on purpose: the same vertex and edge
+snapping, the same cursors, a marker under the pointer, and the view still orbits and pans
+while the user lines the shot up.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Measures the straight-line distance between two picked points."""
+import math
+
+from pynavis import pick, toast
+
+first = pick.point('Click the first point')
+if first is not None:                          # None means cancelled: say nothing
+    second = pick.point('Click the second point')
+    if second is not None:
+        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first.point, second.point)))
+        toast.success('%.3f in model units' % distance,
+                      'Snapped to %s and %s.' % (first.snap or 'a face',
+                                                 second.snap or 'a face'))
+</pre>
+
+<p>A <code>Hit</code> always has <code>.point</code>, an <code>(x, y, z)</code> tuple of floats.
+<code>.normal</code>, <code>.item</code> and <code>.snap</code> may each be <code>None</code>,
+so guard them the way the toast above does. Cancelling with Esc, a right-click or by choosing
+another tool gives <code>None</code>, and that branch should say nothing at all.</p>
+
+<div class="note trap">
+<span class="note-t">pick.point raises when the plugin is not loaded</span>
+<p>Navisworks scans for plugins only at startup, so a loader updated in place has no pick tool
+in it until the next restart. <code>pick.point</code> and <code>pick.point_then</code> raise
+<code>pick.Unavailable</code> in that state, and the exception's own message is the remedy, so
+it is safe to toast as it stands. <code>pick.measure_point</code> asks the same question
+through the host's own Measure tool and needs no plugin, at the price of knowing only the
+point: no normal, no item, no snap kind.</p>
+</div>
+
+<pre data-lang="python" data-bare="true">try:
+    hit = pick.point('Click a point')
+except pick.Unavailable as reason:
+    toast.warning('Using the Measure tool instead', str(reason))
+    hit = pick.measure_point('Click a point')</pre>
+
+<p>From a dock panel or a modeless window, blocking the UI thread is not an option, so use
+<code>pick.point_then(callback)</code> instead. It starts the pick, returns at once, and calls
+<code>callback(hit_or_None)</code> when the pick ends. <code>pick.cancel()</code> ends a
+running pick from elsewhere; the callback still fires, with <code>None</code>.</p>
+
+<h3>Draw the answer into the view</h3>
+
+<p>A measurement the user has to read off a toast is worse than one drawn where they are
+looking. <code>pynavis.overlay</code> holds world-coordinate line segments that the overlay
+plugin redraws every frame, so they follow orbit and zoom instead of sitting on the glass.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Picks two points and draws a labelled dimension between them."""
+import math
+
+from pynavis import overlay, pick, toast
+
+TAG = 'quick-dimension'
+
+first = pick.point('Click the first point')
+if first is None:
+    overlay.clear(TAG)                         # cancelled: take the last one down
+    overlay.redraw()
+else:
+    second = pick.point('Click the second point')
+    if second is not None:
+        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first.point, second.point)))
+        label = '%.3f' % distance
+        drawn = overlay.dimension(TAG, first.point, second.point, label)
+        overlay.redraw()
+        if drawn:
+            toast.success('Dimension drawn', label)
+        else:
+            toast.success('Distance is %s' % label,
+                          'Restart Navisworks to finish updating pyNavis.')
+</pre>
+
+<p>The tag is the whole identity model: drawing again under the same tag replaces what was
+there, and <code>overlay.clear(tag)</code> takes it down. <code>overlay.clear()</code> with no
+argument removes everything. Nothing reaches the screen until <code>overlay.redraw()</code>, so
+end every batch with one call to it.</p>
+
+<div class="note">
+<span class="note-t">An anchor makes the drawing clean itself up</span>
+<p>Pass <code>anchor=(first_point, end_point)</code> to <code>overlay.add</code> or
+<code>overlay.dimension</code> and the item belongs to the native point-to-point measurement
+between those two points: it disappears on the first frame that measurement changes or is
+cleared. Paired with <code>pick.measure_points</code>, which asks the user for that measurement
+and leaves it on screen, it lets a tool annotate the user's own measuring and then get out of
+the way with nothing left to tidy up.</p>
+<p>Every overlay call returns <code>False</code> when the overlay plugin is not loaded, which
+is what an un-restarted loader looks like. Report your own result anyway, the way the recipe
+above does: the number is still right, only the drawing is missing.</p>
+</div>
+
+<h3>Measure real faces, not bounding boxes</h3>
+
+<p><code>geometry.world_triangles(item)</code> is the one route in the library to an object's
+actual faces. It returns world-coordinate triangles as plain tuples, so everything you do with
+them afterwards is pure Python and testable.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Reports the total surface area of the selected objects."""
+from pynavis import geometry, selection, toast
+
+
+def area(triangle):
+    (ax, ay, az), (bx, by, bz), (cx, cy, cz) = triangle
+    ux, uy, uz = bx - ax, by - ay, bz - az
+    vx, vy, vz = cx - ax, cy - ay, cz - az
+    nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+    return 0.5 * (nx * nx + ny * ny + nz * nz) ** 0.5
+
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    notes = []
+    total = 0.0
+    measured = 0
+    for item in items:
+        triangles = geometry.world_triangles(item, note=notes.append)
+        if triangles:
+            total += sum(area(t) for t in triangles)
+            measured += 1
+
+    if not measured:
+        toast.warning('Could not read any geometry', notes[0] if notes else '')
+    else:
+        toast.success('%.2f square model units' % total,
+                      '%d of %d object(s) measured.' % (measured, len(items)))
+</pre>
+
+<div class="note trap">
+<span class="note-t">An empty list means unknown, and the walk is IronPython only</span>
+<p><code>world_triangles</code> returns <code>[]</code> when the item declares more primitives
+than its <code>budget</code>, when the walk yields nothing, or when no matrix layout fitted.
+None of those means "no faces", so never report zero. Pass a callable as <code>note</code>, as
+above, and you get one string per reason.</p>
+<p>The walk subclasses a COM interface to receive vertices, which only the IronPython engine
+can do, so a bundle calling it must leave <code>engine:</code> at its default or set it to
+<code>ironpython</code>. <code>pynavis.section</code> carries the same constraint for the same
+reason.</p>
+</div>
+
+<h3>Copy view state now, paste it after a restart</h3>
+
+<p><code>pynavis.viewstate</code> carries three kinds of view state between sessions of the
+same document: <code>'section'</code>, the active clip planes; <code>'hidden'</code>, which
+items are hidden; and <code>'overrides'</code>, the permanent colour and transparency
+overrides. Each is copied and pasted independently.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Copies whichever kind of view state the user picks."""
+from pynavis import forms, toast, viewstate
+
+label = forms.ask_options(
+    None,                                      # chromeless quick switch
+    [viewstate.label_for(kind) for kind in viewstate.KINDS],
+    title='Copy state')
+
+if label is not None:                          # None means cancelled: say nothing
+    result = viewstate.copy_state(viewstate.kind_for(label))
+    toast.show(result.level, result.message, result.detail)
+</pre>
+
+<pre data-lang="python" data-file="script.py">
+"""Pastes a copied view state, offering only the kinds actually available."""
+from pynavis import forms, toast, viewstate
+
+kinds = viewstate.available_kinds()
+
+if not kinds:
+    toast.info('Nothing copied', 'Run Copy state first.')
+elif len(kinds) == 1:
+    result = viewstate.paste_state(kinds[0])
+    toast.show(result.level, result.message, result.detail)
+else:
+    label = forms.ask_options(None, [viewstate.label_for(kind) for kind in kinds],
+                              title='Paste state')
+    if label is not None:
+        result = viewstate.paste_state(viewstate.kind_for(label))
+        toast.show(result.level, result.message, result.detail)
+</pre>
+
+<p>Section and hidden state live in one JSON file per document under
+<code>%APPDATA%\pyNavis\viewstate</code>, so they survive a Navisworks restart. Overrides are
+different: no API exposes applied overrides item by item, so a copy stores the host's own
+opaque snapshot inside the document as a reserved saved viewpoint named
+<code>.pyNavis Copied Overrides</code>. It shows up in the Saved Viewpoints tree, and it
+travels with the file only if the file is saved.</p>
+
+<div class="note warn">
+<span class="note-t">Pasting hidden items is an exact restore, not an addition</span>
+<p><code>viewstate.paste_state('hidden')</code> clears all hiding first and then hides the
+copied items, so anything hidden since the copy becomes visible again. That is the point, but
+it surprises people who expected it to add. Copying an empty state is valid and useful for
+exactly this reason: copy <code>'hidden'</code> with nothing hidden and a later paste unhides
+everything.</p>
+</div>
+
+<h2>Asking the user</h2>
+
+<h3>Confirm a destructive action</h3>
+
+<p>Anything that deletes, overwrites or edits the document in bulk gets a confirmation that
+says how much, in the user's units, before it happens.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Removes every empty saved-viewpoint folder, after confirming."""
+from pynavis import forms, toast, viewpoints
+
+rows = viewpoints.snapshot()
+parents = set(row['parent_key'] for row in rows)
+empty = [row for row in rows if row['is_folder'] and row['key'] not in parents]
+
+if not empty:
+    toast.info('No empty viewpoint folders')
+else:
+    question = ('Delete %d empty viewpoint folder(s)?\n\n'
+                'This changes the document.' % len(empty))
+    if forms.confirm(question, 'Tidy viewpoints'):
+        removed, errors = viewpoints.apply_deletes(
+            [row['guid'] for row in empty])
+        if errors:
+            toast.warning('Deleted %d folder(s), %d failed.'
+                          % (removed, len(errors)), errors[0])
+        else:
+            toast.success('Deleted %d empty folder(s)' % removed)
+</pre>
+
+<p><code>forms.confirm</code> returns <code>True</code> on Yes and <code>False</code> on
+everything else. There is no third state, so <code>if forms.confirm(...):</code> with no
+<code>else</code> is the complete handling.</p>
+
+<h3>Ask for a value with a default and validate it</h3>
+
+<p><code>forms.ask_string</code> is a single-line prompt with no validation of its own. Loop
+until the answer is usable, and let cancel out of the loop untouched.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Selects every object longer than a distance you type."""
+from pynavis import doc, forms, selection, toast
+
+limit = None
+while limit is None:
+    answer = forms.ask_string('Minimum length in metres:',
+                              default='6', title='Select long objects')
+    if answer is None:
+        break                                  # cancelled: change nothing, say nothing
+    try:
+        limit = float(answer)
+        if limit &lt;= 0:
+            raise ValueError()
+    except ValueError:
+        limit = None
+        forms.alert('Enter a positive number.', 'Select long objects')
+
+if limit is not None:
+    kept = []
+    for item in selection.get_items():
+        value = doc.get_property(item, 'Item', 'Length')
+        if value is None:
+            continue
+        try:
+            if float(value.ToDisplayString()) &gt;= limit:
+                kept.append(item)
+        except ValueError:
+            pass
+
+    if kept:
+        selection.set_items(kept)
+        toast.success('%d object(s) at or over %g m' % (len(kept), limit))
+    else:
+        toast.warning('Nothing matched', 'The selection is unchanged.')
+</pre>
+
+<p>The <code>break</code> leaves <code>limit</code> as <code>None</code>, and the
+<code>if limit is not None:</code> below it does the rest. That is the whole cancel path, and
+it produces no user-visible output at all.</p>
+
+<h3>A settings dialog in config.py, read back by script.py</h3>
+
+<p>A bundle can ship a <code>config.py</code> beside <code>script.py</code>. Shift-clicking
+the button runs it instead, on the same engine and with the same globals. Settings live in
+<code>%APPDATA%\pyNavis\settings\&lt;tool&gt;.json</code>, one file per tool key.</p>
+
+<p>Put the tool key and the defaults in a module beside both scripts, because the bundle
+folder is on the import path for its own scripts:</p>
+
+<pre data-lang="python" data-file="prefs.py">
+"""Shared settings contract for Property export."""
+
+TOOL = 'property_export'
+DEFAULTS = {'category': 'Item', 'property': 'Type'}
+</pre>
+
+<pre data-lang="python" data-file="config.py">
+"""Options for Property export."""
+from pynavis import forms, settings, toast
+
+import prefs
+
+values = settings.load(prefs.TOOL, prefs.DEFAULTS)
+
+category = forms.ask_string('Property category:', values['category'],
+                            'Property export')
+if category is not None:
+    name = forms.ask_string('Property name:', values['property'],
+                            'Property export')
+    if name is not None:
+        if not category.strip() or not name.strip():
+            toast.error('Both fields are required', 'Nothing was saved.')
+        else:
+            settings.save(prefs.TOOL, {'category': category.strip(),
+                                       'property': name.strip()})
+            toast.success('Saved', '%s / %s' % (category.strip(), name.strip()))
+</pre>
+
+<pre data-lang="python" data-file="script.py">
+"""Exports the selection with the property chosen in Shift+Click."""
+from pynavis import doc, output, selection, settings, toast
+
+import prefs
+
+values = settings.load(prefs.TOOL, prefs.DEFAULTS)
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected',
+               'Shift+Click this button to choose the property.')
+else:
+    rows = []
+    for item in items:
+        value = doc.get_property(item, values['category'], values['property'])
+        rows.append([item.DisplayName,
+                     value.ToDisplayString() if value is not None else ''])
+    output.print_table(rows, ['Object', values['property']])
+</pre>
+
+<p><code>settings.load</code> never raises. A missing file, an empty file, a corrupt file or
+a file holding something that is not an object all yield a fresh copy of your defaults, and
+keys you have since dropped from <code>DEFAULTS</code> are discarded rather than leaking back
+in. That means you can change your defaults between releases without writing a migration.</p>
+
+<div class="note tip">
+<span class="note-t">Richer dialogs</span>
+<p>Two chained prompts is the cheap version. When a tool has more than a couple of options,
+build a real WPF window with the runtime's design-system helpers, the way the shipped Section
+Fit tool does. <a href="user-interface.html">Talking to the user</a> covers that surface, and
+<a href="click-actions.html">Click actions and config.py</a> covers the Shift+Click contract
+in full.</p>
+</div>
+
+<h2>Bulk edits</h2>
+
+<h3>Rename saved viewpoints in one undo step</h3>
+
+<p>Thousands of individual edits produce thousands of undo entries, and a user who wants to
+back out has to press Ctrl+Z until their hand hurts.
+<code>viewpoints.transaction(name)</code> wraps the whole batch into one.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Strips a leading 'VP ' from every saved viewpoint name."""
+from pynavis import doc, toast, viewpoints
+
+document = doc.get_doc()
+saved = document.SavedViewpoints
+rows = viewpoints.snapshot(document)
+
+targets = [row for row in rows
+           if not row['is_folder'] and row['name'].startswith('VP ')]
+
+if not targets:
+    toast.info('No viewpoint names start with "VP ".')
+else:
+    renamed = 0
+    with viewpoints.transaction('Strip VP prefix', document):
+        for row in targets:
+            item = viewpoints.resolve(saved, row['guid'])
+            if item is None:
+                continue                       # gone since the snapshot: skip it
+            saved.EditDisplayName(item, row['name'][3:])
+            renamed += 1
+
+    toast.success('Renamed %d viewpoint(s)' % renamed, 'One undo step.')
+</pre>
+
+<p>The context manager commits on a clean exit and disposes without committing if the body
+raises, so a failure halfway through leaves the document as it was. A document already inside
+a transaction is left alone, and a document that cannot start one still runs the body,
+unbatched, rather than failing.</p>
+
+<h3>The plan and apply split</h3>
+
+<p>The library ships a better version of the same job. <code>viewpoints.plan_renames</code>
+is pure: it takes snapshot rows, the keys the user checked, and an operation, and returns a
+plan. It touches nothing. <code>viewpoints.apply_renames</code> writes the plan, inside its
+own transaction, resolving every entry by GUID.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Prefixes every saved viewpoint with a code you type."""
+from pynavis import forms, output, toast, viewpoints
+
+rows = viewpoints.snapshot()
+if not rows:
+    toast.info('This document has no saved viewpoints.')
+else:
+    code = forms.ask_string('Prefix to add:', default='A-', title='Prefix viewpoints')
+    if code:
+        keys = [row['key'] for row in rows if not row['is_folder']]
+        plan = viewpoints.plan_renames(rows, keys,
+                                       {'type': 'affix', 'prefix': code})
+
+        if plan['problems']:
+            toast.error('Cannot rename', plan['problems'][0])
+        elif plan['collisions']:
+            toast.error('%d name collision(s)' % len(plan['collisions']),
+                        plan['collisions'][0])
+        elif not plan['renames']:
+            toast.info('Nothing to rename', 'Every name already has that prefix.')
+        else:
+            def tick(done, count):
+                output.progress(float(done) / count,
+                                'Renaming %d of %d' % (done, count))
+
+            applied, errors = viewpoints.apply_renames(plan['renames'],
+                                                       progress=tick)
+            output.progress(1.0)
+            if errors:
+                toast.warning('Renamed %d, %d failed.' % (applied, len(errors)),
+                              errors[0])
+            else:
+                toast.success('Renamed %d viewpoint(s)' % applied)
+</pre>
+
+<p>The plan reports collisions instead of fixing them: two siblings that would end up with
+the same name, or a name that would end up empty. Nothing is ever auto-corrected, so your UI
+can block Apply and show the user exactly what is wrong. The operation dictionary supports
+<code>'replace'</code> (with an optional <code>regex</code> flag),
+<code>'affix'</code>, <code>'number'</code> and <code>'case'</code>.</p>
+
+<div class="note warn">
+<span class="note-t">Edits resolve by GUID, never by index path</span>
+<p>A snapshot row carries both a <code>guid</code> and a <code>key</code> like
+<code>'0/2/1'</code>. The key describes tree shape and goes stale the moment anything moves,
+which in practice means the moment your first edit lands. Every apply function in
+<code>viewpoints</code> re-resolves by GUID for exactly that reason, and so should any loop
+you write yourself.</p>
+</div>
+
+<h3>Delete only the checked subset</h3>
+
+<p><code>viewpoints.plan_deletes</code> works out the minimal set of items to remove. A
+checked folder stands in for its contents only when every descendant is checked too;
+otherwise the folder survives and only the checked descendants go. The returned
+<code>count</code> is how many rows will actually disappear, folder contents included, which
+is the number to put in the confirmation.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Deletes every saved viewpoint whose name contains TEMP."""
+from pynavis import forms, output, toast, viewpoints
+
+rows = viewpoints.snapshot()
+checked = [row['key'] for row in rows if 'TEMP' in row['name'].upper()]
+
+if not checked:
+    toast.info('Nothing matched', 'No saved item has TEMP in its name.')
+else:
+    plan = viewpoints.plan_deletes(rows, checked)
+    question = ('Delete %d saved item(s)?\n\n'
+                'This removes them from the document.' % plan['count'])
+    if forms.confirm(question, 'Delete viewpoints'):
+        def tick(done, count):
+            output.progress(float(done) / count,
+                            'Deleting %d of %d' % (done, count))
+
+        removed, errors = viewpoints.apply_deletes(
+            plan['guids'], progress=tick if plan['count'] &gt; 500 else None)
+        output.progress(1.0)
+        if errors:
+            toast.warning('Deleted %d item(s), %d failed.'
+                          % (removed, len(errors)), errors[0])
+        else:
+            toast.success('Deleted %d item(s)' % removed)
+</pre>
+
+<p><code>plan['count']</code> and <code>len(plan['guids'])</code> are different numbers on
+purpose: the first is what vanishes from the user's tree, the second is how many delete calls
+you make. Confirm with the first and iterate the second.</p>
+
+<h3>Summarise every clash test</h3>
+
+<p><code>clash.summarize()</code> returns one dictionary per test with <code>'name'</code>,
+<code>'total'</code> and <code>'by_status'</code>, a mapping of status name to count. It
+reads only, so it is safe to run on anything.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Summarises every Clash Detective test by result status."""
+from pynavis import forms, output, toast
+
+try:
+    from pynavis import clash
+except ImportError:
+    clash = None
+
+STATUSES = ['New', 'Active', 'Reviewed', 'Approved', 'Resolved']
+
+if clash is None:
+    forms.alert('Clash Detective is not available in this Navisworks edition.')
+else:
+    summaries = clash.summarize()
+    if not summaries:
+        toast.info('This document has no clash tests.')
+    else:
+        headers = ['Test', 'Total'] + STATUSES
+        rows = [[s['name'], s['total']]
+                + [s['by_status'].get(status, 0) for status in STATUSES]
+                for s in summaries]
+        output.print_md('## Clash summary')
+        output.print_table(rows, headers)
+        output.print_md('%d test(s), %d result(s) in total.'
+                        % (len(summaries), sum(s['total'] for s in summaries)))
+</pre>
+
+<p>The guarded import is worth keeping. <code>pynavis.clash</code> loads the Clash Detective
+assembly at import time, which is not present in every Navisworks edition, and a bare
+<code>ImportError</code> traceback is a worse message than the alert above.</p>
+
+<div class="note trap">
+<span class="note-t">Reading a clash test after writing to it</span>
+<p><code>clash.apply_plan</code> commits a rebuilt copy of the test, which leaves the wrapper
+object you passed in disposed along with every result you got from it. Read anything the
+report needs, starting with <code>test.DisplayName</code>, <em>before</em> you call it.
+<code>ModelItem</code> references survive, because they live in the model rather than in the
+test.</p>
+</div>
+
+<h3>Group a clash test, without freezing Navisworks</h3>
+
+<p>Grouping is the plan-and-apply split again, and here it is not a style preference: it is the
+difference between twelve seconds and days. <code>clash.snapshot_results</code> reads the test
+into plain dictionaries, <code>clashgroup</code> turns those into a plan with no Navisworks
+import anywhere in it, and <code>clash.apply_plan</code> commits the whole plan as one
+document edit.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Groups the chosen clash test by root cause, in one edit."""
+from pynavis import clash, clashgroup, forms, output, toast
+
+tests = list(clash.walk_tests())
+
+if not tests:
+    toast.info('This document has no clash tests.')
+else:
+    test = forms.select_from_list([(t.DisplayName, t) for t in tests],
+                                  title='Group a clash test')
+    if test is not None:                       # None means cancelled: say nothing
+        total, grouped = clash.count_results(test)
+        if not total:
+            toast.info('That test has no results', 'Run it first.')
+        else:
+            name = test.DisplayName            # read it BEFORE apply_plan
+            rows = clash.snapshot_results(
+                test, progress=lambda done: output.progress(
+                    float(done) / total, 'Read %d of %d' % (done, total)))
+
+            plan = clashgroup.smart_plan(rows, tolerance=6.0 / clash.units_to_meters())
+            clash.apply_plan(test, plan,
+                             progress=lambda f: output.progress(f, 'Grouping'))
+            output.progress(1.0)
+            toast.success('%d group(s) in %s' % (len(plan['groups']), name),
+                          plan['explanation'])
+</pre>
+
+<p><code>clashgroup.smart_plan</code> is the zero-configuration route: it picks whichever side,
+A or B, collapses the most clashes into the fewest elements, groups by that side's root-cause
+element, then proximity-clusters whatever came out as a single-clash element. Its
+<code>explanation</code> is the one line that tells a user why the grouping came out the way it
+did, so show it. <code>clashgroup.plan(rows, rule_ids)</code> is the explicit form, where each
+rule in turn subdivides the groups the previous rule made, and
+<code>clashgroup.RULES</code> is the catalogue of <code>(id, label)</code> pairs to build a
+dropdown from rather than hard-coding ids.</p>
+
+<div class="note trap">
+<span class="note-t">Tolerance is in model units, and the test wrapper dies on apply</span>
+<p><code>tolerance</code> is measured in whatever unit the snapshot's <code>center</code>
+coordinates are in, which is model units, not metres. Divide the metres the user typed by
+<code>clash.units_to_meters()</code>, as the recipe does, or a six-metre cluster becomes six
+millimetres on a millimetre model.</p>
+<p><code>clash.apply_plan</code> commits through a whole-test replace, which retires the
+<code>test</code> object you passed in. Read <code>DisplayName</code>, and anything else the
+report needs, before the call. <code>clash.ungroup(test)</code> is the other direction, and
+dissolves only groups pyNavis created unless you pass <code>ours_only=False</code>.</p>
+</div>
+
+<p>Cancelling a long read is a shape of its own here.
+<code>clash.snapshot_results</code> stops when the progress callback returns
+<strong>exactly</strong> <code>False</code>, and raises <code>clash.Cancelled</code>; returning
+<code>None</code>, which a callback written for side effects does implicitly, means carry on.
+That is deliberate, because the same tick function then works unchanged on
+<code>apply_plan</code>, which ignores return values entirely.</p>
+
+<h3>Build a query, save it as a set, and round-trip it through Excel</h3>
+
+<p><code>pynavis.sets</code> is three things joined end to end: a fluent query builder that
+needs no live document, a way to run that query and save it as a native search set, and a
+plain dict shape the same query can travel through, out to a spreadsheet and back in again.
+The recipe below does all three in order.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Finds long ducts, saves the search as a set, and exports it to Excel."""
+from pynavis import forms, sets, toast, xl
+
+q = (sets.query()
+     .prop('Item', 'Type').contains('Duct')
+     .and_prop('Element', 'Length').gt(6.0)
+     .build())
+
+items = sets.run(q)
+if not items:
+    toast.info('Nothing matched', 'No duct is over 6 m.')
+else:
+    saved = sets.create('Long ducts', q, folder='Coordination/MEP')
+    toast.success('Saved "%s"' % saved.DisplayName, '%d item(s)' % len(items))
+
+    path = forms.save_file(
+        filter='Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*',
+        default_name='long_ducts.xlsx', title='Export the set')
+    if path is not None:                        # None means cancelled: say nothing
+        conditions = sets.to_dict(saved)['or'][0]['and']
+        rows = [[c.get('category', ''), c.get('prop', ''), c['op'], c.get('value', '')]
+                for c in conditions]
+        xl.write(path, rows, headers=['Category', 'Property', 'Op', 'Value'])
+</pre>
+
+<p><code>sets.query()</code> returns a fresh builder. Each <code>.prop(category, name)</code>
+starts a condition, and the operator that follows, <code>.contains</code>,
+<code>.equals</code>, <code>.gt</code> and the rest, completes it into the current AND group.
+<code>.build()</code> validates every condition and raises <code>ValueError</code>, listing
+every problem, before you ever touch the document.</p>
+
+<p><code>sets.run(q)</code> compiles the query and returns the matches as a plain
+<code>ModelItemCollection</code>, which is what you want for a quick check.
+<code>sets.create(name, q, folder=...)</code> is the save step: it compiles the same query
+into a native search set and files it under the given folder, creating any missing folder
+segments along the way, so the set keeps updating itself as the model changes, the way every
+set in the Sets window does.</p>
+
+<div class="note trap">
+<span class="note-t">A set holds one AND group, never several ORed ones</span>
+<p>A native search set can only ever hold one condition list. Calling <code>.or_group()</code>
+on the builder to add a second, ORed group works fine for <code>sets.run</code>, which unions
+the groups' results in Python, but <code>sets.create</code> and <code>sets.update</code> raise
+<code>ValueError</code> the moment a query has more than one group. Save one set per group
+instead of trying to save the whole OR as a single set.</p>
+</div>
+
+<p>The export step is deliberately plain: <code>sets.to_dict(saved)</code> turns the saved
+set's compiled conditions back into the same <code>{'or': [{'and': [...]}]}</code> shape the
+builder produces, and the script flattens that one AND group into spreadsheet rows by hand.
+The shipped <strong>Sets from Excel</strong> tool, on the Tools panel, does the same thing for
+every set in the document at once, plus the matching import: it flattens
+<code>sets.export_all()</code> to one row per condition and rebuilds
+<code>sets.import_dict()</code>'s shape from rows sharing a folder and set name, so it is the
+reference to copy from for a fuller round trip than the recipe above needs.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Re-imports the sets a previous run exported, replacing any of the same name."""
+from pynavis import forms, sets, toast, xl
+
+path = forms.open_file(
+    filter='Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*',
+    title='Import sets from Excel')
+if path is not None:                            # None means cancelled: say nothing
+    spec = {'sets': [{
+        'name': 'Long ducts', 'folder': 'Coordination/MEP',
+        'query': {'or': [{'and': [
+            {'category': c[0], 'prop': c[1], 'op': c[2], 'value': c[3]}
+            for c in xl.read(path)[1:] if c[2]
+        ]}]},
+    }]}
+    created, errors = sets.import_dict(spec, replace=True)
+    if errors:
+        toast.warning('Imported %d, %d failed' % (created, len(errors)), errors[0])
+    else:
+        toast.success('Imported %d set(s)' % created)
+</pre>
+
+<div class="note warn">
+<span class="note-t">Excel has no int type, and ignore_case does not travel</span>
+<p>Every numeric cell <code>xl.read</code> hands back is a <code>float</code>, so a condition
+value that started as the integer <code>3</code> comes back as <code>3.0</code>. The shipped
+Sets from Excel tool normalises an integral float back to <code>int</code> on the way in for
+exactly this reason; a hand-rolled import like the sketch above should do the same before
+handing a value to <code>import_dict</code>. Separately, <code>sets.to_dict</code> and
+<code>sets.export_all</code> cannot recover whether a condition was built with
+<code>.ignore_case()</code>: reading a compiled search condition back out of the document
+carries no trace of it, so a case-insensitive condition always round-trips as a plain,
+case-sensitive one.</p>
+</div>
+
+<h2>Structuring a bigger tool</h2>
+
+<h3>Split pure logic from API calls</h3>
+
+<p>This is the single most important architectural decision in a pyNavis tool, and the
+library is built this way throughout. <code>clashgroup</code> has no Navisworks import at
+all. <code>viewpoints.plan_renames</code>, <code>plan_deletes</code> and
+<code>sort_ops</code> are pure. The geometry half of <code>section</code>,
+<code>convex_hull</code> through <code>fit</code>, is pure. In every case the API-bound half
+is a thin shell that reads the document into plain data, calls the pure half, and writes the
+answer back.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 236" width="700" role="img"
+     aria-label="Document to snapshot rows to a pure plan function and back to the document.">
+  <style>
+    .ck2-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ck2-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ck2-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .ck2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ck2-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .ck2-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .ck2-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="ck2-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <rect x="176" y="18" width="348" height="132" rx="6"
+        fill="none" stroke="var(--accent)" stroke-dasharray="4 4"/>
+  <text class="ck2-lbl" x="190" y="36">Pure: no Navisworks import</text>
+
+  <rect class="ck2-box" x="0" y="60" width="140" height="52" rx="4"/>
+  <text class="ck2-t"    x="14" y="82">Document</text>
+  <text class="ck2-m"    x="14" y="99">the live model</text>
+
+  <path class="ck2-arw" d="M142 86 H 196" marker-end="url(#ck2-a)"/>
+  <text class="ck2-mono" x="146" y="78">snapshot()</text>
+
+  <rect class="ck2-hot" x="200" y="60" width="130" height="52" rx="4"/>
+  <text class="ck2-t"    x="214" y="82">Plain rows</text>
+  <text class="ck2-m"    x="214" y="99">dicts and tuples</text>
+
+  <path class="ck2-arw" d="M332 86 H 386" marker-end="url(#ck2-a)"/>
+  <text class="ck2-mono" x="336" y="78">plan()</text>
+
+  <rect class="ck2-hot" x="390" y="60" width="130" height="52" rx="4"/>
+  <text class="ck2-t"    x="404" y="82">Plan</text>
+  <text class="ck2-m"    x="404" y="99">a dict of edits</text>
+
+  <path class="ck2-arw" d="M522 86 H 558" marker-end="url(#ck2-a)"/>
+  <text class="ck2-mono" x="524" y="78">apply()</text>
+
+  <rect class="ck2-box" x="562" y="60" width="138" height="52" rx="4"/>
+  <text class="ck2-t"    x="576" y="82">Document</text>
+  <text class="ck2-m"    x="576" y="99">one transaction</text>
+
+  <path class="ck2-arw" d="M350 152 V 178" marker-end="url(#ck2-a)"/>
+  <rect class="ck2-box" x="210" y="182" width="280" height="34" rx="4"/>
+  <text class="ck2-t" x="224" y="203" >Unit tests, no Navisworks running</text>
+
+  <text class="ck2-m" x="0" y="146">Preview lives here too:</text>
+  <text class="ck2-m" x="0" y="163">the plan is the preview.</text>
+</svg>
+</div>
+<figcaption>Because the middle stage is plain data in and plain data out, it runs under a
+test runner on any machine, and the same plan that the user previews is the plan that gets
+written.</figcaption>
+</figure>
+
+<p>The worked example below is a length-check tool. The pure half is a module beside the
+script; the API half is the script.</p>
+
+<pre data-lang="python" data-file="rules.py">
+"""Pure rules for the length check. No pynavis import, no Navisworks."""
+
+
+def plan_flags(rows, limit):
+    """Which rows break the length limit.
+
+    rows are (name, length_or_None) pairs. Returns
+    {'over': [(name, length)], 'unknown': [name], 'checked': int}.
+    """
+    over = []
+    unknown = []
+    for name, length in rows:
+        if length is None:
+            unknown.append(name)
+        elif length &gt; limit:
+            over.append((name, length))
+    over.sort(key=lambda pair: -pair[1])
+    return {'over': over, 'unknown': unknown, 'checked': len(rows)}
+
+
+def summary(plan, limit):
+    """One sentence describing a plan."""
+    if not plan['over']:
+        return 'All %d object(s) are within %g m.' % (plan['checked'], limit)
+    return ('%d of %d object(s) exceed %g m; the longest is %.2f m.'
+            % (len(plan['over']), plan['checked'], limit, plan['over'][0][1]))
+</pre>
+
+<pre data-lang="python" data-file="script.py">
+"""Flags selected objects longer than the configured limit."""
+from pynavis import doc, output, selection, toast
+
+import rules
+
+LIMIT = 6.0
+
+
+def read_rows(items):
+    """The only function here that touches the API."""
+    rows = []
+    for item in items:
+        value = doc.get_property(item, 'Item', 'Length')
+        try:
+            length = float(value.ToDisplayString()) if value is not None else None
+        except ValueError:
+            length = None
+        rows.append((item.DisplayName, length))
+    return rows
+
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    plan = rules.plan_flags(read_rows(items), LIMIT)
+    if not plan['over']:
+        toast.success(rules.summary(plan, LIMIT))
+    else:
+        output.print_md('## Length check')
+        output.print_table([[name, '%.2f' % length]
+                            for name, length in plan['over']],
+                           ['Object', 'Length'])
+        output.print_md(rules.summary(plan, LIMIT))
+</pre>
+
+<p><code>rules.py</code> imports nothing from <code>pynavis</code> and nothing from .NET, so
+it runs under <code>pytest</code> on a build machine with no Navisworks on it. Every branch
+that decides anything is in there. <code>script.py</code> holds the two things you cannot
+test that way, reading the model and writing the report, and neither of them makes a
+decision.</p>
+
+<pre data-lang="python" data-file="tests/test_rules.py">
+import rules
+
+
+def test_flags_only_what_is_over():
+    plan = rules.plan_flags([('a', 4.0), ('b', 9.0), ('c', None)], 6.0)
+    assert [name for name, _ in plan['over']] == ['b']
+    assert plan['unknown'] == ['c']
+    assert plan['checked'] == 3
+</pre>
+
+<h3>Share code across bundles with the extension lib folder</h3>
+
+<p>A <code>lib</code> folder directly under your <code>.extension</code> folder is added to
+the import path of every script in that extension. It is where anything used by more than one
+bundle belongs.</p>
+
+<pre data-lang="tree">
+MyTools.extension\
+  lib\
+    naming.py           # importable from every bundle in this extension
+    geometry.py
+  MyTools.tab\
+    Quality.panel\
+      Check.pushbutton\
+        script.py       # import naming
+        rules.py        # importable from this bundle only
+      Fix.pushbutton\
+        script.py       # import naming
+</pre>
+
+<pre data-lang="python" data-file="Check.pushbutton\script.py">
+"""Checks object names against the naming standard."""
+import naming                                  # from MyTools.extension\lib
+import rules                                   # from this bundle folder
+
+from pynavis import output, selection, toast
+</pre>
+
+<p>Two search paths are on every script: its own bundle folder first, then the extension's
+<code>lib</code> folder. Nothing else in the extension is importable, so a module in one
+bundle is invisible to another. That is deliberate; sharing goes through <code>lib</code>.</p>
+
+<div class="note tip">
+<span class="note-t">Library edits need no Reload</span>
+<p>The runtime drops your bundle modules and your <code>lib</code> modules from the module
+cache before every run, so editing <code>naming.py</code> and clicking the button again picks
+up the change immediately. That is the same rule that applies to <code>script.py</code>
+itself. Editing the <code>pynavis</code> library is different and does need a Reload, and so
+does anything the parser reads: <code>bundle.yaml</code>, icons, folder names and
+shortcuts.</p>
+</div>
+
+<h3>The Result plus toast idiom</h3>
+
+<p>Once a tool's logic lives in a module, that module needs a way to say what happened
+without knowing how the answer will be shown. The library's answer is a small result object:
+a level, a message, a detail line, and whatever counts are useful. It is exactly what
+<code>toast.show</code> takes.</p>
+
+<pre data-lang="python" data-file="lib\result.py">
+"""What an action did, ready for a button script to report."""
+
+
+class Result(object):
+
+    def __init__(self, level, message, detail='', count=0):
+        self.level = level          # 'success' | 'error' | 'info' | 'warning'
+        self.message = message
+        self.detail = detail
+        self.count = count
+
+
+def ok(message, detail='', count=0):
+    return Result('success', message, detail, count)
+
+
+def nothing(message, detail=''):
+    return Result('info', message, detail)
+</pre>
+
+<pre data-lang="python" data-file="lib\tagging.py">
+"""Bulk tagging, returning a Result instead of touching the UI."""
+import result
+
+from pynavis import doc, selection
+
+
+def tag_selection(value):
+    items = selection.get_items()
+    if not items:
+        return result.nothing('Nothing selected',
+                              'Pick some objects and run this again.')
+
+    document = doc.get_doc()
+    tagged = 0
+    for item in items:
+        document.Models.OverridePermanentColor([item], value)
+        tagged += 1
+    return result.ok('Tagged %d object(s)' % tagged, count=tagged)
+</pre>
+
+<pre data-lang="python" data-file="script.py">
+"""Tags the current selection."""
+import tagging
+
+from pynavis import toast
+from Autodesk.Navisworks.Api import Color
+
+outcome = tagging.tag_selection(Color(1.0, 0.4, 0.0))
+toast.show(outcome.level, outcome.message, outcome.detail)
+</pre>
+
+<p>The button script is three lines, and it is three lines for every tool in the family. That
+is what the shipped Memory and Section tools look like:
+<code>memory.memorize()</code>, <code>memory.recall()</code>,
+<code>section.fit_to_selection(...)</code> and <code>section.clear()</code> all return a
+result object, and every one of their button scripts is a call followed by
+<code>toast.show(result.level, result.message, result.detail)</code>.</p>
+
+<p>The payoff is that the decision about <em>which</em> level to use moves into the module,
+where it can be tested, and out of the script, where it cannot. A module that returns
+<code>Result('warning', ...)</code> for a partial success has that behaviour pinned by a
+test; a script that chooses between <code>toast.warning</code> and <code>toast.success</code>
+has it pinned by nothing.</p>
+
+<h2>Config stores, long jobs and custom windows</h2>
+
+<h3>A settings-backed tool without a shared key module</h3>
+
+<p><code>script.get_config</code> and <code>script.save_config</code> are
+<code>settings.load</code>/<code>settings.save</code> with the tool key worked out for you
+from the running bundle's own location, so a small tool no longer needs a shared module just
+to hold a <code>TOOL</code> constant both scripts agree on, the way the earlier
+<code>config.py</code> recipe on this page does with <code>prefs.py</code>.</p>
+
+<pre data-lang="python" data-file="config.py">
+"""Options for Property export."""
+from pynavis import forms, script, toast
+
+DEFAULTS = {'category': 'Item', 'property': 'Type'}
+
+values = script.get_config(DEFAULTS)
+
+category = forms.ask_string('Property category:', values['category'], 'Property export')
+if category is not None:
+    name = forms.ask_string('Property name:', values['property'], 'Property export')
+    if name is not None:
+        if not category.strip() or not name.strip():
+            toast.error('Both fields are required', 'Nothing was saved.')
+        else:
+            script.save_config({'category': category.strip(), 'property': name.strip()})
+            toast.success('Saved', '%s / %s' % (category.strip(), name.strip()))
+</pre>
+
+<pre data-lang="python" data-file="script.py">
+"""Exports the selection with the property chosen in Shift+Click."""
+from pynavis import doc, output, script, selection, toast
+
+DEFAULTS = {'category': 'Item', 'property': 'Type'}
+
+values = script.get_config(DEFAULTS)
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected',
+               'Shift+Click this button to choose the property.')
+else:
+    rows = []
+    for item in items:
+        value = doc.get_property(item, values['category'], values['property'])
+        rows.append([item.DisplayName,
+                     value.ToDisplayString() if value is not None else ''])
+    output.print_table(rows, ['Object', values['property']])
+</pre>
+
+<p>Both scripts repeat <code>DEFAULTS</code> rather than sharing a module, which is fine at
+this size, since the tool key is no longer a place the two scripts have to agree on by hand:
+<code>get_config</code> and <code>save_config</code> both derive it from the bundle they run
+in. Once a tool grows past one file's worth of logic, move <code>DEFAULTS</code> into a module
+beside both scripts anyway, so it is written once.</p>
+
+<div class="note trap">
+<span class="note-t">Two different bundles never share a get_config store</span>
+<p>The key <code>get_config</code>/<code>save_config</code> use is derived from the running
+bundle's own path, so two different buttons can never collide, but it also means two bundles
+can never deliberately share one settings file the way a run button and a report button
+sometimes want to. Reach for <code>pynavis.settings</code> with an explicit <code>TOOL</code>
+constant when that sharing is the point.</p>
+</div>
+
+<h3>Save settings from a handler that fires after the script has returned</h3>
+
+<p><code>script.get_config</code> and friends ask the runtime "which command is running?" at
+the moment they are called, and the runtime goes on answering with the most recent command long
+after it finished. That is the right answer while <code>script.py</code> is still executing and
+the wrong one in everything that fires later: a modeless dialog's handler, a dock panel's
+handler, a timer callback. By then the user may have run another tool, and the call reads or
+overwrites <strong>that</strong> tool's settings.</p>
+
+<p><code>script.bind()</code> takes the answer while it is still correct and hands back an
+object carrying the same six methods.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Remembers the window size, saved from the window's own Closed handler."""
+from pynavis import forms, script
+
+DEFAULTS = {'width': 360.0, 'height': 220.0}
+
+me = script.bind()                             # while the answer is still right
+values = me.get_config(DEFAULTS)
+
+win = forms.WPFWindow('layout.xaml')
+win.window.Width = values['width']
+win.window.Height = values['height']
+
+
+def on_closed(sender, args):
+    """Fires after script.py has already returned."""
+    me.save_config({'width': win.window.Width, 'height': win.window.Height})
+
+
+win.window.Closed += on_closed
+win['OkButton'].Click += lambda s, e: win.close(True)
+win.show_dialog()
+</pre>
+
+<p>The bound object carries <code>get_config</code>, <code>save_config</code>,
+<code>reset_config</code>, <code>store_data</code>, <code>load_data</code> and
+<code>data_exists</code>, each behaving exactly like the module-level version but against the
+command that was running when <code>bind()</code> was called. The same trap, and the same
+shape of fix, applies to <code>pynavis.panes</code>: pass the bundle key explicitly from a
+handler rather than letting it default.</p>
+
+<h3>A cancellable batch with a progress window and an Excel report</h3>
+
+<p><code>forms.progress</code> is the surface for a batch the user asked for and might want to
+stop partway through: unlike <code>output.progress</code> it blocks the rest of Navisworks and
+carries its own Cancel button. Pair it with <code>pynavis.xl</code> when the result belongs in
+a spreadsheet rather than the output window.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Checks every selected object's length against a limit and writes an Excel report."""
+from pynavis import doc, forms, selection, toast, xl
+
+LIMIT = 6.0
+
+items = selection.get_items()
+
+if not items:
+    toast.info('Nothing selected', 'Pick some objects and run this again.')
+else:
+    path = forms.save_file(
+        filter='Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*',
+        default_name='length-check.xlsx', title='Save length report')
+    if path is not None:                        # None means cancelled: say nothing
+        over = []
+        checked = 0
+        try:
+            with forms.progress('Checking lengths', 'Starting') as p:
+                for item in items:
+                    p.check()                   # raises forms.Cancelled on Cancel
+                    value = doc.get_property(item, 'Item', 'Length')
+                    if value is not None:
+                        try:
+                            length = float(value.ToDisplayString())
+                            if length > LIMIT:
+                                over.append([item.DisplayName, length])
+                        except ValueError:
+                            pass
+                    checked += 1
+                    p.update(float(checked) / len(items),
+                            '%d of %d' % (checked, len(items)))
+        except forms.Cancelled:
+            xl.write(path, over, headers=['Object', 'Length'], sheet='Over limit')
+            toast.warning('Stopped after %d of %d' % (checked, len(items)),
+                          '%d row(s) written so far.' % len(over))
+        else:
+            xl.write(path, over, headers=['Object', 'Length'], sheet='Over limit')
+            toast.success('%d of %d object(s) over %g m' % (len(over), len(items), LIMIT), path)
+</pre>
+
+<p><code>xl.write</code> runs on both the normal and the cancelled path, because a partial
+report of what was checked before Cancel is still useful; it is the message that changes, not
+whether the file gets written. <code>forms.progress</code> pumps the UI itself, so there is no
+need for the every-hundredth-iteration throttling <code>output.progress</code> needs in a tight
+loop.</p>
+
+<div class="note trap">
+<span class="note-t">forms.Cancelled unwinds past the with block</span>
+<p><code>p.check()</code> raises inside the <code>with forms.progress(...)</code> block, which
+closes the progress window on its way out, then keeps propagating. Catch it outside the
+<code>with</code>, the way the <code>try</code>/<code>except</code> above does. Catching it
+inside the block would leave the window open for the rest of the script.</p>
+</div>
+
+<h3 id="a-xaml-dialog-bundle">A XAML dialog bundle</h3>
+
+<p>Once a settings form has more than a couple of fields, <code>forms.WPFWindow</code> loads a
+<code>.xaml</code> file shipped in the bundle folder and wires it up as a live window, instead
+of chaining <code>forms.ask_string</code> prompts.</p>
+
+<pre data-lang="text" data-file="layout.xaml">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Export options" Width="360" Height="220"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="16">
+    <TextBlock Text="Decimal places" Margin="0,0,0,4"/>
+    <TextBox x:Name="DecimalsBox" Margin="0,0,0,12"/>
+
+    <CheckBox x:Name="HiddenCheck" Content="Include hidden items" Margin="0,0,0,16"/>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="CancelButton" Content="Cancel" Width="80" Margin="0,0,8,0"/>
+      <Button x:Name="OkButton" Content="OK" Width="80" IsDefault="True"/>
+    </StackPanel>
+  </StackPanel>
+</Window>
+</pre>
+
+<pre data-lang="python" data-file="config.py">
+"""Options dialog built from layout.xaml instead of chained prompts."""
+from pynavis import forms, script, toast
+
+DEFAULTS = {'decimals': 2, 'include_hidden': False}
+
+values = script.get_config(DEFAULTS)
+
+win = forms.WPFWindow('layout.xaml')
+win['DecimalsBox'].Text = str(values['decimals'])
+win['HiddenCheck'].IsChecked = values['include_hidden']
+win['OkButton'].Click += lambda s, e: win.close(True)
+win['CancelButton'].Click += lambda s, e: win.close(False)
+
+if win.show_dialog():
+    try:
+        decimals = int(win['DecimalsBox'].Text)
+    except ValueError:
+        toast.error('Decimal places must be a whole number')
+    else:
+        script.save_config({
+            'decimals': max(0, min(6, decimals)),
+            'include_hidden': bool(win['HiddenCheck'].IsChecked),
+        })
+        toast.success('Saved')
+</pre>
+
+<p><code>forms.WPFWindow('layout.xaml')</code> resolves the file against the running command's
+own bundle folder, the same one <code>icon.png</code> lives in, so <code>layout.xaml</code>
+sits right beside <code>config.py</code> and <code>script.py</code> with no path to get
+wrong.</p>
+
+<pre data-lang="tree">
+Export.pushbutton\
+  script.py
+  config.py         # Shift+Click: opens layout.xaml
+  layout.xaml
+  bundle.yaml
+  icon.png
+</pre>
+
+<div class="note">
+<span class="note-t">Wire events after loading, before showing</span>
+<p><code>win['OkButton'].Click += ...</code> only works once the element exists, which is right
+after <code>WPFWindow(...)</code> returns. Set every initial value and every event handler
+before calling <code>show_dialog()</code>; nothing you do to the window after that call
+returns takes effect until the next run.</p>
+</div>
+
+<h3>Build a dock panel</h3>
+
+<p>A <code>*.dockpane</code> bundle is not a script that runs and returns: it is a real
+Navisworks dock panel. <code>pane.xaml</code> supplies the content, an optional
+<code>script.py</code> runs once when the panel is built, and the ribbon gets a toggle button
+that follows the panel open and closed instead of a button that fires and finishes.</p>
+
+<p>This recipe is the same working bundle pyNavis ships as its own dockpane smoke test
+(<code>Smoke.extension/Smoke.tab/Panes.panel/01_Pane_Demo.dockpane</code>), with two strings
+swapped for ones that read better as teaching material instead of as a smoke-test label: the
+tooltip below and the <code>script.py</code> docstring. Everything else, including every
+element name and every line of behavior, matches the shipped bundle exactly.</p>
+
+<pre data-lang="text" data-file="bundle.yaml">
+title: Pane Demo
+tooltip: A dockpane with live content
+</pre>
+
+<pre data-lang="text" data-file="pane.xaml">
+<StackPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            Margin="16">
+  <TextBlock x:Name="Headline" FontSize="16" FontWeight="SemiBold" Text="Pane demo" />
+  <TextBlock x:Name="Built" FontSize="11.5" Margin="0,4,0,0" Text="Built at (waiting)" />
+  <TextBlock x:Name="Sizes" FontSize="11.5" Text="Size: (waiting)" />
+  <TextBox   x:Name="Typing" Margin="0,8,0,0" Padding="6,4,6,4" Text="Click here and type" />
+  <TextBlock x:Name="Keys" FontSize="11.5" Margin="0,4,0,0" Text="Keys seen: 0" />
+  <Button    x:Name="Close" Margin="0,12,0,0" Padding="8,4,8,4" Content="Hide this panel" />
+</StackPanel>
+</pre>
+
+<pre data-lang="python" data-file="script.py">
+"""Wires up pane.xaml when the panel is built."""
+import datetime
+
+pane = __pane__
+
+pane.Find('Built').Text = 'Built at ' + datetime.datetime.now().strftime('%H:%M:%S')
+
+typed = [0]
+
+
+def on_key(sender, args):
+    typed[0] += 1
+    pane.Find('Keys').Text = 'Keys seen: %d (last %s)' % (typed[0], args.Key)
+
+
+def on_size(sender, args):
+    pane.Find('Sizes').Text = 'Size: %d x %d' % (args.NewSize.Width, args.NewSize.Height)
+
+
+def on_close(sender, args):
+    pane.Visible = False
+
+
+pane.Find('Typing').PreviewKeyDown += on_key
+pane.Content.SizeChanged += on_size
+pane.Find('Close').Click += on_close
+</pre>
+
+<pre data-lang="tree">
+Pane Demo.dockpane\
+  bundle.yaml
+  pane.xaml
+  script.py
+  icon.png
+</pre>
+
+<p><code>__pane__</code> is the only new global: a small proxy with <code>Find(name)</code> for
+any named element in <code>pane.xaml</code>, <code>Content</code> for the root element itself,
+read-only <code>Title</code> and <code>BundleKey</code>, and a get/set <code>Visible</code> for
+showing or hiding the panel from code. <code>script.py</code> runs once, when the panel's
+content is built, not on every click the way a pushbutton's does; wire event handlers here and
+let them do the ongoing work.</p>
+
+<div class="note trap">
+<span class="note-t">pane.xaml must be a plain element, not a Window</span>
+<p>Root the file in a <code>Grid</code>, <code>StackPanel</code> or similar, never
+<code>&lt;Window&gt;</code>. A <code>Window</code> root is unwrapped as a fallback so it still
+loads, but it is not the supported form: a dock panel is not a window and shipping one invites
+surprises later. Start from a plain element.</p>
+</div>
+
+<div class="note">
+<span class="note-t">Slots: Reload claims one, a restart mints new ones</span>
+<p>Five panel slots ship with pyNavis. A new <code>*.dockpane</code> bundle claims a free one on
+the next Reload, exactly like any other new bundle, and keeps that slot for good: Navisworks
+remembers a pane's dock position, size and open state per slot, not per bundle, so reinstalling
+the extension later restores the same layout. Once every slot is claimed, generating more with
+the Panel slots button (or <code>pynavis.panes.add_slots(count)</code>) needs a full Navisworks
+restart before the new slots exist, because Navisworks only discovers dock panes at startup. A
+dockpane that loses the scramble for a slot still gets its ribbon toggle; clicking it toasts
+that no slot is free instead of doing nothing.</p>
+</div>
+
+<h3>Open a panel from an ordinary button</h3>
+
+<p>A panel does not have to be opened from its own ribbon toggle.
+<code>pynavis.panes</code> shows, hides and counts panels by bundle key, which is the bundle's
+path inside its extension, so any tool can bring its own panel up when it has something to put
+in it.</p>
+
+<pre data-lang="python" data-file="script.py">
+"""Runs a check, then opens the results panel to show it."""
+from pynavis import panes, script, toast
+
+PANEL = 'MyTools.tab/Quality.panel/Results.dockpane'
+
+findings = run_check()                         # your own work, returning ModelItems
+script.store_data('last_findings', [item.DisplayName for item in findings])
+
+if panes.show(PANEL):
+    toast.success('%d finding(s)' % len(findings), 'Shown in the Results panel.')
+else:
+    toast.warning('%d finding(s)' % len(findings),
+                  'The Results panel has no slot yet. Restart Navisworks.')
+</pre>
+
+<p>The panel and the button are separate runs, so what they share has to go through
+<code>script.store_data</code>, which takes JSON-serialisable values only: names and ids
+travel, <code>ModelItem</code> objects do not.</p>
+
+<p><code>panes.hide(key)</code> and <code>panes.toggle(key)</code> are the other two moves, and
+<code>panes.is_visible(key)</code> reads the live state, which a Navisworks close button or a
+workspace change updates directly, so it is never stale between clicks. All of them return
+<code>False</code> when the bundle holds no slot. <code>panes.slot_count()</code> is how many
+slots this session has, and <code>panes.slot_of(key)</code> is the 1-based slot a bundle
+claimed, or <code>0</code> when every slot was taken.</p>
+
+<div class="note trap">
+<span class="note-t">Always pass the bundle key from inside a panel's own handler</span>
+<p>The <code>bundle_key</code> argument defaults to whichever pyNavis command most recently
+ran, not to the panel whose handler is calling. That default is right while
+<code>script.py</code> is still executing and wrong in a <code>Click</code> handler wired up
+inside it, which fires later, after the user may have run other tools. From a panel's own
+handler, pass the key explicitly or use <code>__pane__.Visible</code> instead, which always
+means this panel.</p>
+</div>
+
+<div class="cards">
+  <a href="api-reference.html"><span class="c-t">Python API reference</span>
+    <span class="c-d">Every function in the pynavis library, with signatures and return
+      shapes.</span></a>
+  <a href="troubleshooting.html"><span class="c-t">Troubleshooting</span>
+    <span class="c-d">Symptom first: what went wrong, why, and the log line that proves
+      it.</span></a>
+  <a href="style-guide.html"><span class="c-t">Style guide</span>
+    <span class="c-d">The conventions these recipes follow, and why each one exists.</span></a>
+</div>

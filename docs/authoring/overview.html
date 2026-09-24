@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How pyNavis works - pyNavis authoring</title>
+<meta name="description" content="The mental model behind every tool you will write: folders on disk become buttons on the ribbon, and a button runs a Python file.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html" class="active"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<a href="tools.html"><span class="num">03</span>Bundled tools</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">05</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">07</span>Icons</a>
+<a href="shortcuts.html"><span class="num">08</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">09</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">11</span>The script environment</a>
+<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
+<a href="settings.html"><span class="num">13</span>Settings and per-tool state</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 0.4.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Start</p>
+  <h1>How pyNavis works</h1>
+  <p class="lead">The mental model behind every tool you will write: folders on disk become buttons on the ribbon, and a button runs a Python file.</p>
+  <p>pyNavis is a Python scripting host for Autodesk Navisworks. It loads a plugin into
+Navisworks at startup, scans folders on disk, and builds a ribbon tab from what it finds.
+Clicking a button executes a Python file. That is the heart of the system, and everything
+else, from event hooks to dock panels, hangs off the same folder scan.</p>
+
+<p>If you have written pyRevit extensions, this will feel familiar and mostly transfers.
+If you have not, the important idea is that <strong>the folder structure is the
+configuration</strong>. There is no manifest listing your commands, no registration call, no
+project file, and no compile step. A folder named <code>Export.pushbutton</code> containing a
+file named <code>script.py</code> is a working button.</p>
+
+<h2 id="from-disk-to-ribbon">From disk to ribbon<a class="anchor" href="#from-disk-to-ribbon" aria-label="Link to this section">#</a></h2>
+
+<p>Each level of the folder tree maps to one level of the ribbon. The suffix on the folder
+name decides what it becomes, and the folder name itself becomes the visible label.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 760 330" width="760" role="img"
+     aria-label="A folder tree on the left maps to a Navisworks ribbon tab on the right.">
+  <style>
+    .dgm-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .dgm-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .dgm-mono{ font: 12px Consolas, monospace; fill: var(--ink); }
+    .dgm-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .dgm-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .dgm-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+    .dgm-acc { fill: var(--accent); }
+  </style>
+  <defs>
+    <marker id="ov-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="dgm-lbl" x="0" y="12">On disk</text>
+  <text class="dgm-mono" x="0"  y="42">MyTools.extension</text>
+  <text class="dgm-mono" x="16" y="66">Survey.tab</text>
+  <text class="dgm-mono" x="32" y="90">Export.panel</text>
+  <text class="dgm-mono" x="48" y="114">01_Points.pushbutton</text>
+  <text class="dgm-mono" x="64" y="138">script.py</text>
+  <text class="dgm-mono" x="64" y="162">icon.png</text>
+  <text class="dgm-mono" x="48" y="186">02_Mesh.pushbutton</text>
+  <text class="dgm-mono" x="64" y="210">script.py</text>
+  <text class="dgm-mono" x="64" y="234">icon.png</text>
+
+  <path class="dgm-arw" d="M12 50 V 60" />
+  <path class="dgm-arw" d="M28 74 V 84" />
+  <path class="dgm-arw" d="M44 98 V 108" />
+  <path class="dgm-arw" d="M44 122 V 180" />
+
+  <path class="dgm-arw" d="M255 60 H 300" marker-end="url(#ov-a)"/>
+  <text class="dgm-m" x="258" y="53">tab</text>
+  <path class="dgm-arw" d="M255 88 H 300" marker-end="url(#ov-a)"/>
+  <text class="dgm-m" x="258" y="81">panel</text>
+  <path class="dgm-arw" d="M255 150 H 300" marker-end="url(#ov-a)"/>
+  <text class="dgm-m" x="258" y="143">buttons</text>
+
+  <text class="dgm-lbl" x="320" y="12">On the ribbon</text>
+
+  <!-- ribbon frame -->
+  <rect class="dgm-box" x="320" y="24" width="420" height="200" rx="4"/>
+  <!-- tab strip -->
+  <line x1="320" y1="52" x2="740" y2="52" stroke="var(--line)" stroke-width="1"/>
+  <text class="dgm-m" x="336" y="44">Home</text>
+  <text class="dgm-m" x="382" y="44">View</text>
+  <text class="dgm-t" x="428" y="44" font-weight="600">Survey</text>
+  <rect class="dgm-acc" x="424" y="49" width="46" height="2.5"/>
+
+  <!-- panel -->
+  <rect x="338" y="68" width="180" height="138" rx="3"
+        fill="none" stroke="var(--line)" stroke-dasharray="3 3"/>
+  <text class="dgm-m" x="398" y="199">Export</text>
+
+  <!-- button 1 -->
+  <rect class="dgm-box" x="352" y="80" width="72" height="88" rx="3"/>
+  <circle cx="388" cy="108" r="15" fill="none" stroke="var(--frame)" stroke-width="1.4"/>
+  <circle class="dgm-acc" cx="394" cy="102" r="4"/>
+  <text class="dgm-t" x="388" y="140" text-anchor="middle">Points</text>
+
+  <!-- button 2 -->
+  <rect class="dgm-box" x="432" y="80" width="72" height="88" rx="3"/>
+  <path d="M375 0" />
+  <rect x="453" y="94" width="30" height="28" fill="none" stroke="var(--frame)" stroke-width="1.4"/>
+  <path d="M453 108 H483 M468 94 V122" stroke="var(--accent)" stroke-width="1.4"/>
+  <text class="dgm-t" x="468" y="140" text-anchor="middle">Mesh</text>
+
+  <text class="dgm-m" x="320" y="252">The folder name becomes the label. The leading</text>
+  <text class="dgm-m" x="320" y="270">&#8220;01_&#8221; orders the buttons and is stripped from the title.</text>
+</svg>
+</div>
+<figcaption>Four folder levels, four ribbon levels. Nothing else registers a command:
+if the folders are right, the button exists.</figcaption>
+</figure>
+
+<h2 id="what-a-button-actually-does">What a button actually does<a class="anchor" href="#what-a-button-actually-does" aria-label="Link to this section">#</a></h2>
+
+<p>When you click a button, the runtime picks an engine, creates a fresh scope, injects four
+variables into it, and executes <code>script.py</code> top to bottom. Your script talks to
+Navisworks through the <code>pynavis</code> library, which wraps the .NET API in something
+Pythonic. The library is organised by domain: <code>selection</code>, <code>sets</code>,
+<code>props</code>, <code>viewpoints</code>, <code>clash</code>, <code>clashtest</code> and
+<code>export</code> face the model, <code>toast</code>, <code>forms</code> and
+<code>output</code> face the user, and <a href="api-reference.html">the API reference</a>
+lists every function in all of them.</p>
+
+<div class="code"><div class="code-head"><span>MyTools.extension/Survey.tab/Export.panel/01_Points.pushbutton/script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports the current selection to CSV.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, selection, toast
+
+items = selection.get_items()
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.error(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Select something first, then run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    path = forms.save_file(default_name=<span class="tok-s">&#x27;points.csv&#x27;</span>)
+    <span class="tok-k">if</span> path:                                  <span class="tok-c"># None means the user cancelled</span>
+        <span class="tok-k">with</span> open(path, <span class="tok-s">&#x27;w&#x27;</span>) <span class="tok-k">as</span> handle:
+            <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+                handle.write(item.DisplayName + <span class="tok-s">&#x27;\n&#x27;</span>)
+        toast.success(<span class="tok-s">&#x27;Exported %d items&#x27;</span> % len(items), path)</code></pre></div>
+
+<p>That script is a complete, shippable tool. It has an icon-less button, a tooltip taken
+from its docstring, a title taken from its folder name, and it reports its result without
+opening a window.</p>
+
+<h2 id="the-two-engines">The two engines<a class="anchor" href="#the-two-engines" aria-label="Link to this section">#</a></h2>
+
+<p>Every bundle runs on one of two Python engines. The choice is a single line in
+<code>bundle.yaml</code>, and it matters more than it looks.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>&nbsp;</th><th>IronPython</th><th>CPython</th></tr></thead>
+<tbody>
+<tr><td><strong>Engine id</strong></td><td><code>ironpython</code> (the default)</td><td><code>cpython</code></td></tr>
+<tr><td><strong>Version</strong></td><td>3.4</td><td>Whatever is installed, typically 3.11 or later</td></tr>
+<tr><td><strong>Runs in-process</strong></td><td>Yes, on the Navisworks .NET runtime</td><td>Yes, through pythonnet</td></tr>
+<tr><td><strong>Can subclass .NET and COM types</strong></td><td>Yes</td><td>No</td></tr>
+<tr><td><strong>Third-party wheels (numpy, pandas)</strong></td><td>No</td><td>Yes</td></tr>
+<tr><td><strong>Needs Python installed</strong></td><td>No, it ships with pyNavis</td><td>Yes</td></tr>
+<tr><td><strong>Use it when</strong></td><td>Almost always</td><td>You need a compiled package or modern syntax</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note">
+<span class="note-t">Rule of thumb</span>
+<p>Start on IronPython. It is the default, it has no external dependency, and it is the only
+engine that can subclass the COM interfaces some parts of the Navisworks API require. Move a
+single bundle to CPython only when you hit a wall, such as needing <code>numpy</code>.</p>
+</div>
+
+<h2 id="beyond-the-plain-button">Beyond the plain button<a class="anchor" href="#beyond-the-plain-button" aria-label="Link to this section">#</a></h2>
+
+<p>The pushbutton is one of twelve folder kinds a panel understands. Stacks and pulldowns
+pack more tools into the same ribbon space; toggles, smartbuttons and the two split buttons
+change how a button behaves; nobuttons, urlbuttons and linkbuttons cover the commands that
+are not really scripts. Two are not buttons at all: <code>*.dockpane</code> is a dockable
+Navisworks panel whose content is WPF from a <code>pane.xaml</code>, shown and hidden by a
+ribbon toggle, and <code>*.slideout</code> is a marker folder whose contents move into the
+flyout the panel title opens. <a href="buttons.html">Buttons, stacks and pulldowns</a> walks
+through all twelve.</p>
+
+<p>Code can also run without a click. An extension may carry
+<code>hooks\&lt;event&gt;.py</code> scripts that run themselves when one of fourteen
+Navisworks events fires, from <code>doc-opened</code> to <code>camera-moved</code>, and a
+<code>startup.py</code> at its root that runs at boot and on every Reload, before that
+extension's ribbon builds. <a href="hooks.html">Hooks</a> covers the events and their rules;
+<a href="anatomy.html">Anatomy of an extension</a> covers <code>startup.py</code> and the
+shared <code>*.lib</code> library folders.</p>
+
+<h2 id="where-everything-lives">Where everything lives<a class="anchor" href="#where-everything-lives" aria-label="Link to this section">#</a></h2>
+
+<p>Everything pyNavis installs lands in your own user profile, which is why installing it
+needs no administrator rights. Two installations are possible and they differ only in where
+the runtime and your extensions sit. An ordinary install is what the setup program and
+<code>tools/install.ps1</code> produce; a development install, from
+<code>tools/deploy-dev.ps1</code>, points the runtime back at a repository checkout.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>What</th><th>Installed</th><th>Development</th></tr></thead>
+<tbody>
+<tr><td>Loader plugin</td>
+    <td colspan="2"><code>%APPDATA%\Autodesk\ApplicationPlugins\pyNavis.bundle\Contents\&lt;year&gt;\</code></td></tr>
+<tr><td>Extensions</td>
+    <td><code>%APPDATA%\pyNavis\extensions</code></td>
+    <td>Any folder listed in <code>config.json</code></td></tr>
+<tr><td>Runtime and stdlib</td>
+    <td><code>%APPDATA%\pyNavis\&lt;year&gt;\runtime</code></td>
+    <td><code>bin\&lt;year&gt;\runtime</code> in the checkout</td></tr>
+<tr><td><code>pynavis</code> library</td>
+    <td>Beside the runtime</td>
+    <td><code>pynavislib\</code> in the checkout</td></tr>
+<tr><td>Your settings</td>
+    <td colspan="2"><code>%APPDATA%\pyNavis\config.json</code></td></tr>
+<tr><td>Per-tool settings</td>
+    <td colspan="2"><code>%APPDATA%\pyNavis\settings\&lt;tool&gt;.json</code></td></tr>
+<tr><td>Selection memory</td>
+    <td colspan="2"><code>%APPDATA%\pyNavis\memory\</code></td></tr>
+<tr><td>Logs</td>
+    <td colspan="2"><code>%APPDATA%\pyNavis\logs\</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The runtime scans every folder listed under <code>"extensions"</code> in
+<code>config.json</code>, plus two defaults: <code>%APPDATA%\pyNavis\extensions</code>, where
+the shipped extension lives, and <code>%PROGRAMDATA%\pyNavis\extensions</code> if that folder
+exists, which is how an IT department deploys extensions to a whole machine. All of them are
+scanned, so a development extension and an installed one can coexist.</p>
+
+<div class="note">
+<span class="note-t">Which loader Navisworks picks</span>
+<p>The bundle folder holds one <code>Contents\&lt;year&gt;</code> folder per Navisworks
+release and a <code>PackageContents.xml</code> naming them, so a single install serves every
+release on the machine and Navisworks loads only the folder matching its own. The runtime the
+loader then hands over to is resolved in order: the <code>PYNAVIS_RUNTIME</code> environment
+variable, the
+<code>runtime&lt;year&gt;</code> key in <code>config.json</code>,
+<code>%APPDATA%\pyNavis\&lt;year&gt;\runtime</code>, then
+<code>%PROGRAMDATA%\pyNavis\&lt;year&gt;\runtime</code>. The first one that exists wins, and
+the log names the winner near the top.</p>
+</div>
+
+<h2 id="the-development-loop">The development loop<a class="anchor" href="#the-development-loop" aria-label="Link to this section">#</a></h2>
+
+<p>The loop is short, which is the point of the whole system.</p>
+
+<ol>
+  <li>Create or edit a file inside your extension folder.</li>
+  <li>Click <strong>Reload</strong> on the pyNavis panel.</li>
+  <li>Click your button.</li>
+</ol>
+
+<p>Reload rescans every extension folder and rebuilds the ribbon without restarting
+Navisworks. It picks up new bundles, renamed folders, changed <code>bundle.yaml</code>
+values, new icons, and changed shortcuts. It also reruns each extension's
+<code>startup.py</code>, re-reads the hook scripts, and rebuilds the content of any dock
+panel that is open.</p>
+
+<div class="note warn">
+<span class="note-t">One exception</span>
+<p>Edits to <code>script.py</code> and to modules inside your bundle or your extension's
+<code>lib\</code> folder are picked up on <em>every run</em>, with no Reload needed, because
+the runtime drops those modules from the cache before each execution. Edits to the
+<code>pynavis</code> library itself, or to modules inside a shared <code>*.lib</code>
+folder, need a Reload. Changes to the C# runtime, adding or removing a whole
+<code>*.lib</code> folder, and new panel slots need a Navisworks restart.</p>
+</div>
+
+<h2 id="what-you-cannot-do">What you cannot do<a class="anchor" href="#what-you-cannot-do" aria-label="Link to this section">#</a></h2>
+
+<p>Being honest about the boundaries saves time:</p>
+
+<ul>
+  <li><strong>No background threads touching the model.</strong> The Navisworks API is not
+    thread-safe. Your script runs on the UI thread and should stay there.</li>
+  <li><strong>One script at a time.</strong> The runtime refuses a second run while one is in
+    flight and toasts &ldquo;still running&rdquo;. Long jobs block the UI, so report
+    progress.</li>
+  <li><strong>No custom ribbon controls.</strong> The ribbon vocabulary is the twelve bundle
+    kinds. There are no combo boxes, sliders or galleries on the ribbon itself; when a tool
+    needs persistent controls, give it a <code>*.dockpane</code> panel instead.</li>
+  <li><strong>No package installer.</strong> There is no <code>requirements.txt</code>
+    handling. Vendor pure-Python dependencies into your extension's <code>lib\</code>
+    folder, or use CPython and its own site-packages.</li>
+</ul>
+
+<h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
+
+<div class="cards">
+  <a href="quickstart.html"><span class="c-t">Your first button</span>
+    <span class="c-d">A working tool on the ribbon in five minutes.</span></a>
+  <a href="anatomy.html"><span class="c-t">Anatomy of an extension</span>
+    <span class="c-d">Every folder suffix, the ordering rules, and how discovery works.</span></a>
+  <a href="api-reference.html"><span class="c-t">Python API reference</span>
+    <span class="c-d">Every function in the pynavis library, with signatures.</span></a>
+</div>
+  <div class="pagenav">
+<span></span>
+<a class="next" href="quickstart.html"><span class="dir">Next</span><span class="ttl">Your first button</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#from-disk-to-ribbon">From disk to ribbon</a>
+<a href="#what-a-button-actually-does">What a button actually does</a>
+<a href="#the-two-engines">The two engines</a>
+<a href="#beyond-the-plain-button">Beyond the plain button</a>
+<a href="#where-everything-lives">Where everything lives</a>
+<a href="#the-development-loop">The development loop</a>
+<a href="#what-you-cannot-do">What you cannot do</a>
+<a href="#where-to-go-next">Where to go next</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

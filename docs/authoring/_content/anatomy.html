@@ -1,0 +1,729 @@
+<!-- title: Anatomy of an extension -->
+<!-- eyebrow: Bundles -->
+<!-- lead: The four folder levels, how discovery walks them, and the ordering and naming rules that decide what your ribbon looks like. -->
+
+<p>An extension is a folder tree with meaningful suffixes. pyNavis reads that tree at startup
+and on every Reload, and builds the ribbon from it. Nothing else registers a command: there is
+no manifest, no index file, and no place to list your tools. If the folders are right the
+buttons exist, and if a button is missing the folders are wrong.</p>
+
+<p>This page is the reference for that tree. It covers every level, the two configuration
+files that sit outside a bundle, the ordering rules, how a folder name becomes a title, and
+every reason discovery drops something.</p>
+
+<h2>The four levels</h2>
+
+<p>Each level is a folder whose name ends in a fixed suffix. Matching is case-insensitive, so
+<code>Survey.Tab</code> and <code>Survey.tab</code> are the same thing, but the suffix itself
+is matched literally: nothing else counts.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Suffix</th><th>Lives under</th><th>Becomes</th><th>May contain</th></tr></thead>
+<tbody>
+<tr><td><code>*.extension</code></td><td>An extension root</td><td>Nothing visible; it is the unit of distribution</td>
+    <td><code>extension.yaml</code>, <code>lib\</code>, <code>hooks\</code>,
+        <code>startup.py</code>, <code>*.tab</code></td></tr>
+<tr><td><code>*.tab</code></td><td><code>*.extension</code></td><td>One ribbon tab</td>
+    <td><code>*.panel</code></td></tr>
+<tr><td><code>*.panel</code></td><td><code>*.tab</code></td><td>One panel inside that tab</td>
+    <td><code>*.pushbutton</code>, <code>*.stack</code>, <code>*.pulldown</code>, and nine
+        more panel item suffixes (see below)</td></tr>
+<tr><td><code>*.pushbutton</code></td><td><code>*.panel</code>, <code>*.stack</code>, <code>*.pulldown</code></td>
+    <td>One clickable button</td>
+    <td><code>script.py</code> (required), <code>config.py</code>, <code>bundle.yaml</code>, icons</td></tr>
+<tr><td><code>*.stack</code></td><td><code>*.panel</code></td><td>2 or 3 small buttons in one column</td>
+    <td><code>*.pushbutton</code> only</td></tr>
+<tr><td><code>*.pulldown</code></td><td><code>*.panel</code></td><td>One large button that opens a menu</td>
+    <td><code>bundle.yaml</code>, icons, <code>*.pushbutton</code></td></tr>
+<tr><td><code>*.slideout</code></td><td><code>*.panel</code></td>
+    <td>Nothing of its own; its contents render below a panel break, in the flyout the host
+        opens from the panel title</td>
+    <td>Any of the other panel item suffixes, one level deep</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note warn">
+<span class="note-t">Twelve panel item suffixes, not three</span>
+<p>The table above covers the three shapes you will use constantly, but a panel understands
+nine more: <code>*.nobutton</code>, <code>*.urlbutton</code>, <code>*.linkbutton</code>,
+<code>*.toggle</code>, <code>*.smartbutton</code>, <code>*.splitbutton</code>,
+<code>*.splitpushbutton</code>, <code>*.dockpane</code> and <code>*.slideout</code>.
+<a href="buttons.html">Buttons, stacks and pulldowns</a> covers all twelve. If you have come
+from pyRevit, note the exact spelling: it is <code>*.nobutton</code>, not
+<code>*.nobundle</code>, and <code>*.toggle</code>, not <code>*.togglebutton</code>.</p>
+</div>
+
+<div class="note tip">
+<span class="note-t">A misspelled suffix is reported, not swallowed</span>
+<p>A folder inside a panel whose name contains a dot is taken to be an attempted bundle, so a
+suffix outside the twelve is logged as <code>'&lt;dir&gt;' is not a bundle kind pyNavis knows
+(check the folder suffix) - skipped.</code> and counted into the warning toast pyNavis shows
+after every scan: <em>N bundle folders were skipped</em>, quoting the first one. A folder with
+no dot in its name, such as <code>assets</code> or <code>__pycache__</code>, is an ordinary
+folder and says nothing.</p>
+</div>
+
+<h2>A complete extension</h2>
+
+<p>Everything below is either required, optional, or ignored. Nothing is boilerplate.</p>
+
+<pre data-lang="tree" data-file="A realistic extension, annotated">
+D:\NavisTools\                       # an extension root, listed in config.json
+  Shared.lib\                        # optional: a sibling of *.extension, not inside one
+    acme_common\                     # shared python for every extension, every engine
+      __init__.py
+  Survey.extension\
+    extension.yaml                   # optional: display name and default engine
+    startup.py                       # optional: runs at boot and every Reload
+    lib\                             # optional: modules importable from every button IN
+      surveyutil\                    # this extension only - different from Shared.lib\ above
+        __init__.py
+        geometry.py
+    hooks\                           # optional: event scripts, filename = event name
+      doc-opened.py
+    Survey.tab\                      # one ribbon tab
+      Export.panel\                  # "Export" sorts before "Review"
+        01_Points.pushbutton\        # large button, titled "Points"
+          script.py                  # REQUIRED, or the whole bundle is dropped
+          config.py                  # optional: Shift+Click runs this
+          bundle.yaml                # optional: title, tooltip, engine, shortcut, keytip
+          icon.png                   # 96x96, light theme, large slot
+          icon.dark.png              # 96x96, dark theme
+          icon.small.png             # 32x32, stacks and menu rows
+          icon.small.dark.png        # 32x32, dark theme
+        02_Mesh.pushbutton\
+          script.py
+        03_Format.stack\             # 2 or 3 children; no yaml, no icon of its own
+          01_CSV.pushbutton\
+            script.py
+            icon.small.png
+          02_IFC.pushbutton\
+            script.py
+            icon.small.png
+        04_More.pulldown\            # a menu button; has its own yaml and icon
+          bundle.yaml                # title, tooltip, keytip
+          icon.png
+          01_Legacy.pushbutton\
+            script.py
+          02_Debug.pushbutton\
+            script.py
+        99_More.slideout\            # contents move below the panel break, into the flyout
+          Settings.pushbutton\
+            script.py
+      Review.panel\
+        Compare.pushbutton\          # no NN_ prefix, no yaml: titled "Compare"
+          script.py
+</pre>
+
+<p>That tree produces one tab named <em>Survey</em> with two panels. The <em>Export</em> panel
+holds four items in folder order: a large button, a large button, a two-row stack and a
+pulldown, plus one more button hidden in the flyout the panel title opens. The
+<em>Review</em> panel holds one button.</p>
+
+<h2>How discovery walks the disk</h2>
+
+<p>Discovery is a fixed six-stage walk. Every stage globs for one pattern and ignores
+everything else it finds, which is why a misplaced folder produces no error: it was never
+looked at.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 448" width="700" role="img"
+     aria-label="Six discovery stages, each showing the folder pattern scanned and what is ignored at that level.">
+  <style>
+    .an1-t    { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); font-weight: 600; }
+    .an1-m    { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .an1-mono { font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .an1-lbl  { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+                text-transform: uppercase; letter-spacing: .07em; }
+    .an1-box  { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .an1-skip { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+    .an1-arw  { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+    .an1-num  { font: 11px Consolas, monospace; fill: var(--accent); }
+  </style>
+  <defs>
+    <marker id="an1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="an1-lbl" x="0"   y="14">What is scanned</text>
+  <text class="an1-lbl" x="356" y="14">What is passed over</text>
+
+  <!-- stage 1 -->
+  <rect class="an1-box"  x="0" y="26" width="330" height="52" rx="4"/>
+  <text class="an1-num"  x="14" y="46">1</text>
+  <text class="an1-t"    x="32" y="46">Extension roots</text>
+  <text class="an1-mono" x="32" y="66">config.json &#8594; "extensions"</text>
+  <rect class="an1-skip" x="356" y="26" width="344" height="52" rx="4"/>
+  <text class="an1-m"    x="370" y="46">Every listed root is scanned, and the default</text>
+  <text class="an1-m"    x="370" y="64">%APPDATA%\pyNavis\extensions is added.</text>
+  <path class="an1-arw" d="M165 78 V 96" marker-end="url(#an1-a)"/>
+
+  <!-- stage 2 -->
+  <rect class="an1-box"  x="0" y="98" width="330" height="52" rx="4"/>
+  <text class="an1-num"  x="14" y="118">2</text>
+  <text class="an1-t"    x="32" y="118">Extensions</text>
+  <text class="an1-mono" x="32" y="138">*.extension</text>
+  <rect class="an1-skip" x="356" y="98" width="344" height="52" rx="4"/>
+  <text class="an1-m"    x="370" y="118">Directly under the root only, never recursive.</text>
+  <text class="an1-m"    x="370" y="136">An extension one folder deeper is invisible.</text>
+  <path class="an1-arw" d="M165 150 V 168" marker-end="url(#an1-a)"/>
+
+  <!-- stage 3 -->
+  <rect class="an1-box"  x="0" y="170" width="330" height="52" rx="4"/>
+  <text class="an1-num"  x="14" y="190">3</text>
+  <text class="an1-t"    x="32" y="190">Tabs</text>
+  <text class="an1-mono" x="32" y="210">*.tab</text>
+  <rect class="an1-skip" x="356" y="170" width="344" height="52" rx="4"/>
+  <text class="an1-m"    x="370" y="190">extension.yaml and lib\ are read here;</text>
+  <text class="an1-m"    x="370" y="208">every other file or folder is left alone.</text>
+  <path class="an1-arw" d="M165 222 V 240" marker-end="url(#an1-a)"/>
+
+  <!-- stage 4 -->
+  <rect class="an1-box"  x="0" y="242" width="330" height="52" rx="4"/>
+  <text class="an1-num"  x="14" y="262">4</text>
+  <text class="an1-t"    x="32" y="262">Panels</text>
+  <text class="an1-mono" x="32" y="282">*.panel</text>
+  <rect class="an1-skip" x="356" y="242" width="344" height="52" rx="4"/>
+  <text class="an1-m"    x="370" y="262">A .panel nested inside another .panel is</text>
+  <text class="an1-m"    x="370" y="280">never reached; panels do not nest.</text>
+  <path class="an1-arw" d="M165 294 V 312" marker-end="url(#an1-a)"/>
+
+  <!-- stage 5 -->
+  <rect class="an1-box"  x="0" y="314" width="330" height="52" rx="4"/>
+  <text class="an1-num"  x="14" y="334">5</text>
+  <text class="an1-t"    x="32" y="334">Panel items</text>
+  <text class="an1-mono" x="32" y="354">*.pushbutton  *.stack  ...  *.dockpane</text>
+  <rect class="an1-skip" x="356" y="314" width="344" height="52" rx="4"/>
+  <text class="an1-m"    x="370" y="334">All twelve item suffixes match here; a dotted folder</text>
+  <text class="an1-m"    x="370" y="352">name that matches none of them is logged as a typo.</text>
+  <path class="an1-arw" d="M165 366 V 384" marker-end="url(#an1-a)"/>
+
+  <!-- stage 6 -->
+  <rect class="an1-box"  x="0" y="386" width="330" height="52" rx="4"/>
+  <text class="an1-num"  x="14" y="406">6</text>
+  <text class="an1-t"    x="32" y="406">Children of a stack or pulldown</text>
+  <text class="an1-mono" x="32" y="426">*.pushbutton</text>
+  <rect class="an1-skip" x="356" y="386" width="344" height="52" rx="4"/>
+  <text class="an1-m"    x="370" y="406">A .stack inside a .stack, or a .pulldown inside</text>
+  <text class="an1-m"    x="370" y="424">a .pulldown, is logged and dropped. Nesting stops here.</text>
+</svg>
+</div>
+<figcaption>Each stage globs one pattern in one folder. Anything that does not match that
+pattern is not an error, it is simply not part of the walk.</figcaption>
+</figure>
+
+<h2>Where roots come from</h2>
+
+<p>An extension is only found if it sits <strong>directly</strong> inside a scanned root. The
+roots are the strings in the <code>"extensions"</code> array of
+<code>%APPDATA%\pyNavis\config.json</code>, plus two defaults added when they are not already
+in the array: <code>%APPDATA%\pyNavis\extensions</code>, which is where the install puts the
+shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> if that folder exists,
+which is how extensions are deployed to a whole machine. All roots are scanned and their
+results concatenated, so a development extension and an installed one happily coexist.</p>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="tree">D:\NavisTools\
+  Survey.extension\
+  Drawings.extension\</pre></div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="tree">D:\NavisTools\
+  Team\
+    Survey.extension\      # never found
+  Archive\
+    Drawings.extension\    # never found</pre></div>
+</div>
+
+<p>If you want to group extensions in subfolders, add each subfolder as its own root instead:
+<code>pynavis extensions add D:\NavisTools\Team</code>.</p>
+
+<h2>extension.yaml</h2>
+
+<p>Optional, and it understands exactly two keys. Anything else in the file is ignored.</p>
+
+<pre data-lang="yaml" data-file="Survey.extension\extension.yaml">
+name: Survey Tools
+engine: ironpython
+</pre>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Effect</th><th>Default</th></tr></thead>
+<tbody>
+<tr><td><code>name</code></td>
+    <td>The extension's display name. It is not shown on the ribbon; it is one half of every
+        tab id this extension creates.</td>
+    <td>The folder name with <code>.extension</code> removed</td></tr>
+<tr><td><code>engine</code></td>
+    <td>The default engine for every bundle in the extension. A bundle's own
+        <code>engine:</code> still wins.</td>
+    <td><code>ironpython</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Setting <code>engine: cpython</code> here is the clean way to write a whole extension
+against CPython without repeating the key in every <code>bundle.yaml</code>.</p>
+
+<h2>The lib folder (one extension)</h2>
+
+<p>A folder named <code>lib</code> directly inside the <code>.extension</code> folder is added
+to the module search path of every button in that extension. It is the place for shared code:
+helpers, vendored pure-Python packages, anything more than one tool imports.</p>
+
+<pre data-lang="python" data-file="Survey.extension\Survey.tab\Export.panel\01_Points.pushbutton\script.py">
+"""Exports survey points."""
+from surveyutil import points            # resolved from Survey.extension\lib
+from pynavis import selection, toast
+
+toast.info('%d point(s)' % len(points.of_items(selection.get_items())))
+</pre>
+
+<p>Each button gets two search paths, in this order:</p>
+
+<ol>
+  <li>its own bundle folder, so a module beside <code>script.py</code> shadows the
+    extension's <code>lib\</code>;</li>
+  <li>the extension's <code>lib\</code> folder, if it exists.</li>
+</ol>
+
+<div class="note trap">
+<span class="note-t">lib is only special at extension level</span>
+<p>A <code>lib</code> folder inside a <code>.tab</code>, a <code>.panel</code>, a
+<code>.stack</code> or a bundle is an ordinary folder and is never added to the search path.
+There is exactly one <code>lib</code> per extension and it lives beside
+<code>extension.yaml</code>.</p>
+</div>
+
+<h2>*.lib extensions (every extension, both engines)</h2>
+
+<p>A different thing with a similar name: a folder ending in <code>*.lib</code> sitting
+directly under an extension root, a sibling of your <code>*.extension</code> folders rather
+than something inside one. Its contents join the global module search path shared by
+<strong>every</strong> extension and <strong>both</strong> engines, not just the buttons in
+one extension.</p>
+
+<pre data-lang="tree">
+D:\NavisTools\                       # an extension root
+  Shared.lib\                        # a library-only extension, not a *.extension
+    acme_common\
+      __init__.py
+      units.py
+  Survey.extension\
+    ...
+  Drawings.extension\
+    ...                              # both can "import acme_common"
+</pre>
+
+<p>Search path order puts every <code>*.lib</code> folder ahead of the bundle folder and the
+per-extension <code>lib\</code>, right after <code>pynavislib</code>:
+<code>pynavislib</code>, then every <code>*.lib</code> folder found (in sorted order), then
+the bundle folder, then that extension's own <code>lib\</code>.</p>
+
+<div class="note warn">
+<span class="note-t">Adding or removing a *.lib folder needs a restart</span>
+<p>The set of <code>*.lib</code> folders is fixed into the engine configuration once, at boot.
+Reload rescans it and, if the set changed, toasts <em>Library extensions changed - Added or
+removed *.lib folders apply after a Navisworks restart.</em> and leaves the old set in place.
+<strong>Edits to files already inside an existing *.lib folder are a different matter</strong>:
+they need a Reload, not a restart. A Reload drops the cached modules under every known
+<code>*.lib</code> folder, and under <code>pynavislib</code>, so the next run picks up your
+change. Only a module in your own bundle folder or your extension's <code>lib\</code> is
+evicted before <em>every</em> run.</p>
+</div>
+
+<h2>startup.py</h2>
+
+<p>A file named exactly <code>startup.py</code> directly inside a <code>.extension</code>
+folder runs once at boot and again at the start of every Reload, before that extension's
+ribbon is built.</p>
+
+<pre data-lang="tree">
+Survey.extension\
+  startup.py
+  extension.yaml
+</pre>
+
+<pre data-lang="python" data-file="Survey.extension\startup.py">
+"""Confirms the shared geometry helper resolved before anyone clicks a button."""
+from pynavis import toast
+
+try:
+    import surveyutil
+except ImportError:
+    toast.warning('surveyutil not found', 'Check Survey.extension\\lib\\surveyutil.')
+</pre>
+
+<p><code>startup.py</code> runs on the extension's default engine with the same
+<code>__file__</code> and <code>__pynavis__</code> globals a hook gets, and the same search
+paths: the extension folder itself, then its <code>lib\</code> if it has one, plus the global
+<code>*.lib</code> folders every script gets. Output is routed to the pyNavis log rather than
+a window, because there is no button behind it to title one after, and every line is labelled
+with what is actually running (<code>[startup Survey Tools]</code>) rather than with the last
+command clicked, which on a Reload would be Reload itself.</p>
+
+<div class="note trap">
+<span class="note-t">A failure still lets the buttons load</span>
+<p>An exception in <code>startup.py</code> is logged and toasted, but discovery carries on and
+that extension's ribbon still builds. A broken <code>startup.py</code> costs you whatever it
+was supposed to set up, not the whole extension.</p>
+</div>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+startup.py failed for 'Survey Tools':
+Traceback (most recent call last):
+  ...
+</pre>
+
+<div class="note warn">
+<span class="note-t">Neither startup.py nor a hook can address a specific toggle</span>
+<p><code>pynavis.script.get_toggle_state</code>/<code>set_toggle_state</code> act on
+"whichever bundle is currently running", which only means something inside that bundle's own
+<code>script.py</code> or <code>config.py</code>. Neither <code>startup.py</code> nor a hook
+runs as any particular bundle, so there is no supported way to flip a specific
+<code>*.toggle</code>'s state from either of them. If a toggle needs to remember its setting
+across a restart, store the flag with <code>pynavis.settings</code> and have the toggle's own
+<code>script.py</code> read it on the very first click of the session.</p>
+</div>
+
+<p><a href="hooks.html">Hooks</a> covers the companion mechanism: event scripts under
+<code>hooks\</code> that run later, in response to something happening, rather than once at
+boot or Reload.</p>
+
+<h2>Ordering panels and buttons</h2>
+
+<p>At every level, folders are sorted by name using a case-insensitive ordinal comparison.
+That sort is the only thing that decides order: there is no <code>order:</code> key, and the
+order you created the folders in is irrelevant.</p>
+
+<p>Because folder names double as titles, you rarely want alphabetical order. Prefix the
+folder with two or more digits and an underscore. The prefix sorts the folder and is then
+stripped from the title.</p>
+
+<pre data-lang="tree">
+Memory.panel\
+  01_Memorize.pushbutton\      # shows as "Memorize"
+  02_Recall.pushbutton\        # shows as "Recall"
+  03_Set.stack\
+  04_Step.stack\
+  05_Memory.pulldown\          # shows as "Memory"
+</pre>
+
+<div class="note trap">
+<span class="note-t">10 sorts before 2</span>
+<p>The sort is lexicographic, not numeric. <code>10_Export</code> comes before
+<code>2_Import</code>, and once you have ten tools the panel silently reshuffles. Always
+zero-pad every prefix on a panel to the same width. This is the single most common authoring
+mistake in pyNavis.</p>
+</div>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="tree">01_Memorize.pushbutton
+02_Recall.pushbutton
+...
+09_Purge.pushbutton
+10_Export.pushbutton</pre></div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="tree">1_Memorize.pushbutton
+2_Recall.pushbutton
+...
+9_Purge.pushbutton
+10_Export.pushbutton    # jumps to the front</pre></div>
+</div>
+
+<p>A three-digit scheme works too and is worth using on a panel you expect to grow:
+<code>010_</code>, <code>020_</code>, <code>030_</code> leaves room to insert without renaming
+anything.</p>
+
+<div class="note">
+<span class="note-t">Items keep folder order across types</span>
+<p>A panel does not group buttons, stacks and pulldowns. All three sort together by folder
+name, so a stack can sit between two large buttons simply by numbering it that way.
+<a href="buttons.html">Buttons, stacks and pulldowns</a> shows this on a real panel.</p>
+</div>
+
+<h2>From folder name to title</h2>
+
+<p>When a bundle has no <code>title:</code> in its <code>bundle.yaml</code> and no
+<code>__title__</code> in its script, the title is derived from the folder name by two rules
+applied in order: strip a leading run of <strong>two or more</strong> digits followed by an
+underscore, then turn every remaining underscore into a space.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 246" width="700" role="img"
+     aria-label="Four folder names transformed into titles by stripping a numeric prefix and replacing underscores with spaces.">
+  <style>
+    .an2-t    { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .an2-m    { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .an2-mono { font: 12px Consolas, monospace; fill: var(--ink); }
+    .an2-lbl  { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+                text-transform: uppercase; letter-spacing: .07em; }
+    .an2-box  { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .an2-cut  { stroke: var(--accent); stroke-width: 1.5; }
+    .an2-arw  { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="an2-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <rect class="an2-box" x="0" y="10" width="700" height="46" rx="4"/>
+  <text class="an2-mono" x="16" y="30">^\d{2,}_</text>
+  <text class="an2-m"    x="96" y="30">is removed from the front,</text>
+  <text class="an2-mono" x="16" y="48">_</text>
+  <text class="an2-m"    x="30" y="48">that survives becomes a space.</text>
+
+  <text class="an2-lbl" x="0"   y="82">Folder name</text>
+  <text class="an2-lbl" x="290" y="82">Title</text>
+  <text class="an2-lbl" x="470" y="82">Why</text>
+
+  <!-- row 1 -->
+  <text class="an2-mono" x="0" y="108">01_Memorize</text>
+  <line class="an2-cut" x1="0" y1="104" x2="19" y2="104"/>
+  <path class="an2-arw" d="M232 104 H 276" marker-end="url(#an2-a)"/>
+  <text class="an2-t"   x="290" y="108">Memorize</text>
+  <text class="an2-m"   x="470" y="108">Two digits: the prefix is an order hint.</text>
+
+  <!-- row 2 -->
+  <text class="an2-mono" x="0" y="140">02_Recall_Now</text>
+  <line class="an2-cut" x1="0" y1="136" x2="19" y2="136"/>
+  <line class="an2-cut" x1="61"  y1="136" x2="68" y2="136"/>
+  <path class="an2-arw" d="M232 136 H 276" marker-end="url(#an2-a)"/>
+  <text class="an2-t"   x="290" y="140">Recall Now</text>
+  <text class="an2-m"   x="470" y="140">The inner underscore becomes a space.</text>
+
+  <!-- row 3 -->
+  <text class="an2-mono" x="0" y="172">1_Keep</text>
+  <path class="an2-arw" d="M232 168 H 276" marker-end="url(#an2-a)"/>
+  <text class="an2-t"   x="290" y="172">1 Keep</text>
+  <text class="an2-m"   x="470" y="172">One digit is not a prefix. Nothing is</text>
+  <text class="an2-m"   x="470" y="188">stripped, so the digit stays in the label.</text>
+
+  <!-- row 4 -->
+  <text class="an2-mono" x="0" y="212">010_Purge</text>
+  <line class="an2-cut" x1="0" y1="208" x2="26" y2="208"/>
+  <path class="an2-arw" d="M232 208 H 276" marker-end="url(#an2-a)"/>
+  <text class="an2-t"   x="290" y="212">Purge</text>
+  <text class="an2-m"   x="470" y="212">Three digits work the same way.</text>
+
+  <text class="an2-m" x="0" y="240">Tabs and panels get their titles from exactly the same two rules.</text>
+</svg>
+</div>
+<figcaption>The rule is deliberately two digits or more, so a tool genuinely named
+<code>1_Keep</code> keeps its name. If you want a single digit in the label, set
+<code>title:</code> and stop guessing.</figcaption>
+</figure>
+
+<p>Titles are only derived when nothing better is available. The full precedence, most
+specific first, is <code>bundle.yaml</code>, then the script's <code>__title__</code> or
+docstring, then the folder name. <a href="bundle-yaml.html">bundle.yaml</a> covers every key.</p>
+
+<h2>When a bundle does not appear</h2>
+
+<p>Discovery never throws. It drops what it cannot use and carries on, which keeps one broken
+folder from taking down the whole ribbon. Most drops announce themselves twice: once in
+<code>%APPDATA%\pyNavis\logs\pyNavis.log</code>, and once in a warning toast after the scan
+that counts them and quotes the first. This table maps what you see to what went wrong, with
+the line to search for in the log.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Symptom</th><th>Cause</th><th>Log line</th></tr></thead>
+<tbody>
+<tr><td>One button missing</td>
+    <td>The <code>.pushbutton</code> folder has no <code>script.py</code></td>
+    <td><code>'&lt;dir&gt;' has no script.py - skipped.</code></td></tr>
+<tr><td>One button missing, suffix looks fine to you</td>
+    <td>The suffix is not one of the twelve, for example <code>.pushbuttons</code></td>
+    <td><code>'&lt;dir&gt;' is not a bundle kind pyNavis knows (check the folder suffix) -
+        skipped.</code></td></tr>
+<tr><td>A dock panel's ribbon toggle missing</td>
+    <td>The <code>.dockpane</code> folder has no <code>pane.xaml</code></td>
+    <td><code>Dockpane '&lt;dir&gt;' has no pane.xaml - skipped.</code></td></tr>
+<tr><td>A whole stack missing</td>
+    <td>The <code>.stack</code> ended up with fewer than 2 or more than 3 usable buttons,
+        often because one child lost its <code>script.py</code></td>
+    <td><code>Stack '&lt;dir&gt;' holds N button(s); a stack needs 2 or 3 - skipped.</code></td></tr>
+<tr><td>A pulldown missing</td>
+    <td>No child <code>.pushbutton</code> had a <code>script.py</code></td>
+    <td><code>Pulldown '&lt;dir&gt;' has no usable pushbuttons - skipped.</code></td></tr>
+<tr><td>A panel missing</td>
+    <td>Every item in it was skipped, so the panel has zero items</td>
+    <td>None for the panel itself; the item skips above explain it.</td></tr>
+<tr><td>A tab missing</td>
+    <td>Every panel in it was skipped, so the tab has zero panels</td>
+    <td>None for the tab itself.</td></tr>
+<tr><td>The second copy of a tab missing</td>
+    <td>Another extension already produced a tab with the same id</td>
+    <td><code>Ribbon tab '&lt;id&gt;' already exists - skipped (duplicate extension?).</code></td></tr>
+<tr><td>A stack or pulldown child missing</td>
+    <td>It is not a <code>*.pushbutton</code>; those two containers hold nothing else</td>
+    <td><code>'&lt;dir&gt;' is ignored: a stack holds only *.pushbutton folders.</code></td></tr>
+<tr><td>A slideout's contents missing</td>
+    <td>The <code>.slideout</code> sits inside another <code>.slideout</code></td>
+    <td><code>Slideout '&lt;dir&gt;' sits inside another slideout - skipped.</code></td></tr>
+<tr><td>Nothing at all from an extension folder</td>
+    <td>A misspelled <code>.extension</code>, <code>.tab</code> or <code>.panel</code> suffix,
+        or the extension is not directly inside a scanned root</td>
+    <td>None. Those three levels are globbed by pattern, so the walk never looked at the
+        folder and has nothing to report.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note tip">
+<span class="note-t">Read the count in the log</span>
+<p>Every successful build logs <code>Ribbon built: N tab(s), M button(s).</code> If M is lower
+than you expect, something above is the reason. <a href="troubleshooting.html">Troubleshooting</a>
+walks through the rest.</p>
+</div>
+
+<h2>Slideouts</h2>
+
+<p>A <code>*.slideout</code> folder is not a bundle and draws nothing itself. It is a marker:
+whatever panel items it contains are emitted after a panel break, so the host hides them until
+the user clicks the panel title (the little <em>Title</em> with a chevron along the bottom of
+the panel), exactly like the native Tags panel. It is where the tools that matter least go,
+without their costing any ribbon width.</p>
+
+<pre data-lang="tree">
+Export.panel\
+  01_Points.pushbutton\       # always visible
+  02_Mesh.pushbutton\         # always visible
+  99_More.slideout\           # everything below here is in the flyout
+    01_Settings.pushbutton\
+      script.py
+    02_Docs.urlbutton\
+      bundle.yaml
+</pre>
+
+<ul>
+  <li>A slideout may hold <strong>any</strong> of the other panel item kinds, not just
+    pushbuttons: stacks, pulldowns, toggles, dockpanes and the rest all work.</li>
+  <li>A panel may have more than one <code>.slideout</code>. Their contents are concatenated
+    in folder order into the single flyout; there is only ever one break per panel.</li>
+  <li>The folder name is never shown. Use the <code>NN_</code> prefix to place it, and name it
+    for your own benefit.</li>
+  <li>One level only. A <code>.slideout</code> inside a <code>.slideout</code> is logged
+    (<code>Slideout '&lt;dir&gt;' sits inside another slideout - skipped.</code>) and its
+    contents are dropped.</li>
+  <li>A panel whose items are <em>all</em> in a slideout still renders: the panel exists, the
+    visible area is empty, and everything is in the flyout.</li>
+  <li>Buttons in a slideout are ordinary buttons in every other respect. They take shortcuts,
+    keytips, <code>context:</code> gating and bundle keys exactly like the visible ones, and
+    their bundle key keeps the <code>.slideout</code> folder in the path.</li>
+</ul>
+
+<h2>Names and identity</h2>
+
+<p>Two identities are derived from the tree, and both matter when you ship an extension to
+other people.</p>
+
+<h3>Tab id</h3>
+
+<p>Every ribbon tab needs a unique id. pyNavis builds one from the extension name and the tab
+folder name, replacing every character that is not a letter or digit with an underscore.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 200" width="700" role="img"
+     aria-label="A tab id is built from the extension name joined to the tab name, sanitised, and prefixed.">
+  <style>
+    .an3-m    { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .an3-mono { font: 12px Consolas, monospace; fill: var(--ink); }
+    .an3-acc  { font: 12px Consolas, monospace; fill: var(--accent); font-weight: 600; }
+    .an3-rail { stroke: var(--line-strong); stroke-width: 1; }
+    .an3-tick { stroke: var(--frame); stroke-width: 1; }
+    .an3-lbl  { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+                text-transform: uppercase; letter-spacing: .07em; }
+  </style>
+
+  <text class="an3-lbl" x="0" y="14">Building PYNAVIS_TAB_</text>
+
+  <line class="an3-rail" x1="196" y1="30" x2="196" y2="150"/>
+
+  <text class="an3-m"    x="0"   y="46">extension.yaml name</text>
+  <line class="an3-tick" x1="196" y1="42" x2="212" y2="42"/>
+  <text class="an3-mono" x="222" y="46">Survey Tools</text>
+  <text class="an3-m"    x="430" y="46">falls back to the folder name</text>
+
+  <text class="an3-m"    x="0"   y="74">tab folder</text>
+  <line class="an3-tick" x1="196" y1="70" x2="212" y2="70"/>
+  <text class="an3-mono" x="222" y="74">Field Work.tab</text>
+  <text class="an3-m"    x="430" y="74">suffix removed, prefix kept</text>
+
+  <text class="an3-m"    x="0"   y="102">joined with _</text>
+  <line class="an3-tick" x1="196" y1="98" x2="212" y2="98"/>
+  <text class="an3-mono" x="222" y="102">Survey Tools_Field Work</text>
+
+  <text class="an3-m"    x="0"   y="130">sanitised</text>
+  <line class="an3-tick" x1="196" y1="126" x2="212" y2="126"/>
+  <text class="an3-mono" x="222" y="130">Survey_Tools_Field_Work</text>
+  <text class="an3-m"    x="430" y="130">every non-alphanumeric becomes _</text>
+
+  <text class="an3-m"    x="0"   y="158">final id</text>
+  <line class="an3-tick" x1="196" y1="154" x2="212" y2="154"/>
+  <text class="an3-acc"  x="222" y="158">PYNAVIS_TAB_Survey_Tools_Field_Work</text>
+
+  <text class="an3-m" x="0" y="188">Two extensions that resolve to the same name and the same tab name produce the same id; the second is skipped.</text>
+</svg>
+</div>
+<figcaption>Sanitising means punctuation collapses. <code>Survey-Tools</code> and
+<code>Survey Tools</code> produce identical ids, so pick names that differ in more than
+punctuation.</figcaption>
+</figure>
+
+<p>The practical rule: give your extension a name nobody else will use, and do not ship two
+extensions that both contain a tab called <code>Tools.tab</code> under the same extension name.
+If a colleague installs a second copy of your extension in a different root, the duplicate tab
+is dropped and logged rather than drawn twice.</p>
+
+<h3>Bundle key</h3>
+
+<p>Each button also carries a stable key: its path relative to the <code>.extension</code>
+folder, with forward slashes, keeping every suffix and every <code>NN_</code> prefix.</p>
+
+<pre data-lang="text">
+pyNavis.tab/Memory.panel/01_Memorize.pushbutton
+pyNavis.tab/Memory.panel/03_Set.stack/01_Add.pushbutton
+</pre>
+
+<p>That key is what <code>config.json</code> uses to rebind or disable a tool's keyboard
+shortcut, so renaming a folder or changing its <code>NN_</code> prefix silently orphans a
+user's override. <a href="shortcuts.html">Shortcuts</a> covers the binding file.</p>
+
+<div class="note warn">
+<span class="note-t">Renumbering has a cost</span>
+<p>Reordering a panel by changing prefixes rewrites the bundle keys of everything you touched.
+Users lose their custom shortcuts for those tools. If you plan to reorder often, leave gaps in
+the numbering instead.</p>
+</div>
+
+<h2>What to check when you add a bundle</h2>
+
+<ul>
+  <li>The extension folder sits <strong>directly</strong> in a root from
+    <code>config.json</code>.</li>
+  <li>Every suffix is spelled correctly and appears exactly once per folder name.</li>
+  <li>Every <code>.pushbutton</code> contains a <code>script.py</code>.</li>
+  <li>Every <code>.stack</code> contains 2 or 3 of them.</li>
+  <li>Every <code>NN_</code> prefix on a panel is padded to the same width.</li>
+  <li>You clicked <strong>Reload</strong>.</li>
+</ul>
+
+<div class="cards">
+  <a href="buttons.html"><span class="c-t">Buttons, stacks and pulldowns</span>
+    <span class="c-d">What each panel item looks like and when to reach for it.</span></a>
+  <a href="bundle-yaml.html"><span class="c-t">bundle.yaml</span>
+    <span class="c-d">Every key, what reads it, and what it overrides.</span></a>
+  <a href="hooks.html"><span class="c-t">Hooks</span>
+    <span class="c-d">Scripts under hooks\ that run themselves, triggered by an event.</span></a>
+</div>

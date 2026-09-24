@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The pynavis command line: env / attach / detach / extensions. Standalone on
+    purpose (no Runtime reference) so the exe has zero deploy footprint beyond itself.
+    Version-independent -> its own bin\cli\ output, not bin\<year>\.
+  -->
+
+  <PropertyGroup>
+    <!-- NOT "pynavis": assembly names are case-insensitive to the CLR, and that would
+         collide with the loader assembly "PyNavis" wherever both are referenced (the
+         test project). make-release ships the exe renamed to pynavis.exe instead. -->
+    <AssemblyName>PyNavis.Cli</AssemblyName>
+    <RootNamespace>PyNavis.Cli</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\cli\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- JavaScriptSerializer for config.json, same zero-NuGet choice as the runtime -->
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+
+</Project>

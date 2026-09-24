@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- Fluent dialog construction tests touch WPF Window types on STA threads -->
+    <UseWPF>true</UseWPF>
+    <!-- PaneShellTests parents a PaneShell (a WinForms UserControl) in a real Form -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- net48 + NuGet needs redirects (e.g. System.Runtime.CompilerServices.Unsafe 4->6);
+         inside Navisworks the loader's AssemblyResolver serves that role instead. -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
+    <PackageReference Include="IronPython" Version="3.4.2" />
+    <PackageReference Include="IronPython.StdLib" Version="3.4.2" />
+    <!-- Pin: IronPython's transitive Unsafe (4.x) collides with the 6.0.0.0 the
+         test host chain requests; pinning the highest version unifies the bin. -->
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PyNavis.Runtime\PyNavis.Runtime.csproj" />
+    <ProjectReference Include="..\PyNavis\PyNavis.csproj" />
+    <ProjectReference Include="..\PyNavis.Cli\PyNavis.Cli.csproj" />
+  </ItemGroup>
+
+</Project>

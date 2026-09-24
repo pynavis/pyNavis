@@ -1,0 +1,20 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Select by IDs" Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        FocusManager.FocusedElement="{Binding ElementName=IdsBox}">
+  <StackPanel Margin="18">
+    <TextBlock Text="Element IDs to select, separated by commas, spaces or new lines."
+               TextWrapping="Wrap"/>
+    <TextBlock Text="Pasted item names work too: the ID inside &quot;Basic Wall [123456]&quot; is read out of the brackets."
+               TextWrapping="Wrap" Margin="0,4,0,0" Opacity="0.7"/>
+    <TextBox x:Name="IdsBox" Height="140" Margin="0,12,0,0"
+             AcceptsReturn="True" TextWrapping="Wrap"
+             VerticalScrollBarVisibility="Auto"
+             FontFamily="Consolas, Courier New, monospace"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button x:Name="OkButton" Content="Select" Width="84" Margin="0,0,8,0" IsDefault="True"/>
+      <Button x:Name="CancelButton" Content="Cancel" Width="84" IsCancel="True"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

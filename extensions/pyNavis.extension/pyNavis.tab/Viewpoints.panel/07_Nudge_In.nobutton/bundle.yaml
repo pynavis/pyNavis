@@ -1,0 +1,3 @@
+title: Nudge In
+tooltip: Moves the section target chosen in the Section Nudge panel in by one step: a plane along its normal, the box down. Invisible on the ribbon; rebind it in the Shortcuts editor.
+shortcut: Ctrl+Alt+Up

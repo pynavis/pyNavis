@@ -1,0 +1,3 @@
+title: Nudge Out
+tooltip: Moves the section target chosen in the Section Nudge panel out by one step: a plane along its normal, the box up. Invisible on the ribbon; rebind it in the Shortcuts editor.
+shortcut: Ctrl+Alt+Down

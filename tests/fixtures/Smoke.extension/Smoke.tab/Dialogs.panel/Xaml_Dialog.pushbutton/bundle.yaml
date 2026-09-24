@@ -1,0 +1,2 @@
+title: Xaml Dialog
+tooltip: Loads layout.xaml from this bundle via forms.WPFWindow. OK toasts the typed text; Cancel and Esc exit silently.

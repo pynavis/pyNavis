@@ -1,0 +1,3 @@
+title: Needs Selection
+tooltip: Greyed out until at least one item is selected (context gating).
+context: selection

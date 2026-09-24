@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design rules for tools - pyNavis authoring</title>
+<meta name="description" content="A shared look and a shared set of manners, so that twenty tools written by ten people still feel like one product.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<a href="tools.html"><span class="num">03</span>Bundled tools</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">05</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">07</span>Icons</a>
+<a href="shortcuts.html"><span class="num">08</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">09</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">11</span>The script environment</a>
+<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
+<a href="settings.html"><span class="num">13</span>Settings and per-tool state</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html" class="active"><span class="num">17</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 0.4.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Practice</p>
+  <h1>Design rules for tools</h1>
+  <p class="lead">A shared look and a shared set of manners, so that twenty tools written by ten people still feel like one product.</p>
+  <p>Every pyNavis tool is written by a different person, at a different time, for a different
+job. Nothing enforces consistency between them. What the user sees is not your tool, it is the
+pile: a ribbon tab of buttons and dock panels that all claim to belong together, and the first
+one that looks or behaves differently makes the whole tab feel improvised. The rules here
+apply to every surface you draw, a dialog, a <code>pane.xaml</code> panel, or a window of
+your own.</p>
+
+<p>This page is the contract. The first half is what a tool has to look like, taken from the
+pyNavis design system v2.2. The second half is how it has to behave, which matters more and is
+easier to get wrong. Both halves are short on purpose.</p>
+
+<h2 id="the-direction-in-one-paragraph">The direction, in one paragraph<a class="anchor" href="#the-direction-in-one-paragraph" aria-label="Link to this section">#</a></h2>
+
+<p>Neutral grays, hairlines and whitespace carry the structure. The Windows accent appears in
+exactly three places: the primary action, the selection rail, and the focus ring. Numbers are
+quiet tabular text, not chips. Controls are the native affordances users already know, meaning
+checkbox, toggle, segmented and standard captions. Each tool gets one signature moment, the
+28px weight-300 readout number pair. Solid surfaces only.</p>
+
+<p>If you take one thing from that: <strong>your tool should be boring to look at and obvious
+to use</strong>. The interesting part is the model, not the chrome.</p>
+
+<h2 id="accent-in-three-places">Accent in three places<a class="anchor" href="#accent-in-three-places" aria-label="Link to this section">#</a></h2>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 296" width="700" role="img"
+     aria-label="A mock tool window showing the three places the Windows accent is allowed: the selection rail on a list row, the focus ring on an input, and the primary button.">
+  <style>
+    .sg1-t   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .sg1-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .sg1-n   { font: 11.5px Consolas, monospace; fill: var(--muted); }
+    .sg1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .sg1-win { fill: var(--paper); stroke: var(--frame); stroke-width: 1; }
+    .sg1-sur { fill: var(--surface); stroke: none; }
+    .sg1-sel { fill: var(--surface); stroke: none; }
+    .sg1-ln  { stroke: var(--line); stroke-width: 1; }
+    .sg1-ctl { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .sg1-lead{ stroke: var(--line-strong); stroke-width: 1; fill: none; }
+  </style>
+
+  <text class="sg1-lbl" x="0" y="12">A tool window</text>
+
+  <rect class="sg1-win" x="0" y="24" width="430" height="256" rx="4"/>
+  <rect class="sg1-sur" x="1" y="25" width="428" height="26"/>
+  <line class="sg1-ln" x1="1" y1="51" x2="429" y2="51"/>
+  <text class="sg1-t" x="14" y="43">Rename viewpoints</text>
+
+  <!-- search input with focus ring -->
+  <rect class="sg1-ctl" x="16" y="66" width="398" height="32" rx="4"/>
+  <rect x="14" y="64" width="402" height="36" rx="5" fill="none"
+        stroke="var(--accent)" stroke-width="2"/>
+  <text class="sg1-m" x="28" y="86">Level 04</text>
+
+  <!-- list rows, 32px each -->
+  <rect class="sg1-sel" x="16" y="112" width="398" height="32"/>
+  <rect x="16" y="112" width="3" height="32" fill="var(--accent)"/>
+  <text class="sg1-t" x="30" y="132">Level 04 north elevation</text>
+  <text class="sg1-n" x="400" y="132" text-anchor="end">412</text>
+
+  <line class="sg1-ln" x1="16" y1="144" x2="414" y2="144"/>
+  <text class="sg1-t" x="30" y="164">Level 04 plant room</text>
+  <text class="sg1-n" x="400" y="164" text-anchor="end">96</text>
+
+  <line class="sg1-ln" x1="16" y1="176" x2="414" y2="176"/>
+  <text class="sg1-t" x="30" y="196">Level 04 riser</text>
+  <text class="sg1-n" x="400" y="196" text-anchor="end">8</text>
+  <line class="sg1-ln" x1="16" y1="208" x2="414" y2="208"/>
+
+  <!-- footer buttons, 32px tall -->
+  <rect x="240" y="228" width="80" height="32" rx="4"
+        fill="var(--paper)" stroke="var(--line-strong)"/>
+  <text class="sg1-t" x="280" y="248" text-anchor="middle">Cancel</text>
+
+  <rect x="330" y="228" width="84" height="32" rx="4"
+        fill="var(--accent)" stroke="var(--accent)"/>
+  <text x="372" y="248" text-anchor="middle" fill="var(--paper)"
+        font-family="'Segoe UI Variable Text','Segoe UI',sans-serif" font-size="11.5">Rename</text>
+
+  <!-- callouts -->
+  <path class="sg1-lead" d="M416 82 H 452"/>
+  <text class="sg1-t" x="458" y="79">1. Focus ring</text>
+  <text class="sg1-m" x="458" y="94">2px accent, offset 1, on</text>
+  <text class="sg1-m" x="458" y="108">every focusable thing</text>
+
+  <path class="sg1-lead" d="M414 128 H 452"/>
+  <text class="sg1-t" x="458" y="140">2. Selection rail</text>
+  <text class="sg1-m" x="458" y="155">3px accent on a neutral</text>
+  <text class="sg1-m" x="458" y="169">row fill, never a tint</text>
+
+  <path class="sg1-lead" d="M414 244 H 452"/>
+  <text class="sg1-t" x="458" y="241">3. Primary action</text>
+  <text class="sg1-m" x="458" y="256">one per window; the</text>
+  <text class="sg1-m" x="458" y="270">foreground is picked by</text>
+  <text class="sg1-m" x="458" y="284">luminance, not always white</text>
+</svg>
+</div>
+<figcaption>Three uses of the accent, and no fourth. The counts on the right are muted tabular
+text, the rows are 32px, everything else is neutral.</figcaption>
+</figure>
+
+<div class="note warn">
+<span class="note-t">The accent is not a fixed colour</span>
+<p>It is whatever the user chose in Windows, read at runtime. It can be pale yellow. White text
+on it is therefore not automatic: pick the foreground by luminance. Any design that assumes a
+particular accent hue is already broken on somebody's machine.</p>
+</div>
+
+<h2 id="the-slop-test">The slop test<a class="anchor" href="#the-slop-test" aria-label="Link to this section">#</a></h2>
+
+<p>Before shipping any surface, check it against the tells below. If a screenshot of your tool
+could pass for a template demo, it fails. The goal is an interface a Windows user trusts
+instantly and then stops noticing.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Banned tell</th><th>Do this instead</th></tr></thead>
+<tbody>
+<tr><td><strong>Gradients</strong> in text, fills or backgrounds. Anywhere.</td>
+    <td>Solid surfaces. Paper, Surface, and hairlines between them.</td></tr>
+<tr><td><strong>Glassmorphism</strong>: blur, translucency, acrylic on content.</td>
+    <td>An opaque surface fill. Content must never show through content.</td></tr>
+<tr><td><strong>Tint-soup</strong>: accent-alpha washes as default backgrounds or borders.</td>
+    <td>Neutral gray backgrounds; the accent only in its three places.</td></tr>
+<tr><td><strong>Pill-soup</strong>: rounded chips carrying plain data.</td>
+    <td>Text. A count is right-aligned muted tabular text at the row's edge.</td></tr>
+<tr><td><strong>Badge marketing</strong>: "Recommended" stickers, sparkles, emoji in the UI.</td>
+    <td>Make the recommendation the default, and write a caption saying why.</td></tr>
+<tr><td><strong>Hero cards</strong> for what is simply a choice between two options.</td>
+    <td>Two radio buttons, or a segmented control, with captions.</td></tr>
+<tr><td><strong>Centered content</strong> in rows, lists or forms.</td>
+    <td>One left edge that everything aligns to. Numbers align right.</td></tr>
+<tr><td><strong>Hover-only affordances</strong>: controls invisible until pointed at.</td>
+    <td>Visible at rest: circled expander chevrons, a real resize grip, present scrollbars.</td></tr>
+<tr><td><strong>Decorative motion</strong>: entrance animations, fades for their own sake.</td>
+    <td>Motion only as state feedback, 120ms, ease-out, or none at all.</td></tr>
+<tr><td><strong>Opacity as disabled</strong>: dimming a control that still responds.</td>
+    <td>A real disabled state: surface fill, muted text and border, and a caption saying why.</td></tr>
+<tr><td><strong>Mouse-only controls</strong>: anything Tab cannot reach, or a field that traps Tab.</td>
+    <td>Every control in the tab order, with a visible focus ring.</td></tr>
+<tr><td><strong>A control per row</strong>: one element built for every item in a list.</td>
+    <td>Virtualize. A list of thousands that builds thousands of controls is a defect.</td></tr>
+<tr><td><strong>Blank waiting</strong>: an empty framed box where a state belongs.</td>
+    <td>Declare the empty state, the no-results state and the busy state before you ship.</td></tr>
+<tr><td><strong>Hand-drawn OS chrome</strong>: a custom titlebar imitating the real one.</td>
+    <td>The real Windows titlebar. Always.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note">
+<span class="note-t">The one exception in the system</span>
+<p>Shadows are banned except on a popup floating over its own window, and semantic colour is
+kept off borders except on the <a href="user-interface.html">toast</a>, which floats free of any
+chrome and has nothing around it to read its level against. Two exceptions, both written down.
+Do not invent a third.</p>
+</div>
+
+<h2 id="type">Type<a class="anchor" href="#type" aria-label="Link to this section">#</a></h2>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Rule</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>UI typeface</td><td>Segoe UI Variable, falling back to Segoe UI</td></tr>
+<tr><td>Monospace</td><td>Consolas, for script output, paths and code</td></tr>
+<tr><td>Body size</td><td>13px, the default for everything unless stated</td></tr>
+<tr><td>Smallest permitted size</td><td>11.5px. Nothing smaller ships.</td></tr>
+<tr><td>The signature readout</td><td>28px, weight 300, a number and its label as a pair. One per tool.</td></tr>
+<tr><td>Case</td><td>Sentence case, in labels, buttons, headings and messages alike</td></tr>
+<tr><td>All caps</td><td>Never, including for section headers</td></tr>
+<tr><td>Em dashes and en dashes</td><td>Never. Use a comma, a colon, a semicolon, or two sentences.</td></tr>
+<tr><td>Numbers</td><td>Tabular figures, right-aligned, muted</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="layout">Layout<a class="anchor" href="#layout" aria-label="Link to this section">#</a></h2>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Measure</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Page padding, prose and settings windows</td><td>24px</td></tr>
+<tr><td>Page padding, data-dense windows</td><td>16px</td></tr>
+<tr><td>Gap between sections</td><td>24px</td></tr>
+<tr><td>Gap between adjacent controls</td><td>8px</td></tr>
+<tr><td>List row height</td><td>32px</td></tr>
+<tr><td>Control height</td><td>32px</td></tr>
+<tr><td>Corner radius</td><td>4px, everywhere, with no exceptions</td></tr>
+<tr><td>Shadows</td><td>None, except a popup floating over its own window</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="colour">Colour<a class="anchor" href="#colour" aria-label="Link to this section">#</a></h2>
+
+<p>Twelve tokens plus the accent. If a colour you want is not in this table, the answer is one
+of these tokens, not a new colour.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Token</th><th>Light</th><th>Dark</th><th>Used for</th></tr></thead>
+<tbody>
+<tr><td>Paper</td><td><code>#FFFFFF</code></td><td><code>#202020</code></td><td>Window and page background</td></tr>
+<tr><td>Surface</td><td><code>#F7F7F7</code></td><td><code>#2B2B2B</code></td><td>Table headers, code blocks, footers</td></tr>
+<tr><td>Line</td><td><code>#E0E0E0</code></td><td><code>#3D3D3D</code></td><td>Row separators, card edges</td></tr>
+<tr><td>LineStrong</td><td><code>#C9C9C9</code></td><td><code>#4D4D4D</code></td><td>Control borders</td></tr>
+<tr><td>Frame</td><td><code>#A6A6A6</code></td><td><code>#6E6E6E</code></td><td>Group frames, the bold structural line</td></tr>
+<tr><td>Ink</td><td><code>#1A1A1A</code></td><td><code>#E8E8E8</code></td><td>Body text</td></tr>
+<tr><td>Muted</td><td><code>#6B6B6B</code></td><td><code>#9A9A9A</code></td><td>Captions, counts, secondary columns</td></tr>
+<tr><td>Selection</td><td><code>#F0F0F0</code></td><td><code>#333333</code></td><td>Selected row fill. Neutral, never an accent tint.</td></tr>
+<tr><td>Error</td><td><code>#C50F1F</code></td><td><code>#FF7B72</code></td><td>Error text and rails</td></tr>
+<tr><td>Success</td><td><code>#0F7B0F</code></td><td><code>#4CC44C</code></td><td>Success toasts</td></tr>
+<tr><td>Info</td><td><code>#0078D4</code></td><td><code>#4CC2FF</code></td><td>Informational toasts</td></tr>
+<tr><td>Warning</td><td><code>#9D5D00</code></td><td><code>#FFC83D</code></td><td>Warning toasts and partial results</td></tr>
+<tr><td>Accent</td><td colspan="2">The user's Windows accent colour, read at runtime</td>
+    <td>Primary action, selection rail, focus ring</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Read the current theme with <code>pynavis.script.is_dark_theme()</code> and paint your own
+dialogs from the correct column. Read it when you build the window, not once at import time.</p>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">from</span> pynavis <span class="tok-k">import</span> script
+
+dark = script.is_dark_theme()
+paper = <span class="tok-s">&#x27;#202020&#x27;</span> <span class="tok-k">if</span> dark <span class="tok-k">else</span> <span class="tok-s">&#x27;#FFFFFF&#x27;</span>
+ink   = <span class="tok-s">&#x27;#E8E8E8&#x27;</span> <span class="tok-k">if</span> dark <span class="tok-k">else</span> <span class="tok-s">&#x27;#1A1A1A&#x27;</span>
+muted = <span class="tok-s">&#x27;#9A9A9A&#x27;</span> <span class="tok-k">if</span> dark <span class="tok-k">else</span> <span class="tok-s">&#x27;#6B6B6B&#x27;</span></code></pre></div>
+
+<div class="note trap">
+<span class="note-t">Selection is neutral</span>
+<p>The selected row's background is Selection, a plain gray. The accent appears only as the 3px
+rail on its left edge. Filling the row with an accent tint is tint-soup, it fights the accent
+on the primary button, and it collapses to unreadable on a pale Windows accent.</p>
+</div>
+
+<h2 id="how-a-tool-has-to-behave">How a tool has to behave<a class="anchor" href="#how-a-tool-has-to-behave" aria-label="Link to this section">#</a></h2>
+
+<p>The visual rules keep tools looking alike. These keep them trustworthy, which is the harder
+half. Each one has a failure mode a real tool has shipped with.</p>
+
+<h3 id="report-every-outcome">Report every outcome<a class="anchor" href="#report-every-outcome" aria-label="Link to this section">#</a></h3>
+
+<p>A tool that does its job and shows nothing is indistinguishable from a tool that crashed
+silently. Every path out of your script ends in something the user can see, with the single
+exception below.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre>count = purge_unused(doc)
+<span class="tok-k">if</span> count:
+    toast.success(<span class="tok-s">&#x27;Purged %d unused items&#x27;</span> % count)
+<span class="tok-k">else</span>:
+    toast.info(<span class="tok-s">&#x27;Nothing to purge&#x27;</span>)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre>count = purge_unused(doc)
+<span class="tok-k">if</span> count:
+    toast.success(<span class="tok-s">&#x27;Purged %d unused items&#x27;</span> % count)
+<span class="tok-c"># zero purged: the tool looks broken</span></pre>
+  </div>
+</div>
+
+<h3 id="cancelling-is-silent">Cancelling is silent<a class="anchor" href="#cancelling-is-silent" aria-label="Link to this section">#</a></h3>
+
+<p>The exception. When the user cancels, say nothing at all. They know what they did, and
+"Cancelled" is a notification about their own hand.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre><span class="tok-k">if</span> forms.confirm(<span class="tok-s">&#x27;Delete 412 viewpoints?&#x27;</span>):
+    delete()
+    toast.success(<span class="tok-s">&#x27;Deleted 412 viewpoints&#x27;</span>)
+<span class="tok-c"># No is not an outcome to report</span></pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre><span class="tok-k">if</span> forms.confirm(<span class="tok-s">&#x27;Delete 412 viewpoints?&#x27;</span>):
+    delete()
+    toast.success(<span class="tok-s">&#x27;Deleted 412 viewpoints&#x27;</span>)
+<span class="tok-k">else</span>:
+    toast.info(<span class="tok-s">&#x27;Cancelled&#x27;</span>)</pre>
+  </div>
+</div>
+
+<h3 id="failure-is-a-sentence-not-a-traceback">Failure is a sentence, not a traceback<a class="anchor" href="#failure-is-a-sentence-not-a-traceback" aria-label="Link to this section">#</a></h3>
+
+<p>Predictable failures, meaning a missing file, a locked document, a value the user typed
+wrong, get caught and reported in plain words that say the fix. Genuine bugs should still raise:
+the runtime puts the traceback in the output window, which is exactly where you want it.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre><span class="tok-k">try</span>:
+    data = json.load(open(path))
+<span class="tok-k">except</span> (IOError, ValueError):
+    toast.error(<span class="tok-s">&#x27;Could not read the mapping file&#x27;</span>,
+                path)
+<span class="tok-k">else</span>:
+    apply_mapping(data)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre><span class="tok-k">try</span>:
+    data = json.load(open(path))
+<span class="tok-k">except</span> Exception <span class="tok-k">as</span> exc:
+    forms.alert(str(exc))     <span class="tok-c"># modal, and</span>
+                              <span class="tok-c"># says nothing useful</span>
+    <span class="tok-k">raise</span></pre>
+  </div>
+</div>
+
+<h3 id="one-undo-step-per-user-action">One undo step per user action<a class="anchor" href="#one-undo-step-per-user-action" aria-label="Link to this section">#</a></h3>
+
+<p>Ten thousand separate edits give the user ten thousand Ctrl+Z presses, and they will also
+exhaust the host's undo stack, which quietly makes the work irreversible. Wrap a bulk edit in a
+single transaction.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre><span class="tok-k">from</span> pynavis <span class="tok-k">import</span> viewpoints
+
+<span class="tok-k">with</span> viewpoints.transaction(<span class="tok-s">&#x27;Rename viewpoints&#x27;</span>):
+    <span class="tok-k">for</span> view <span class="tok-k">in</span> views:
+        view.DisplayName = new_name(view)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre><span class="tok-k">for</span> view <span class="tok-k">in</span> views:
+    view.DisplayName = new_name(view)
+<span class="tok-c"># 4,200 undo steps, and the stack</span>
+<span class="tok-c"># drops the earliest of them</span></pre>
+  </div>
+</div>
+
+<h3 id="counted-progress-and-a-way-out">Counted progress, and a way out<a class="anchor" href="#counted-progress-and-a-way-out" aria-label="Link to this section">#</a></h3>
+
+<p>Show progress for anything that can run longer than a second or two, and offer Cancel for
+anything that can run longer than several seconds. Put the count in the label: "Renaming 4,200
+of 11,038" tells the user whether to wait or to stop, and a percentage alone does not.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre>total = len(items)
+<span class="tok-k">for</span> i, item <span class="tok-k">in</span> enumerate(items):
+    process(item)
+    <span class="tok-k">if</span> i % <span class="tok-n">100</span> == <span class="tok-n">0</span>:
+        output.progress(float(i) / total,
+                        <span class="tok-s">&#x27;Checking %d of %d&#x27;</span> % (i, total))
+output.progress(<span class="tok-n">1.0</span>)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre><span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+    process(item)
+    output.progress(<span class="tok-n">0.5</span>, <span class="tok-s">&#x27;Working...&#x27;</span>)
+<span class="tok-c"># indeterminate, and repainted</span>
+<span class="tok-c"># once per item</span></pre>
+  </div>
+</div>
+
+<p>When a run is cancelled part way, report the split honestly. "Deleted 3,180 of 4,200. 1,020
+were left when you cancelled." That is a warning, not a success, and it must never claim work
+was undone when it was not.</p>
+
+<h3 id="empty-states-are-states">Empty states are states<a class="anchor" href="#empty-states-are-states" aria-label="Link to this section">#</a></h3>
+
+<p>Nothing selected, no results, no active document: each of these is a real answer and needs
+saying, along with what the user should do about it.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre>items = selection.get_items()
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>,
+               <span class="tok-s">&#x27;Select the items to export, &#x27;</span>
+               <span class="tok-s">&#x27;then run this again.&#x27;</span>)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre>items = selection.get_items()
+export(items)          <span class="tok-c"># writes an empty</span>
+                       <span class="tok-c"># file and says</span>
+                       <span class="tok-c"># &quot;Exported 0 items&quot;</span></pre>
+  </div>
+</div>
+
+<h3 id="never-open-a-window-to-say-one-line">Never open a window to say one line<a class="anchor" href="#never-open-a-window-to-say-one-line" aria-label="Link to this section">#</a></h3>
+
+<p>A bare <code>print()</code> opens the whole output window to show one sentence, and if that
+is all the script writes, the user gets a nearly empty window. It reads as a bug because it
+looks exactly like one.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre>toast.success(<span class="tok-s">&#x27;Saved 3 viewpoints&#x27;</span>)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre>print(<span class="tok-s">&#x27;Saved 3 viewpoints&#x27;</span>)</pre>
+  </div>
+</div>
+
+<h3 id="speak-the-model-s-language">Speak the model's language<a class="anchor" href="#speak-the-model-s-language" aria-label="Link to this section">#</a></h3>
+
+<p>The user knows what they see in Navisworks. They do not know your variable names, and they
+should never meet an API type name.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre>toast.warning(<span class="tok-s">&#x27;3 saved viewpoints have &#x27;</span>
+              <span class="tok-s">&#x27;the same name&#x27;</span>)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre>toast.warning(<span class="tok-s">&#x27;3 SavedViewpoint instances &#x27;</span>
+              <span class="tok-s">&#x27;collided on DisplayName&#x27;</span>)</pre>
+  </div>
+</div>
+
+<h2 id="copy-rules">Copy rules<a class="anchor" href="#copy-rules" aria-label="Link to this section">#</a></h2>
+
+<ul>
+  <li><strong>Sentence case.</strong> "Group clashes", not "Group Clashes".</li>
+  <li><strong>No em dashes or en dashes.</strong> A comma, a colon, a semicolon, or two
+    sentences. This is a hard rule and it applies to every string a user can read.</li>
+  <li><strong>No emoji, anywhere in the UI.</strong> Not in toasts, not in button labels, not
+    in the output window.</li>
+  <li><strong>Plain verbs.</strong> "Delete", "Rename", "Export". Not "Proceed", not
+    "Execute", never "Utilize".</li>
+  <li><strong>Errors say the fix.</strong> "Could not read the mapping file" plus the path
+    beats "An error occurred", every time.</li>
+  <li><strong>Count things.</strong> "Renamed 412 items" beats "Renamed items". The number is
+    what the user actually wanted to know.</li>
+  <li><strong>No apology, no exclamation.</strong> State what happened.</li>
+  <li><strong>Say what the user sees.</strong> Viewpoints, selection sets, clash tests, search
+    sets. Not <code>ModelItem</code>, not <code>SavedViewpoint</code>.</li>
+</ul>
+
+<h2 id="the-same-result-twice">The same result, twice<a class="anchor" href="#the-same-result-twice" aria-label="Link to this section">#</a></h2>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 300" width="700" role="img"
+     aria-label="Two versions of the same tool result: one breaking several rules, one following them.">
+  <style>
+    .sg2-t   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .sg2-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .sg2-n   { font: 11.5px Consolas, monospace; fill: var(--muted); }
+    .sg2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .sg2-win { fill: var(--paper); stroke: var(--frame); stroke-width: 1; }
+    .sg2-ln  { stroke: var(--line); stroke-width: 1; }
+    .sg2-bad { font: 10px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--error); }
+    .sg2-ok  { font: 10px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--success); }
+  </style>
+
+  <text class="sg2-lbl" x="0"   y="12">Fails the slop test</text>
+  <text class="sg2-lbl" x="366" y="12">Passes</text>
+
+  <!-- BAD -->
+  <rect class="sg2-win" x="0" y="24" width="320" height="196" rx="4"/>
+  <rect x="1" y="25" width="318" height="52" fill="var(--accent-wash)"/>
+  <text class="sg2-t" x="160" y="46" text-anchor="middle" font-weight="600">CLASH RESULTS</text>
+  <text class="sg2-m" x="160" y="64" text-anchor="middle">Great news, your model improved!</text>
+
+  <rect x="112" y="90" width="96" height="22" rx="11" fill="var(--accent-wash)"
+        stroke="var(--accent)"/>
+  <text class="sg2-t" x="160" y="105" text-anchor="middle">412 clashes</text>
+
+  <rect x="94" y="120" width="132" height="20" rx="10" fill="var(--warning-wash)"
+        stroke="var(--warning-line)"/>
+  <text class="sg2-t" x="160" y="134" text-anchor="middle">Recommended fix</text>
+
+  <text class="sg2-t" x="160" y="162" text-anchor="middle">Level 03 duct vs beam</text>
+  <text class="sg2-t" x="160" y="182" text-anchor="middle">Level 04 tray vs wall</text>
+  <text class="sg2-m" x="160" y="204" text-anchor="middle">Hover a row for options</text>
+
+  <text class="sg2-bad" x="0" y="240">Centered rows, tint washes, pill-soup, a</text>
+  <text class="sg2-bad" x="0" y="254">"Recommended" badge, all-caps heading,</text>
+  <text class="sg2-bad" x="0" y="268">hover-only actions, cheerful copy, and no</text>
+  <text class="sg2-bad" x="0" y="282">count you can compare row to row.</text>
+
+  <!-- GOOD -->
+  <rect class="sg2-win" x="366" y="24" width="320" height="196" rx="4"/>
+  <rect x="367" y="25" width="318" height="26" fill="var(--surface)"/>
+  <line class="sg2-ln" x1="367" y1="51" x2="685" y2="51"/>
+  <text class="sg2-t" x="380" y="43">Clash summary</text>
+
+  <!-- the one signature readout -->
+  <text x="380" y="94" fill="var(--ink)" font-family="'Segoe UI Variable Display','Segoe UI',sans-serif"
+        font-size="28" font-weight="300">412</text>
+  <text class="sg2-m" x="380" y="110">clashes in 2 groups</text>
+
+  <line class="sg2-ln" x1="380" y1="126" x2="672" y2="126"/>
+
+  <rect x="380" y="130" width="292" height="32" fill="var(--surface)"/>
+  <rect x="380" y="130" width="3" height="32" fill="var(--accent)"/>
+  <text class="sg2-t" x="394" y="150">Level 03 duct vs beam</text>
+  <text class="sg2-n" x="664" y="150" text-anchor="end">316</text>
+  <line class="sg2-ln" x1="380" y1="162" x2="672" y2="162"/>
+  <text class="sg2-t" x="394" y="182">Level 04 tray vs wall</text>
+  <text class="sg2-n" x="664" y="182" text-anchor="end">96</text>
+  <line class="sg2-ln" x1="380" y1="194" x2="672" y2="194"/>
+
+  <text class="sg2-ok" x="366" y="240">One left edge, numbers right-aligned and</text>
+  <text class="sg2-ok" x="366" y="254">tabular, neutral selection with an accent</text>
+  <text class="sg2-ok" x="366" y="268">rail, one 28px readout as the signature</text>
+  <text class="sg2-ok" x="366" y="282">moment, and nothing else raising its voice.</text>
+</svg>
+</div>
+<figcaption>The same 412 clashes. The version on the right is quieter, denser, and tells you
+more, which is the entire argument for the system.</figcaption>
+</figure>
+
+<h2 id="before-you-ship">Before you ship<a class="anchor" href="#before-you-ship" aria-label="Link to this section">#</a></h2>
+
+<p>Run your tool against this list. It takes two minutes and it catches almost everything.</p>
+
+<ul>
+  <li>Every exit path shows something, and cancel shows nothing.</li>
+  <li>Nothing selected, no results and no active document each have a message that says what
+    to do next.</li>
+  <li>Predictable failures are caught and reported as a plain sentence with the fix.</li>
+  <li>Anything longer than a second shows counted progress; anything longer than several
+    seconds can be cancelled.</li>
+  <li>A bulk edit is one undo step.</li>
+  <li>No <code>print()</code> for a one-line status.</li>
+  <li>No window opened for a single sentence.</li>
+  <li>The accent appears in three places at most, and the selection is neutral.</li>
+  <li>Every control is reachable by Tab and shows a focus ring.</li>
+  <li>Disabled controls look disabled and say why in a caption.</li>
+  <li>The tool is readable in both themes; you checked with
+    <code>is_dark_theme()</code> both ways.</li>
+  <li>Every string is sentence case, free of emoji, and free of em dashes.</li>
+  <li>No string names an API type the user has never heard of.</li>
+  <li>A screenshot of it would not look out of place beside the rest of the ribbon.</li>
+</ul>
+
+<div class="cards">
+  <a href="user-interface.html"><span class="c-t">Talking to the user</span>
+    <span class="c-d">The four surfaces, and the API for each of them.</span></a>
+  <a href="cookbook.html"><span class="c-t">Cookbook</span>
+    <span class="c-d">Recipes that already follow these rules.</span></a>
+  <a href="troubleshooting.html"><span class="c-t">Troubleshooting</span>
+    <span class="c-d">When the tool does not behave the way you wrote it.</span></a>
+</div>
+  <div class="pagenav">
+<a href="troubleshooting.html"><span class="dir">Previous</span><span class="ttl">Troubleshooting</span></a>
+<span></span>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#the-direction-in-one-paragraph">The direction, in one paragraph</a>
+<a href="#accent-in-three-places">Accent in three places</a>
+<a href="#the-slop-test">The slop test</a>
+<a href="#type">Type</a>
+<a href="#layout">Layout</a>
+<a href="#colour">Colour</a>
+<a href="#how-a-tool-has-to-behave">How a tool has to behave</a>
+<a href="#report-every-outcome" class="h3">Report every outcome</a>
+<a href="#cancelling-is-silent" class="h3">Cancelling is silent</a>
+<a href="#failure-is-a-sentence-not-a-traceback" class="h3">Failure is a sentence, not a traceback</a>
+<a href="#one-undo-step-per-user-action" class="h3">One undo step per user action</a>
+<a href="#counted-progress-and-a-way-out" class="h3">Counted progress, and a way out</a>
+<a href="#empty-states-are-states" class="h3">Empty states are states</a>
+<a href="#never-open-a-window-to-say-one-line" class="h3">Never open a window to say one line</a>
+<a href="#speak-the-model-s-language" class="h3">Speak the model&#x27;s language</a>
+<a href="#copy-rules">Copy rules</a>
+<a href="#the-same-result-twice">The same result, twice</a>
+<a href="#before-you-ship">Before you ship</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

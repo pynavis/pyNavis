@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shortcuts and keytips - pyNavis authoring</title>
+<meta name="description" content="Keyboard chords that run a tool without touching the ribbon, and the Alt letters that walk to it.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<a href="tools.html"><span class="num">03</span>Bundled tools</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">05</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">07</span>Icons</a>
+<a href="shortcuts.html" class="active"><span class="num">08</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">09</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">11</span>The script environment</a>
+<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
+<a href="settings.html"><span class="num">13</span>Settings and per-tool state</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 0.4.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Bundles</p>
+  <h1>Shortcuts and keytips</h1>
+  <p class="lead">Keyboard chords that run a tool without touching the ribbon, and the Alt letters that walk to it.</p>
+  <p>A pyNavis tool can be reached three ways: by clicking it, by pressing a keyboard chord such
+as <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>, or by walking to it with Alt and a couple of
+letters. The second and third are what this page is about. Both are cheap to add and both are
+rebuilt from scratch on every boot and every <strong>Reload</strong>, so you can iterate on
+them as fast as you iterate on the script.</p>
+
+<h2 id="two-places-a-binding-comes-from">Two places a binding comes from<a class="anchor" href="#two-places-a-binding-comes-from" aria-label="Link to this section">#</a></h2>
+
+<p>You, the tool author, declare a default in <code>bundle.yaml</code>. The person using your
+tool overrides it in <code>config.json</code>. Neither knows about the other, and the user
+always wins.</p>
+
+<div class="code"><div class="code-head"><span>01_Memorize.pushbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Memorize
+<span class="tok-k">tooltip</span>: Stores the current selection in the memory register.
+<span class="tok-k">shortcut</span>: Ctrl+Shift+M
+<span class="tok-k">keytip</span>: MM</code></pre></div>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;shortcuts&quot;</span>: {
+    <span class="tok-f">&quot;allowBareKeys&quot;</span>: <span class="tok-k">false</span>,
+    <span class="tok-f">&quot;bindings&quot;</span>: {
+      <span class="tok-f">&quot;pyNavis.tab/Memory.panel/01_Memorize.pushbutton&quot;</span>: <span class="tok-s">&quot;Ctrl+Alt+M&quot;</span>,
+      <span class="tok-f">&quot;pyNavis.tab/Memory.panel/02_Recall.pushbutton&quot;</span>: <span class="tok-k">null</span>
+    }
+  }
+}</code></pre></div>
+
+<p>The first entry rebinds Memorize. The second disables Recall entirely: <code>null</code>
+means unbound, not "use the default". Users rarely write this file by hand, because the
+built-in <strong>Shortcuts</strong> editor on the pyNavis panel writes it for them, but the
+format is plain and worth knowing.</p>
+
+<div class="note">
+<span class="note-t">Pick defaults that will not fight the host</span>
+<p>Navisworks and Windows already own a lot of the chord space. The shipped tools use
+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<em>letter</em>, which is mostly free. Avoid plain
+<kbd>Ctrl</kbd>+<em>letter</em> for anything a user would expect to save, copy or print, and
+remember that your default is only a suggestion: anyone can move it.</p>
+</div>
+
+<h2 id="the-chord-grammar">The chord grammar<a class="anchor" href="#the-chord-grammar" aria-label="Link to this section">#</a></h2>
+
+<p>A binding string is split on <code>+</code>, each token is trimmed, and every comparison is
+case-insensitive. <code>ctrl + shift + m</code> parses exactly like <code>Ctrl+Shift+M</code>.
+The vocabulary is deliberately small.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Token group</th><th>Accepted</th><th>Not accepted</th></tr></thead>
+<tbody>
+<tr><td>Modifiers</td>
+    <td><code>Ctrl</code>, <code>Alt</code>, <code>Shift</code></td>
+    <td><code>Win</code>, <code>Control</code>, <code>Meta</code>, <code>Cmd</code></td></tr>
+<tr><td>Letters and digits</td>
+    <td><code>A</code> to <code>Z</code>, <code>0</code> to <code>9</code></td>
+    <td>Punctuation of any kind</td></tr>
+<tr><td>Function keys</td>
+    <td><code>F1</code> to <code>F24</code></td>
+    <td>&nbsp;</td></tr>
+<tr><td>Arrows</td>
+    <td><code>Left</code>, <code>Up</code>, <code>Right</code>, <code>Down</code></td>
+    <td>&nbsp;</td></tr>
+<tr><td>Navigation</td>
+    <td><code>Home</code>, <code>End</code>, <code>PgUp</code>, <code>PgDn</code></td>
+    <td><code>PageUp</code>, <code>PageDown</code></td></tr>
+<tr><td>Everything else</td>
+    <td>Nothing</td>
+    <td><code>Esc</code>, <code>Tab</code>, <code>Space</code>, <code>Enter</code>,
+        <code>Del</code>, <code>Ins</code>, numpad keys</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Exactly one key token is required, and no more than one. A chord may carry any combination
+of the three modifiers, subject to the policy below.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>What you wrote</th><th>Logged error</th></tr></thead>
+<tbody>
+<tr><td><code>""</code> or whitespace</td><td><code>empty binding</code></td></tr>
+<tr><td><code>Ctrl+M+K</code></td>
+    <td><code>'Ctrl+M+K': more than one key</code></td></tr>
+<tr><td><code>Ctrl+Esc</code></td>
+    <td><code>'Ctrl+Esc': unknown token 'Esc'</code></td></tr>
+<tr><td><code>Ctrl+Shift</code></td>
+    <td><code>'Ctrl+Shift': no key</code></td></tr>
+<tr><td><code>Shift+M</code></td>
+    <td><code>'Shift+M': bindings need Ctrl or Alt (set shortcuts.allowBareKeys to permit bare
+        keys)</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="the-ctrl-or-alt-policy">The Ctrl-or-Alt policy<a class="anchor" href="#the-ctrl-or-alt-policy" aria-label="Link to this section">#</a></h2>
+
+<p>A binding must contain <code>Ctrl</code> or <code>Alt</code>. <code>Shift+M</code> and a
+bare <code>M</code> are both rejected, because a chord that is a single printable key would
+fire every time someone typed into a control the runtime failed to recognise as a text
+field.</p>
+
+<p>A user who wants that anyway can opt in:</p>
+
+<div class="code"><div class="code-head"><span>config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{ <span class="tok-f">&quot;shortcuts&quot;</span>: { <span class="tok-f">&quot;allowBareKeys&quot;</span>: <span class="tok-k">true</span> } }</code></pre></div>
+
+<p>The flag is read only when it is a real JSON boolean; a string <code>"true"</code> is
+ignored and the default of <code>false</code> stands. It is a user setting, not a bundle
+setting: as an author you cannot enable it for your own tool, so never ship a bare-key
+default.</p>
+
+<h2 id="how-the-map-is-built">How the map is built<a class="anchor" href="#how-the-map-is-built" aria-label="Link to this section">#</a></h2>
+
+<p>Before each ribbon build, every pushbutton-shaped bundle in every extension is walked,
+defaults and overrides are merged, and the result is one table of chord to button.
+Pushbutton-shaped means anything that runs a <code>script.py</code> on a click:
+<code>*.pushbutton</code> wherever it sits, plus <code>*.nobutton</code>,
+<code>*.toggle</code> and <code>*.smartbutton</code>. The other shapes take no chord:
+a urlbutton or linkbutton has no script to run, and a dockpane's <code>shortcut:</code> is
+parsed but reserved, not wired to the toggle in this release. The order of the walk is
+what breaks ties, so it is worth stating: extensions, then tabs, then panels, then the buttons
+of a panel in order, with stack and pulldown children flattened in place, and a panel's
+<code>*.slideout</code> contents last, after everything on its face. Duplicate
+<code>BundleKey</code> values dedupe, first occurrence wins.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 296" width="700" role="img"
+     aria-label="Three worked examples of an author default plus a user override resolving to an active binding.">
+  <style>
+    .sc1-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .sc1-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .sc1-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .sc1-md  { font: 11.5px Consolas, monospace; fill: var(--muted); }
+    .sc1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .sc1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .sc1-soft{ fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+    .sc1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="sc1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="sc1-lbl" x="8"   y="14">Button</text>
+  <text class="sc1-lbl" x="162" y="14">bundle.yaml</text>
+  <text class="sc1-lbl" x="310" y="14">config.json</text>
+  <text class="sc1-lbl" x="450" y="14">Active binding</text>
+
+  <rect class="sc1-soft" x="8"   y="26" width="136" height="50" rx="3"/>
+  <text class="sc1-t"    x="20"  y="48">Memorize</text>
+  <text class="sc1-m"    x="20"  y="66">first in ribbon order</text>
+  <rect class="sc1-box"  x="162" y="26" width="126" height="50" rx="3"/>
+  <text class="sc1-mono" x="174" y="56">Ctrl+Shift+M</text>
+  <rect class="sc1-box"  x="310" y="26" width="118" height="50" rx="3"/>
+  <text class="sc1-md"   x="322" y="56">(no entry)</text>
+  <rect class="sc1-box"  x="450" y="26" width="238" height="50" rx="3"/>
+  <text class="sc1-mono" x="462" y="48">Ctrl+Shift+M</text>
+  <text class="sc1-m"    x="462" y="66">the author default stands</text>
+  <path class="sc1-arw" d="M290 51 H 306" marker-end="url(#sc1-a)"/>
+  <path class="sc1-arw" d="M430 51 H 446" marker-end="url(#sc1-a)"/>
+
+  <rect class="sc1-soft" x="8"   y="94" width="136" height="50" rx="3"/>
+  <text class="sc1-t"    x="20"  y="116">Recall</text>
+  <text class="sc1-m"    x="20"  y="134">user turned it off</text>
+  <rect class="sc1-box"  x="162" y="94" width="126" height="50" rx="3"/>
+  <text class="sc1-mono" x="174" y="124">Ctrl+Shift+R</text>
+  <rect class="sc1-box"  x="310" y="94" width="118" height="50" rx="3"/>
+  <text class="sc1-mono" x="322" y="124">null</text>
+  <rect class="sc1-box"  x="450" y="94" width="238" height="50" rx="3"/>
+  <text class="sc1-t"    x="462" y="116">Unbound</text>
+  <text class="sc1-m"    x="462" y="134">a user entry replaces the default,
+    including a null one</text>
+  <path class="sc1-arw" d="M290 119 H 306" marker-end="url(#sc1-a)"/>
+  <path class="sc1-arw" d="M430 119 H 446" marker-end="url(#sc1-a)"/>
+
+  <rect class="sc1-soft" x="8"   y="162" width="136" height="50" rx="3"/>
+  <text class="sc1-t"    x="20"  y="184">Clash Report</text>
+  <text class="sc1-m"    x="20"  y="202">later in ribbon order</text>
+  <rect class="sc1-box"  x="162" y="162" width="126" height="50" rx="3"/>
+  <text class="sc1-mono" x="174" y="192">Ctrl+Shift+M</text>
+  <rect class="sc1-box"  x="310" y="162" width="118" height="50" rx="3"/>
+  <text class="sc1-md"   x="322" y="192">(no entry)</text>
+  <rect class="sc1-box"  x="450" y="162" width="238" height="50" rx="3"/>
+  <text class="sc1-t"    x="462" y="184">Skipped</text>
+  <text class="sc1-m"    x="462" y="202">Memorize already owns that chord</text>
+  <path class="sc1-arw" d="M290 187 H 306" marker-end="url(#sc1-a)"/>
+  <path class="sc1-arw" d="M430 187 H 446" marker-end="url(#sc1-a)"/>
+
+  <text class="sc1-m" x="8" y="248">Every problem is written to the log with the prefix</text>
+  <text class="sc1-md" x="8" y="266">Shortcut: 'pyNavis.tab/Tools.panel/Clash_Report.pushbutton'
+    wants Ctrl+Shift+M</text>
+  <text class="sc1-md" x="8" y="284">but 'pyNavis.tab/Memory.panel/01_Memorize.pushbutton'
+    already has it - first wins</text>
+</svg>
+</div>
+<figcaption>Three outcomes from the same merge: the default stands, the user disables it, or a
+duplicate loses to whoever the ribbon reached first.</figcaption>
+</figure>
+
+<p>The rules, in the order they apply:</p>
+
+<ol>
+  <li>An override keyed to a tool that does not exist logs
+    <code>shortcut override for unknown tool '&lt;key&gt;' ignored</code> and is dropped. This
+    is what happens after you rename a bundle folder.</li>
+  <li>For each button, a user entry <strong>replaces</strong> the author default entirely.
+    A <code>null</code> value means unbound; the default is not consulted.</li>
+  <li>The chosen string is parsed. A failure logs
+    <code>'&lt;BundleKey&gt;': &lt;error&gt;</code> and the binding is skipped, leaving the
+    tool unbound.</li>
+  <li>If the parsed chord is already taken, the later button loses and logs
+    <code>'&lt;key&gt;' wants &lt;chord&gt; but '&lt;winner&gt;' already has it - first
+    wins</code>. First in ribbon order keeps the chord.</li>
+  <li>All problems are logged with the prefix <code>Shortcut: </code>, followed by a summary
+    line: <code>Shortcuts: N binding(s) active.</code></li>
+</ol>
+
+<div class="note trap">
+<span class="note-t">A broken override looks fine in the editor</span>
+<p>There is a deliberate asymmetry here. When a user's chord string fails to parse, the runtime
+skips it and the tool is unbound, but the <strong>Shortcuts</strong> editor dialog falls back
+to displaying the <em>author default</em> for that row. The dialog shows what the tool would
+have; the log shows what it actually has. If a shortcut is not firing, read
+<code>%APPDATA%\pyNavis\logs\pyNavis.log</code> and search for <code>Shortcut:</code>.</p>
+</div>
+
+<h2 id="the-bundlekey">The BundleKey<a class="anchor" href="#the-bundlekey" aria-label="Link to this section">#</a></h2>
+
+<p>Overrides are keyed by <code>BundleKey</code>: the bundle's folder path relative to the
+<code>.extension</code> folder that contains it, with forward slashes. Nothing is stripped.
+Folder suffixes stay, and so do the <code>NN_</code> ordering prefixes that the ribbon
+removes from the visible title.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 244" width="700" role="img"
+     aria-label="A folder path with the portion below the .extension folder marked as the BundleKey.">
+  <style>
+    .sc2-mono{ font: 12px Consolas, monospace; fill: var(--ink); }
+    .sc2-dim { font: 12px Consolas, monospace; fill: var(--muted); }
+    .sc2-key { font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .sc2-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .sc2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .sc2-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .sc2-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="sc2-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="sc2-lbl" x="16" y="14">On disk</text>
+  <text class="sc2-dim"  x="16"  y="40">D:\NavisTools\</text>
+  <text class="sc2-dim"  x="32"  y="64">pyNavis.extension\</text>
+  <text class="sc2-mono" x="52"  y="88">pyNavis.tab\</text>
+  <text class="sc2-mono" x="72"  y="112">Memory.panel\</text>
+  <text class="sc2-mono" x="92"  y="136">01_Memorize.pushbutton\</text>
+
+  <rect x="42" y="74" width="3" height="70" fill="var(--accent)"/>
+  <text class="sc2-m" x="16" y="164">The accent bar marks the levels that</text>
+  <text class="sc2-m" x="16" y="180">form the key. The root above it does not.</text>
+
+  <path class="sc2-arw" d="M300 106 H 366" marker-end="url(#sc2-a)"/>
+
+  <text class="sc2-lbl" x="376" y="72">The key</text>
+  <rect class="sc2-box" x="376" y="82" width="308" height="48" rx="4"/>
+  <text class="sc2-key" x="388" y="112">pyNavis.tab/Memory.panel/</text>
+  <text class="sc2-key" x="388" y="128">01_Memorize.pushbutton</text>
+
+  <text class="sc2-m" x="376" y="160">Backslashes become forward slashes.</text>
+  <text class="sc2-m" x="376" y="178">.tab, .panel and .pushbutton are kept.</text>
+  <text class="sc2-m" x="376" y="196">The 01_ prefix is kept, even though the</text>
+  <text class="sc2-m" x="376" y="214">button is titled just &#8220;Memorize&#8221;.</text>
+  <text class="sc2-m" x="376" y="232">Lookup is case-insensitive.</text>
+</svg>
+</div>
+<figcaption>The key starts <em>inside</em> the <code>.extension</code> folder, so it survives
+moving the extension to another drive but not renaming a folder inside it.</figcaption>
+</figure>
+
+<p>A button nested inside a stack or a pulldown keeps those folders in its key:</p>
+
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pyNavis.tab/Memory.panel/03_Set.stack/01_Add.pushbutton
+pyNavis.tab/Memory.panel/05_Memory.pulldown/03_Purge.pushbutton</code></pre></div>
+
+<div class="note tip">
+<span class="note-t">Do not type these by hand</span>
+<p>Open the <strong>Shortcuts</strong> editor, set the binding there, and let it write the
+key. Renaming a bundle folder invalidates every override that points at it, and the only
+symptom is the <code>unknown tool</code> line in the log.</p>
+</div>
+
+<h2 id="when-a-chord-fires">When a chord fires<a class="anchor" href="#when-a-chord-fires" aria-label="Link to this section">#</a></h2>
+
+<p>Bindings are watched by a keyboard hook, and a matched chord still has to clear three
+guards before anything runs.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 320" width="700" role="img"
+     aria-label="A key press passes a binding lookup and three guards before the script runs; failing any guard lets the key through to Navisworks.">
+  <style>
+    .sc3-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .sc3-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .sc3-mono{ font: 11px Consolas, monospace; fill: var(--muted); }
+    .sc3-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .sc3-soft{ fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+    .sc3-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+    .sc3-acc { stroke: var(--accent); stroke-width: 1.5; fill: none; }
+  </style>
+  <defs>
+    <marker id="sc3-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+    <marker id="sc3-b" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--accent)"/>
+    </marker>
+  </defs>
+
+  <rect class="sc3-soft" x="16" y="16" width="274" height="38" rx="4"/>
+  <text class="sc3-t" x="30" y="40">A key goes down in Navisworks</text>
+
+  <rect class="sc3-box" x="16" y="74" width="274" height="38" rx="4"/>
+  <text class="sc3-t" x="30" y="98">Does a binding match this chord?</text>
+
+  <rect class="sc3-box" x="16" y="126" width="274" height="38" rx="4"/>
+  <text class="sc3-t" x="30" y="150">Fresh key down, not auto-repeat?</text>
+
+  <rect class="sc3-box" x="16" y="178" width="274" height="38" rx="4"/>
+  <text class="sc3-t" x="30" y="202">Is the main window in the foreground?</text>
+
+  <rect class="sc3-box" x="16" y="230" width="274" height="38" rx="4"/>
+  <text class="sc3-t" x="30" y="254">Is focus outside any text input?</text>
+
+  <rect class="sc3-box" x="16" y="282" width="274" height="30" rx="4"
+        stroke="var(--accent)"/>
+  <text class="sc3-t" x="30" y="302">Run the bundle's script.py</text>
+
+  <path class="sc3-arw" d="M153 56 V 70"  marker-end="url(#sc3-a)"/>
+  <path class="sc3-arw" d="M153 114 V 122" marker-end="url(#sc3-a)"/>
+  <path class="sc3-arw" d="M153 166 V 174" marker-end="url(#sc3-a)"/>
+  <path class="sc3-arw" d="M153 218 V 226" marker-end="url(#sc3-a)"/>
+  <path class="sc3-acc" d="M153 270 V 278" marker-end="url(#sc3-b)"/>
+
+  <path class="sc3-arw" d="M292 93 H 336"  />
+  <path class="sc3-arw" d="M292 145 H 336" />
+  <path class="sc3-arw" d="M292 197 H 336" />
+  <path class="sc3-arw" d="M292 249 H 336" />
+  <path class="sc3-arw" d="M336 93 V 249" />
+  <path class="sc3-arw" d="M336 171 H 386" marker-end="url(#sc3-a)"/>
+  <text class="sc3-m" x="300" y="86">no</text>
+
+  <rect class="sc3-soft" x="392" y="132" width="292" height="76" rx="4"/>
+  <text class="sc3-t" x="406" y="156">The key is not swallowed</text>
+  <text class="sc3-m" x="406" y="176">It falls through to Navisworks exactly as if</text>
+  <text class="sc3-m" x="406" y="192">pyNavis were not listening.</text>
+
+  <text class="sc3-mono" x="392" y="240">ShouldDispatch(isKeyDown, isRepeat,</text>
+  <text class="sc3-mono" x="392" y="256">  foregroundIsMain, focusIsTextInput)</text>
+  <text class="sc3-m"    x="392" y="278">The three guards are one pure function,</text>
+  <text class="sc3-m"    x="392" y="294">so they are unit-tested rather than guessed at.</text>
+</svg>
+</div>
+<figcaption>Only a dispatched chord is swallowed. Every other path leaves the key press
+untouched, so a binding can never make a Navisworks shortcut stop working while you are typing
+somewhere else.</figcaption>
+</figure>
+
+<p>The guards in detail:</p>
+
+<ul>
+  <li><strong>Fresh key down only.</strong> Holding the chord down does not run the tool
+    repeatedly; auto-repeat is suppressed.</li>
+  <li><strong>Navisworks must be foreground.</strong> The chord does nothing while another
+    application has focus, even though the hook is still installed.</li>
+  <li><strong>Focus must not be a text input.</strong> A WPF <code>TextBoxBase</code> or
+    <code>PasswordBox</code> blocks dispatch, as does a native window whose class name contains
+    "edit". If focus cannot be determined at all, the runtime <em>assumes</em> you are typing
+    and does not fire. The safe answer is always "do nothing".</li>
+</ul>
+
+<div class="note">
+<span class="note-t">It is not a global hook</span>
+<p>The hook is a thread-scoped <code>WH_KEYBOARD</code> hook on the Navisworks UI thread. It
+sees keys delivered to that thread and nothing else. pyNavis does not install a system-wide
+keyboard hook and cannot see what you type in other applications.</p>
+</div>
+
+<div class="note warn">
+<span class="note-t">A chord always runs the primary script</span>
+<p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> runs <code>script.py</code>, not
+<code>config.py</code>, even though the chord contains Shift. Keyboard chords and modifier
+click actions are separate mechanisms: <kbd>Shift</kbd>+Click is the only way to reach the
+secondary action. See <a href="click-actions.html">Click actions</a>.</p>
+</div>
+
+<p>A resolved binding is appended to the button's tooltip in canonical form, which is always
+<code>Ctrl+Alt+Shift+Key</code> in that order regardless of how it was spelled in the file.
+<code>shift+ctrl+m</code> and <code>Ctrl+Shift+M</code> both display as
+<code>Ctrl+Shift+M</code>.</p>
+
+<h2 id="keytips">Keytips<a class="anchor" href="#keytips" aria-label="Link to this section">#</a></h2>
+
+<p>Keytips are the letters that appear over the ribbon when you press and release
+<kbd>Alt</kbd>. They are assigned automatically, per tab, and you can steer the result with a
+<code>keytip:</code> line in <code>bundle.yaml</code>.</p>
+
+<p>Assignment covers everything that renders on the tab: top-level pushbuttons, the child
+buttons of a stack, the pulldown menu button itself (and the same for a
+<code>*.splitbutton</code> and a <code>*.splitpushbutton</code>), urlbuttons, linkbuttons, and
+the ribbon toggle of a dockpane. Items inside a <code>*.slideout</code> are included too, and
+compete for letters with everything else on the tab. Pulldown <em>children</em> get none,
+because an open menu is navigated with the arrow keys, and a <code>*.nobutton</code> gets none
+because it never renders.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 176" width="700" role="img"
+     aria-label="Candidate keytips for a button titled Memorize: M is taken, so ME is chosen.">
+  <style>
+    .sc4-t   { font: 13px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .sc4-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .sc4-d   { font: 13px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .sc4-a   { font: 13px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--accent);
+               font-weight: 600; }
+    .sc4-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .sc4-box { fill: var(--paper); stroke: var(--line); stroke-width: 1; }
+    .sc4-hit { fill: var(--paper); stroke: var(--accent); stroke-width: 1.5; }
+    .sc4-out { stroke: var(--muted); stroke-width: 1.2; }
+  </style>
+
+  <text class="sc4-lbl" x="20" y="16">Title &#8220;Memorize&#8221;, letters only, uppercased,
+    tried in this order</text>
+
+  <rect class="sc4-box" x="20"  y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="48"  y="59" text-anchor="middle">M</text>
+  <path class="sc4-out" d="M28 54 H 68"/>
+
+  <rect class="sc4-hit" x="84"  y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-a" x="112" y="59" text-anchor="middle">ME</text>
+
+  <rect class="sc4-box" x="148" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="176" y="59" text-anchor="middle">M2</text>
+  <rect class="sc4-box" x="212" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="240" y="59" text-anchor="middle">M3</text>
+  <rect class="sc4-box" x="276" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="304" y="59" text-anchor="middle">M4</text>
+  <rect class="sc4-box" x="340" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="368" y="59" text-anchor="middle">M5</text>
+  <rect class="sc4-box" x="404" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="432" y="59" text-anchor="middle">M6</text>
+  <rect class="sc4-box" x="468" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="496" y="59" text-anchor="middle">M7</text>
+  <rect class="sc4-box" x="532" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="560" y="59" text-anchor="middle">M8</text>
+  <rect class="sc4-box" x="596" y="34" width="56" height="40" rx="3"/>
+  <text class="sc4-d" x="624" y="59" text-anchor="middle">M9</text>
+
+  <text class="sc4-m" x="20" y="98">M is already taken by another item on this tab, so it is
+    struck out. ME is the first free candidate and wins.</text>
+  <text class="sc4-m" x="20" y="118">If all ten were taken, the button would simply have no
+    keytip; nothing is invented beyond this list.</text>
+  <text class="sc4-t" x="20" y="150">Explicit keytip: values are claimed first, before any of
+    this runs.</text>
+  <text class="sc4-m" x="20" y="168">Two bundles asking for the same letters: the later one is
+    dropped and gets no keytip at all.</text>
+</svg>
+</div>
+<figcaption>Pass two, in full. The candidate list is first letter, first two letters, then the
+first letter followed by 2 through 9.</figcaption>
+</figure>
+
+<p>Assignment runs in two passes over the items of one tab:</p>
+
+<ol>
+  <li><strong>Explicit values claim first.</strong> Every <code>keytip:</code> from
+    <code>bundle.yaml</code> is trimmed and uppercased, and takes its letters. Content is not
+    validated: any string is accepted as written.</li>
+  <li><strong>Everything else is derived from the title.</strong> Non-letters are dropped and
+    the rest uppercased, then the candidates above are tried in order and the first untaken one
+    wins. A title with no letters at all gets nothing.</li>
+</ol>
+
+<div class="note trap">
+<span class="note-t">An explicit collision loses everything</span>
+<p>If two bundles on the same tab both declare <code>keytip: MM</code>, the first one claims it
+and the second gets <strong>no keytip at all</strong>. It does not fall through to
+auto-assignment. Declaring a keytip is a commitment to it being unique on that tab.</p>
+</div>
+
+<div class="note warn">
+<span class="note-t">Known limitation: every pyNavis tab is PY</span>
+<p>The tab keytip itself is hard-coded to <code>PY</code> and nothing dedupes it. If two
+extensions each create a tab, both claim <code>PY</code> and Alt navigation into them becomes
+unreliable. Until this is fixed, put your buttons on the existing tab or accept the
+collision.</p>
+</div>
+
+<h2 id="the-shortcuts-editor">The Shortcuts editor<a class="anchor" href="#the-shortcuts-editor" aria-label="Link to this section">#</a></h2>
+
+<p>The <strong>Shortcuts</strong> button on the pyNavis panel opens the editor: every tool,
+its author default, and its current binding. Recording a chord is a matter of clicking a row
+and pressing the keys.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>While recording</th></tr></thead>
+<tbody>
+<tr><td><kbd>Esc</kbd></td><td>Leaves the field, changing nothing.</td></tr>
+<tr><td><kbd>Backspace</kbd> or <kbd>Delete</kbd></td>
+    <td>Clears the row, which means disabled. This is what writes a <code>null</code>.</td></tr>
+<tr><td><kbd>Tab</kbd></td><td>Always passes through, so the dialog stays keyboard
+    navigable.</td></tr>
+<tr><td>Modifiers alone</td><td>Keep recording; a chord is only captured once a real key
+    arrives.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Every capture is round-tripped through the same parser the runtime uses, so the recorder
+physically cannot produce a binding the runtime would reject. An unsupported key shows
+<em>unsupported key</em>, and a chord without Ctrl or Alt shows <em>needs Ctrl or Alt</em>.</p>
+
+<p>Saving writes a <strong>minimal</strong> map: only the rows that differ from their author
+default are stored, stale keys are dropped, and every other key in
+<code>config.json</code> is preserved. If nothing differs, the <code>bindings</code> key is
+removed, and <code>shortcuts</code> goes with it when nothing else is left under it. A
+malformed config logs <code>Failed to load config '&lt;path&gt;' - using defaults.</code> and
+unknown keys are ignored rather than rewritten away.</p>
+
+<h2 id="checklist">Checklist<a class="anchor" href="#checklist" aria-label="Link to this section">#</a></h2>
+
+<ul>
+  <li>Author defaults use <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<em>letter</em> unless you have a
+    reason not to.</li>
+  <li>Every binding contains <code>Ctrl</code> or <code>Alt</code>; never ship a bare-key
+    default.</li>
+  <li>Key tokens come from the supported list only: letters, digits, <code>F1</code> to
+    <code>F24</code>, arrows, <code>Home</code>, <code>End</code>, <code>PgUp</code>,
+    <code>PgDn</code>.</li>
+  <li>Check the log after a Reload for lines beginning <code>Shortcut: </code> and for the
+    <code>N binding(s) active</code> summary.</li>
+  <li>Remember that a duplicate chord is resolved by ribbon order, so the tool nearest the
+    start of the tab wins.</li>
+  <li>Declare <code>keytip:</code> only when you are sure it is unique on the tab; otherwise let
+    the automatic pass do it.</li>
+  <li>Overrides are keyed by folder path, so renaming a bundle silently orphans them.</li>
+</ul>
+
+<div class="cards">
+  <a href="bundle-yaml.html"><span class="c-t">bundle.yaml reference</span>
+    <span class="c-d">Every key a bundle can declare, with its default.</span></a>
+  <a href="settings.html"><span class="c-t">Settings and config.json</span>
+    <span class="c-d">What users can change, and where it is written.</span></a>
+  <a href="troubleshooting.html"><span class="c-t">Troubleshooting</span>
+    <span class="c-d">Every failure mode with the log line that identifies it.</span></a>
+</div>
+  <div class="pagenav">
+<a href="icons.html"><span class="dir">Previous</span><span class="ttl">Icons</span></a>
+<a class="next" href="click-actions.html"><span class="dir">Next</span><span class="ttl">Click actions and config.py</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#two-places-a-binding-comes-from">Two places a binding comes from</a>
+<a href="#the-chord-grammar">The chord grammar</a>
+<a href="#the-ctrl-or-alt-policy">The Ctrl-or-Alt policy</a>
+<a href="#how-the-map-is-built">How the map is built</a>
+<a href="#the-bundlekey">The BundleKey</a>
+<a href="#when-a-chord-fires">When a chord fires</a>
+<a href="#keytips">Keytips</a>
+<a href="#the-shortcuts-editor">The Shortcuts editor</a>
+<a href="#checklist">Checklist</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+title: Face\nDistance
+tooltip: True perpendicular distance between two faces, unaffected by project rotation. Click, then measure the two faces with the native Point to Point tool it opens. Shift+Click for settings.
+context: doc

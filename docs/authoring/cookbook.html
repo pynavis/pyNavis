@@ -1,0 +1,2010 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cookbook - pyNavis authoring</title>
+<meta name="description" content="Complete, runnable recipes for the jobs a Navisworks tool actually has to do, with the sharp edge on each one named.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<a href="tools.html"><span class="num">03</span>Bundled tools</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">05</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">07</span>Icons</a>
+<a href="shortcuts.html"><span class="num">08</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">09</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">11</span>The script environment</a>
+<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
+<a href="settings.html"><span class="num">13</span>Settings and per-tool state</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html" class="active"><span class="num">15</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 0.4.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Practice</p>
+  <h1>Cookbook</h1>
+  <p class="lead">Complete, runnable recipes for the jobs a Navisworks tool actually has to do, with the sharp edge on each one named.</p>
+  <p>Every recipe on this page is a whole <code>script.py</code>. Copy one into a
+<code>.pushbutton</code> folder, click Reload, and it runs. Nothing is elided, nothing is
+pseudocode, and every function called here exists in the <code>pynavis</code> library
+shipped with your install.</p>
+
+<p>They are all built the same way, because tools that touch a model have a shape. Read
+something, guard against the case where there is nothing to read, compute an answer without
+touching the API, write the answer back in one go, then say what happened.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 176" width="700" role="img"
+     aria-label="The five stages of a tool: read, guard, compute, write, report.">
+  <style>
+    .ck1-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ck1-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ck1-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .ck1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ck1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .ck1-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .ck1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="ck1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="ck1-lbl" x="0" y="12">The shape of every recipe below</text>
+
+  <rect class="ck1-box" x="0" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="14" y="46">Read</text>
+  <text class="ck1-mono" x="14" y="63">selection, doc</text>
+
+  <path class="ck1-arw" d="M120 49 H 142" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-box" x="146" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="160" y="46">Guard</text>
+  <text class="ck1-mono" x="160" y="63">if not items:</text>
+
+  <path class="ck1-arw" d="M266 49 H 288" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-hot" x="292" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="306" y="46">Compute</text>
+  <text class="ck1-m"    x="306" y="63">no API calls</text>
+
+  <path class="ck1-arw" d="M412 49 H 434" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-box" x="438" y="26" width="118" height="46" rx="4"/>
+  <text class="ck1-t"    x="452" y="46">Write</text>
+  <text class="ck1-mono" x="452" y="63">one transaction</text>
+
+  <path class="ck1-arw" d="M558 49 H 580" marker-end="url(#ck1-a)"/>
+
+  <rect class="ck1-box" x="584" y="26" width="116" height="46" rx="4"/>
+  <text class="ck1-t"    x="598" y="46">Report</text>
+  <text class="ck1-mono" x="598" y="63">toast / output</text>
+
+  <path class="ck1-arw" d="M205 74 V 104" marker-end="url(#ck1-a)"/>
+  <rect class="ck1-box" x="146" y="108" width="118" height="34" rx="4"/>
+  <text class="ck1-m" x="160" y="129">nothing to do</text>
+
+  <path class="ck1-arw" d="M264 125 H 620 V 78" marker-end="url(#ck1-a)"/>
+  <text class="ck1-m" x="288" y="120">one toast, then stop</text>
+
+  <text class="ck1-m" x="0" y="166">A cancelled dialog skips the report too: cancelling is
+    silent, because the user already knows what they did.</text>
+</svg>
+</div>
+<figcaption>Keeping the compute step free of API calls is what makes the middle of a tool
+testable. The last section of this page shows how far that goes.</figcaption>
+</figure>
+
+<h2 id="working-with-the-selection">Working with the selection<a class="anchor" href="#working-with-the-selection" aria-label="Link to this section">#</a></h2>
+
+<h3 id="act-on-the-current-selection">Act on the current selection<a class="anchor" href="#act-on-the-current-selection" aria-label="Link to this section">#</a></h3>
+
+<p>Almost every tool starts here, and the first thing it must handle is an empty selection.
+A tool that throws a traceback because nothing was picked is a tool people stop using.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Reports the bounding box of the current selection.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection, toast
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    box = items[<span class="tok-n">0</span>].BoundingBox()
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items[<span class="tok-n">1</span>:]:
+        box.Extend(item.BoundingBox())
+    size = box.Size
+    toast.success(
+        <span class="tok-s">&#x27;%d item(s) selected&#x27;</span> % len(items),
+        <span class="tok-s">&#x27;%.2f x %.2f x %.2f&#x27;</span> % (size.X, size.Y, size.Z))</code></pre></div>
+
+<p><code>selection.get_items()</code> returns a plain Python list, never <code>None</code>,
+and it is empty when nothing is selected. That makes <code>if not items:</code> the whole
+guard. The list is a snapshot: changing the selection afterwards does not change the list you
+are holding.</p>
+
+<div class="note">
+<span class="note-t">Report with a toast, not a print</span>
+<p>A one-line status belongs in a <code>toast</code>. <code>print()</code> materialises the
+output window, so a script whose only output is a single <code>print</code> gives the user a
+window with one line in it. Use the output window when you have a report to show; use a toast
+when you have a sentence.</p>
+</div>
+
+<h3 id="filter-a-selection-by-a-property-value">Filter a selection by a property value<a class="anchor" href="#filter-a-selection-by-a-property-value" aria-label="Link to this section">#</a></h3>
+
+<p>Properties are addressed by their <em>display</em> names, the ones you see in the
+Properties palette, and <code>doc.get_property</code> returns <code>None</code> when the
+category or the property is not on that item. That happens constantly in a federated model,
+so it is the normal case rather than an error.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Keeps only the selected objects whose Item / Type contains a given word.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, forms, selection, toast
+
+CATEGORY = <span class="tok-s">&#x27;Item&#x27;</span>
+PROPERTY = <span class="tok-s">&#x27;Type&#x27;</span>
+
+items = selection.get_items()
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    wanted = forms.ask_string(
+        <span class="tok-s">&#x27;Keep objects whose %s contains:&#x27;</span> % PROPERTY, title=<span class="tok-s">&#x27;Filter selection&#x27;</span>)
+    <span class="tok-k">if</span> wanted <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">and</span> wanted.strip():
+        needle = wanted.strip().lower()
+        kept = []
+        <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+            value = doc.get_property(item, CATEGORY, PROPERTY)
+            <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">None</span>:
+                <span class="tok-k">continue</span>
+            <span class="tok-k">if</span> needle <span class="tok-k">in</span> value.ToDisplayString().lower():
+                kept.append(item)
+
+        <span class="tok-k">if</span> kept:
+            selection.set_items(kept)
+            toast.success(<span class="tok-s">&#x27;Kept %d of %d&#x27;</span> % (len(kept), len(items)))
+        <span class="tok-k">else</span>:
+            toast.warning(<span class="tok-s">&#x27;Nothing matched&#x27;</span>, <span class="tok-s">&#x27;The selection is unchanged.&#x27;</span>)</code></pre></div>
+
+<p><code>get_property</code> hands back a Navisworks <code>VariantData</code>, not a string.
+<code>ToDisplayString()</code> is the safe way to read one whatever its underlying type is,
+which saves you from branching on <code>IsDisplayString</code>, <code>IsDouble</code> and the
+rest.</p>
+
+<div class="note tip">
+<span class="note-t">For new tools, reach for props instead</span>
+<p><code>pynavis.props</code> supersedes <code>doc.get_property</code>: <code>props.get</code>
+does the same lookup and hands back an already-coerced Python value, so there is no
+<code>VariantData</code> to unwrap and no <code>ToDisplayString()</code> to remember. The
+recipe below uses it. <code>doc.get_property</code> stays for the tools already written
+against it, and several recipes further down this page still show it for that reason.</p>
+</div>
+
+<h3 id="read-properties-as-plain-python-values">Read properties as plain Python values<a class="anchor" href="#read-properties-as-plain-python-values" aria-label="Link to this section">#</a></h3>
+
+<p><code>props.get(item, category, prop)</code> returns a <code>str</code>, <code>int</code>,
+<code>float</code>, <code>bool</code>, a <code>datetime</code> or an <code>(x, y, z)</code>
+tuple, whichever the property actually holds, and <code>None</code> when the item does not
+carry it. That is the whole difference: a number comes back as a number, so you compare it
+instead of parsing it.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Selects every object whose Length is over a limit, reading properties as values.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> props, selection, toast
+
+LIMIT = <span class="tok-n">6.0</span>
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    kept = []
+    unknown = <span class="tok-n">0</span>
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        length = props.get(item, <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>)
+        <span class="tok-k">if</span> <span class="tok-k">not</span> isinstance(length, float):
+            unknown += <span class="tok-n">1</span>                       <span class="tok-c"># missing, or not a number</span>
+        <span class="tok-k">elif</span> length &gt; LIMIT:
+            kept.append(item)
+
+    <span class="tok-k">if</span> kept:
+        selection.set_items(kept)
+        toast.success(<span class="tok-s">&#x27;%d object(s) over %g m&#x27;</span> % (len(kept), LIMIT),
+                      <span class="tok-s">&#x27;%d had no usable Length.&#x27;</span> % unknown <span class="tok-k">if</span> unknown <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>)
+    <span class="tok-k">else</span>:
+        toast.warning(<span class="tok-s">&#x27;Nothing matched&#x27;</span>, <span class="tok-s">&#x27;The selection is unchanged.&#x27;</span>)</code></pre></div>
+
+<p>Two siblings cover the bulk cases. <code>props.all_of(item)</code> returns every property on
+an item as flat <code>{'category', 'property', 'value'}</code> rows, which is the shape
+<code>output.print_table</code> and a spreadsheet export both want.
+<code>props.value_map(item, spec)</code> pulls several named properties into one dict in a
+single call, from a <code>{key: (category, prop)}</code> spec, which is how you build one report
+row per object without a column's worth of lookups in the loop.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Builds one report row per selected object from a named set of properties.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> output, props, selection, toast
+
+SPEC = {
+    <span class="tok-s">&#x27;Type&#x27;</span>: (<span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;Type&#x27;</span>),
+    <span class="tok-s">&#x27;Level&#x27;</span>: (<span class="tok-s">&#x27;Element&#x27;</span>, <span class="tok-s">&#x27;Level&#x27;</span>),
+    <span class="tok-s">&#x27;Mark&#x27;</span>: (<span class="tok-s">&#x27;Element&#x27;</span>, <span class="tok-s">&#x27;Mark&#x27;</span>),
+}
+COLUMNS = [<span class="tok-s">&#x27;Type&#x27;</span>, <span class="tok-s">&#x27;Level&#x27;</span>, <span class="tok-s">&#x27;Mark&#x27;</span>]
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>)
+<span class="tok-k">else</span>:
+    rows = []
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        values = props.value_map(item, SPEC)
+        rows.append([item.DisplayName]
+                    + [<span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> values[key] <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">else</span> values[key] <span class="tok-k">for</span> key <span class="tok-k">in</span> COLUMNS])
+    output.print_table(rows, [<span class="tok-s">&#x27;Object&#x27;</span>] + COLUMNS)</code></pre></div>
+
+<div class="note warn">
+<span class="note-t">Writing a property tab replaces it, it never merges</span>
+<p><code>props.set_custom(items, tab_name, values)</code> writes <code>values</code> as the
+<strong>whole</strong> tab on every item, so a field that was on the tab before and is left out
+of <code>values</code> this time disappears. To add one field to an existing tab, read it back
+with <code>props.get_custom(item, tab_name)</code> first, merge your value in, and pass the
+merged dictionary. It returns <code>(written, errors)</code>, because a failure inside the
+underlying write can otherwise vanish without a trace, and it batches the whole list into one
+undo entry.</p>
+</div>
+
+<div class="note trap">
+<span class="note-t">Cancelling must be silent</span>
+<p><code>forms.ask_string</code>, <code>forms.save_file</code> and
+<code>forms.open_file</code> return <code>None</code> when the user cancels, and
+<code>forms.confirm</code> returns <code>False</code>. Do nothing at all in that branch. No
+toast, no output window, no &ldquo;operation cancelled&rdquo;. The user cancelled on purpose
+and telling them so is noise.</p>
+</div>
+
+<h3 id="replace-the-selection-with-a-computed-subset">Replace the selection with a computed subset<a class="anchor" href="#replace-the-selection-with-a-computed-subset" aria-label="Link to this section">#</a></h3>
+
+<p><code>selection.set_items</code> takes any iterable of <code>ModelItem</code> and replaces
+the current selection wholesale. It builds the .NET collection for you, so you never have to
+think about <code>ModelItemCollection</code>.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Reduces the selection to one representative object per source model.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, selection, toast
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>)
+<span class="tok-k">else</span>:
+    document = doc.get_doc()
+    models = document.Models
+    seen = {}
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        index = models.CreatePathId(item).ModelIndex
+        <span class="tok-k">if</span> index <span class="tok-k">not</span> <span class="tok-k">in</span> seen:
+            seen[index] = item
+
+    selection.set_items(list(seen.values()))
+    toast.success(<span class="tok-s">&#x27;%d model(s) represented&#x27;</span> % len(seen),
+                  <span class="tok-s">&#x27;Reduced from %d item(s).&#x27;</span> % len(items))</code></pre></div>
+
+<p><code>selection.clear()</code> is the other half of the pair. There is no
+&ldquo;add to selection&rdquo; call: read the current items, extend the list, and set the
+whole thing back.</p>
+
+<h3 id="isolate-what-you-found-then-frame-it">Isolate what you found, then frame it<a class="anchor" href="#isolate-what-you-found-then-frame-it" aria-label="Link to this section">#</a></h3>
+
+<p>Finding the right objects is half a tool. Showing them is the other half.
+<code>pynavis.view</code> has the three moves a tool makes straight after it changes the
+selection.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Isolates the current selection and zooms to it.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection, toast, view
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    view.unhide_all()
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Everything is visible again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    kept = view.isolate(items)
+    view.zoom_selected()
+    toast.success(<span class="tok-s">&#x27;Isolated %d item(s)&#x27;</span> % kept, <span class="tok-s">&#x27;Unhide All puts the model back.&#x27;</span>)</code></pre></div>
+
+<p><code>view.isolate</code> hides every root item and then unhides the ones you passed, both
+inside one transaction, so Ctrl+Z restores the model in a single step and the host's own Unhide
+All clears it too. An empty list is a no-op rather than a whole-model blackout.
+<code>view.zoom_selected</code> returns <code>False</code> and logs when the host refuses the
+camera move; carry on either way, because a tool that selected the right objects has already
+done its job.</p>
+
+<h3 id="keep-a-selection-in-memory-and-do-set-maths-on-it">Keep a selection in memory and do set maths on it<a class="anchor" href="#keep-a-selection-in-memory-and-do-set-maths-on-it" aria-label="Link to this section">#</a></h3>
+
+<p><code>pynavis.memory</code> is a pocket calculator's memory for model items: one register per
+document, kept on disk under <code>%APPDATA%\pyNavis\memory</code>, with M+, M- and MR
+equivalents. Every action returns a <code>Result</code> you hand straight to a toast, so a
+button script is two lines.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Adds the current selection to the document&#x27;s memory register.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> memory, toast
+
+result = memory.add()
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+
+<p><code>memory.memorize()</code> sets the register to the selection,
+<code>memory.recall()</code> sets the selection to the register, and
+<code>memory.add()</code>, <code>memory.subtract()</code> and <code>memory.intersect()</code>
+are the set maths between the two. <code>memory.clear()</code> empties it. None of them raises
+for an expected failure: an empty selection or an empty register comes back as an error-level
+<code>Result</code> with a detail line saying what to do next.</p>
+
+<p>Two more are worth a button of their own. <code>memory.step_next()</code> and
+<code>memory.step_prev()</code> walk the register one item at a time, wrapping at both ends,
+and <code>memory.save_as_set(name)</code> promotes the whole register to a native Navisworks
+selection set.</p>
+
+<div class="note warn">
+<span class="note-t">Stepping is not a read</span>
+<p><code>memory.step_next()</code> replaces the current selection with the single item it
+landed on and flies the camera to it. Entries that no longer resolve in this document are
+skipped rather than stepped onto, so the "item 4 of 27" counter counts resolvable items, not
+stored ones. The register itself survives a Navisworks restart, because it lives in a file
+keyed off the document path, not in the session.</p>
+</div>
+
+<h2 id="reading-the-model">Reading the model<a class="anchor" href="#reading-the-model" aria-label="Link to this section">#</a></h2>
+
+<h3 id="list-every-model-and-its-source-file">List every model and its source file<a class="anchor" href="#list-every-model-and-its-source-file" aria-label="Link to this section">#</a></h3>
+
+<p>A federated model is a stack of files, and the first question anyone asks of a new one is
+what is actually in it.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Lists the loaded models and the files they came from.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, toast
+
+document = doc.get_doc()
+rows = []
+<span class="tok-k">for</span> index, model <span class="tok-k">in</span> enumerate(document.Models):
+    rows.append([index, model.RootItem.DisplayName, model.SourceFileName])
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> rows:
+    toast.info(<span class="tok-s">&#x27;This document has no models loaded.&#x27;</span>)
+<span class="tok-k">else</span>:
+    output.print_md(<span class="tok-s">&#x27;## %s&#x27;</span> % (doc.get_title() <span class="tok-k">or</span> <span class="tok-s">&#x27;Untitled document&#x27;</span>))
+    output.print_table(rows, [<span class="tok-s">&#x27;#&#x27;</span>, <span class="tok-s">&#x27;Model&#x27;</span>, <span class="tok-s">&#x27;Source file&#x27;</span>])</code></pre></div>
+
+<div class="note warn">
+<span class="note-t">Iterate, never index</span>
+<p>The Navisworks collection indexer walks the collection to reach position <em>n</em>, so a
+loop over <code>node.Children[i]</code> is quadratic and gets ruinous somewhere in the low
+thousands. Always write <code>for child in node.Children:</code> and use
+<code>enumerate</code> when you need the position. The same applies to
+<code>SelectedItems</code>, <code>Models</code> and a clash test's results.</p>
+</div>
+
+<h3 id="report-the-distinct-values-of-a-property">Report the distinct values of a property<a class="anchor" href="#report-the-distinct-values-of-a-property" aria-label="Link to this section">#</a></h3>
+
+<p>Counting the distinct values of one property across a selection is how you find out
+whether a model is tagged consistently. It is also the smallest useful report.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Counts the distinct values of one property across the selection.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, selection, toast
+
+CATEGORY = <span class="tok-s">&#x27;Item&#x27;</span>
+PROPERTY = <span class="tok-s">&#x27;Type&#x27;</span>
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    counts = {}
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        value = doc.get_property(item, CATEGORY, PROPERTY)
+        text = value.ToDisplayString() <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;(not set)&#x27;</span>
+        counts[text] = counts.get(text, <span class="tok-n">0</span>) + <span class="tok-n">1</span>
+
+    rows = sorted(counts.items(), key=<span class="tok-k">lambda</span> pair: (-pair[<span class="tok-n">1</span>], pair[<span class="tok-n">0</span>]))
+    output.print_md(<span class="tok-s">&#x27;## %s / %s&#x27;</span> % (CATEGORY, PROPERTY))
+    output.print_table([[text, count] <span class="tok-k">for</span> text, count <span class="tok-k">in</span> rows],
+                       [PROPERTY, <span class="tok-s">&#x27;Count&#x27;</span>])
+    output.print_md(<span class="tok-s">&#x27;%d distinct value(s) across %d object(s).&#x27;</span>
+                    % (len(rows), len(items)))</code></pre></div>
+
+<p>Sorting by <code>(-count, text)</code> rather than by count alone keeps the order stable
+between runs, which matters when the user is comparing two exports.</p>
+
+<h3 id="walk-saved-viewpoints-with-their-folder-path">Walk saved viewpoints with their folder path<a class="anchor" href="#walk-saved-viewpoints-with-their-folder-path" aria-label="Link to this section">#</a></h3>
+
+<p><code>doc.walk_saved_viewpoints()</code> flattens the saved-viewpoints tree depth first
+and yields <code>(folder_names, saved_item)</code>. <code>folder_names</code> is the list of
+ancestor folder names, empty for a top-level item.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Lists every saved viewpoint with the folder it lives in.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, toast
+
+rows = []
+<span class="tok-k">for</span> folders, item <span class="tok-k">in</span> doc.walk_saved_viewpoints():
+    rows.append([
+        <span class="tok-s">&#x27;/&#x27;</span>.join(folders) <span class="tok-k">or</span> <span class="tok-s">&#x27;(top level)&#x27;</span>,
+        item.DisplayName,
+        item.GetType().Name,
+    ])
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> rows:
+    toast.info(<span class="tok-s">&#x27;This document has no saved viewpoints.&#x27;</span>)
+<span class="tok-k">else</span>:
+    output.print_table(rows, [<span class="tok-s">&#x27;Folder&#x27;</span>, <span class="tok-s">&#x27;Name&#x27;</span>, <span class="tok-s">&#x27;Kind&#x27;</span>])
+    output.print_md(<span class="tok-s">&#x27;%d saved item(s).&#x27;</span> % len(rows))</code></pre></div>
+
+<div class="note">
+<span class="note-t">Animations come out whole</span>
+<p>The walk descends into folders only. A saved animation is a group node too, but it is
+yielded as a single item rather than being unpacked into its keyframes, which is what you
+want in a listing. Test with <code>item.GetType().Name</code> or check for a
+<code>Viewpoint</code> attribute if you need to tell the kinds apart.</p>
+</div>
+
+<h2 id="producing-output">Producing output<a class="anchor" href="#producing-output" aria-label="Link to this section">#</a></h2>
+
+<h3 id="export-the-selection-to-csv">Export the selection to CSV<a class="anchor" href="#export-the-selection-to-csv" aria-label="Link to this section">#</a></h3>
+
+<p>The save dialog, the silent cancel, the write, the toast. This is the pattern for every
+export tool you will write.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports the selected objects and one property to a CSV file.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> csv
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, forms, selection, toast
+
+CATEGORY = <span class="tok-s">&#x27;Item&#x27;</span>
+PROPERTY = <span class="tok-s">&#x27;Type&#x27;</span>
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    default_name = (doc.get_title() <span class="tok-k">or</span> <span class="tok-s">&#x27;selection&#x27;</span>) + <span class="tok-s">&#x27;.csv&#x27;</span>
+    path = forms.save_file(default_name=default_name,
+                           title=<span class="tok-s">&#x27;Export selection&#x27;</span>)
+    <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                       <span class="tok-c"># None means cancelled: say nothing</span>
+        <span class="tok-k">with</span> open(path, <span class="tok-s">&#x27;w&#x27;</span>) <span class="tok-k">as</span> handle:
+            writer = csv.writer(handle, lineterminator=<span class="tok-s">&#x27;\n&#x27;</span>)
+            writer.writerow([<span class="tok-s">&#x27;Name&#x27;</span>, PROPERTY, <span class="tok-s">&#x27;Source model&#x27;</span>])
+            <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+                value = doc.get_property(item, CATEGORY, PROPERTY)
+                writer.writerow([
+                    item.DisplayName,
+                    value.ToDisplayString() <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>,
+                    item.Model.SourceFileName <span class="tok-k">if</span> item.Model <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>,
+                ])
+        toast.success(<span class="tok-s">&#x27;Exported %d row(s)&#x27;</span> % len(items), path)</code></pre></div>
+
+<p>Pass <code>lineterminator='\n'</code> to <code>csv.writer</code>. Without it the module
+writes <code>\r\n</code> into a file already opened in text mode and every row ends up with a
+blank line after it.</p>
+
+<h3 id="show-a-table-in-the-output-window">Show a table in the output window<a class="anchor" href="#show-a-table-in-the-output-window" aria-label="Link to this section">#</a></h3>
+
+<p><code>output.print_table(rows, headers)</code> escapes your cells, styles the table to
+match the window, and works out its own alignment. A column is treated as numeric when every
+non-empty cell in it parses as a number, so numbers right-align and tabulate without you
+declaring anything.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Reports the object count and combined length per source model.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, selection, toast
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>)
+<span class="tok-k">else</span>:
+    document = doc.get_doc()
+    models = document.Models
+    per_model = {}
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        index = models.CreatePathId(item).ModelIndex
+        name = models[index].SourceFileName
+        count, length = per_model.get(name, (<span class="tok-n">0</span>, <span class="tok-n">0.0</span>))
+        value = doc.get_property(item, <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>)
+        <span class="tok-k">try</span>:
+            length += float(value.ToDisplayString()) <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-n">0.0</span>
+        <span class="tok-k">except</span> ValueError:
+            <span class="tok-k">pass</span>
+        per_model[name] = (count + <span class="tok-n">1</span>, length)
+
+    rows = [[name, count, <span class="tok-s">&#x27;%.2f&#x27;</span> % length]
+            <span class="tok-k">for</span> name, (count, length) <span class="tok-k">in</span> sorted(per_model.items())]
+    output.print_table(rows, [<span class="tok-s">&#x27;Source model&#x27;</span>, <span class="tok-s">&#x27;Objects&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>])</code></pre></div>
+
+<p>Two sibling calls round the surface out. <code>output.print_md</code> renders headings,
+bold, inline code, lists and links, which is enough for the prose around a table.
+<code>output.format_table</code> returns a plain-text table you can hand to
+<code>print</code>, which is what you want when the report is going to be pasted into an
+email.</p>
+
+<h3 id="link-back-to-the-model-from-the-output-window">Link back to the model from the output window<a class="anchor" href="#link-back-to-the-model-from-the-output-window" aria-label="Link to this section">#</a></h3>
+
+<p>A report that names an object is useful. A report where clicking the row selects the
+object is a different tool. <code>output.element_link(item, label)</code> returns an HTML
+string for a link that selects that <code>ModelItem</code>, which you embed in your own
+markup and hand to <code>output.print_html</code>.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Lists the selected objects, each with a link that reselects it.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> output, selection, toast
+
+
+<span class="tok-k">def</span> escape(text):
+    <span class="tok-k">return</span> (str(text).replace(<span class="tok-s">&#x27;&amp;amp;&#x27;</span>, <span class="tok-s">&#x27;&amp;amp;amp;&#x27;</span>)
+                     .replace(<span class="tok-s">&#x27;&amp;lt;&#x27;</span>, <span class="tok-s">&#x27;&amp;amp;lt;&#x27;</span>)
+                     .replace(<span class="tok-s">&#x27;&amp;gt;&#x27;</span>, <span class="tok-s">&#x27;&amp;amp;gt;&#x27;</span>))
+
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>)
+<span class="tok-k">else</span>:
+    cells = <span class="tok-s">&#x27;&#x27;</span>.join(
+        <span class="tok-s">&#x27;&amp;lt;tr&amp;gt;&amp;lt;td&amp;gt;%s&amp;lt;/td&amp;gt;&amp;lt;td&amp;gt;%s&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;&#x27;</span>
+        % (escape(item.DisplayName), output.element_link(item, <span class="tok-s">&#x27;Show&#x27;</span>))
+        <span class="tok-k">for</span> item <span class="tok-k">in</span> items[:<span class="tok-n">200</span>])
+    output.print_html(
+        <span class="tok-s">&#x27;&amp;lt;table class=&quot;pynavis&quot;&amp;gt;&amp;lt;thead&amp;gt;&amp;lt;tr&amp;gt;&#x27;</span>
+        <span class="tok-s">&#x27;&amp;lt;th&amp;gt;Object&amp;lt;/th&amp;gt;&amp;lt;th&amp;gt;&amp;lt;/th&amp;gt;&amp;lt;/tr&amp;gt;&amp;lt;/thead&amp;gt;&#x27;</span>
+        <span class="tok-s">&#x27;&amp;lt;tbody&amp;gt;%s&amp;lt;/tbody&amp;gt;&amp;lt;/table&amp;gt;&#x27;</span> % cells)
+    <span class="tok-k">if</span> len(items) &amp;gt; <span class="tok-n">200</span>:
+        output.print_md(<span class="tok-s">&#x27;... and %d more.&#x27;</span> % (len(items) - <span class="tok-n">200</span>))</code></pre></div>
+
+<div class="note warn">
+<span class="note-t">Hand-built HTML is yours to escape</span>
+<p><code>print_table</code> escapes every cell. <code>print_html</code> does not, because the
+whole point of it is that you are supplying markup. Any model-derived text you interpolate
+must be escaped first, and object names in a real federated model do contain angle brackets
+and ampersands. Cap the row count too: a link table of fifty thousand rows is not a report.</p>
+</div>
+
+<h3 id="report-progress-on-a-long-loop">Report progress on a long loop<a class="anchor" href="#report-progress-on-a-long-loop" aria-label="Link to this section">#</a></h3>
+
+<p>Your script owns the UI thread for its whole run, so a long loop freezes Navisworks.
+<code>output.progress(fraction, label)</code> paints a progress bar in the output window and
+gives the user something other than a white window to look at.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Checks every selected object for a missing property.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, selection, toast
+
+CATEGORY = <span class="tok-s">&#x27;Item&#x27;</span>
+PROPERTY = <span class="tok-s">&#x27;Type&#x27;</span>
+
+items = selection.get_items()
+total = len(items)
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> total:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>)
+<span class="tok-k">else</span>:
+    missing = []
+    <span class="tok-k">for</span> index, item <span class="tok-k">in</span> enumerate(items):
+        <span class="tok-k">if</span> index % <span class="tok-n">100</span> == <span class="tok-n">0</span>:
+            output.progress(float(index) / total,
+                            <span class="tok-s">&#x27;Checking %d of %d&#x27;</span> % (index, total))
+        <span class="tok-k">if</span> doc.get_property(item, CATEGORY, PROPERTY) <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            missing.append(item.DisplayName)
+    output.progress(<span class="tok-n">1.0</span>)
+
+    <span class="tok-k">if</span> <span class="tok-k">not</span> missing:
+        toast.success(<span class="tok-s">&#x27;All %d object(s) have %s&#x27;</span> % (total, PROPERTY))
+    <span class="tok-k">else</span>:
+        output.print_md(<span class="tok-s">&#x27;## %d object(s) missing %s&#x27;</span> % (len(missing), PROPERTY))
+        output.print_table([[name] <span class="tok-k">for</span> name <span class="tok-k">in</span> missing[:<span class="tok-n">500</span>]], [<span class="tok-s">&#x27;Object&#x27;</span>])</code></pre></div>
+
+<p>Update every hundredth iteration rather than every iteration: repainting is not free, and
+on a large selection the paints cost more than the work. <code>output.progress(1.0)</code>
+completes the bar, and you should always call it, including on the paths that end early.</p>
+
+<div class="note trap">
+<span class="note-t">No worker threads</span>
+<p>The Navisworks API is not thread-safe and your script already runs on the UI thread.
+Moving the loop onto a background thread to keep the window responsive corrupts the document
+or crashes the process. If a job is genuinely too long to hold the UI, cut the work, not the
+thread.</p>
+</div>
+
+<h2 id="working-in-the-3d-view">Working in the 3D view<a class="anchor" href="#working-in-the-3d-view" aria-label="Link to this section">#</a></h2>
+
+<h3 id="ask-the-user-to-click-a-point">Ask the user to click a point<a class="anchor" href="#ask-the-user-to-click-a-point" aria-label="Link to this section">#</a></h3>
+
+<p><code>pynavis.pick</code> borrows the document's tool for the length of one click and hands
+it straight back. It feels like the native Measure tool on purpose: the same vertex and edge
+snapping, the same cursors, a marker under the pointer, and the view still orbits and pans
+while the user lines the shot up.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Measures the straight-line distance between two picked points.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> math
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> pick, toast
+
+first = pick.point(<span class="tok-s">&#x27;Click the first point&#x27;</span>)
+<span class="tok-k">if</span> first <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                          <span class="tok-c"># None means cancelled: say nothing</span>
+    second = pick.point(<span class="tok-s">&#x27;Click the second point&#x27;</span>)
+    <span class="tok-k">if</span> second <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        distance = math.sqrt(sum((a - b) ** <span class="tok-n">2</span> <span class="tok-k">for</span> a, b <span class="tok-k">in</span> zip(first.point, second.point)))
+        toast.success(<span class="tok-s">&#x27;%.3f in model units&#x27;</span> % distance,
+                      <span class="tok-s">&#x27;Snapped to %s and %s.&#x27;</span> % (first.snap <span class="tok-k">or</span> <span class="tok-s">&#x27;a face&#x27;</span>,
+                                                 second.snap <span class="tok-k">or</span> <span class="tok-s">&#x27;a face&#x27;</span>))</code></pre></div>
+
+<p>A <code>Hit</code> always has <code>.point</code>, an <code>(x, y, z)</code> tuple of floats.
+<code>.normal</code>, <code>.item</code> and <code>.snap</code> may each be <code>None</code>,
+so guard them the way the toast above does. Cancelling with Esc, a right-click or by choosing
+another tool gives <code>None</code>, and that branch should say nothing at all.</p>
+
+<div class="note trap">
+<span class="note-t">pick.point raises when the plugin is not loaded</span>
+<p>Navisworks scans for plugins only at startup, so a loader updated in place has no pick tool
+in it until the next restart. <code>pick.point</code> and <code>pick.point_then</code> raise
+<code>pick.Unavailable</code> in that state, and the exception's own message is the remedy, so
+it is safe to toast as it stands. <code>pick.measure_point</code> asks the same question
+through the host's own Measure tool and needs no plugin, at the price of knowing only the
+point: no normal, no item, no snap kind.</p>
+</div>
+
+<pre><span class="tok-k">try</span>:
+    hit = pick.point(<span class="tok-s">&#x27;Click a point&#x27;</span>)
+<span class="tok-k">except</span> pick.Unavailable <span class="tok-k">as</span> reason:
+    toast.warning(<span class="tok-s">&#x27;Using the Measure tool instead&#x27;</span>, str(reason))
+    hit = pick.measure_point(<span class="tok-s">&#x27;Click a point&#x27;</span>)</pre>
+
+<p>From a dock panel or a modeless window, blocking the UI thread is not an option, so use
+<code>pick.point_then(callback)</code> instead. It starts the pick, returns at once, and calls
+<code>callback(hit_or_None)</code> when the pick ends. <code>pick.cancel()</code> ends a
+running pick from elsewhere; the callback still fires, with <code>None</code>.</p>
+
+<h3 id="draw-the-answer-into-the-view">Draw the answer into the view<a class="anchor" href="#draw-the-answer-into-the-view" aria-label="Link to this section">#</a></h3>
+
+<p>A measurement the user has to read off a toast is worse than one drawn where they are
+looking. <code>pynavis.overlay</code> holds world-coordinate line segments that the overlay
+plugin redraws every frame, so they follow orbit and zoom instead of sitting on the glass.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Picks two points and draws a labelled dimension between them.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> math
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> overlay, pick, toast
+
+TAG = <span class="tok-s">&#x27;quick-dimension&#x27;</span>
+
+first = pick.point(<span class="tok-s">&#x27;Click the first point&#x27;</span>)
+<span class="tok-k">if</span> first <span class="tok-k">is</span> <span class="tok-k">None</span>:
+    overlay.clear(TAG)                         <span class="tok-c"># cancelled: take the last one down</span>
+    overlay.redraw()
+<span class="tok-k">else</span>:
+    second = pick.point(<span class="tok-s">&#x27;Click the second point&#x27;</span>)
+    <span class="tok-k">if</span> second <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        distance = math.sqrt(sum((a - b) ** <span class="tok-n">2</span> <span class="tok-k">for</span> a, b <span class="tok-k">in</span> zip(first.point, second.point)))
+        label = <span class="tok-s">&#x27;%.3f&#x27;</span> % distance
+        drawn = overlay.dimension(TAG, first.point, second.point, label)
+        overlay.redraw()
+        <span class="tok-k">if</span> drawn:
+            toast.success(<span class="tok-s">&#x27;Dimension drawn&#x27;</span>, label)
+        <span class="tok-k">else</span>:
+            toast.success(<span class="tok-s">&#x27;Distance is %s&#x27;</span> % label,
+                          <span class="tok-s">&#x27;Restart Navisworks to finish updating pyNavis.&#x27;</span>)</code></pre></div>
+
+<p>The tag is the whole identity model: drawing again under the same tag replaces what was
+there, and <code>overlay.clear(tag)</code> takes it down. <code>overlay.clear()</code> with no
+argument removes everything. Nothing reaches the screen until <code>overlay.redraw()</code>, so
+end every batch with one call to it.</p>
+
+<div class="note">
+<span class="note-t">An anchor makes the drawing clean itself up</span>
+<p>Pass <code>anchor=(first_point, end_point)</code> to <code>overlay.add</code> or
+<code>overlay.dimension</code> and the item belongs to the native point-to-point measurement
+between those two points: it disappears on the first frame that measurement changes or is
+cleared. Paired with <code>pick.measure_points</code>, which asks the user for that measurement
+and leaves it on screen, it lets a tool annotate the user's own measuring and then get out of
+the way with nothing left to tidy up.</p>
+<p>Every overlay call returns <code>False</code> when the overlay plugin is not loaded, which
+is what an un-restarted loader looks like. Report your own result anyway, the way the recipe
+above does: the number is still right, only the drawing is missing.</p>
+</div>
+
+<h3 id="measure-real-faces-not-bounding-boxes">Measure real faces, not bounding boxes<a class="anchor" href="#measure-real-faces-not-bounding-boxes" aria-label="Link to this section">#</a></h3>
+
+<p><code>geometry.world_triangles(item)</code> is the one route in the library to an object's
+actual faces. It returns world-coordinate triangles as plain tuples, so everything you do with
+them afterwards is pure Python and testable.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Reports the total surface area of the selected objects.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> geometry, selection, toast
+
+
+<span class="tok-k">def</span> area(triangle):
+    (ax, ay, az), (bx, by, bz), (cx, cy, cz) = triangle
+    ux, uy, uz = bx - ax, by - ay, bz - az
+    vx, vy, vz = cx - ax, cy - ay, cz - az
+    nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+    <span class="tok-k">return</span> <span class="tok-n">0.5</span> * (nx * nx + ny * ny + nz * nz) ** <span class="tok-n">0.5</span>
+
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    notes = []
+    total = <span class="tok-n">0.0</span>
+    measured = <span class="tok-n">0</span>
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        triangles = geometry.world_triangles(item, note=notes.append)
+        <span class="tok-k">if</span> triangles:
+            total += sum(area(t) <span class="tok-k">for</span> t <span class="tok-k">in</span> triangles)
+            measured += <span class="tok-n">1</span>
+
+    <span class="tok-k">if</span> <span class="tok-k">not</span> measured:
+        toast.warning(<span class="tok-s">&#x27;Could not read any geometry&#x27;</span>, notes[<span class="tok-n">0</span>] <span class="tok-k">if</span> notes <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>)
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;%.2f square model units&#x27;</span> % total,
+                      <span class="tok-s">&#x27;%d of %d object(s) measured.&#x27;</span> % (measured, len(items)))</code></pre></div>
+
+<div class="note trap">
+<span class="note-t">An empty list means unknown, and the walk is IronPython only</span>
+<p><code>world_triangles</code> returns <code>[]</code> when the item declares more primitives
+than its <code>budget</code>, when the walk yields nothing, or when no matrix layout fitted.
+None of those means "no faces", so never report zero. Pass a callable as <code>note</code>, as
+above, and you get one string per reason.</p>
+<p>The walk subclasses a COM interface to receive vertices, which only the IronPython engine
+can do, so a bundle calling it must leave <code>engine:</code> at its default or set it to
+<code>ironpython</code>. <code>pynavis.section</code> carries the same constraint for the same
+reason.</p>
+</div>
+
+<h3 id="copy-view-state-now-paste-it-after-a-restart">Copy view state now, paste it after a restart<a class="anchor" href="#copy-view-state-now-paste-it-after-a-restart" aria-label="Link to this section">#</a></h3>
+
+<p><code>pynavis.viewstate</code> carries three kinds of view state between sessions of the
+same document: <code>'section'</code>, the active clip planes; <code>'hidden'</code>, which
+items are hidden; and <code>'overrides'</code>, the permanent colour and transparency
+overrides. Each is copied and pasted independently.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Copies whichever kind of view state the user picks.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, toast, viewstate
+
+label = forms.ask_options(
+    <span class="tok-k">None</span>,                                      <span class="tok-c"># chromeless quick switch</span>
+    [viewstate.label_for(kind) <span class="tok-k">for</span> kind <span class="tok-k">in</span> viewstate.KINDS],
+    title=<span class="tok-s">&#x27;Copy state&#x27;</span>)
+
+<span class="tok-k">if</span> label <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                          <span class="tok-c"># None means cancelled: say nothing</span>
+    result = viewstate.copy_state(viewstate.kind_for(label))
+    toast.show(result.level, result.message, result.detail)</code></pre></div>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Pastes a copied view state, offering only the kinds actually available.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, toast, viewstate
+
+kinds = viewstate.available_kinds()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> kinds:
+    toast.info(<span class="tok-s">&#x27;Nothing copied&#x27;</span>, <span class="tok-s">&#x27;Run Copy state first.&#x27;</span>)
+<span class="tok-k">elif</span> len(kinds) == <span class="tok-n">1</span>:
+    result = viewstate.paste_state(kinds[<span class="tok-n">0</span>])
+    toast.show(result.level, result.message, result.detail)
+<span class="tok-k">else</span>:
+    label = forms.ask_options(<span class="tok-k">None</span>, [viewstate.label_for(kind) <span class="tok-k">for</span> kind <span class="tok-k">in</span> kinds],
+                              title=<span class="tok-s">&#x27;Paste state&#x27;</span>)
+    <span class="tok-k">if</span> label <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        result = viewstate.paste_state(viewstate.kind_for(label))
+        toast.show(result.level, result.message, result.detail)</code></pre></div>
+
+<p>Section and hidden state live in one JSON file per document under
+<code>%APPDATA%\pyNavis\viewstate</code>, so they survive a Navisworks restart. Overrides are
+different: no API exposes applied overrides item by item, so a copy stores the host's own
+opaque snapshot inside the document as a reserved saved viewpoint named
+<code>.pyNavis Copied Overrides</code>. It shows up in the Saved Viewpoints tree, and it
+travels with the file only if the file is saved.</p>
+
+<div class="note warn">
+<span class="note-t">Pasting hidden items is an exact restore, not an addition</span>
+<p><code>viewstate.paste_state('hidden')</code> clears all hiding first and then hides the
+copied items, so anything hidden since the copy becomes visible again. That is the point, but
+it surprises people who expected it to add. Copying an empty state is valid and useful for
+exactly this reason: copy <code>'hidden'</code> with nothing hidden and a later paste unhides
+everything.</p>
+</div>
+
+<h2 id="asking-the-user">Asking the user<a class="anchor" href="#asking-the-user" aria-label="Link to this section">#</a></h2>
+
+<h3 id="confirm-a-destructive-action">Confirm a destructive action<a class="anchor" href="#confirm-a-destructive-action" aria-label="Link to this section">#</a></h3>
+
+<p>Anything that deletes, overwrites or edits the document in bulk gets a confirmation that
+says how much, in the user's units, before it happens.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Removes every empty saved-viewpoint folder, after confirming.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, toast, viewpoints
+
+rows = viewpoints.snapshot()
+parents = set(row[<span class="tok-s">&#x27;parent_key&#x27;</span>] <span class="tok-k">for</span> row <span class="tok-k">in</span> rows)
+empty = [row <span class="tok-k">for</span> row <span class="tok-k">in</span> rows <span class="tok-k">if</span> row[<span class="tok-s">&#x27;is_folder&#x27;</span>] <span class="tok-k">and</span> row[<span class="tok-s">&#x27;key&#x27;</span>] <span class="tok-k">not</span> <span class="tok-k">in</span> parents]
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> empty:
+    toast.info(<span class="tok-s">&#x27;No empty viewpoint folders&#x27;</span>)
+<span class="tok-k">else</span>:
+    question = (<span class="tok-s">&#x27;Delete %d empty viewpoint folder(s)?\n\n&#x27;</span>
+                <span class="tok-s">&#x27;This changes the document.&#x27;</span> % len(empty))
+    <span class="tok-k">if</span> forms.confirm(question, <span class="tok-s">&#x27;Tidy viewpoints&#x27;</span>):
+        removed, errors = viewpoints.apply_deletes(
+            [row[<span class="tok-s">&#x27;guid&#x27;</span>] <span class="tok-k">for</span> row <span class="tok-k">in</span> empty])
+        <span class="tok-k">if</span> errors:
+            toast.warning(<span class="tok-s">&#x27;Deleted %d folder(s), %d failed.&#x27;</span>
+                          % (removed, len(errors)), errors[<span class="tok-n">0</span>])
+        <span class="tok-k">else</span>:
+            toast.success(<span class="tok-s">&#x27;Deleted %d empty folder(s)&#x27;</span> % removed)</code></pre></div>
+
+<p><code>forms.confirm</code> returns <code>True</code> on Yes and <code>False</code> on
+everything else. There is no third state, so <code>if forms.confirm(...):</code> with no
+<code>else</code> is the complete handling.</p>
+
+<h3 id="ask-for-a-value-with-a-default-and-validate-it">Ask for a value with a default and validate it<a class="anchor" href="#ask-for-a-value-with-a-default-and-validate-it" aria-label="Link to this section">#</a></h3>
+
+<p><code>forms.ask_string</code> is a single-line prompt with no validation of its own. Loop
+until the answer is usable, and let cancel out of the loop untouched.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Selects every object longer than a distance you type.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, forms, selection, toast
+
+limit = <span class="tok-k">None</span>
+<span class="tok-k">while</span> limit <span class="tok-k">is</span> <span class="tok-k">None</span>:
+    answer = forms.ask_string(<span class="tok-s">&#x27;Minimum length in metres:&#x27;</span>,
+                              default=<span class="tok-s">&#x27;6&#x27;</span>, title=<span class="tok-s">&#x27;Select long objects&#x27;</span>)
+    <span class="tok-k">if</span> answer <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">break</span>                                  <span class="tok-c"># cancelled: change nothing, say nothing</span>
+    <span class="tok-k">try</span>:
+        limit = float(answer)
+        <span class="tok-k">if</span> limit &amp;lt;= <span class="tok-n">0</span>:
+            <span class="tok-k">raise</span> ValueError()
+    <span class="tok-k">except</span> ValueError:
+        limit = <span class="tok-k">None</span>
+        forms.alert(<span class="tok-s">&#x27;Enter a positive number.&#x27;</span>, <span class="tok-s">&#x27;Select long objects&#x27;</span>)
+
+<span class="tok-k">if</span> limit <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+    kept = []
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> selection.get_items():
+        value = doc.get_property(item, <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>)
+        <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            <span class="tok-k">continue</span>
+        <span class="tok-k">try</span>:
+            <span class="tok-k">if</span> float(value.ToDisplayString()) &amp;gt;= limit:
+                kept.append(item)
+        <span class="tok-k">except</span> ValueError:
+            <span class="tok-k">pass</span>
+
+    <span class="tok-k">if</span> kept:
+        selection.set_items(kept)
+        toast.success(<span class="tok-s">&#x27;%d object(s) at or over %g m&#x27;</span> % (len(kept), limit))
+    <span class="tok-k">else</span>:
+        toast.warning(<span class="tok-s">&#x27;Nothing matched&#x27;</span>, <span class="tok-s">&#x27;The selection is unchanged.&#x27;</span>)</code></pre></div>
+
+<p>The <code>break</code> leaves <code>limit</code> as <code>None</code>, and the
+<code>if limit is not None:</code> below it does the rest. That is the whole cancel path, and
+it produces no user-visible output at all.</p>
+
+<h3 id="a-settings-dialog-in-config-py-read-back-by-script-py">A settings dialog in config.py, read back by script.py<a class="anchor" href="#a-settings-dialog-in-config-py-read-back-by-script-py" aria-label="Link to this section">#</a></h3>
+
+<p>A bundle can ship a <code>config.py</code> beside <code>script.py</code>. Shift-clicking
+the button runs it instead, on the same engine and with the same globals. Settings live in
+<code>%APPDATA%\pyNavis\settings\&lt;tool&gt;.json</code>, one file per tool key.</p>
+
+<p>Put the tool key and the defaults in a module beside both scripts, because the bundle
+folder is on the import path for its own scripts:</p>
+
+<div class="code"><div class="code-head"><span>prefs.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Shared settings contract for Property export.&quot;&quot;&quot;</span>
+
+TOOL = <span class="tok-s">&#x27;property_export&#x27;</span>
+DEFAULTS = {<span class="tok-s">&#x27;category&#x27;</span>: <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;property&#x27;</span>: <span class="tok-s">&#x27;Type&#x27;</span>}</code></pre></div>
+
+<div class="code"><div class="code-head"><span>config.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Options for Property export.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, settings, toast
+
+<span class="tok-k">import</span> prefs
+
+values = settings.load(prefs.TOOL, prefs.DEFAULTS)
+
+category = forms.ask_string(<span class="tok-s">&#x27;Property category:&#x27;</span>, values[<span class="tok-s">&#x27;category&#x27;</span>],
+                            <span class="tok-s">&#x27;Property export&#x27;</span>)
+<span class="tok-k">if</span> category <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+    name = forms.ask_string(<span class="tok-s">&#x27;Property name:&#x27;</span>, values[<span class="tok-s">&#x27;property&#x27;</span>],
+                            <span class="tok-s">&#x27;Property export&#x27;</span>)
+    <span class="tok-k">if</span> name <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        <span class="tok-k">if</span> <span class="tok-k">not</span> category.strip() <span class="tok-k">or</span> <span class="tok-k">not</span> name.strip():
+            toast.error(<span class="tok-s">&#x27;Both fields are required&#x27;</span>, <span class="tok-s">&#x27;Nothing was saved.&#x27;</span>)
+        <span class="tok-k">else</span>:
+            settings.save(prefs.TOOL, {<span class="tok-s">&#x27;category&#x27;</span>: category.strip(),
+                                       <span class="tok-s">&#x27;property&#x27;</span>: name.strip()})
+            toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>, <span class="tok-s">&#x27;%s / %s&#x27;</span> % (category.strip(), name.strip()))</code></pre></div>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports the selection with the property chosen in Shift+Click.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, selection, settings, toast
+
+<span class="tok-k">import</span> prefs
+
+values = settings.load(prefs.TOOL, prefs.DEFAULTS)
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>,
+               <span class="tok-s">&#x27;Shift+Click this button to choose the property.&#x27;</span>)
+<span class="tok-k">else</span>:
+    rows = []
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        value = doc.get_property(item, values[<span class="tok-s">&#x27;category&#x27;</span>], values[<span class="tok-s">&#x27;property&#x27;</span>])
+        rows.append([item.DisplayName,
+                     value.ToDisplayString() <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>])
+    output.print_table(rows, [<span class="tok-s">&#x27;Object&#x27;</span>, values[<span class="tok-s">&#x27;property&#x27;</span>]])</code></pre></div>
+
+<p><code>settings.load</code> never raises. A missing file, an empty file, a corrupt file or
+a file holding something that is not an object all yield a fresh copy of your defaults, and
+keys you have since dropped from <code>DEFAULTS</code> are discarded rather than leaking back
+in. That means you can change your defaults between releases without writing a migration.</p>
+
+<div class="note tip">
+<span class="note-t">Richer dialogs</span>
+<p>Two chained prompts is the cheap version. When a tool has more than a couple of options,
+build a real WPF window with the runtime's design-system helpers, the way the shipped Section
+Fit tool does. <a href="user-interface.html">Talking to the user</a> covers that surface, and
+<a href="click-actions.html">Click actions and config.py</a> covers the Shift+Click contract
+in full.</p>
+</div>
+
+<h2 id="bulk-edits">Bulk edits<a class="anchor" href="#bulk-edits" aria-label="Link to this section">#</a></h2>
+
+<h3 id="rename-saved-viewpoints-in-one-undo-step">Rename saved viewpoints in one undo step<a class="anchor" href="#rename-saved-viewpoints-in-one-undo-step" aria-label="Link to this section">#</a></h3>
+
+<p>Thousands of individual edits produce thousands of undo entries, and a user who wants to
+back out has to press Ctrl+Z until their hand hurts.
+<code>viewpoints.transaction(name)</code> wraps the whole batch into one.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Strips a leading &#x27;VP &#x27; from every saved viewpoint name.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, toast, viewpoints
+
+document = doc.get_doc()
+saved = document.SavedViewpoints
+rows = viewpoints.snapshot(document)
+
+targets = [row <span class="tok-k">for</span> row <span class="tok-k">in</span> rows
+           <span class="tok-k">if</span> <span class="tok-k">not</span> row[<span class="tok-s">&#x27;is_folder&#x27;</span>] <span class="tok-k">and</span> row[<span class="tok-s">&#x27;name&#x27;</span>].startswith(<span class="tok-s">&#x27;VP &#x27;</span>)]
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> targets:
+    toast.info(<span class="tok-s">&#x27;No viewpoint names start with &quot;VP &quot;.&#x27;</span>)
+<span class="tok-k">else</span>:
+    renamed = <span class="tok-n">0</span>
+    <span class="tok-k">with</span> viewpoints.transaction(<span class="tok-s">&#x27;Strip VP prefix&#x27;</span>, document):
+        <span class="tok-k">for</span> row <span class="tok-k">in</span> targets:
+            item = viewpoints.resolve(saved, row[<span class="tok-s">&#x27;guid&#x27;</span>])
+            <span class="tok-k">if</span> item <span class="tok-k">is</span> <span class="tok-k">None</span>:
+                <span class="tok-k">continue</span>                       <span class="tok-c"># gone since the snapshot: skip it</span>
+            saved.EditDisplayName(item, row[<span class="tok-s">&#x27;name&#x27;</span>][<span class="tok-n">3</span>:])
+            renamed += <span class="tok-n">1</span>
+
+    toast.success(<span class="tok-s">&#x27;Renamed %d viewpoint(s)&#x27;</span> % renamed, <span class="tok-s">&#x27;One undo step.&#x27;</span>)</code></pre></div>
+
+<p>The context manager commits on a clean exit and disposes without committing if the body
+raises, so a failure halfway through leaves the document as it was. A document already inside
+a transaction is left alone, and a document that cannot start one still runs the body,
+unbatched, rather than failing.</p>
+
+<h3 id="the-plan-and-apply-split">The plan and apply split<a class="anchor" href="#the-plan-and-apply-split" aria-label="Link to this section">#</a></h3>
+
+<p>The library ships a better version of the same job. <code>viewpoints.plan_renames</code>
+is pure: it takes snapshot rows, the keys the user checked, and an operation, and returns a
+plan. It touches nothing. <code>viewpoints.apply_renames</code> writes the plan, inside its
+own transaction, resolving every entry by GUID.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Prefixes every saved viewpoint with a code you type.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, output, toast, viewpoints
+
+rows = viewpoints.snapshot()
+<span class="tok-k">if</span> <span class="tok-k">not</span> rows:
+    toast.info(<span class="tok-s">&#x27;This document has no saved viewpoints.&#x27;</span>)
+<span class="tok-k">else</span>:
+    code = forms.ask_string(<span class="tok-s">&#x27;Prefix to add:&#x27;</span>, default=<span class="tok-s">&#x27;A-&#x27;</span>, title=<span class="tok-s">&#x27;Prefix viewpoints&#x27;</span>)
+    <span class="tok-k">if</span> code:
+        keys = [row[<span class="tok-s">&#x27;key&#x27;</span>] <span class="tok-k">for</span> row <span class="tok-k">in</span> rows <span class="tok-k">if</span> <span class="tok-k">not</span> row[<span class="tok-s">&#x27;is_folder&#x27;</span>]]
+        plan = viewpoints.plan_renames(rows, keys,
+                                       {<span class="tok-s">&#x27;type&#x27;</span>: <span class="tok-s">&#x27;affix&#x27;</span>, <span class="tok-s">&#x27;prefix&#x27;</span>: code})
+
+        <span class="tok-k">if</span> plan[<span class="tok-s">&#x27;problems&#x27;</span>]:
+            toast.error(<span class="tok-s">&#x27;Cannot rename&#x27;</span>, plan[<span class="tok-s">&#x27;problems&#x27;</span>][<span class="tok-n">0</span>])
+        <span class="tok-k">elif</span> plan[<span class="tok-s">&#x27;collisions&#x27;</span>]:
+            toast.error(<span class="tok-s">&#x27;%d name collision(s)&#x27;</span> % len(plan[<span class="tok-s">&#x27;collisions&#x27;</span>]),
+                        plan[<span class="tok-s">&#x27;collisions&#x27;</span>][<span class="tok-n">0</span>])
+        <span class="tok-k">elif</span> <span class="tok-k">not</span> plan[<span class="tok-s">&#x27;renames&#x27;</span>]:
+            toast.info(<span class="tok-s">&#x27;Nothing to rename&#x27;</span>, <span class="tok-s">&#x27;Every name already has that prefix.&#x27;</span>)
+        <span class="tok-k">else</span>:
+            <span class="tok-k">def</span> tick(done, count):
+                output.progress(float(done) / count,
+                                <span class="tok-s">&#x27;Renaming %d of %d&#x27;</span> % (done, count))
+
+            applied, errors = viewpoints.apply_renames(plan[<span class="tok-s">&#x27;renames&#x27;</span>],
+                                                       progress=tick)
+            output.progress(<span class="tok-n">1.0</span>)
+            <span class="tok-k">if</span> errors:
+                toast.warning(<span class="tok-s">&#x27;Renamed %d, %d failed.&#x27;</span> % (applied, len(errors)),
+                              errors[<span class="tok-n">0</span>])
+            <span class="tok-k">else</span>:
+                toast.success(<span class="tok-s">&#x27;Renamed %d viewpoint(s)&#x27;</span> % applied)</code></pre></div>
+
+<p>The plan reports collisions instead of fixing them: two siblings that would end up with
+the same name, or a name that would end up empty. Nothing is ever auto-corrected, so your UI
+can block Apply and show the user exactly what is wrong. The operation dictionary supports
+<code>'replace'</code> (with an optional <code>regex</code> flag),
+<code>'affix'</code>, <code>'number'</code> and <code>'case'</code>.</p>
+
+<div class="note warn">
+<span class="note-t">Edits resolve by GUID, never by index path</span>
+<p>A snapshot row carries both a <code>guid</code> and a <code>key</code> like
+<code>'0/2/1'</code>. The key describes tree shape and goes stale the moment anything moves,
+which in practice means the moment your first edit lands. Every apply function in
+<code>viewpoints</code> re-resolves by GUID for exactly that reason, and so should any loop
+you write yourself.</p>
+</div>
+
+<h3 id="delete-only-the-checked-subset">Delete only the checked subset<a class="anchor" href="#delete-only-the-checked-subset" aria-label="Link to this section">#</a></h3>
+
+<p><code>viewpoints.plan_deletes</code> works out the minimal set of items to remove. A
+checked folder stands in for its contents only when every descendant is checked too;
+otherwise the folder survives and only the checked descendants go. The returned
+<code>count</code> is how many rows will actually disappear, folder contents included, which
+is the number to put in the confirmation.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Deletes every saved viewpoint whose name contains TEMP.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, output, toast, viewpoints
+
+rows = viewpoints.snapshot()
+checked = [row[<span class="tok-s">&#x27;key&#x27;</span>] <span class="tok-k">for</span> row <span class="tok-k">in</span> rows <span class="tok-k">if</span> <span class="tok-s">&#x27;TEMP&#x27;</span> <span class="tok-k">in</span> row[<span class="tok-s">&#x27;name&#x27;</span>].upper()]
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> checked:
+    toast.info(<span class="tok-s">&#x27;Nothing matched&#x27;</span>, <span class="tok-s">&#x27;No saved item has TEMP in its name.&#x27;</span>)
+<span class="tok-k">else</span>:
+    plan = viewpoints.plan_deletes(rows, checked)
+    question = (<span class="tok-s">&#x27;Delete %d saved item(s)?\n\n&#x27;</span>
+                <span class="tok-s">&#x27;This removes them from the document.&#x27;</span> % plan[<span class="tok-s">&#x27;count&#x27;</span>])
+    <span class="tok-k">if</span> forms.confirm(question, <span class="tok-s">&#x27;Delete viewpoints&#x27;</span>):
+        <span class="tok-k">def</span> tick(done, count):
+            output.progress(float(done) / count,
+                            <span class="tok-s">&#x27;Deleting %d of %d&#x27;</span> % (done, count))
+
+        removed, errors = viewpoints.apply_deletes(
+            plan[<span class="tok-s">&#x27;guids&#x27;</span>], progress=tick <span class="tok-k">if</span> plan[<span class="tok-s">&#x27;count&#x27;</span>] &amp;gt; <span class="tok-n">500</span> <span class="tok-k">else</span> <span class="tok-k">None</span>)
+        output.progress(<span class="tok-n">1.0</span>)
+        <span class="tok-k">if</span> errors:
+            toast.warning(<span class="tok-s">&#x27;Deleted %d item(s), %d failed.&#x27;</span>
+                          % (removed, len(errors)), errors[<span class="tok-n">0</span>])
+        <span class="tok-k">else</span>:
+            toast.success(<span class="tok-s">&#x27;Deleted %d item(s)&#x27;</span> % removed)</code></pre></div>
+
+<p><code>plan['count']</code> and <code>len(plan['guids'])</code> are different numbers on
+purpose: the first is what vanishes from the user's tree, the second is how many delete calls
+you make. Confirm with the first and iterate the second.</p>
+
+<h3 id="summarise-every-clash-test">Summarise every clash test<a class="anchor" href="#summarise-every-clash-test" aria-label="Link to this section">#</a></h3>
+
+<p><code>clash.summarize()</code> returns one dictionary per test with <code>'name'</code>,
+<code>'total'</code> and <code>'by_status'</code>, a mapping of status name to count. It
+reads only, so it is safe to run on anything.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Summarises every Clash Detective test by result status.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, output, toast
+
+<span class="tok-k">try</span>:
+    <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> clash
+<span class="tok-k">except</span> ImportError:
+    clash = <span class="tok-k">None</span>
+
+STATUSES = [<span class="tok-s">&#x27;New&#x27;</span>, <span class="tok-s">&#x27;Active&#x27;</span>, <span class="tok-s">&#x27;Reviewed&#x27;</span>, <span class="tok-s">&#x27;Approved&#x27;</span>, <span class="tok-s">&#x27;Resolved&#x27;</span>]
+
+<span class="tok-k">if</span> clash <span class="tok-k">is</span> <span class="tok-k">None</span>:
+    forms.alert(<span class="tok-s">&#x27;Clash Detective is not available in this Navisworks edition.&#x27;</span>)
+<span class="tok-k">else</span>:
+    summaries = clash.summarize()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> summaries:
+        toast.info(<span class="tok-s">&#x27;This document has no clash tests.&#x27;</span>)
+    <span class="tok-k">else</span>:
+        headers = [<span class="tok-s">&#x27;Test&#x27;</span>, <span class="tok-s">&#x27;Total&#x27;</span>] + STATUSES
+        rows = [[s[<span class="tok-s">&#x27;name&#x27;</span>], s[<span class="tok-s">&#x27;total&#x27;</span>]]
+                + [s[<span class="tok-s">&#x27;by_status&#x27;</span>].get(status, <span class="tok-n">0</span>) <span class="tok-k">for</span> status <span class="tok-k">in</span> STATUSES]
+                <span class="tok-k">for</span> s <span class="tok-k">in</span> summaries]
+        output.print_md(<span class="tok-s">&#x27;## Clash summary&#x27;</span>)
+        output.print_table(rows, headers)
+        output.print_md(<span class="tok-s">&#x27;%d test(s), %d result(s) in total.&#x27;</span>
+                        % (len(summaries), sum(s[<span class="tok-s">&#x27;total&#x27;</span>] <span class="tok-k">for</span> s <span class="tok-k">in</span> summaries)))</code></pre></div>
+
+<p>The guarded import is worth keeping. <code>pynavis.clash</code> loads the Clash Detective
+assembly at import time, which is not present in every Navisworks edition, and a bare
+<code>ImportError</code> traceback is a worse message than the alert above.</p>
+
+<div class="note trap">
+<span class="note-t">Reading a clash test after writing to it</span>
+<p><code>clash.apply_plan</code> commits a rebuilt copy of the test, which leaves the wrapper
+object you passed in disposed along with every result you got from it. Read anything the
+report needs, starting with <code>test.DisplayName</code>, <em>before</em> you call it.
+<code>ModelItem</code> references survive, because they live in the model rather than in the
+test.</p>
+</div>
+
+<h3 id="group-a-clash-test-without-freezing-navisworks">Group a clash test, without freezing Navisworks<a class="anchor" href="#group-a-clash-test-without-freezing-navisworks" aria-label="Link to this section">#</a></h3>
+
+<p>Grouping is the plan-and-apply split again, and here it is not a style preference: it is the
+difference between twelve seconds and days. <code>clash.snapshot_results</code> reads the test
+into plain dictionaries, <code>clashgroup</code> turns those into a plan with no Navisworks
+import anywhere in it, and <code>clash.apply_plan</code> commits the whole plan as one
+document edit.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Groups the chosen clash test by root cause, in one edit.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> clash, clashgroup, forms, output, toast
+
+tests = list(clash.walk_tests())
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> tests:
+    toast.info(<span class="tok-s">&#x27;This document has no clash tests.&#x27;</span>)
+<span class="tok-k">else</span>:
+    test = forms.select_from_list([(t.DisplayName, t) <span class="tok-k">for</span> t <span class="tok-k">in</span> tests],
+                                  title=<span class="tok-s">&#x27;Group a clash test&#x27;</span>)
+    <span class="tok-k">if</span> test <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                       <span class="tok-c"># None means cancelled: say nothing</span>
+        total, grouped = clash.count_results(test)
+        <span class="tok-k">if</span> <span class="tok-k">not</span> total:
+            toast.info(<span class="tok-s">&#x27;That test has no results&#x27;</span>, <span class="tok-s">&#x27;Run it first.&#x27;</span>)
+        <span class="tok-k">else</span>:
+            name = test.DisplayName            <span class="tok-c"># read it BEFORE apply_plan</span>
+            rows = clash.snapshot_results(
+                test, progress=<span class="tok-k">lambda</span> done: output.progress(
+                    float(done) / total, <span class="tok-s">&#x27;Read %d of %d&#x27;</span> % (done, total)))
+
+            plan = clashgroup.smart_plan(rows, tolerance=<span class="tok-n">6.0</span> / clash.units_to_meters())
+            clash.apply_plan(test, plan,
+                             progress=<span class="tok-k">lambda</span> f: output.progress(f, <span class="tok-s">&#x27;Grouping&#x27;</span>))
+            output.progress(<span class="tok-n">1.0</span>)
+            toast.success(<span class="tok-s">&#x27;%d group(s) in %s&#x27;</span> % (len(plan[<span class="tok-s">&#x27;groups&#x27;</span>]), name),
+                          plan[<span class="tok-s">&#x27;explanation&#x27;</span>])</code></pre></div>
+
+<p><code>clashgroup.smart_plan</code> is the zero-configuration route: it picks whichever side,
+A or B, collapses the most clashes into the fewest elements, groups by that side's root-cause
+element, then proximity-clusters whatever came out as a single-clash element. Its
+<code>explanation</code> is the one line that tells a user why the grouping came out the way it
+did, so show it. <code>clashgroup.plan(rows, rule_ids)</code> is the explicit form, where each
+rule in turn subdivides the groups the previous rule made, and
+<code>clashgroup.RULES</code> is the catalogue of <code>(id, label)</code> pairs to build a
+dropdown from rather than hard-coding ids.</p>
+
+<div class="note trap">
+<span class="note-t">Tolerance is in model units, and the test wrapper dies on apply</span>
+<p><code>tolerance</code> is measured in whatever unit the snapshot's <code>center</code>
+coordinates are in, which is model units, not metres. Divide the metres the user typed by
+<code>clash.units_to_meters()</code>, as the recipe does, or a six-metre cluster becomes six
+millimetres on a millimetre model.</p>
+<p><code>clash.apply_plan</code> commits through a whole-test replace, which retires the
+<code>test</code> object you passed in. Read <code>DisplayName</code>, and anything else the
+report needs, before the call. <code>clash.ungroup(test)</code> is the other direction, and
+dissolves only groups pyNavis created unless you pass <code>ours_only=False</code>.</p>
+</div>
+
+<p>Cancelling a long read is a shape of its own here.
+<code>clash.snapshot_results</code> stops when the progress callback returns
+<strong>exactly</strong> <code>False</code>, and raises <code>clash.Cancelled</code>; returning
+<code>None</code>, which a callback written for side effects does implicitly, means carry on.
+That is deliberate, because the same tick function then works unchanged on
+<code>apply_plan</code>, which ignores return values entirely.</p>
+
+<h3 id="build-a-query-save-it-as-a-set-and-round-trip-it-through-excel">Build a query, save it as a set, and round-trip it through Excel<a class="anchor" href="#build-a-query-save-it-as-a-set-and-round-trip-it-through-excel" aria-label="Link to this section">#</a></h3>
+
+<p><code>pynavis.sets</code> is three things joined end to end: a fluent query builder that
+needs no live document, a way to run that query and save it as a native search set, and a
+plain dict shape the same query can travel through, out to a spreadsheet and back in again.
+The recipe below does all three in order.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Finds long ducts, saves the search as a set, and exports it to Excel.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, sets, toast, xl
+
+q = (sets.query()
+     .prop(<span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;Type&#x27;</span>).contains(<span class="tok-s">&#x27;Duct&#x27;</span>)
+     .and_prop(<span class="tok-s">&#x27;Element&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>).gt(<span class="tok-n">6.0</span>)
+     .build())
+
+items = sets.run(q)
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing matched&#x27;</span>, <span class="tok-s">&#x27;No duct is over 6 m.&#x27;</span>)
+<span class="tok-k">else</span>:
+    saved = sets.create(<span class="tok-s">&#x27;Long ducts&#x27;</span>, q, folder=<span class="tok-s">&#x27;Coordination/MEP&#x27;</span>)
+    toast.success(<span class="tok-s">&#x27;Saved &quot;%s&quot;&#x27;</span> % saved.DisplayName, <span class="tok-s">&#x27;%d item(s)&#x27;</span> % len(items))
+
+    path = forms.save_file(
+        filter=<span class="tok-s">&#x27;Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*&#x27;</span>,
+        default_name=<span class="tok-s">&#x27;long_ducts.xlsx&#x27;</span>, title=<span class="tok-s">&#x27;Export the set&#x27;</span>)
+    <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                        <span class="tok-c"># None means cancelled: say nothing</span>
+        conditions = sets.to_dict(saved)[<span class="tok-s">&#x27;or&#x27;</span>][<span class="tok-n">0</span>][<span class="tok-s">&#x27;and&#x27;</span>]
+        rows = [[c.get(<span class="tok-s">&#x27;category&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>), c.get(<span class="tok-s">&#x27;prop&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>), c[<span class="tok-s">&#x27;op&#x27;</span>], c.get(<span class="tok-s">&#x27;value&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>)]
+                <span class="tok-k">for</span> c <span class="tok-k">in</span> conditions]
+        xl.write(path, rows, headers=[<span class="tok-s">&#x27;Category&#x27;</span>, <span class="tok-s">&#x27;Property&#x27;</span>, <span class="tok-s">&#x27;Op&#x27;</span>, <span class="tok-s">&#x27;Value&#x27;</span>])</code></pre></div>
+
+<p><code>sets.query()</code> returns a fresh builder. Each <code>.prop(category, name)</code>
+starts a condition, and the operator that follows, <code>.contains</code>,
+<code>.equals</code>, <code>.gt</code> and the rest, completes it into the current AND group.
+<code>.build()</code> validates every condition and raises <code>ValueError</code>, listing
+every problem, before you ever touch the document.</p>
+
+<p><code>sets.run(q)</code> compiles the query and returns the matches as a plain
+<code>ModelItemCollection</code>, which is what you want for a quick check.
+<code>sets.create(name, q, folder=...)</code> is the save step: it compiles the same query
+into a native search set and files it under the given folder, creating any missing folder
+segments along the way, so the set keeps updating itself as the model changes, the way every
+set in the Sets window does.</p>
+
+<div class="note trap">
+<span class="note-t">A set holds one AND group, never several ORed ones</span>
+<p>A native search set can only ever hold one condition list. Calling <code>.or_group()</code>
+on the builder to add a second, ORed group works fine for <code>sets.run</code>, which unions
+the groups' results in Python, but <code>sets.create</code> and <code>sets.update</code> raise
+<code>ValueError</code> the moment a query has more than one group. Save one set per group
+instead of trying to save the whole OR as a single set.</p>
+</div>
+
+<p>The export step is deliberately plain: <code>sets.to_dict(saved)</code> turns the saved
+set's compiled conditions back into the same <code>{'or': [{'and': [...]}]}</code> shape the
+builder produces, and the script flattens that one AND group into spreadsheet rows by hand.
+The shipped <strong>Sets from Excel</strong> tool, on the Tools panel, does the same thing for
+every set in the document at once, plus the matching import: it flattens
+<code>sets.export_all()</code> to one row per condition and rebuilds
+<code>sets.import_dict()</code>'s shape from rows sharing a folder and set name, so it is the
+reference to copy from for a fuller round trip than the recipe above needs.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Re-imports the sets a previous run exported, replacing any of the same name.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, sets, toast, xl
+
+path = forms.open_file(
+    filter=<span class="tok-s">&#x27;Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*&#x27;</span>,
+    title=<span class="tok-s">&#x27;Import sets from Excel&#x27;</span>)
+<span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                            <span class="tok-c"># None means cancelled: say nothing</span>
+    spec = {<span class="tok-s">&#x27;sets&#x27;</span>: [{
+        <span class="tok-s">&#x27;name&#x27;</span>: <span class="tok-s">&#x27;Long ducts&#x27;</span>, <span class="tok-s">&#x27;folder&#x27;</span>: <span class="tok-s">&#x27;Coordination/MEP&#x27;</span>,
+        <span class="tok-s">&#x27;query&#x27;</span>: {<span class="tok-s">&#x27;or&#x27;</span>: [{<span class="tok-s">&#x27;and&#x27;</span>: [
+            {<span class="tok-s">&#x27;category&#x27;</span>: c[<span class="tok-n">0</span>], <span class="tok-s">&#x27;prop&#x27;</span>: c[<span class="tok-n">1</span>], <span class="tok-s">&#x27;op&#x27;</span>: c[<span class="tok-n">2</span>], <span class="tok-s">&#x27;value&#x27;</span>: c[<span class="tok-n">3</span>]}
+            <span class="tok-k">for</span> c <span class="tok-k">in</span> xl.read(path)[<span class="tok-n">1</span>:] <span class="tok-k">if</span> c[<span class="tok-n">2</span>]
+        ]}]},
+    }]}
+    created, errors = sets.import_dict(spec, replace=<span class="tok-k">True</span>)
+    <span class="tok-k">if</span> errors:
+        toast.warning(<span class="tok-s">&#x27;Imported %d, %d failed&#x27;</span> % (created, len(errors)), errors[<span class="tok-n">0</span>])
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Imported %d set(s)&#x27;</span> % created)</code></pre></div>
+
+<div class="note warn">
+<span class="note-t">Excel has no int type, and ignore_case does not travel</span>
+<p>Every numeric cell <code>xl.read</code> hands back is a <code>float</code>, so a condition
+value that started as the integer <code>3</code> comes back as <code>3.0</code>. The shipped
+Sets from Excel tool normalises an integral float back to <code>int</code> on the way in for
+exactly this reason; a hand-rolled import like the sketch above should do the same before
+handing a value to <code>import_dict</code>. Separately, <code>sets.to_dict</code> and
+<code>sets.export_all</code> cannot recover whether a condition was built with
+<code>.ignore_case()</code>: reading a compiled search condition back out of the document
+carries no trace of it, so a case-insensitive condition always round-trips as a plain,
+case-sensitive one.</p>
+</div>
+
+<h2 id="structuring-a-bigger-tool">Structuring a bigger tool<a class="anchor" href="#structuring-a-bigger-tool" aria-label="Link to this section">#</a></h2>
+
+<h3 id="split-pure-logic-from-api-calls">Split pure logic from API calls<a class="anchor" href="#split-pure-logic-from-api-calls" aria-label="Link to this section">#</a></h3>
+
+<p>This is the single most important architectural decision in a pyNavis tool, and the
+library is built this way throughout. <code>clashgroup</code> has no Navisworks import at
+all. <code>viewpoints.plan_renames</code>, <code>plan_deletes</code> and
+<code>sort_ops</code> are pure. The geometry half of <code>section</code>,
+<code>convex_hull</code> through <code>fit</code>, is pure. In every case the API-bound half
+is a thin shell that reads the document into plain data, calls the pure half, and writes the
+answer back.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 236" width="700" role="img"
+     aria-label="Document to snapshot rows to a pure plan function and back to the document.">
+  <style>
+    .ck2-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ck2-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ck2-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .ck2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ck2-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .ck2-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .ck2-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="ck2-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <rect x="176" y="18" width="348" height="132" rx="6"
+        fill="none" stroke="var(--accent)" stroke-dasharray="4 4"/>
+  <text class="ck2-lbl" x="190" y="36">Pure: no Navisworks import</text>
+
+  <rect class="ck2-box" x="0" y="60" width="140" height="52" rx="4"/>
+  <text class="ck2-t"    x="14" y="82">Document</text>
+  <text class="ck2-m"    x="14" y="99">the live model</text>
+
+  <path class="ck2-arw" d="M142 86 H 196" marker-end="url(#ck2-a)"/>
+  <text class="ck2-mono" x="146" y="78">snapshot()</text>
+
+  <rect class="ck2-hot" x="200" y="60" width="130" height="52" rx="4"/>
+  <text class="ck2-t"    x="214" y="82">Plain rows</text>
+  <text class="ck2-m"    x="214" y="99">dicts and tuples</text>
+
+  <path class="ck2-arw" d="M332 86 H 386" marker-end="url(#ck2-a)"/>
+  <text class="ck2-mono" x="336" y="78">plan()</text>
+
+  <rect class="ck2-hot" x="390" y="60" width="130" height="52" rx="4"/>
+  <text class="ck2-t"    x="404" y="82">Plan</text>
+  <text class="ck2-m"    x="404" y="99">a dict of edits</text>
+
+  <path class="ck2-arw" d="M522 86 H 558" marker-end="url(#ck2-a)"/>
+  <text class="ck2-mono" x="524" y="78">apply()</text>
+
+  <rect class="ck2-box" x="562" y="60" width="138" height="52" rx="4"/>
+  <text class="ck2-t"    x="576" y="82">Document</text>
+  <text class="ck2-m"    x="576" y="99">one transaction</text>
+
+  <path class="ck2-arw" d="M350 152 V 178" marker-end="url(#ck2-a)"/>
+  <rect class="ck2-box" x="210" y="182" width="280" height="34" rx="4"/>
+  <text class="ck2-t" x="224" y="203" >Unit tests, no Navisworks running</text>
+
+  <text class="ck2-m" x="0" y="146">Preview lives here too:</text>
+  <text class="ck2-m" x="0" y="163">the plan is the preview.</text>
+</svg>
+</div>
+<figcaption>Because the middle stage is plain data in and plain data out, it runs under a
+test runner on any machine, and the same plan that the user previews is the plan that gets
+written.</figcaption>
+</figure>
+
+<p>The worked example below is a length-check tool. The pure half is a module beside the
+script; the API half is the script.</p>
+
+<div class="code"><div class="code-head"><span>rules.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Pure rules for the length check. No pynavis import, no Navisworks.&quot;&quot;&quot;</span>
+
+
+<span class="tok-k">def</span> plan_flags(rows, limit):
+    <span class="tok-s">&quot;&quot;&quot;Which rows break the length limit.
+
+    rows are (name, length_or_None) pairs. Returns
+    {&#x27;over&#x27;: [(name, length)], &#x27;unknown&#x27;: [name], &#x27;checked&#x27;: int}.
+    &quot;&quot;&quot;</span>
+    over = []
+    unknown = []
+    <span class="tok-k">for</span> name, length <span class="tok-k">in</span> rows:
+        <span class="tok-k">if</span> length <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            unknown.append(name)
+        <span class="tok-k">elif</span> length &amp;gt; limit:
+            over.append((name, length))
+    over.sort(key=<span class="tok-k">lambda</span> pair: -pair[<span class="tok-n">1</span>])
+    <span class="tok-k">return</span> {<span class="tok-s">&#x27;over&#x27;</span>: over, <span class="tok-s">&#x27;unknown&#x27;</span>: unknown, <span class="tok-s">&#x27;checked&#x27;</span>: len(rows)}
+
+
+<span class="tok-k">def</span> summary(plan, limit):
+    <span class="tok-s">&quot;&quot;&quot;One sentence describing a plan.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> <span class="tok-k">not</span> plan[<span class="tok-s">&#x27;over&#x27;</span>]:
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;All %d object(s) are within %g m.&#x27;</span> % (plan[<span class="tok-s">&#x27;checked&#x27;</span>], limit)
+    <span class="tok-k">return</span> (<span class="tok-s">&#x27;%d of %d object(s) exceed %g m; the longest is %.2f m.&#x27;</span>
+            % (len(plan[<span class="tok-s">&#x27;over&#x27;</span>]), plan[<span class="tok-s">&#x27;checked&#x27;</span>], limit, plan[<span class="tok-s">&#x27;over&#x27;</span>][<span class="tok-n">0</span>][<span class="tok-n">1</span>]))</code></pre></div>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Flags selected objects longer than the configured limit.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, selection, toast
+
+<span class="tok-k">import</span> rules
+
+LIMIT = <span class="tok-n">6.0</span>
+
+
+<span class="tok-k">def</span> read_rows(items):
+    <span class="tok-s">&quot;&quot;&quot;The only function here that touches the API.&quot;&quot;&quot;</span>
+    rows = []
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        value = doc.get_property(item, <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>)
+        <span class="tok-k">try</span>:
+            length = float(value.ToDisplayString()) <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-k">None</span>
+        <span class="tok-k">except</span> ValueError:
+            length = <span class="tok-k">None</span>
+        rows.append((item.DisplayName, length))
+    <span class="tok-k">return</span> rows
+
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    plan = rules.plan_flags(read_rows(items), LIMIT)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> plan[<span class="tok-s">&#x27;over&#x27;</span>]:
+        toast.success(rules.summary(plan, LIMIT))
+    <span class="tok-k">else</span>:
+        output.print_md(<span class="tok-s">&#x27;## Length check&#x27;</span>)
+        output.print_table([[name, <span class="tok-s">&#x27;%.2f&#x27;</span> % length]
+                            <span class="tok-k">for</span> name, length <span class="tok-k">in</span> plan[<span class="tok-s">&#x27;over&#x27;</span>]],
+                           [<span class="tok-s">&#x27;Object&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>])
+        output.print_md(rules.summary(plan, LIMIT))</code></pre></div>
+
+<p><code>rules.py</code> imports nothing from <code>pynavis</code> and nothing from .NET, so
+it runs under <code>pytest</code> on a build machine with no Navisworks on it. Every branch
+that decides anything is in there. <code>script.py</code> holds the two things you cannot
+test that way, reading the model and writing the report, and neither of them makes a
+decision.</p>
+
+<div class="code"><div class="code-head"><span>tests/test_rules.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">import</span> rules
+
+
+<span class="tok-k">def</span> test_flags_only_what_is_over():
+    plan = rules.plan_flags([(<span class="tok-s">&#x27;a&#x27;</span>, <span class="tok-n">4.0</span>), (<span class="tok-s">&#x27;b&#x27;</span>, <span class="tok-n">9.0</span>), (<span class="tok-s">&#x27;c&#x27;</span>, <span class="tok-k">None</span>)], <span class="tok-n">6.0</span>)
+    <span class="tok-k">assert</span> [name <span class="tok-k">for</span> name, _ <span class="tok-k">in</span> plan[<span class="tok-s">&#x27;over&#x27;</span>]] == [<span class="tok-s">&#x27;b&#x27;</span>]
+    <span class="tok-k">assert</span> plan[<span class="tok-s">&#x27;unknown&#x27;</span>] == [<span class="tok-s">&#x27;c&#x27;</span>]
+    <span class="tok-k">assert</span> plan[<span class="tok-s">&#x27;checked&#x27;</span>] == <span class="tok-n">3</span></code></pre></div>
+
+<h3 id="share-code-across-bundles-with-the-extension-lib-folder">Share code across bundles with the extension lib folder<a class="anchor" href="#share-code-across-bundles-with-the-extension-lib-folder" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>lib</code> folder directly under your <code>.extension</code> folder is added to
+the import path of every script in that extension. It is where anything used by more than one
+bundle belongs.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">MyTools.extension</span>\
+  lib\
+    naming.py           <span class="tok-c"># importable from every bundle in this extension</span>
+    geometry.py
+  <span class="tok-f">MyTools.tab</span>\
+    <span class="tok-f">Quality.panel</span>\
+      <span class="tok-f">Check.pushbutton</span>\
+        <span class="tok-k">script.py</span>       <span class="tok-c"># import naming</span>
+        rules.py        <span class="tok-c"># importable from this bundle only</span>
+      <span class="tok-f">Fix.pushbutton</span>\
+        <span class="tok-k">script.py</span>       <span class="tok-c"># import naming</span></code></pre></div>
+
+<div class="code"><div class="code-head"><span>Check.pushbutton\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Checks object names against the naming standard.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> naming                                  <span class="tok-c"># from MyTools.extension\lib</span>
+<span class="tok-k">import</span> rules                                   <span class="tok-c"># from this bundle folder</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> output, selection, toast</code></pre></div>
+
+<p>Two search paths are on every script: its own bundle folder first, then the extension's
+<code>lib</code> folder. Nothing else in the extension is importable, so a module in one
+bundle is invisible to another. That is deliberate; sharing goes through <code>lib</code>.</p>
+
+<div class="note tip">
+<span class="note-t">Library edits need no Reload</span>
+<p>The runtime drops your bundle modules and your <code>lib</code> modules from the module
+cache before every run, so editing <code>naming.py</code> and clicking the button again picks
+up the change immediately. That is the same rule that applies to <code>script.py</code>
+itself. Editing the <code>pynavis</code> library is different and does need a Reload, and so
+does anything the parser reads: <code>bundle.yaml</code>, icons, folder names and
+shortcuts.</p>
+</div>
+
+<h3 id="the-result-plus-toast-idiom">The Result plus toast idiom<a class="anchor" href="#the-result-plus-toast-idiom" aria-label="Link to this section">#</a></h3>
+
+<p>Once a tool's logic lives in a module, that module needs a way to say what happened
+without knowing how the answer will be shown. The library's answer is a small result object:
+a level, a message, a detail line, and whatever counts are useful. It is exactly what
+<code>toast.show</code> takes.</p>
+
+<div class="code"><div class="code-head"><span>lib\result.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;What an action did, ready for a button script to report.&quot;&quot;&quot;</span>
+
+
+<span class="tok-k">class</span> Result(object):
+
+    <span class="tok-k">def</span> __init__(<span class="tok-k">self</span>, level, message, detail=<span class="tok-s">&#x27;&#x27;</span>, count=<span class="tok-n">0</span>):
+        <span class="tok-k">self</span>.level = level          <span class="tok-c"># &#x27;success&#x27; | &#x27;error&#x27; | &#x27;info&#x27; | &#x27;warning&#x27;</span>
+        <span class="tok-k">self</span>.message = message
+        <span class="tok-k">self</span>.detail = detail
+        <span class="tok-k">self</span>.count = count
+
+
+<span class="tok-k">def</span> ok(message, detail=<span class="tok-s">&#x27;&#x27;</span>, count=<span class="tok-n">0</span>):
+    <span class="tok-k">return</span> Result(<span class="tok-s">&#x27;success&#x27;</span>, message, detail, count)
+
+
+<span class="tok-k">def</span> nothing(message, detail=<span class="tok-s">&#x27;&#x27;</span>):
+    <span class="tok-k">return</span> Result(<span class="tok-s">&#x27;info&#x27;</span>, message, detail)</code></pre></div>
+
+<div class="code"><div class="code-head"><span>lib\tagging.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Bulk tagging, returning a Result instead of touching the UI.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> result
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, selection
+
+
+<span class="tok-k">def</span> tag_selection(value):
+    items = selection.get_items()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> items:
+        <span class="tok-k">return</span> result.nothing(<span class="tok-s">&#x27;Nothing selected&#x27;</span>,
+                              <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+
+    document = doc.get_doc()
+    tagged = <span class="tok-n">0</span>
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        document.Models.OverridePermanentColor([item], value)
+        tagged += <span class="tok-n">1</span>
+    <span class="tok-k">return</span> result.ok(<span class="tok-s">&#x27;Tagged %d object(s)&#x27;</span> % tagged, count=tagged)</code></pre></div>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Tags the current selection.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> tagging
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> toast
+<span class="tok-k">from</span> Autodesk.Navisworks.Api <span class="tok-k">import</span> Color
+
+outcome = tagging.tag_selection(Color(<span class="tok-n">1.0</span>, <span class="tok-n">0.4</span>, <span class="tok-n">0.0</span>))
+toast.show(outcome.level, outcome.message, outcome.detail)</code></pre></div>
+
+<p>The button script is three lines, and it is three lines for every tool in the family. That
+is what the shipped Memory and Section tools look like:
+<code>memory.memorize()</code>, <code>memory.recall()</code>,
+<code>section.fit_to_selection(...)</code> and <code>section.clear()</code> all return a
+result object, and every one of their button scripts is a call followed by
+<code>toast.show(result.level, result.message, result.detail)</code>.</p>
+
+<p>The payoff is that the decision about <em>which</em> level to use moves into the module,
+where it can be tested, and out of the script, where it cannot. A module that returns
+<code>Result('warning', ...)</code> for a partial success has that behaviour pinned by a
+test; a script that chooses between <code>toast.warning</code> and <code>toast.success</code>
+has it pinned by nothing.</p>
+
+<h2 id="config-stores-long-jobs-and-custom-windows">Config stores, long jobs and custom windows<a class="anchor" href="#config-stores-long-jobs-and-custom-windows" aria-label="Link to this section">#</a></h2>
+
+<h3 id="a-settings-backed-tool-without-a-shared-key-module">A settings-backed tool without a shared key module<a class="anchor" href="#a-settings-backed-tool-without-a-shared-key-module" aria-label="Link to this section">#</a></h3>
+
+<p><code>script.get_config</code> and <code>script.save_config</code> are
+<code>settings.load</code>/<code>settings.save</code> with the tool key worked out for you
+from the running bundle's own location, so a small tool no longer needs a shared module just
+to hold a <code>TOOL</code> constant both scripts agree on, the way the earlier
+<code>config.py</code> recipe on this page does with <code>prefs.py</code>.</p>
+
+<div class="code"><div class="code-head"><span>config.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Options for Property export.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, toast
+
+DEFAULTS = {<span class="tok-s">&#x27;category&#x27;</span>: <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;property&#x27;</span>: <span class="tok-s">&#x27;Type&#x27;</span>}
+
+values = script.get_config(DEFAULTS)
+
+category = forms.ask_string(<span class="tok-s">&#x27;Property category:&#x27;</span>, values[<span class="tok-s">&#x27;category&#x27;</span>], <span class="tok-s">&#x27;Property export&#x27;</span>)
+<span class="tok-k">if</span> category <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+    name = forms.ask_string(<span class="tok-s">&#x27;Property name:&#x27;</span>, values[<span class="tok-s">&#x27;property&#x27;</span>], <span class="tok-s">&#x27;Property export&#x27;</span>)
+    <span class="tok-k">if</span> name <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        <span class="tok-k">if</span> <span class="tok-k">not</span> category.strip() <span class="tok-k">or</span> <span class="tok-k">not</span> name.strip():
+            toast.error(<span class="tok-s">&#x27;Both fields are required&#x27;</span>, <span class="tok-s">&#x27;Nothing was saved.&#x27;</span>)
+        <span class="tok-k">else</span>:
+            script.save_config({<span class="tok-s">&#x27;category&#x27;</span>: category.strip(), <span class="tok-s">&#x27;property&#x27;</span>: name.strip()})
+            toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>, <span class="tok-s">&#x27;%s / %s&#x27;</span> % (category.strip(), name.strip()))</code></pre></div>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports the selection with the property chosen in Shift+Click.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, output, script, selection, toast
+
+DEFAULTS = {<span class="tok-s">&#x27;category&#x27;</span>: <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;property&#x27;</span>: <span class="tok-s">&#x27;Type&#x27;</span>}
+
+values = script.get_config(DEFAULTS)
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>,
+               <span class="tok-s">&#x27;Shift+Click this button to choose the property.&#x27;</span>)
+<span class="tok-k">else</span>:
+    rows = []
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        value = doc.get_property(item, values[<span class="tok-s">&#x27;category&#x27;</span>], values[<span class="tok-s">&#x27;property&#x27;</span>])
+        rows.append([item.DisplayName,
+                     value.ToDisplayString() <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>])
+    output.print_table(rows, [<span class="tok-s">&#x27;Object&#x27;</span>, values[<span class="tok-s">&#x27;property&#x27;</span>]])</code></pre></div>
+
+<p>Both scripts repeat <code>DEFAULTS</code> rather than sharing a module, which is fine at
+this size, since the tool key is no longer a place the two scripts have to agree on by hand:
+<code>get_config</code> and <code>save_config</code> both derive it from the bundle they run
+in. Once a tool grows past one file's worth of logic, move <code>DEFAULTS</code> into a module
+beside both scripts anyway, so it is written once.</p>
+
+<div class="note trap">
+<span class="note-t">Two different bundles never share a get_config store</span>
+<p>The key <code>get_config</code>/<code>save_config</code> use is derived from the running
+bundle's own path, so two different buttons can never collide, but it also means two bundles
+can never deliberately share one settings file the way a run button and a report button
+sometimes want to. Reach for <code>pynavis.settings</code> with an explicit <code>TOOL</code>
+constant when that sharing is the point.</p>
+</div>
+
+<h3 id="save-settings-from-a-handler-that-fires-after-the-script-has-returned">Save settings from a handler that fires after the script has returned<a class="anchor" href="#save-settings-from-a-handler-that-fires-after-the-script-has-returned" aria-label="Link to this section">#</a></h3>
+
+<p><code>script.get_config</code> and friends ask the runtime "which command is running?" at
+the moment they are called, and the runtime goes on answering with the most recent command long
+after it finished. That is the right answer while <code>script.py</code> is still executing and
+the wrong one in everything that fires later: a modeless dialog's handler, a dock panel's
+handler, a timer callback. By then the user may have run another tool, and the call reads or
+overwrites <strong>that</strong> tool's settings.</p>
+
+<p><code>script.bind()</code> takes the answer while it is still correct and hands back an
+object carrying the same six methods.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Remembers the window size, saved from the window&#x27;s own Closed handler.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script
+
+DEFAULTS = {<span class="tok-s">&#x27;width&#x27;</span>: <span class="tok-n">360.0</span>, <span class="tok-s">&#x27;height&#x27;</span>: <span class="tok-n">220.0</span>}
+
+me = script.bind()                             <span class="tok-c"># while the answer is still right</span>
+values = me.get_config(DEFAULTS)
+
+win = forms.WPFWindow(<span class="tok-s">&#x27;layout.xaml&#x27;</span>)
+win.window.Width = values[<span class="tok-s">&#x27;width&#x27;</span>]
+win.window.Height = values[<span class="tok-s">&#x27;height&#x27;</span>]
+
+
+<span class="tok-k">def</span> on_closed(sender, args):
+    <span class="tok-s">&quot;&quot;&quot;Fires after script.py has already returned.&quot;&quot;&quot;</span>
+    me.save_config({<span class="tok-s">&#x27;width&#x27;</span>: win.window.Width, <span class="tok-s">&#x27;height&#x27;</span>: win.window.Height})
+
+
+win.window.Closed += on_closed
+win[<span class="tok-s">&#x27;OkButton&#x27;</span>].Click += <span class="tok-k">lambda</span> s, e: win.close(<span class="tok-k">True</span>)
+win.show_dialog()</code></pre></div>
+
+<p>The bound object carries <code>get_config</code>, <code>save_config</code>,
+<code>reset_config</code>, <code>store_data</code>, <code>load_data</code> and
+<code>data_exists</code>, each behaving exactly like the module-level version but against the
+command that was running when <code>bind()</code> was called. The same trap, and the same
+shape of fix, applies to <code>pynavis.panes</code>: pass the bundle key explicitly from a
+handler rather than letting it default.</p>
+
+<h3 id="a-cancellable-batch-with-a-progress-window-and-an-excel-report">A cancellable batch with a progress window and an Excel report<a class="anchor" href="#a-cancellable-batch-with-a-progress-window-and-an-excel-report" aria-label="Link to this section">#</a></h3>
+
+<p><code>forms.progress</code> is the surface for a batch the user asked for and might want to
+stop partway through: unlike <code>output.progress</code> it blocks the rest of Navisworks and
+carries its own Cancel button. Pair it with <code>pynavis.xl</code> when the result belongs in
+a spreadsheet rather than the output window.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Checks every selected object&#x27;s length against a limit and writes an Excel report.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, forms, selection, toast, xl
+
+LIMIT = <span class="tok-n">6.0</span>
+
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick some objects and run this again.&#x27;</span>)
+<span class="tok-k">else</span>:
+    path = forms.save_file(
+        filter=<span class="tok-s">&#x27;Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*&#x27;</span>,
+        default_name=<span class="tok-s">&#x27;length-check.xlsx&#x27;</span>, title=<span class="tok-s">&#x27;Save length report&#x27;</span>)
+    <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                        <span class="tok-c"># None means cancelled: say nothing</span>
+        over = []
+        checked = <span class="tok-n">0</span>
+        <span class="tok-k">try</span>:
+            <span class="tok-k">with</span> forms.progress(<span class="tok-s">&#x27;Checking lengths&#x27;</span>, <span class="tok-s">&#x27;Starting&#x27;</span>) <span class="tok-k">as</span> p:
+                <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+                    p.check()                   <span class="tok-c"># raises forms.Cancelled on Cancel</span>
+                    value = doc.get_property(item, <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>)
+                    <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+                        <span class="tok-k">try</span>:
+                            length = float(value.ToDisplayString())
+                            <span class="tok-k">if</span> length &gt; LIMIT:
+                                over.append([item.DisplayName, length])
+                        <span class="tok-k">except</span> ValueError:
+                            <span class="tok-k">pass</span>
+                    checked += <span class="tok-n">1</span>
+                    p.update(float(checked) / len(items),
+                            <span class="tok-s">&#x27;%d of %d&#x27;</span> % (checked, len(items)))
+        <span class="tok-k">except</span> forms.Cancelled:
+            xl.write(path, over, headers=[<span class="tok-s">&#x27;Object&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>], sheet=<span class="tok-s">&#x27;Over limit&#x27;</span>)
+            toast.warning(<span class="tok-s">&#x27;Stopped after %d of %d&#x27;</span> % (checked, len(items)),
+                          <span class="tok-s">&#x27;%d row(s) written so far.&#x27;</span> % len(over))
+        <span class="tok-k">else</span>:
+            xl.write(path, over, headers=[<span class="tok-s">&#x27;Object&#x27;</span>, <span class="tok-s">&#x27;Length&#x27;</span>], sheet=<span class="tok-s">&#x27;Over limit&#x27;</span>)
+            toast.success(<span class="tok-s">&#x27;%d of %d object(s) over %g m&#x27;</span> % (len(over), len(items), LIMIT), path)</code></pre></div>
+
+<p><code>xl.write</code> runs on both the normal and the cancelled path, because a partial
+report of what was checked before Cancel is still useful; it is the message that changes, not
+whether the file gets written. <code>forms.progress</code> pumps the UI itself, so there is no
+need for the every-hundredth-iteration throttling <code>output.progress</code> needs in a tight
+loop.</p>
+
+<div class="note trap">
+<span class="note-t">forms.Cancelled unwinds past the with block</span>
+<p><code>p.check()</code> raises inside the <code>with forms.progress(...)</code> block, which
+closes the progress window on its way out, then keeps propagating. Catch it outside the
+<code>with</code>, the way the <code>try</code>/<code>except</code> above does. Catching it
+inside the block would leave the window open for the rest of the script.</p>
+</div>
+
+<h3 id="a-xaml-dialog-bundle">A XAML dialog bundle<a class="anchor" href="#a-xaml-dialog-bundle" aria-label="Link to this section">#</a></h3>
+
+<p>Once a settings form has more than a couple of fields, <code>forms.WPFWindow</code> loads a
+<code>.xaml</code> file shipped in the bundle folder and wires it up as a live window, instead
+of chaining <code>forms.ask_string</code> prompts.</p>
+
+<div class="code"><div class="code-head"><span>layout.xaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code>&lt;Window xmlns=&quot;http://schemas.microsoft.com/winfx/2006/xaml/presentation&quot;
+        xmlns:x=&quot;http://schemas.microsoft.com/winfx/2006/xaml&quot;
+        Title=&quot;Export options&quot; Width=&quot;360&quot; Height=&quot;220&quot;
+        WindowStartupLocation=&quot;CenterOwner&quot;&gt;
+  &lt;StackPanel Margin=&quot;16&quot;&gt;
+    &lt;TextBlock Text=&quot;Decimal places&quot; Margin=&quot;0,0,0,4&quot;/&gt;
+    &lt;TextBox x:Name=&quot;DecimalsBox&quot; Margin=&quot;0,0,0,12&quot;/&gt;
+
+    &lt;CheckBox x:Name=&quot;HiddenCheck&quot; Content=&quot;Include hidden items&quot; Margin=&quot;0,0,0,16&quot;/&gt;
+
+    &lt;StackPanel Orientation=&quot;Horizontal&quot; HorizontalAlignment=&quot;Right&quot;&gt;
+      &lt;Button x:Name=&quot;CancelButton&quot; Content=&quot;Cancel&quot; Width=&quot;80&quot; Margin=&quot;0,0,8,0&quot;/&gt;
+      &lt;Button x:Name=&quot;OkButton&quot; Content=&quot;OK&quot; Width=&quot;80&quot; IsDefault=&quot;True&quot;/&gt;
+    &lt;/StackPanel&gt;
+  &lt;/StackPanel&gt;
+&lt;/Window&gt;</code></pre></div>
+
+<div class="code"><div class="code-head"><span>config.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Options dialog built from layout.xaml instead of chained prompts.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, toast
+
+DEFAULTS = {<span class="tok-s">&#x27;decimals&#x27;</span>: <span class="tok-n">2</span>, <span class="tok-s">&#x27;include_hidden&#x27;</span>: <span class="tok-k">False</span>}
+
+values = script.get_config(DEFAULTS)
+
+win = forms.WPFWindow(<span class="tok-s">&#x27;layout.xaml&#x27;</span>)
+win[<span class="tok-s">&#x27;DecimalsBox&#x27;</span>].Text = str(values[<span class="tok-s">&#x27;decimals&#x27;</span>])
+win[<span class="tok-s">&#x27;HiddenCheck&#x27;</span>].IsChecked = values[<span class="tok-s">&#x27;include_hidden&#x27;</span>]
+win[<span class="tok-s">&#x27;OkButton&#x27;</span>].Click += <span class="tok-k">lambda</span> s, e: win.close(<span class="tok-k">True</span>)
+win[<span class="tok-s">&#x27;CancelButton&#x27;</span>].Click += <span class="tok-k">lambda</span> s, e: win.close(<span class="tok-k">False</span>)
+
+<span class="tok-k">if</span> win.show_dialog():
+    <span class="tok-k">try</span>:
+        decimals = int(win[<span class="tok-s">&#x27;DecimalsBox&#x27;</span>].Text)
+    <span class="tok-k">except</span> ValueError:
+        toast.error(<span class="tok-s">&#x27;Decimal places must be a whole number&#x27;</span>)
+    <span class="tok-k">else</span>:
+        script.save_config({
+            <span class="tok-s">&#x27;decimals&#x27;</span>: max(<span class="tok-n">0</span>, min(<span class="tok-n">6</span>, decimals)),
+            <span class="tok-s">&#x27;include_hidden&#x27;</span>: bool(win[<span class="tok-s">&#x27;HiddenCheck&#x27;</span>].IsChecked),
+        })
+        toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>)</code></pre></div>
+
+<p><code>forms.WPFWindow('layout.xaml')</code> resolves the file against the running command's
+own bundle folder, the same one <code>icon.png</code> lives in, so <code>layout.xaml</code>
+sits right beside <code>config.py</code> and <code>script.py</code> with no path to get
+wrong.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Export.pushbutton</span>\
+  <span class="tok-k">script.py</span>
+  <span class="tok-k">config.py</span>         <span class="tok-c"># Shift+Click: opens layout.xaml</span>
+  layout.xaml
+  <span class="tok-k">bundle.yaml</span>
+  <span class="tok-k">icon.png</span></code></pre></div>
+
+<div class="note">
+<span class="note-t">Wire events after loading, before showing</span>
+<p><code>win['OkButton'].Click += ...</code> only works once the element exists, which is right
+after <code>WPFWindow(...)</code> returns. Set every initial value and every event handler
+before calling <code>show_dialog()</code>; nothing you do to the window after that call
+returns takes effect until the next run.</p>
+</div>
+
+<h3 id="build-a-dock-panel">Build a dock panel<a class="anchor" href="#build-a-dock-panel" aria-label="Link to this section">#</a></h3>
+
+<p>A <code>*.dockpane</code> bundle is not a script that runs and returns: it is a real
+Navisworks dock panel. <code>pane.xaml</code> supplies the content, an optional
+<code>script.py</code> runs once when the panel is built, and the ribbon gets a toggle button
+that follows the panel open and closed instead of a button that fires and finishes.</p>
+
+<p>This recipe is the same working bundle pyNavis ships as its own dockpane smoke test
+(<code>Smoke.extension/Smoke.tab/Panes.panel/01_Pane_Demo.dockpane</code>), with two strings
+swapped for ones that read better as teaching material instead of as a smoke-test label: the
+tooltip below and the <code>script.py</code> docstring. Everything else, including every
+element name and every line of behavior, matches the shipped bundle exactly.</p>
+
+<div class="code"><div class="code-head"><span>bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code>title: Pane Demo
+tooltip: A dockpane with live content</code></pre></div>
+
+<div class="code"><div class="code-head"><span>pane.xaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code>&lt;StackPanel xmlns=&quot;http://schemas.microsoft.com/winfx/2006/xaml/presentation&quot;
+            xmlns:x=&quot;http://schemas.microsoft.com/winfx/2006/xaml&quot;
+            Margin=&quot;16&quot;&gt;
+  &lt;TextBlock x:Name=&quot;Headline&quot; FontSize=&quot;16&quot; FontWeight=&quot;SemiBold&quot; Text=&quot;Pane demo&quot; /&gt;
+  &lt;TextBlock x:Name=&quot;Built&quot; FontSize=&quot;11.5&quot; Margin=&quot;0,4,0,0&quot; Text=&quot;Built at (waiting)&quot; /&gt;
+  &lt;TextBlock x:Name=&quot;Sizes&quot; FontSize=&quot;11.5&quot; Text=&quot;Size: (waiting)&quot; /&gt;
+  &lt;TextBox   x:Name=&quot;Typing&quot; Margin=&quot;0,8,0,0&quot; Padding=&quot;6,4,6,4&quot; Text=&quot;Click here and type&quot; /&gt;
+  &lt;TextBlock x:Name=&quot;Keys&quot; FontSize=&quot;11.5&quot; Margin=&quot;0,4,0,0&quot; Text=&quot;Keys seen: 0&quot; /&gt;
+  &lt;Button    x:Name=&quot;Close&quot; Margin=&quot;0,12,0,0&quot; Padding=&quot;8,4,8,4&quot; Content=&quot;Hide this panel&quot; /&gt;
+&lt;/StackPanel&gt;</code></pre></div>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Wires up pane.xaml when the panel is built.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> datetime
+
+pane = __pane__
+
+pane.Find(<span class="tok-s">&#x27;Built&#x27;</span>).Text = <span class="tok-s">&#x27;Built at &#x27;</span> + datetime.datetime.now().strftime(<span class="tok-s">&#x27;%H:%M:%S&#x27;</span>)
+
+typed = [<span class="tok-n">0</span>]
+
+
+<span class="tok-k">def</span> on_key(sender, args):
+    typed[<span class="tok-n">0</span>] += <span class="tok-n">1</span>
+    pane.Find(<span class="tok-s">&#x27;Keys&#x27;</span>).Text = <span class="tok-s">&#x27;Keys seen: %d (last %s)&#x27;</span> % (typed[<span class="tok-n">0</span>], args.Key)
+
+
+<span class="tok-k">def</span> on_size(sender, args):
+    pane.Find(<span class="tok-s">&#x27;Sizes&#x27;</span>).Text = <span class="tok-s">&#x27;Size: %d x %d&#x27;</span> % (args.NewSize.Width, args.NewSize.Height)
+
+
+<span class="tok-k">def</span> on_close(sender, args):
+    pane.Visible = <span class="tok-k">False</span>
+
+
+pane.Find(<span class="tok-s">&#x27;Typing&#x27;</span>).PreviewKeyDown += on_key
+pane.Content.SizeChanged += on_size
+pane.Find(<span class="tok-s">&#x27;Close&#x27;</span>).Click += on_close</code></pre></div>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code>Pane Demo.dockpane\
+  <span class="tok-k">bundle.yaml</span>
+  pane.xaml
+  <span class="tok-k">script.py</span>
+  <span class="tok-k">icon.png</span></code></pre></div>
+
+<p><code>__pane__</code> is the only new global: a small proxy with <code>Find(name)</code> for
+any named element in <code>pane.xaml</code>, <code>Content</code> for the root element itself,
+read-only <code>Title</code> and <code>BundleKey</code>, and a get/set <code>Visible</code> for
+showing or hiding the panel from code. <code>script.py</code> runs once, when the panel's
+content is built, not on every click the way a pushbutton's does; wire event handlers here and
+let them do the ongoing work.</p>
+
+<div class="note trap">
+<span class="note-t">pane.xaml must be a plain element, not a Window</span>
+<p>Root the file in a <code>Grid</code>, <code>StackPanel</code> or similar, never
+<code>&lt;Window&gt;</code>. A <code>Window</code> root is unwrapped as a fallback so it still
+loads, but it is not the supported form: a dock panel is not a window and shipping one invites
+surprises later. Start from a plain element.</p>
+</div>
+
+<div class="note">
+<span class="note-t">Slots: Reload claims one, a restart mints new ones</span>
+<p>Five panel slots ship with pyNavis. A new <code>*.dockpane</code> bundle claims a free one on
+the next Reload, exactly like any other new bundle, and keeps that slot for good: Navisworks
+remembers a pane's dock position, size and open state per slot, not per bundle, so reinstalling
+the extension later restores the same layout. Once every slot is claimed, generating more with
+the Panel slots button (or <code>pynavis.panes.add_slots(count)</code>) needs a full Navisworks
+restart before the new slots exist, because Navisworks only discovers dock panes at startup. A
+dockpane that loses the scramble for a slot still gets its ribbon toggle; clicking it toasts
+that no slot is free instead of doing nothing.</p>
+</div>
+
+<h3 id="open-a-panel-from-an-ordinary-button">Open a panel from an ordinary button<a class="anchor" href="#open-a-panel-from-an-ordinary-button" aria-label="Link to this section">#</a></h3>
+
+<p>A panel does not have to be opened from its own ribbon toggle.
+<code>pynavis.panes</code> shows, hides and counts panels by bundle key, which is the bundle's
+path inside its extension, so any tool can bring its own panel up when it has something to put
+in it.</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Runs a check, then opens the results panel to show it.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> panes, script, toast
+
+PANEL = <span class="tok-s">&#x27;MyTools.tab/Quality.panel/Results.dockpane&#x27;</span>
+
+findings = run_check()                         <span class="tok-c"># your own work, returning ModelItems</span>
+script.store_data(<span class="tok-s">&#x27;last_findings&#x27;</span>, [item.DisplayName <span class="tok-k">for</span> item <span class="tok-k">in</span> findings])
+
+<span class="tok-k">if</span> panes.show(PANEL):
+    toast.success(<span class="tok-s">&#x27;%d finding(s)&#x27;</span> % len(findings), <span class="tok-s">&#x27;Shown in the Results panel.&#x27;</span>)
+<span class="tok-k">else</span>:
+    toast.warning(<span class="tok-s">&#x27;%d finding(s)&#x27;</span> % len(findings),
+                  <span class="tok-s">&#x27;The Results panel has no slot yet. Restart Navisworks.&#x27;</span>)</code></pre></div>
+
+<p>The panel and the button are separate runs, so what they share has to go through
+<code>script.store_data</code>, which takes JSON-serialisable values only: names and ids
+travel, <code>ModelItem</code> objects do not.</p>
+
+<p><code>panes.hide(key)</code> and <code>panes.toggle(key)</code> are the other two moves, and
+<code>panes.is_visible(key)</code> reads the live state, which a Navisworks close button or a
+workspace change updates directly, so it is never stale between clicks. All of them return
+<code>False</code> when the bundle holds no slot. <code>panes.slot_count()</code> is how many
+slots this session has, and <code>panes.slot_of(key)</code> is the 1-based slot a bundle
+claimed, or <code>0</code> when every slot was taken.</p>
+
+<div class="note trap">
+<span class="note-t">Always pass the bundle key from inside a panel's own handler</span>
+<p>The <code>bundle_key</code> argument defaults to whichever pyNavis command most recently
+ran, not to the panel whose handler is calling. That default is right while
+<code>script.py</code> is still executing and wrong in a <code>Click</code> handler wired up
+inside it, which fires later, after the user may have run other tools. From a panel's own
+handler, pass the key explicitly or use <code>__pane__.Visible</code> instead, which always
+means this panel.</p>
+</div>
+
+<div class="cards">
+  <a href="api-reference.html"><span class="c-t">Python API reference</span>
+    <span class="c-d">Every function in the pynavis library, with signatures and return
+      shapes.</span></a>
+  <a href="troubleshooting.html"><span class="c-t">Troubleshooting</span>
+    <span class="c-d">Symptom first: what went wrong, why, and the log line that proves
+      it.</span></a>
+  <a href="style-guide.html"><span class="c-t">Style guide</span>
+    <span class="c-d">The conventions these recipes follow, and why each one exists.</span></a>
+</div>
+  <div class="pagenav">
+<a href="api-reference.html"><span class="dir">Previous</span><span class="ttl">Python API reference</span></a>
+<a class="next" href="troubleshooting.html"><span class="dir">Next</span><span class="ttl">Troubleshooting</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#working-with-the-selection">Working with the selection</a>
+<a href="#act-on-the-current-selection" class="h3">Act on the current selection</a>
+<a href="#filter-a-selection-by-a-property-value" class="h3">Filter a selection by a property value</a>
+<a href="#read-properties-as-plain-python-values" class="h3">Read properties as plain Python values</a>
+<a href="#replace-the-selection-with-a-computed-subset" class="h3">Replace the selection with a computed subset</a>
+<a href="#isolate-what-you-found-then-frame-it" class="h3">Isolate what you found, then frame it</a>
+<a href="#keep-a-selection-in-memory-and-do-set-maths-on-it" class="h3">Keep a selection in memory and do set maths on it</a>
+<a href="#reading-the-model">Reading the model</a>
+<a href="#list-every-model-and-its-source-file" class="h3">List every model and its source file</a>
+<a href="#report-the-distinct-values-of-a-property" class="h3">Report the distinct values of a property</a>
+<a href="#walk-saved-viewpoints-with-their-folder-path" class="h3">Walk saved viewpoints with their folder path</a>
+<a href="#producing-output">Producing output</a>
+<a href="#export-the-selection-to-csv" class="h3">Export the selection to CSV</a>
+<a href="#show-a-table-in-the-output-window" class="h3">Show a table in the output window</a>
+<a href="#link-back-to-the-model-from-the-output-window" class="h3">Link back to the model from the output window</a>
+<a href="#report-progress-on-a-long-loop" class="h3">Report progress on a long loop</a>
+<a href="#working-in-the-3d-view">Working in the 3D view</a>
+<a href="#ask-the-user-to-click-a-point" class="h3">Ask the user to click a point</a>
+<a href="#draw-the-answer-into-the-view" class="h3">Draw the answer into the view</a>
+<a href="#measure-real-faces-not-bounding-boxes" class="h3">Measure real faces, not bounding boxes</a>
+<a href="#copy-view-state-now-paste-it-after-a-restart" class="h3">Copy view state now, paste it after a restart</a>
+<a href="#asking-the-user">Asking the user</a>
+<a href="#confirm-a-destructive-action" class="h3">Confirm a destructive action</a>
+<a href="#ask-for-a-value-with-a-default-and-validate-it" class="h3">Ask for a value with a default and validate it</a>
+<a href="#a-settings-dialog-in-config-py-read-back-by-script-py" class="h3">A settings dialog in config.py, read back by script.py</a>
+<a href="#bulk-edits">Bulk edits</a>
+<a href="#rename-saved-viewpoints-in-one-undo-step" class="h3">Rename saved viewpoints in one undo step</a>
+<a href="#the-plan-and-apply-split" class="h3">The plan and apply split</a>
+<a href="#delete-only-the-checked-subset" class="h3">Delete only the checked subset</a>
+<a href="#summarise-every-clash-test" class="h3">Summarise every clash test</a>
+<a href="#group-a-clash-test-without-freezing-navisworks" class="h3">Group a clash test, without freezing Navisworks</a>
+<a href="#build-a-query-save-it-as-a-set-and-round-trip-it-through-excel" class="h3">Build a query, save it as a set, and round-trip it through Excel</a>
+<a href="#structuring-a-bigger-tool">Structuring a bigger tool</a>
+<a href="#split-pure-logic-from-api-calls" class="h3">Split pure logic from API calls</a>
+<a href="#share-code-across-bundles-with-the-extension-lib-folder" class="h3">Share code across bundles with the extension lib folder</a>
+<a href="#the-result-plus-toast-idiom" class="h3">The Result plus toast idiom</a>
+<a href="#config-stores-long-jobs-and-custom-windows">Config stores, long jobs and custom windows</a>
+<a href="#a-settings-backed-tool-without-a-shared-key-module" class="h3">A settings-backed tool without a shared key module</a>
+<a href="#save-settings-from-a-handler-that-fires-after-the-script-has-returned" class="h3">Save settings from a handler that fires after the script has returned</a>
+<a href="#a-cancellable-batch-with-a-progress-window-and-an-excel-report" class="h3">A cancellable batch with a progress window and an Excel report</a>
+<a href="#a-xaml-dialog-bundle" class="h3">A XAML dialog bundle</a>
+<a href="#build-a-dock-panel" class="h3">Build a dock panel</a>
+<a href="#open-a-panel-from-an-ordinary-button" class="h3">Open a panel from an ordinary button</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

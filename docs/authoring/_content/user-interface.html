@@ -1,0 +1,915 @@
+<!-- title: Talking to the user -->
+<!-- eyebrow: Scripts -->
+<!-- lead: Four surfaces carry everything a tool says: a toast, a modal dialog, the HTML output window, and a custom window. Picking the right one is most of the work. -->
+
+<p>A tool that runs and shows nothing reads as broken. A tool that opens a window to say one
+sentence reads as clumsy. Between those two failures sits a small set of surfaces, each with
+one job, and the whole of this page is about matching the message to the surface.</p>
+
+<p>The surfaces are ordered by weight. Reach for the lightest one that can carry what you have
+to say, and move up only when it genuinely cannot.</p>
+
+<h2>Choosing a surface</h2>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 336" width="700" role="img"
+     aria-label="A decision tree from what you need to tell the user to one of four surfaces: dialog, toast, output window, or a custom window.">
+  <style>
+    .ui1-t   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ui1-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ui1-mono{ font: 12px Consolas, monospace; fill: var(--ink); }
+    .ui1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ui1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .ui1-sur { fill: var(--surface); stroke: var(--frame); stroke-width: 1; }
+    .ui1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="ui1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="ui1-lbl" x="0" y="12">The question</text>
+  <text class="ui1-lbl" x="228" y="12">If this is true</text>
+  <text class="ui1-lbl" x="516" y="12">Use</text>
+
+  <rect class="ui1-box" x="0" y="126" width="168" height="84" rx="4"/>
+  <text class="ui1-t" x="14" y="158">What do you need</text>
+  <text class="ui1-t" x="14" y="176">to tell the user,</text>
+  <text class="ui1-t" x="14" y="194">and how big is it?</text>
+
+  <path class="ui1-arw" d="M168 168 H 196"/>
+  <path class="ui1-arw" d="M196 48 V 288"/>
+
+  <path class="ui1-arw" d="M196 48  H 222" marker-end="url(#ui1-a)"/>
+  <path class="ui1-arw" d="M196 128 H 222" marker-end="url(#ui1-a)"/>
+  <path class="ui1-arw" d="M196 208 H 222" marker-end="url(#ui1-a)"/>
+  <path class="ui1-arw" d="M196 288 H 222" marker-end="url(#ui1-a)"/>
+
+  <rect class="ui1-box" x="228" y="24"  width="254" height="48" rx="4"/>
+  <text class="ui1-t" x="242" y="44">The script cannot continue until</text>
+  <text class="ui1-t" x="242" y="61">the user answers.</text>
+
+  <rect class="ui1-box" x="228" y="104" width="254" height="48" rx="4"/>
+  <text class="ui1-t" x="242" y="124">The action is finished and the</text>
+  <text class="ui1-t" x="242" y="141">result fits on one line.</text>
+
+  <rect class="ui1-box" x="228" y="184" width="254" height="48" rx="4"/>
+  <text class="ui1-t" x="242" y="204">It is a table, a list, links, a log,</text>
+  <text class="ui1-t" x="242" y="221">or work the user has to watch.</text>
+
+  <rect class="ui1-box" x="228" y="264" width="254" height="48" rx="4"/>
+  <text class="ui1-t" x="242" y="284">It is a real tool: many settings,</text>
+  <text class="ui1-t" x="242" y="301">a preview, a list to pick from.</text>
+
+  <path class="ui1-arw" d="M482 48  H 510" marker-end="url(#ui1-a)"/>
+  <path class="ui1-arw" d="M482 128 H 510" marker-end="url(#ui1-a)"/>
+  <path class="ui1-arw" d="M482 208 H 510" marker-end="url(#ui1-a)"/>
+  <path class="ui1-arw" d="M482 288 H 510" marker-end="url(#ui1-a)"/>
+
+  <rect class="ui1-sur" x="516" y="24"  width="176" height="48" rx="4"/>
+  <text class="ui1-mono" x="530" y="45">forms</text>
+  <text class="ui1-m"    x="530" y="62">modal, blocks the script</text>
+
+  <rect class="ui1-sur" x="516" y="104" width="176" height="48" rx="4"/>
+  <text class="ui1-mono" x="530" y="125">toast</text>
+  <text class="ui1-m"    x="530" y="142">one line, self-dismissing</text>
+
+  <rect class="ui1-sur" x="516" y="184" width="176" height="48" rx="4"/>
+  <text class="ui1-mono" x="530" y="205">output</text>
+  <text class="ui1-m"    x="530" y="222">HTML window, scrollable</text>
+
+  <rect class="ui1-sur" x="516" y="264" width="176" height="48" rx="4"/>
+  <text class="ui1-mono" x="530" y="285">a WPF window</text>
+  <text class="ui1-m"    x="530" y="302">yours, built by hand</text>
+</svg>
+</div>
+<figcaption>Read the conditions top to bottom and take the first that is true. Most tools only
+ever need the middle two.</figcaption>
+</figure>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Surface</th><th>Blocks?</th><th>Use it for</th><th>Do not use it for</th></tr></thead>
+<tbody>
+<tr><td><code>pynavis.toast</code></td><td>No</td>
+    <td>The result of a finished action, in one line.</td>
+    <td>Questions, anything the user must read to continue.</td></tr>
+<tr><td><code>pynavis.forms</code></td><td>Yes</td>
+    <td>A question you must have answered, and file pickers.</td>
+    <td>Reporting a result the user did not ask about.</td></tr>
+<tr><td><code>pynavis.output</code></td><td>No</td>
+    <td>Tables, lists, links into the model, progress, long logs.</td>
+    <td>One sentence. Opening a window to say one line is a defect.</td></tr>
+<tr><td>A custom WPF window</td><td>Your choice</td>
+    <td>A tool with many settings, a preview, or a list to work through.</td>
+    <td>Anything the three above already handle.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note">
+<span class="note-t">The fourth surface</span>
+<p>A hand-built WPF window is out of scope for these docs, but it exists and it is not exotic:
+the runtime ships <code>src\PyNavis.Runtime\Forms\DesignSystem.cs</code>, the shared v2 toolkit
+of tokens, buttons, group frames, input fields and focus rings that every pyNavis dialog is
+built from. Build from that toolkit rather than from raw WPF, and your window will match the
+rest of the product. <a href="style-guide.html">Design rules for tools</a> covers what it has
+to look like.</p>
+<p>From Python the way in is <code>forms.WPFWindow('layout.xaml')</code>, which loads a XAML
+file shipped in the bundle folder, threads the runtime's themed chrome onto it, and hands back
+a live window: <code>win['NameBox'].Text</code> to read a field,
+<code>win['OkButton'].Click += ...</code> to wire a button,
+<code>win.show_dialog()</code> to show it modally. The
+<a href="cookbook.html#a-xaml-dialog-bundle">cookbook's XAML dialog bundle</a> is a whole
+working example. Reach for it once chained prompts stop being enough, which is at about three
+fields.</p>
+<p>The fourth surface also comes in a docked form: a <code>*.dockpane</code> bundle puts your
+WPF content in a real Navisworks dock panel that stays open between runs, switched by a
+ribbon toggle. For a tool the user keeps returning to, a panel beats a floating window.
+<a href="buttons.html">Buttons, stacks and pulldowns</a> covers the bundle.</p>
+</div>
+
+<h2>Toast: one line, no interruption</h2>
+
+<p>A toast appears in the corner of the Navisworks window, never takes focus, and dismisses
+itself. It is the default way a pyNavis tool reports what it did.</p>
+
+<pre data-lang="python">
+from pynavis import toast
+
+toast.show(level, message, detail=None)   # level: 'success' | 'error' | 'info' | 'warning'
+
+toast.success(message, detail=None)
+toast.error(message, detail=None)
+toast.info(message, detail=None)
+toast.warning(message, detail=None)
+</pre>
+
+<p>Every argument is passed through <code>str()</code>, so handing a toast an integer, a
+<code>ModelItem</code> or any .NET object is safe and never raises. <code>detail</code> stays
+<code>None</code> when you omit it and renders as an optional second line in muted text. All
+five functions return <code>None</code>.</p>
+
+<p>Toasts stack rather than overlap. Up to three sit above the bottom-right corner at once,
+the newest nearest the corner, and a fourth arrival dismisses the oldest. Each dismisses
+itself after a few seconds, errors linger longest, and hovering one holds it open long
+enough to read. A script that toasts twice in quick succession therefore shows both, so you
+still should not narrate: one toast per outcome.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 250" width="700" role="img"
+     aria-label="A drawn toast with its parts labelled, beside the four level colours.">
+  <style>
+    .ui2-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ui2-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ui2-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .ui2-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ui2-lead{ stroke: var(--line-strong); stroke-width: 1; fill: none; }
+    .ui2-pap { fill: var(--paper); }
+  </style>
+
+  <text class="ui2-lbl" x="0" y="12">One toast, drawn</text>
+
+  <!-- the toast card: semantic border all round, 3px rail on the left -->
+  <rect class="ui2-pap" x="0" y="30" width="330" height="62" rx="4"
+        stroke="var(--success)" stroke-width="1.5"/>
+  <path d="M1.5 34 V 88" stroke="var(--success)" stroke-width="3" stroke-linecap="round"/>
+  <text class="ui2-t" x="18" y="56">Renamed 412 items.</text>
+  <text class="ui2-m" x="18" y="76">3 names were already correct</text>
+
+  <!-- callouts -->
+  <path class="ui2-lead" d="M0 100 V 116 H 96"/>
+  <text class="ui2-m" x="0" y="132">3px semantic rail</text>
+  <path class="ui2-lead" d="M150 52 H 372"/>
+  <text class="ui2-m" x="378" y="56">message, always present</text>
+  <path class="ui2-lead" d="M186 72 H 372"/>
+  <text class="ui2-m" x="378" y="76">detail, optional and muted</text>
+  <path class="ui2-lead" d="M330 40 H 372"/>
+  <text class="ui2-m" x="378" y="36">1.5px border, same colour</text>
+
+  <text class="ui2-lbl" x="0" y="172">The four levels</text>
+
+  <rect class="ui2-pap" x="0" y="184" width="160" height="34" rx="4"
+        stroke="var(--success)" stroke-width="1.5"/>
+  <path d="M1.5 188 V 214" stroke="var(--success)" stroke-width="3"/>
+  <text class="ui2-mono" x="16" y="205">success</text>
+  <text class="ui2-m" x="80" y="205">green</text>
+
+  <rect class="ui2-pap" x="176" y="184" width="160" height="34" rx="4"
+        stroke="var(--error)" stroke-width="1.5"/>
+  <path d="M177.5 188 V 214" stroke="var(--error)" stroke-width="3"/>
+  <text class="ui2-mono" x="192" y="205">error</text>
+  <text class="ui2-m" x="248" y="205">red</text>
+
+  <rect class="ui2-pap" x="352" y="184" width="160" height="34" rx="4"
+        stroke="var(--info)" stroke-width="1.5"/>
+  <path d="M353.5 188 V 214" stroke="var(--info)" stroke-width="3"/>
+  <text class="ui2-mono" x="368" y="205">info</text>
+  <text class="ui2-m" x="416" y="205">blue</text>
+
+  <rect class="ui2-pap" x="528" y="184" width="160" height="34" rx="4"
+        stroke="var(--warning)" stroke-width="1.5"/>
+  <path d="M529.5 188 V 214" stroke="var(--warning)" stroke-width="3"/>
+  <text class="ui2-mono" x="544" y="205">warning</text>
+  <text class="ui2-m" x="612" y="205">amber</text>
+
+  <text class="ui2-m" x="0" y="244">A toast is the one surface with nothing around it to read the
+    level against, so the colour carries the whole border.</text>
+</svg>
+</div>
+<figcaption>Message line, optional muted detail line, and a semantic colour that rings the
+card and thickens into a rail on the left.</figcaption>
+</figure>
+
+<h3>What a toast must never do</h3>
+
+<ul>
+  <li><strong>Never ask a question.</strong> A toast has no buttons and dismisses itself, so a
+    question in one is a question nobody can answer.</li>
+  <li><strong>Never carry an action.</strong> No "Undo" link, no "Show me". If the user must be
+    able to act on it, it belongs in a dialog or the output window.</li>
+  <li><strong>Never run past one line.</strong> Two sentences of message plus a detail line is
+    already an output window that has not admitted it yet.</li>
+  <li><strong>Never toast the obvious.</strong> Closing a dialog is its own feedback. Do not
+    toast "Cancelled" or "Closed".</li>
+</ul>
+
+<h3>The Result idiom</h3>
+
+<p>Several <code>pynavis</code> functions return a small <code>Result</code> object whose
+fields line up exactly with <code>toast.show</code>. When you see one, pass it straight
+through rather than unpacking and re-deciding the level yourself.</p>
+
+<pre data-lang="python">
+from pynavis import memory, toast
+
+result = memory.memorize()
+toast.show(result.level, result.message, result.detail)
+</pre>
+
+<p>That is the whole reporting layer of a lot of real tools. The library already knows whether
+the operation succeeded, half-succeeded or failed, and it already knows how to phrase it.</p>
+
+<h3>Never print a one-line status</h3>
+
+<p>This is a project rule, not a preference. <code>print()</code> in a pyNavis script writes to
+the output window, and writing to the output window opens it. A script whose only output is one
+<code>print()</code> therefore opens a full window to display a single sentence, and if the
+string is empty or the write fails you get a blank window instead, which reads as a crash.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="python">toast.success('Exported 412 items', path)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="python">print('Exported 412 items to ' + path)</pre>
+  </div>
+</div>
+
+<p><code>print()</code> is still the right call when you are genuinely writing a report: many
+lines, a log, a traceback you want kept. Use <a href="#output">the output window</a>
+deliberately, not by accident.</p>
+
+<h2>Dialogs: when you need an answer</h2>
+
+<p><code>pynavis.forms</code> wraps the runtime's WPF dialogs. Every one of them is modal and
+blocks your script until the user responds.</p>
+
+<pre data-lang="python">
+from pynavis import forms
+
+forms.alert(message, title='pyNavis')                       # -> None
+forms.confirm(message, title='pyNavis')                     # -> bool, True on Yes
+forms.ask_string(prompt, default='', title='pyNavis')       # -> str or None
+forms.save_file(filter='CSV files (*.csv)|*.csv|All files (*.*)|*.*',
+                default_name='', title='Save file')         # -> str or None
+forms.open_file(filter='All files (*.*)|*.*',
+                title='Open file')                          # -> str or None
+forms.pick_folder(title='Select folder', initial=None)      # -> str or None
+
+forms.ask_number(prompt, default=None, min_value=None,
+                 max_value=None, title='pyNavis')           # -> float or None
+forms.ask_options(prompt, options, title='pyNavis')         # -> an option or None
+forms.select_from_list(items, title='Select',
+                       multiselect=False, prompt=None)      # -> value, list, or None
+</pre>
+
+<p>These touch no Navisworks API at all, so they work even while a model is still loading.
+<code>confirm</code> shows Yes then No, in that order, and closing the window counts as No.</p>
+
+<h3>What cancel returns</h3>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Function</th><th>On OK / Yes</th><th>On cancel or close</th><th>Correct test</th></tr></thead>
+<tbody>
+<tr><td><code>alert</code></td><td><code>None</code></td><td><code>None</code></td>
+    <td>None; it is acknowledgement only.</td></tr>
+<tr><td><code>confirm</code></td><td><code>True</code></td><td><code>False</code></td>
+    <td><code>if forms.confirm(...):</code></td></tr>
+<tr><td><code>ask_string</code></td><td>the typed string, possibly <code>''</code></td>
+    <td><code>None</code></td><td><code>if answer is None:</code></td></tr>
+<tr><td><code>save_file</code></td><td>the chosen path</td><td><code>None</code></td>
+    <td><code>if path:</code></td></tr>
+<tr><td><code>open_file</code></td><td>the chosen path</td><td><code>None</code></td>
+    <td><code>if path:</code></td></tr>
+<tr><td><code>pick_folder</code></td><td>the chosen folder</td><td><code>None</code></td>
+    <td><code>if folder:</code></td></tr>
+<tr><td><code>ask_number</code></td><td>a <code>float</code>, already in range</td>
+    <td><code>None</code></td><td><code>if value is None:</code></td></tr>
+<tr><td><code>ask_options</code></td><td>the chosen entry from <code>options</code></td>
+    <td><code>None</code></td><td><code>if choice is None:</code></td></tr>
+<tr><td><code>select_from_list</code></td>
+    <td>the value, or a list of values with <code>multiselect=True</code></td>
+    <td><code>None</code>, never an empty list</td><td><code>if picked is None:</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note trap">
+<span class="note-t">None and '' are different answers</span>
+<p><code>ask_string</code> returns <code>None</code> when the user cancelled and <code>''</code>
+when the user cleared the box and pressed OK. Those mean opposite things: one says "do nothing",
+the other says "set this to empty". Test with <code>is None</code> or with plain truthiness,
+never with <code>== ''</code>.</p>
+</div>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="python">name = forms.ask_string('New name:')
+if name is None:
+    pass                    # cancelled: change nothing
+elif not name:
+    toast.warning('A name is required')
+else:
+    rename(name)</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="python">name = forms.ask_string('New name:')
+if name == '':
+    return                  # misses cancel entirely
+rename(name)                # renames to "None"</pre>
+  </div>
+</div>
+
+<h3>The filter string</h3>
+
+<p>The parameter is literally named <code>filter</code>, shadowing the builtin inside the
+function but not in your script, so keyword use reads as
+<code>forms.save_file(filter='...')</code>. The format is the standard Windows one: pairs of
+description and pattern separated by pipes.</p>
+
+<pre data-lang="python">
+path = forms.save_file(
+    filter='CSV files (*.csv)|*.csv|Text files (*.txt)|*.txt|All files (*.*)|*.*',
+    default_name='clashes.csv',
+    title='Save clash report',
+)
+</pre>
+
+<h3>Beyond a text box: lists, options and numbers</h3>
+
+<p>Three of the dialogs exist so a tool never has to validate free text it could have asked
+for properly in the first place.</p>
+
+<p><code>ask_number</code> validates live: the dialog itself refuses OK on a value outside
+<code>[min_value, max_value]</code>, so what comes back is a <code>float</code> already in
+range and your script has nothing left to re-check. Leave either bound out to leave that side
+open.</p>
+
+<p><code>ask_options</code> is a one-click choice between a handful of options, shown as
+buttons rather than a dropdown. It returns the chosen entry from <code>options</code> itself,
+not its index. Passing <code>prompt=None</code> asks for the chromeless quick-switch look: no
+title bar, no question, just the buttons in a hairline shell, for choices whose labels are
+self-explanatory. Use a prompt whenever the labels alone would leave the user guessing.</p>
+
+<p><code>select_from_list</code> is the searchable picker, for anything longer than a handful.
+Items are plain strings, or <code>(label, value)</code> pairs when the thing you want back is
+not the text shown, which is how you hand back a live object and let the dialog show its
+name.</p>
+
+<pre data-lang="python">
+from pynavis import clash, forms
+
+tolerance = forms.ask_number('Proximity tolerance (m):', default=6.0, min_value=0.0)
+
+mode = forms.ask_options('Group by:', ['Level', 'Grid', 'Model'])
+state = forms.ask_options(None, ['Section state', 'Hidden items'])   # chromeless
+
+tests = list(clash.walk_tests())
+picked = forms.select_from_list([(t.DisplayName, t) for t in tests],
+                                title='Pick a clash test')
+</pre>
+
+<div class="note trap">
+<span class="note-t">A cancelled multiselect is None, not an empty list</span>
+<p><code>select_from_list(..., multiselect=True)</code> returns a list on OK and
+<code>None</code> on cancel, so the two stay distinguishable: <code>None</code> means "do
+nothing", an empty list would mean "the user deliberately chose nothing". Test with
+<code>is None</code> before you test for emptiness.</p>
+</div>
+
+<h3>A progress window with a Cancel button</h3>
+
+<p><code>forms.progress(title, label='')</code> is a context manager, and it is the other
+progress surface: unlike <code>output.progress</code> it blocks the rest of Navisworks and
+carries its own Cancel button. Reach for it when the user started a batch on purpose and might
+want to stop partway through.</p>
+
+<pre data-lang="python">
+from pynavis import forms, toast
+
+try:
+    with forms.progress('Exporting', 'Starting') as p:
+        for index, item in enumerate(items):
+            p.check()                          # raises forms.Cancelled on Cancel
+            export_one(item)
+            p.update(float(index) / len(items), '%d of %d' % (index, len(items)))
+except forms.Cancelled:
+    toast.info('Export stopped early')
+else:
+    toast.success('Exported %d item(s)' % len(items))
+</pre>
+
+<p>The bound object has two methods. <code>p.check()</code> raises
+<code>forms.Cancelled</code> once Cancel has been clicked, and it pumps the message loop first,
+which is what lets the button be clicked at all: your script owns the UI thread for its whole
+run. <code>p.update(fraction, label=None)</code> reports progress and returns
+<code>False</code> once the user has cancelled, for a loop that would rather test a value than
+catch an exception.</p>
+
+<div class="note warn">
+<span class="note-t">Catch Cancelled outside the with block, and let label default</span>
+<p><code>p.check()</code> raises inside the block, which closes the window on its way out, then
+keeps propagating. Catching it <em>inside</em> the block leaves the window up for the rest of
+the script. Separately, <code>label</code> defaults to <code>None</code>, not <code>''</code>,
+and <code>None</code> means keep whatever the window is already showing: after a Cancel click
+the window relabels itself, and a plain <code>p.update(fraction)</code> must not wipe that out.
+Pass an explicit <code>''</code> on the rare occasion you do want the label blank.</p>
+</div>
+
+<h3>Cancelling is silent</h3>
+
+<p>When the user cancels, the script should end with no toast, no dialog and no output window.
+Cancelling is not an error and it is not a result; the user already knows what they did, and
+telling them again is noise.</p>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="python">path = forms.save_file()
+if path:
+    write_report(path)
+    toast.success('Report saved', path)
+# no else: cancel exits silently</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="python">path = forms.save_file()
+if path:
+    write_report(path)
+else:
+    toast.info('Cancelled')   # noise
+</pre>
+  </div>
+</div>
+
+<h2 id="output">The output window</h2>
+
+<p>The output window is a WebView2 page owned by the runtime. Writing to it opens it; writing
+again appends. It is where anything larger than a line goes.</p>
+
+<pre data-lang="python">
+from pynavis import output
+
+output.print_html(html)              # -> None, renders an HTML fragment
+output.print_md(markdown)            # -> None, renders a small markdown subset
+output.print_table(rows, headers)    # -> None, renders a styled table
+output.print_code(text)              # -> None, an escaped monospace block
+output.print_image(path, caption=None)   # -> None, embeds png/jpg/gif/svg
+output.progress(fraction, label='')  # -> None, 0..1; 1.0 completes the bar
+
+output.chart_bar(labels, values, title=None)       # -> None, an SVG card
+output.chart_line(labels, series, title=None)      # -> None, series is {name: [values]}
+output.chart_pie(labels, values, title=None)       # -> None
+output.chart_doughnut(labels, values, title=None)  # -> None
+
+output.set_title(text)               # -> None, retitles the window
+output.save(path)                    # -> None, writes the page as standalone HTML
+
+output.element_link(item, label)     # -> str, HTML for a link that selects the item
+output.table_html(rows, headers)     # -> str, the HTML print_table emits
+output.format_table(rows, headers)   # -> str, aligned plain text with a dashed rule
+</pre>
+
+<p>The last three are pure functions that return strings. <code>table_html</code> and
+<code>format_table</code> touch nothing outside themselves, which makes them unit-testable on a
+machine with no Navisworks on it at all.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 330" width="700" role="img"
+     aria-label="A drawn output window showing a table with a right-aligned numeric column, an element link and a progress bar, with the CSS class names called out.">
+  <style>
+    .ui3-t   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ui3-h   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               font-weight: 600; }
+    .ui3-n   { font: 11.5px Consolas, monospace; fill: var(--muted); }
+    .ui3-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ui3-cd  { font: 11px Consolas, monospace; fill: var(--muted); }
+    .ui3-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .ui3-lead{ stroke: var(--line-strong); stroke-width: 1; fill: none; }
+    .ui3-win { fill: var(--paper); stroke: var(--frame); stroke-width: 1; }
+    .ui3-sur { fill: var(--surface); stroke: none; }
+    .ui3-ln  { stroke: var(--line); stroke-width: 1; }
+  </style>
+
+  <text class="ui3-lbl" x="0" y="12">The output window</text>
+
+  <rect class="ui3-win" x="0" y="24" width="452" height="288" rx="4"/>
+  <rect class="ui3-sur" x="1" y="25" width="450" height="26"/>
+  <line class="ui3-ln" x1="1" y1="51" x2="451" y2="51"/>
+  <text class="ui3-t" x="14" y="43">pyNavis output</text>
+
+  <text class="ui3-t" x="16" y="76" font-weight="600" font-size="13">Clash summary</text>
+
+  <!-- table -->
+  <rect x="16" y="88" width="418" height="112" rx="4" fill="none" stroke="var(--frame)"/>
+  <rect class="ui3-sur" x="17" y="89" width="416" height="26"/>
+  <line class="ui3-ln" x1="17" y1="115" x2="433" y2="115"/>
+  <text class="ui3-h" x="30" y="106">Group</text>
+  <text class="ui3-h" x="352" y="106" text-anchor="end">Clashes</text>
+  <text class="ui3-h" x="420" y="106" text-anchor="end">Open</text>
+
+  <text class="ui3-t" x="30" y="134">Level 03 duct vs beam</text>
+  <text class="ui3-n" x="352" y="134" text-anchor="end">412</text>
+  <text class="ui3-n" x="420" y="134" text-anchor="end">96</text>
+  <line class="ui3-ln" x1="17" y1="143" x2="433" y2="143"/>
+
+  <text class="ui3-t" x="30" y="162">Level 04 tray vs wall</text>
+  <text class="ui3-n" x="352" y="162" text-anchor="end">96</text>
+  <text class="ui3-n" x="420" y="162" text-anchor="end">8</text>
+  <line class="ui3-ln" x1="17" y1="171" x2="433" y2="171"/>
+
+  <text class="ui3-t" x="30" y="190">Level 04 pipe vs slab</text>
+  <text class="ui3-n" x="352" y="190" text-anchor="end">1,204</text>
+  <text class="ui3-n" x="420" y="190" text-anchor="end">311</text>
+
+  <!-- element link -->
+  <text class="ui3-t" x="16" y="224">Worst offender:</text>
+  <text class="ui3-t" x="104" y="224" fill="var(--accent)">Duct-Rect-482</text>
+  <line x1="104" y1="228" x2="188" y2="228" stroke="var(--accent)" stroke-width="1"/>
+
+  <!-- progress -->
+  <rect x="16" y="242" width="418" height="52" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+  <rect x="30" y="258" width="390" height="4" rx="2" fill="var(--line)"/>
+  <rect x="30" y="258" width="164" height="4" rx="2" fill="var(--accent)"/>
+  <text class="ui3-m" x="30" y="282">Grouping 4,200 of 11,038</text>
+
+  <!-- callouts -->
+  <path class="ui3-lead" d="M434 100 H 466"/>
+  <text class="ui3-cd" x="472" y="97">table.pynavis</text>
+  <text class="ui3-m"  x="472" y="112">one frame, hairline rows</text>
+
+  <path class="ui3-lead" d="M356 134 H 466"/>
+  <text class="ui3-cd" x="472" y="137">td.num</text>
+  <text class="ui3-m"  x="472" y="152">right-aligned and tabular</text>
+  <text class="ui3-m"  x="472" y="166">because the data is numeric</text>
+
+  <path class="ui3-lead" d="M190 224 H 466"/>
+  <text class="ui3-cd" x="472" y="222">a.pynavis-el</text>
+  <text class="ui3-m"  x="472" y="237">clicking selects the item</text>
+
+  <path class="ui3-lead" d="M436 268 H 466"/>
+  <text class="ui3-cd" x="472" y="266">#pynavis-progress</text>
+  <text class="ui3-m"  x="472" y="281">counted, not indeterminate</text>
+  <text class="ui3-m"  x="472" y="295">removes itself at 1.0</text>
+</svg>
+</div>
+<figcaption>Everything in the window is styled by the runtime's own stylesheet. Custom HTML
+that reuses these class names inherits the styling for free.</figcaption>
+</figure>
+
+<h3>Markdown</h3>
+
+<p><code>print_md</code> understands a deliberately small subset, chosen to match what tool
+scripts actually write.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Supported</th><th>Not supported</th></tr></thead>
+<tbody>
+<tr><td><code>#</code>, <code>##</code>, <code>###</code> headers</td>
+    <td>Tables. Use <code>print_table</code>.</td></tr>
+<tr><td><code>**bold**</code>, <code>*italic*</code>, <code>`code`</code></td>
+    <td>Images, blockquotes, horizontal rules.</td></tr>
+<tr><td><code>- </code> bullet lists</td>
+    <td>Numbered lists and nested lists.</td></tr>
+<tr><td>Fenced <code>```</code> code blocks</td>
+    <td>Language hints on the fence.</td></tr>
+<tr><td><code>[text](url)</code> links, paragraphs</td>
+    <td>Reference-style links, footnotes.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note tip">
+<span class="note-t">print_md is safe by construction</span>
+<p>The converter HTML-escapes its whole input <em>before</em> it converts anything. A property
+value containing <code>&lt;script&gt;</code>, a family name with an ampersand in it, or a path
+full of angle brackets renders as literal text and can never become live markup. This matters
+because most of what a tool prints comes from the model, not from you.</p>
+</div>
+
+<h3>Tables and numeric alignment</h3>
+
+<p><code>print_table</code> takes rows first and headers second. The header list decides the
+column count: rows shorter than the headers are padded with empty strings, and cells past the
+end of the headers are dropped.</p>
+
+<pre data-lang="python">
+rows = [
+    ['Level 03 duct vs beam', 412,   96],
+    ['Level 04 tray vs wall', 96,     8],
+    ['Level 04 pipe vs slab', '1,204', 311],
+]
+output.print_table(rows, ['Group', 'Clashes', 'Open'])
+</pre>
+
+<p>A column is right-aligned and set in tabular figures when <em>every non-empty cell in it</em>
+parses as a float once commas are stripped, and at least one cell is non-empty. Alignment
+follows the data, not the column's position.</p>
+
+<div class="note warn">
+<span class="note-t">One stray cell changes the whole column</span>
+<p>Writing <code>'n/a'</code> or <code>'-'</code> into a numeric column makes the entire column
+text, and it silently jumps back to the left. Use <code>''</code> for a missing number: empty
+cells are ignored by the test, so the column stays numeric.</p>
+</div>
+
+<div class="do-dont">
+  <div class="do"><div class="dd-t">Do</div>
+<pre data-bare="true" data-lang="python">rows.append(['Level 05 unmodelled', '', ''])</pre>
+  </div>
+  <div class="dont"><div class="dd-t">Don't</div>
+<pre data-bare="true" data-lang="python">rows.append(['Level 05 unmodelled', 'n/a', 'n/a'])</pre>
+  </div>
+</div>
+
+<h3>Element links</h3>
+
+<p><code>element_link</code> does not print anything. It returns a string of HTML, and you
+embed it in whatever you print.</p>
+
+<pre data-lang="python">
+worst = clashes[0].item
+output.print_html('Worst clash: ' + output.element_link(worst, worst.DisplayName))
+</pre>
+
+<p>Clicking the link selects that <code>ModelItem</code> in the model. The runtime renders it
+as a real anchor with <code>href</code> and <code>tabindex</code>, so it is reachable by Tab and
+shows a focus ring, which is the reason it is an anchor and not a styled span.</p>
+
+<h3>Progress</h3>
+
+<p><code>progress</code> takes a fraction from 0 to 1 and an optional label. Passing
+<code>1.0</code> completes the bar, which then fades and removes itself.</p>
+
+<pre data-lang="python">
+total = len(items)
+for index, item in enumerate(items):
+    regroup(item)
+    if index % 50 == 0:
+        output.progress(float(index) / total,
+                        'Grouping %d of %d' % (index, total))
+output.progress(1.0, 'Done')
+</pre>
+
+<p>Prefer counted progress over an indeterminate bar whenever you know the total, and put the
+count in the label. "Grouping 4,200 of 11,038" tells the user whether to wait or to stop;
+a percentage on its own does not.</p>
+
+<h3>Charts</h3>
+
+<p>Four chart shapes are built in, drawn as theme-aware SVG cards from the same palette as the
+rest of the window and printed through <code>print_html</code> underneath, so a chart call
+opens or appends to the window exactly like any other <code>print_</code> function.</p>
+
+<p><code>chart_bar</code>, <code>chart_pie</code> and <code>chart_doughnut</code> take one
+series: parallel <code>labels</code> and <code>values</code> lists. <code>chart_line</code>
+takes several at once, as a <code>{name: [values]}</code> dict sharing one <code>labels</code>
+axis. A doughnut is a pie with a hole and takes the same arguments.</p>
+
+<pre data-lang="python">
+from pynavis import clash, output
+
+summaries = clash.summarize()
+output.chart_bar([s['name'] for s in summaries],
+                 [s['total'] for s in summaries],
+                 title='Clashes per test')
+
+output.chart_line(['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                  {'New': [412, 380, 210, 96], 'Resolved': [0, 88, 240, 340]},
+                  title='Clash trend')
+</pre>
+
+<p>A chart earns its place when the shape of the data is the message. When the numbers
+themselves are the message, a table reads better and copies out; do not draw both.</p>
+
+<div class="note">
+<span class="note-t">A longer series does not skew the scale</span>
+<p><code>chart_line</code> shares one label axis across every series. When a series carries
+more values than there are labels, only the leading values are drawn, and the vertical scale is
+computed from that same truncated set rather than from the full series, so a long tail that is
+never plotted cannot inflate the peak and flatten the lines you can actually see.</p>
+</div>
+
+<h3>Images, code blocks, and keeping the report</h3>
+
+<p><code>print_image(path, caption=None)</code> embeds a PNG, JPEG, GIF or SVG file as a data
+URI with an optional caption underneath, and raises <code>ValueError</code> for any other
+extension. It pairs with <code>export.viewpoint_image</code>: write the current view to a file,
+then put it in the report.</p>
+
+<p><code>print_code(text)</code> is an escaped, horizontally scrolling monospace block. It is
+the right home for a stack trace, a generated query, or the raw markup behind an export,
+because the escaping means anything at all is safe to pass it.</p>
+
+<p><code>set_title(text)</code> retitles the window. The default is the button's own title, so
+call this when the report is about something more specific than the button that produced it,
+the document name or the test just summarised. <code>save(path)</code> writes everything
+printed so far as one standalone HTML file that opens in a browser with no pyNavis and no
+Navisworks running, which is what you want when the report has to leave the machine.</p>
+
+<pre data-lang="python">
+from pynavis import forms, output, toast
+
+output.set_title('Clash summary: Level 03')
+output.print_table(rows, ['Test', 'Results', 'New'])
+
+path = forms.save_file(filter='HTML files (*.html)|*.html|All files (*.*)|*.*',
+                       default_name='clash-summary.html', title='Save the report')
+if path:                                       # None means cancelled: say nothing
+    output.save(path)
+    toast.success('Report saved', path)
+</pre>
+
+<h3>Custom HTML</h3>
+
+<p><code>print_html</code> takes any fragment. To make it look like the rest of the window,
+target the classes the stylesheet already defines.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Selector</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td><code>.pynavis-card</code></td><td>The spacing wrapper each append lands in.</td></tr>
+<tr><td><code>.pynavis-card.err</code></td><td>The same card with an error wash and a red left rail.</td></tr>
+<tr><td><code>pre.pynavis-text</code></td><td>Monospaced console text, wrapped.</td></tr>
+<tr><td><code>pre.codeblock</code></td><td>A framed code block on the surface fill.</td></tr>
+<tr><td><code>table.pynavis</code></td><td>The framed table, with <code>td.num</code> and <code>th.num</code> for numeric cells.</td></tr>
+<tr><td><code>a.pynavis-el</code></td><td>An element link.</td></tr>
+<tr><td><code>#pynavis-progress</code></td><td>The sticky progress box at the bottom.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The output page is the one CSS surface in the project. Its custom properties are emitted
+server-side, once, for the current theme. There is no <code>prefers-color-scheme</code> query
+and no <code>data-theme</code> attribute to match on: use the variables and you are themed.</p>
+
+<pre data-lang="text">
+--bg          page background        --muted      secondary text
+--fg          body text              --row-hover  table row hover fill
+--surface     table header, code     --accent     links, progress fill, focus ring
+--line        row separators         --err-wash   error card background
+--frame       group frames           --err-line   error card border
+--err         error text
+</pre>
+
+<div class="note trap">
+<span class="note-t">These are not the desktop token names</span>
+<p>The desktop side of the design system calls the page background <em>Paper</em> and the body
+colour <em>Ink</em>. The output page emits <code>--bg</code> and <code>--fg</code>. Writing
+<code>var(--paper)</code> or <code>var(--ink)</code> into <code>print_html</code> silently
+resolves to nothing and you get an unstyled block.</p>
+</div>
+
+<pre data-lang="python">
+output.print_html(
+    '<div style="border:1px solid var(--frame); border-radius:4px; padding:12px 14px">'
+    '<div style="font-size:28px; font-weight:300">11,038</div>'
+    '<div style="color:var(--muted)">items scanned</div>'
+    '</div>')
+</pre>
+
+<h3>What the output window does not have</h3>
+
+<ul>
+  <li><strong>Charts are four shapes, not a general plotting surface.</strong>
+    <code>output.chart_bar</code>, <code>chart_line</code>, <code>chart_pie</code> and
+    <code>chart_doughnut</code> cover bar, line, pie and doughnut, theme-aware and drawn as
+    SVG. Anything else, a sparkline, a scatter plot, still means hand-writing SVG and passing
+    it to <code>print_html</code>.</li>
+  <li><strong>No collapsible sections.</strong> There is no disclosure or accordion primitive
+    either. Use headers and keep the report short enough not to need one.</li>
+  <li><strong>No cleared window.</strong> Writes append. Each run starts a fresh page.</li>
+</ul>
+
+<div class="note">
+<span class="note-t">WebView2 is not guaranteed</span>
+<p>On a machine without the WebView2 runtime the window degrades to readable plain text.
+Your script never branches on this and never checks for it: <code>print_table</code> falls back
+to the aligned text form, and <code>print_md</code> falls back to its source. Write for the
+rich window and the plain one follows.</p>
+</div>
+
+<h2>Theming your own surfaces</h2>
+
+<p>The three built-in surfaces are already themed. If you build the fourth kind, a WPF window
+of your own, ask the host which way to paint it.</p>
+
+<pre data-lang="python">
+from pynavis import script
+
+if script.is_dark_theme():
+    background, foreground = '#202020', '#E8E8E8'
+else:
+    background, foreground = '#FFFFFF', '#1A1A1A'
+</pre>
+
+<p>Read it at the moment you build the window rather than caching it at import time: the user
+can switch the Navisworks theme between two runs of your tool. The full palette for both themes
+is in <a href="style-guide.html">Design rules for tools</a>, and
+<code>DesignSystem.cs</code> applies it for you if you build from the shared toolkit.</p>
+
+<h2>One tool, three surfaces</h2>
+
+<p>A realistic tool uses all three in their proper places: a dialog to get the one thing it
+cannot guess, progress and a table for the work, and a toast for the verdict.</p>
+
+<pre data-lang="python" data-file="Audit.pushbutton\script.py">
+"""Audits the selected items for a missing property and writes a report."""
+from pynavis import forms, output, selection, toast
+
+PROPERTY = 'Assembly Code'
+
+items = selection.get_items()
+
+if not items:
+    # 1. Empty state: say what is missing and what to do about it.
+    toast.info('Nothing selected', 'Select the items to audit, then run this again.')
+
+elif not forms.confirm('Audit %d selected items for "%s"?' % (len(items), PROPERTY),
+                       'Property audit'):
+    # 2. Dialog: the one thing the script cannot decide for itself.
+    pass                                    # cancelled: silent, no toast
+
+else:
+    # 3. Output: counted progress while the work runs.
+    missing = []
+    total = len(items)
+    for index, item in enumerate(items):
+        if not read_property(item, PROPERTY):
+            missing.append(item)
+        if index % 100 == 0:
+            output.progress(float(index) / total,
+                            'Checking %d of %d' % (index, total))
+    output.progress(1.0)
+
+    if missing:
+        # A table, because a list of names is not a one-line result.
+        rows = [[item.DisplayName, model_of(item), depth_of(item)] for item in missing]
+        output.print_md('## Missing "%s"\n%d of %d items.' % (PROPERTY, len(missing), total))
+        output.print_table(rows, ['Item', 'Model', 'Depth'])
+        output.print_html('First offender: '
+                          + output.element_link(missing[0], missing[0].DisplayName))
+
+    # 4. Toast: the one-line verdict, so the user need not read the window to know the answer.
+    if missing:
+        toast.warning('%d of %d items are missing "%s"' % (len(missing), total, PROPERTY),
+                      'The full list is in the output window.')
+    else:
+        toast.success('All %d items have "%s"' % (total, PROPERTY))
+</pre>
+
+<p><code>read_property</code>, <code>model_of</code> and <code>depth_of</code> are stand-ins for
+your own helpers; the surface work is everything around them.</p>
+
+<p>Notice what is not there. No <code>print()</code>. No toast on cancel. No window opened
+before there was something worth putting in it. No message that repeats what the user can
+already see. And note the order: the toast fires last, so the user gets the verdict even if
+they never look at the window.</p>
+
+<div class="cards">
+  <a href="style-guide.html"><span class="c-t">Design rules for tools</span>
+    <span class="c-d">What your tool has to look like and how it has to behave.</span></a>
+  <a href="api-reference.html"><span class="c-t">Python API reference</span>
+    <span class="c-d">Every function in toast, forms, output and the rest.</span></a>
+  <a href="cookbook.html"><span class="c-t">Cookbook</span>
+    <span class="c-d">Working recipes, including reports and long-running jobs.</span></a>
+</div>

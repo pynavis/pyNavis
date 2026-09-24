@@ -1,0 +1,3 @@
+title: Nudge Next Target
+tooltip: Cycles the Section Nudge target forward: box, then planes 1 to 6. Invisible on the ribbon; rebind it in the Shortcuts editor.
+shortcut: Ctrl+Alt+Right

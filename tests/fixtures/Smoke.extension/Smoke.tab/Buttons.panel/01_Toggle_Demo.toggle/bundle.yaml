@@ -1,0 +1,2 @@
+title: Toggle Demo
+tooltip: Click to flip the on/off icon. State survives Reload, not a restart.

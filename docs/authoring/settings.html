@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings and per-tool state - pyNavis authoring</title>
+<meta name="description" content="How a tool remembers what the user chose, using one small module and one JSON file per tool.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<a href="tools.html"><span class="num">03</span>Bundled tools</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">05</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">07</span>Icons</a>
+<a href="shortcuts.html"><span class="num">08</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">09</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">11</span>The script environment</a>
+<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
+<a href="settings.html" class="active"><span class="num">13</span>Settings and per-tool state</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 0.4.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Scripts</p>
+  <h1>Settings and per-tool state</h1>
+  <p class="lead">How a tool remembers what the user chose, using one small module and one JSON file per tool.</p>
+  <p>Most tools eventually grow an option. A tolerance, an output folder, a checkbox that
+someone wants remembered. pyNavis has one convention for this, and it is deliberately
+small: a bundle ships a <code>config.py</code> that writes the options, a
+<code>script.py</code> that reads them back, and <code>pynavis.settings</code> in between.</p>
+
+<p>There is no settings framework, no schema, no registry. A tool's settings are a Python
+dict that round-trips through a JSON file.</p>
+
+<h2 id="the-convention">The convention<a class="anchor" href="#the-convention" aria-label="Link to this section">#</a></h2>
+
+<p>A bundle folder holds two scripts. Clicking the button runs <code>script.py</code>;
+Shift-clicking it runs <code>config.py</code>, in the same engine with the same globals.
+That split is the whole design: options are edited in one place, consumed in another, and the
+user never has to hunt for a preferences dialog because it is always on the same button.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Section.pushbutton</span>\
+  <span class="tok-k">script.py</span>        <span class="tok-c"># click: does the work, reads settings</span>
+  <span class="tok-k">config.py</span>        <span class="tok-c"># Shift+Click: the options dialog, writes settings</span>
+  <span class="tok-k">bundle.yaml</span>
+  <span class="tok-k">icon.png</span></code></pre></div>
+
+<p>See <a href="click-actions.html">Click actions</a> for the full behaviour of the three
+modifiers, including what happens when a bundle has no <code>config.py</code>.</p>
+
+<h2 id="the-four-functions">The four functions<a class="anchor" href="#the-four-functions" aria-label="Link to this section">#</a></h2>
+
+<p><code>pynavis.settings</code> is pure stdlib. It imports no Navisworks API, so it works on
+either engine, in a unit test, and outside Navisworks entirely.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Function</th><th>Returns</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>path_for(tool)</code></td><td><code>str</code></td>
+    <td>The settings file path for a tool key:
+        <code>%APPDATA%\pyNavis\settings\&lt;tool&gt;.json</code>. The file need not exist.</td></tr>
+<tr><td><code>merge(defaults, stored)</code></td><td><code>dict</code></td>
+    <td>Defaults overlaid with stored values. Keys that are not in <code>defaults</code> are
+        dropped.</td></tr>
+<tr><td><code>load(tool, defaults)</code></td><td><code>dict</code></td>
+    <td>The tool's saved settings merged over <code>defaults</code>. Never raises.</td></tr>
+<tr><td><code>save(tool, values)</code></td><td><code>None</code></td>
+    <td>Writes the dict as indented, key-sorted JSON, creating the folder if needed.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">from</span> pynavis <span class="tok-k">import</span> settings
+
+TOOL = <span class="tok-s">&#x27;section_planes&#x27;</span>
+DEFAULTS = {<span class="tok-s">&#x27;padding_mm&#x27;</span>: <span class="tok-n">150.0</span>, <span class="tok-s">&#x27;snap_degrees&#x27;</span>: <span class="tok-n">1.5</span>}
+
+values = settings.load(TOOL, DEFAULTS)     <span class="tok-c"># always a complete dict</span>
+values[<span class="tok-s">&#x27;padding_mm&#x27;</span>] = <span class="tok-n">200.0</span>
+settings.save(TOOL, values)</code></pre></div>
+
+<h2 id="the-read-and-write-cycle">The read and write cycle<a class="anchor" href="#the-read-and-write-cycle" aria-label="Link to this section">#</a></h2>
+
+<p>Two scripts, one file, and one merge step that quietly does the version management for
+you.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 330" width="700" role="img"
+     aria-label="config.py saves to a JSON file, script.py loads it, and merge drops a key that is no longer in DEFAULTS.">
+  <style>
+    .st1-t   { font: 11.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .st1-m   { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .st1-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .st1-mdim{ font: 11px Consolas, monospace; fill: var(--muted); }
+    .st1-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+               text-transform: uppercase; letter-spacing: .07em; }
+    .st1-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .st1-hot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; }
+    .st1-dim { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+    .st1-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+    .st1-cut { stroke: var(--muted); stroke-width: 1.1; }
+  </style>
+  <defs>
+    <marker id="st1-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <rect class="st1-box" x="0" y="24" width="190" height="60" rx="4"/>
+  <text class="st1-mono" x="14" y="46">config.py</text>
+  <text class="st1-m"    x="14" y="66">Shift+Click, writes</text>
+
+  <path class="st1-arw" d="M196 54 H 250" marker-end="url(#st1-a)"/>
+  <text class="st1-mono" x="200" y="46">save</text>
+
+  <rect class="st1-hot" x="256" y="24" width="190" height="60" rx="4"/>
+  <text class="st1-mono" x="270" y="46">&lt;tool&gt;.json</text>
+  <text class="st1-m"    x="270" y="66">%APPDATA%\pyNavis\settings</text>
+
+  <path class="st1-arw" d="M452 54 H 506" marker-end="url(#st1-a)"/>
+  <text class="st1-mono" x="458" y="46">load</text>
+
+  <rect class="st1-box" x="512" y="24" width="188" height="60" rx="4"/>
+  <text class="st1-mono" x="526" y="46">script.py</text>
+  <text class="st1-m"    x="526" y="66">Click, reads</text>
+
+  <path class="st1-arw" d="M350 90 V 112" marker-end="url(#st1-a)"/>
+
+  <rect class="st1-dim" x="30" y="118" width="650" height="150" rx="4"/>
+  <text class="st1-lbl" x="76" y="138">Inside load: merge(defaults, stored)</text>
+
+  <text class="st1-t"    x="76" y="164" font-weight="600">DEFAULTS</text>
+  <text class="st1-m"    x="76" y="180">this version of the tool</text>
+  <text class="st1-mono" x="76" y="204">padding_mm</text>
+  <text class="st1-mono" x="76" y="226">snap_degrees</text>
+
+  <text class="st1-t"    x="266" y="164" font-weight="600">Stored file</text>
+  <text class="st1-m"    x="266" y="180">written by an older version</text>
+  <text class="st1-mono" x="266" y="204">padding_mm      200.0</text>
+  <text class="st1-mono" x="266" y="226">snap_degrees      1.0</text>
+  <text class="st1-mdim" x="266" y="248">units           "mm"</text>
+  <line class="st1-cut" x1="262" y1="244" x2="384" y2="244"/>
+
+  <path class="st1-arw" d="M470 200 H 508" marker-end="url(#st1-a)"/>
+
+  <text class="st1-t"    x="516" y="164" font-weight="600">Result</text>
+  <text class="st1-m"    x="516" y="180">what your script sees</text>
+  <text class="st1-mono" x="516" y="204">padding_mm      200.0</text>
+  <text class="st1-mono" x="516" y="226">snap_degrees      1.0</text>
+  <text class="st1-m"    x="516" y="248">units is gone</text>
+
+  <text class="st1-m" x="0" y="298">Values come from the file. The set of keys comes from DEFAULTS, so a key you</text>
+  <text class="st1-m" x="0" y="314">removed from the tool cannot come back, and a key you added arrives at its default.</text>
+</svg>
+</div>
+<figcaption>The merge is the migration story. You change <code>DEFAULTS</code> and old files
+converge on the new shape by themselves, without a version number or an upgrade step.</figcaption>
+</figure>
+
+<h2 id="why-load-never-raises">Why <code>load</code> never raises<a class="anchor" href="#why-load-never-raises" aria-label="Link to this section">#</a></h2>
+
+<p><code>load</code> catches everything. A missing file, an empty file, a file full of
+half-written JSON because the machine lost power mid-save, a file someone edited by hand into
+a list instead of an object: all of them return a fresh copy of your defaults.</p>
+
+<div class="code"><div class="code-head"><span>pynavislib\pynavis\settings.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">def</span> load(tool, defaults):
+    <span class="tok-k">try</span>:
+        <span class="tok-k">with</span> open(path_for(tool), <span class="tok-s">&#x27;r&#x27;</span>) <span class="tok-k">as</span> f:
+            stored = json.load(f)
+    <span class="tok-k">except</span> Exception:
+        <span class="tok-k">return</span> dict(defaults)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> isinstance(stored, dict):
+        <span class="tok-k">return</span> dict(defaults)
+    <span class="tok-k">return</span> merge(defaults, stored)</code></pre></div>
+
+<p>A blanket <code>except</code> is normally a smell. Here it is the point. The alternative
+is a tool that fails to open because a preferences file is bad, which is the worst possible
+trade: the user loses the feature <em>and</em> has no obvious way to fix it. Falling back to
+defaults means the tool always runs, and the next <code>save</code> repairs the file.</p>
+
+<div class="note">
+<span class="note-t">You never need to check the result</span>
+<p><code>load</code> always returns a complete dict containing exactly the keys in your
+<code>DEFAULTS</code>. Indexing it with <code>values['padding_mm']</code> is safe;
+<code>values.get('padding_mm', 150.0)</code> is redundant, and duplicating the default in two
+places is how they drift apart.</p>
+</div>
+
+<h2 id="why-merge-drops-unknown-keys">Why <code>merge</code> drops unknown keys<a class="anchor" href="#why-merge-drops-unknown-keys" aria-label="Link to this section">#</a></h2>
+
+<p><code>merge</code> starts from <code>defaults</code> and copies over only the keys that
+already exist there. Anything else in the stored file is ignored and, on the next
+<code>save</code>, gone from disk.</p>
+
+<div class="code"><div class="code-head"><span>pynavislib\pynavis\settings.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">def</span> merge(defaults, stored):
+    result = dict(defaults)
+    <span class="tok-k">for</span> key <span class="tok-k">in</span> defaults:
+        <span class="tok-k">if</span> key <span class="tok-k">in</span> stored:
+            result[key] = stored[key]
+    <span class="tok-k">return</span> result</code></pre></div>
+
+<p>Work through the version change in the diagram above. Version 1 of a section tool shipped
+these defaults:</p>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code>DEFAULTS = {<span class="tok-s">&#x27;padding_mm&#x27;</span>: <span class="tok-n">150.0</span>, <span class="tok-s">&#x27;snap_degrees&#x27;</span>: <span class="tok-n">1.5</span>, <span class="tok-s">&#x27;units&#x27;</span>: <span class="tok-s">&#x27;mm&#x27;</span>}</code></pre></div>
+
+<p>A user changed the padding and the snap, so their file on disk reads:</p>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\settings\section_planes.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;padding_mm&quot;</span>: <span class="tok-n">200.0</span>,
+  <span class="tok-f">&quot;snap_degrees&quot;</span>: <span class="tok-n">1.0</span>,
+  <span class="tok-f">&quot;units&quot;</span>: <span class="tok-s">&quot;mm&quot;</span>
+}</code></pre></div>
+
+<p>Version 2 drops the units option, because everything is millimetres now:</p>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code>DEFAULTS = {<span class="tok-s">&#x27;padding_mm&#x27;</span>: <span class="tok-n">150.0</span>, <span class="tok-s">&#x27;snap_degrees&#x27;</span>: <span class="tok-n">1.5</span>}</code></pre></div>
+
+<p>The next <code>load</code> returns <code>{'padding_mm': 200.0, 'snap_degrees': 1.0}</code>.
+The user's two real choices survived. The dead key did not, and no code anywhere had to know
+it once existed. Add a key later and it simply arrives at its default for everyone.</p>
+
+<div class="note tip">
+<span class="note-t">This is the migration mechanism</span>
+<p>There is no version field and no upgrade hook because there does not need to be. Renaming
+a key is the one case that needs thought: the old name is dropped and the new one starts at
+its default, so the user loses that single value. If that matters, read the old key once with
+a temporary <code>DEFAULTS</code> that still contains it, write the new one, and remove the
+compatibility line a release later.</p>
+</div>
+
+<h2 id="where-the-files-live">Where the files live<a class="anchor" href="#where-the-files-live" aria-label="Link to this section">#</a></h2>
+
+<p>One file per tool, named after the tool key, under the per-user pyNavis folder:</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code>%APPDATA%\pyNavis\
+  config.json              <span class="tok-c"># pyNavis itself: extension roots, engine paths, shortcuts, panes</span>
+  settings\
+    section_planes.json    <span class="tok-c"># one tool</span>
+    smart_clash_grouper.json
+    count_selection.json
+  memory\                  <span class="tok-c"># per-document selection registers</span>
+  logs\</code></pre></div>
+
+<p>The format is what <code>json.dump(values, f, indent=2, sort_keys=True)</code> produces:
+indented and key-sorted, so it reads cleanly and diffs cleanly if anyone puts it in version
+control. Hand-editing is fine, and a hand-edit that breaks the syntax costs the user their
+settings for that tool and nothing else.</p>
+
+<h3 id="what-pynavis-itself-keeps-in-config-json">What pyNavis itself keeps in config.json<a class="anchor" href="#what-pynavis-itself-keeps-in-config-json" aria-label="Link to this section">#</a></h3>
+
+<p><code>config.json</code> belongs to the runtime, not to any one tool. This is every key it
+reads. Anything else in the file is ignored and, importantly, preserved: each writer
+read-modify-writes the whole tree through a temp file and a swap, so a key one editor does not
+know about survives every save another one makes.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Default</th><th>What it controls</th></tr></thead>
+<tbody>
+<tr><td><code>extensions</code></td><td>array of strings</td><td><code>[]</code></td>
+    <td>The folders scanned for <code>*.extension</code> and <code>*.lib</code> folders.
+        <code>%APPDATA%\pyNavis\extensions</code>, the root the install writes into, and
+        <code>%PROGRAMDATA%\pyNavis\extensions</code> when that folder exists are appended
+        automatically if they are not already listed. Blank entries are dropped.</td></tr>
+<tr><td><code>pynavislib</code></td><td>string</td><td>absent</td>
+    <td>The folder holding the <code>pynavis</code> package. Absent, or set to a folder that
+        does not exist, falls back to <code>&lt;runtime&gt;\pynavislib</code>; if that is
+        missing too the runtime logs that <code>import pynavis</code> will fail.</td></tr>
+<tr><td><code>cpython</code></td><td>string</td><td>absent</td>
+    <td>A <code>python3XX.dll</code> or a Python install folder for the CPython engine.
+        Absent means auto-detect. Read once, when the interpreter is created, so a change
+        needs a Navisworks restart.</td></tr>
+<tr><td><code>theme</code></td><td><code>"dark"</code> or <code>"light"</code></td>
+    <td>absent</td>
+    <td>Forces the theme of pyNavis' own windows, toasts and icon variants. Absent, or any
+        other string, means follow the Navisworks ribbon.</td></tr>
+<tr><td><code>shortcuts.allowBareKeys</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Permits chords with neither Ctrl nor Alt. Read only as a real JSON boolean; the string
+        <code>"true"</code> is ignored. See <a href="shortcuts.html">Shortcuts and
+        keytips</a>.</td></tr>
+<tr><td><code>shortcuts.bindings</code></td>
+    <td>object: bundle key to chord string, or <code>null</code></td><td><code>{}</code></td>
+    <td>Per-tool chord overrides. A string replaces the author default; <code>null</code>
+        disables the tool's chord entirely. Written by the <strong>Shortcuts</strong>
+        editor.</td></tr>
+<tr><td><code>panes.assignments</code></td>
+    <td>object: dockpane bundle key to a 1-based slot number</td><td><code>{}</code></td>
+    <td>Which panel slot each <code>*.dockpane</code> owns. Rewritten on every boot and
+        Reload.</td></tr>
+<tr><td><code>panes.extraSlots</code></td><td>integer above zero</td><td><code>0</code></td>
+    <td>How many slots the generated satellite DLL adds beyond the five that ship in the
+        loader. The satellite sits beside the loader in the bundle's
+        <code>Contents\&lt;year&gt;</code> folder and is registered in
+        <code>PackageContents.xml</code>. Written by the <strong>Panel slots</strong>
+        button.</td></tr>
+<tr><td><code>ribbon.configDot</code></td><td>boolean</td><td><code>true</code></td>
+    <td>Draws a dot on the icon of any bundle that ships a <code>config.py</code>.</td></tr>
+<tr><td><code>ribbon.shortcutMarker</code></td><td>string</td><td><code>"&#9679;"</code></td>
+    <td>Appended to the caption of any button a chord resolves to. <code>""</code> turns it
+        off.</td></tr>
+<tr><td><code>layout.&lt;dialog&gt;.&lt;part&gt;</code></td><td>number above zero</td>
+    <td>absent</td>
+    <td>Remembered pane widths inside pyNavis' own dialogs, in whole pixels. Machine-written
+        when a dialog that supports it closes. Nothing a bundle reads.</td></tr>
+<tr><td><code>runtime&lt;year&gt;</code>, for example <code>runtime2026</code></td>
+    <td>string</td><td>absent</td>
+    <td>The folder the runtime assemblies load from, one key per Navisworks release so two
+        installed versions never share a build. Read by the loader with a regex before any
+        real parser exists. It is the second of four candidates the loader tries, after the
+        <code>PYNAVIS_RUNTIME</code> environment variable and before
+        <code>%APPDATA%\pyNavis\&lt;year&gt;\runtime</code> and
+        <code>%PROGRAMDATA%\pyNavis\&lt;year&gt;\runtime</code>. A normal install leaves it
+        absent and relies on the third; <code>tools/deploy-dev.ps1</code> writes it to point
+        at a repository build. Never delete it by hand when it is there.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note tip">
+<span class="note-t">There is a window for most of this</span>
+<p><strong>Settings</strong> on the pyNavis panel edits <code>extensions</code>,
+<code>theme</code>, <code>pynavislib</code>, <code>cpython</code>,
+<code>shortcuts.allowBareKeys</code> and the two <code>ribbon</code> hints, and tells you
+whether your change needs a Reload or a Navisworks restart. It deliberately leaves
+<code>shortcuts.bindings</code>, <code>panes</code> and <code>layout</code> alone, because
+those belong to the Shortcuts editor, the pane registry and the dialogs that wrote them.</p>
+</div>
+
+<div class="note warn">
+<span class="note-t">Broken JSON is refused, not repaired</span>
+<p>Reading <code>config.json</code> at boot never throws: a file that will not parse logs
+<code>Failed to load config '&lt;path&gt;' - using defaults.</code> and pyNavis carries on with
+nothing configured, which usually looks like every extension disappearing at once.
+<em>Writing</em> is stricter. A save that finds an unparsable file refuses rather than starting
+a fresh one, because a blank start would silently drop your extension roots, your pane claims
+and the <code>runtime&lt;year&gt;</code> key the loader boots from. Fix the file, or delete
+it.</p>
+</div>
+
+<h3 id="the-two-machine-written-sections">The two machine-written sections<a class="anchor" href="#the-two-machine-written-sections" aria-label="Link to this section">#</a></h3>
+
+<p>The <strong>Shortcuts</strong> editor maintains <code>shortcuts.bindings</code>
+(<a href="shortcuts.html">Shortcuts and keytips</a>), and the runtime maintains
+<code>panes</code>: which <code>*.dockpane</code> bundle owns which panel slot, plus how many
+extra slots the generated satellite DLL adds beyond the five that ship in the loader.</p>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;panes&quot;</span>: {
+    <span class="tok-f">&quot;assignments&quot;</span>: {
+      <span class="tok-f">&quot;Survey.tab/Field.panel/Levels.dockpane&quot;</span>: <span class="tok-n">2</span>,
+      <span class="tok-f">&quot;pyNavis.tab/Tools.panel/Navigator.dockpane&quot;</span>: <span class="tok-n">1</span>
+    },
+    <span class="tok-f">&quot;extraSlots&quot;</span>: <span class="tok-n">3</span>
+  }
+}</code></pre></div>
+
+<p>The keys under <code>assignments</code> are the same extension-relative bundle paths that
+shortcut overrides use; the values are 1-based slot numbers. The section is rewritten on
+every boot and Reload, and a claim is kept even after its extension disappears, so a
+reinstalled extension gets the same slot back, and with it the docked position and size
+Navisworks remembered for that slot.</p>
+
+<div class="note warn">
+<span class="note-t">Do not reassign slots by hand</span>
+<p>Navisworks stores a panel's position, size and open state against the slot, not against
+your bundle, which is why a bundle keeps its slot for life. Editing a number here does not
+move a panel; it points your bundle at a slot whose saved layout belongs to a different one.
+Delete a claim only to forget it deliberately, and expect that bundle to be treated as brand
+new on the next scan.</p>
+</div>
+
+<h3 id="ribbon-hints">Ribbon hints<a class="anchor" href="#ribbon-hints" aria-label="Link to this section">#</a></h3>
+
+<p>Two hints are drawn on every button that earns them, and both are yours to change. They
+are read once per ribbon build, so an edit here lands on the next <strong>Reload</strong>
+rather than needing a restart.</p>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;ribbon&quot;</span>: {
+    <span class="tok-f">&quot;configDot&quot;</span>: <span class="tok-k">true</span>,
+    <span class="tok-f">&quot;shortcutMarker&quot;</span>: <span class="tok-s">&quot;●&quot;</span>
+  }
+}</code></pre></div>
+
+<p><code>configDot</code> draws a filled dot in the corner of the icon of any bundle that
+ships a <code>config.py</code>, so a tool with a Shift+Click action says so on the ribbon
+instead of hiding it. <code>shortcutMarker</code> is appended to the caption of any button a
+keyboard chord resolves to; the tooltip still names the chord itself.</p>
+
+<p>Both default on. The marker is the string that gets drawn, so setting it to
+<code>""</code> turns it off, and any character works in its place. A marker that begins
+with a newline takes its own caption line instead of sitting beside the name:</p>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;ribbon&quot;</span>: {
+    <span class="tok-f">&quot;configDot&quot;</span>: <span class="tok-k">false</span>,
+    <span class="tok-f">&quot;shortcutMarker&quot;</span>: <span class="tok-s">&quot;\n●&quot;</span>
+  }
+}</code></pre></div>
+
+<h2 id="choosing-a-tool-key">Choosing a tool key<a class="anchor" href="#choosing-a-tool-key" aria-label="Link to this section">#</a></h2>
+
+<p>The key is a filename, so it should be a short, stable, <code>snake_case</code> string that
+identifies the tool rather than describing it. One key per tool.</p>
+
+<div class="do-dont">
+<div class="do"><div class="dd-t">Do</div>
+<pre>TOOL = <span class="tok-s">&#x27;smart_clash_grouper&#x27;</span>
+TOOL = <span class="tok-s">&#x27;section_planes&#x27;</span>
+TOOL = <span class="tok-s">&#x27;count_selection&#x27;</span></pre>
+</div>
+<div class="dont"><div class="dd-t">Don't</div>
+<pre>TOOL = <span class="tok-s">&#x27;Smart Clash Grouper&#x27;</span>   <span class="tok-c"># spaces in a filename</span>
+TOOL = __title__               <span class="tok-c"># renaming the button loses settings</span>
+TOOL = <span class="tok-s">&#x27;settings&#x27;</span>              <span class="tok-c"># says nothing about which tool</span></pre>
+</div>
+</div>
+
+<p>Do not derive the key from <code>__title__</code> or the folder name. Both are things you
+will want to change for presentation reasons, and changing either would silently strand every
+user's saved settings in a file nobody reads any more.</p>
+
+<p>Two bundles may deliberately share a key when they are two faces of one tool, for example a
+run button and a report button that must agree on the same tolerance. That is the exception,
+not the norm.</p>
+
+<h2 id="the-tool-and-defaults-constants">The TOOL and DEFAULTS constants<a class="anchor" href="#the-tool-and-defaults-constants" aria-label="Link to this section">#</a></h2>
+
+<p>Both scripts need the same key and the same defaults, and defining them twice is how they
+end up different. Where the logic already lives in a shared module, put the constants there
+too. The shipped section tool does exactly this:</p>
+
+<div class="code"><div class="code-head"><span>pynavislib\pynavis\section.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code>TOOL = <span class="tok-s">&#x27;section_planes&#x27;</span>
+DEFAULTS = {<span class="tok-s">&#x27;padding_mm&#x27;</span>: <span class="tok-n">150.0</span>, <span class="tok-s">&#x27;snap_degrees&#x27;</span>: <span class="tok-n">1.5</span>}</code></pre></div>
+
+<p>which makes the calling script three lines long:</p>
+
+<div class="code"><div class="code-head"><span>Section.pushbutton\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Fits section planes around the current selection.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> section, selection, settings, toast
+
+values = settings.load(section.TOOL, section.DEFAULTS)
+result = section.fit_to_selection(selection.get_items(), values)
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+
+<p>For a tool of your own, a module in your extension's <code>lib\</code> folder does the same
+job, and edits to it are picked up on the next run with no Reload. If the tool is genuinely
+one file, a module beside <code>script.py</code> is enough:</p>
+
+<div class="code"><div class="code-head"><span>Export.pushbutton\export_opts.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code>TOOL = <span class="tok-s">&#x27;quantity_export&#x27;</span>
+DEFAULTS = {
+    <span class="tok-s">&#x27;include_hidden&#x27;</span>: <span class="tok-k">False</span>,
+    <span class="tok-s">&#x27;decimals&#x27;</span>: <span class="tok-n">2</span>,
+    <span class="tok-s">&#x27;output_path&#x27;</span>: <span class="tok-s">&#x27;&#x27;</span>,
+}</code></pre></div>
+
+<h2 id="a-complete-tool">A complete tool<a class="anchor" href="#a-complete-tool" aria-label="Link to this section">#</a></h2>
+
+<p>Three settings, an options dialog on Shift+Click, and a main script that reads them. This
+is the whole pattern in one bundle.</p>
+
+<div class="code"><div class="code-head"><span>Export.pushbutton\config.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Options for Quantity export.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, settings, toast
+
+<span class="tok-k">import</span> export_opts
+
+values = settings.load(export_opts.TOOL, export_opts.DEFAULTS)
+
+answer = forms.ask_string(
+    <span class="tok-s">&#x27;Decimal places for quantities:&#x27;</span>,
+    default=str(values[<span class="tok-s">&#x27;decimals&#x27;</span>]),
+    title=<span class="tok-s">&#x27;Quantity export&#x27;</span>,
+)
+
+<span class="tok-k">if</span> answer <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                              <span class="tok-c"># None means cancelled: change nothing</span>
+    <span class="tok-k">try</span>:
+        decimals = int(answer)
+    <span class="tok-k">except</span> ValueError:
+        toast.error(<span class="tok-s">&#x27;That is not a whole number&#x27;</span>)
+    <span class="tok-k">else</span>:
+        values[<span class="tok-s">&#x27;decimals&#x27;</span>] = max(<span class="tok-n">0</span>, min(<span class="tok-n">6</span>, decimals))
+        values[<span class="tok-s">&#x27;include_hidden&#x27;</span>] = forms.confirm(
+            <span class="tok-s">&#x27;Include hidden items in the export?&#x27;</span>, title=<span class="tok-s">&#x27;Quantity export&#x27;</span>)
+        chosen = forms.save_file(default_name=<span class="tok-s">&#x27;quantities.csv&#x27;</span>)
+        <span class="tok-k">if</span> chosen:
+            values[<span class="tok-s">&#x27;output_path&#x27;</span>] = chosen
+        <span class="tok-k">try</span>:
+            settings.save(export_opts.TOOL, values)
+        <span class="tok-k">except</span> (IOError, OSError) <span class="tok-k">as</span> exc:
+            toast.error(<span class="tok-s">&#x27;Could not save settings&#x27;</span>, str(exc))
+        <span class="tok-k">else</span>:
+            toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>, <span class="tok-s">&#x27;%d decimals, hidden items %s&#x27;</span>
+                          % (values[<span class="tok-s">&#x27;decimals&#x27;</span>],
+                             <span class="tok-s">&#x27;included&#x27;</span> <span class="tok-k">if</span> values[<span class="tok-s">&#x27;include_hidden&#x27;</span>] <span class="tok-k">else</span> <span class="tok-s">&#x27;excluded&#x27;</span>))</code></pre></div>
+
+<div class="code"><div class="code-head"><span>Export.pushbutton\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports quantities for the current selection.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection, settings, toast
+
+<span class="tok-k">import</span> export_opts
+
+values = settings.load(export_opts.TOOL, export_opts.DEFAULTS)
+items = selection.get_items()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Pick something in the model and run this again.&#x27;</span>)
+<span class="tok-k">elif</span> <span class="tok-k">not</span> values[<span class="tok-s">&#x27;output_path&#x27;</span>]:
+    toast.warning(<span class="tok-s">&#x27;No output file set&#x27;</span>, <span class="tok-s">&#x27;Shift+Click this button to choose one.&#x27;</span>)
+<span class="tok-k">else</span>:
+    rows = export_opts.build_rows(items, values[<span class="tok-s">&#x27;include_hidden&#x27;</span>], values[<span class="tok-s">&#x27;decimals&#x27;</span>])
+    export_opts.write_csv(values[<span class="tok-s">&#x27;output_path&#x27;</span>], rows)
+    toast.success(<span class="tok-s">&#x27;Exported %d row(s)&#x27;</span> % len(rows), values[<span class="tok-s">&#x27;output_path&#x27;</span>])</code></pre></div>
+
+<p>Notice what is absent: no existence check on the settings file, no try around
+<code>load</code>, no defaults repeated at the point of use, and no message on cancel.</p>
+
+<h2 id="save-is-not-atomic"><code>save</code> is not atomic<a class="anchor" href="#save-is-not-atomic" aria-label="Link to this section">#</a></h2>
+
+<div class="note warn">
+<span class="note-t">A crash mid-write can truncate the file</span>
+<p><code>settings.save</code> opens the target file and writes into it directly. It is not
+the temp-file-then-replace dance that <code>pynavis.memory.save</code> uses, because settings
+are small, rewritten rarely, and cheap to lose. The consequence is real but mild: a process
+that dies during the write leaves a half-written file, which the next <code>load</code>
+treats as corrupt and replaces with the defaults.</p>
+</div>
+
+<p><code>save</code> is also the one function here that <em>can</em> raise. A read-only
+profile, a locked file or a full disk surfaces as <code>IOError</code> or
+<code>OSError</code>. In a <code>config.py</code> that is usually worth catching, because
+losing the settings is less bad than a traceback in the user's face:</p>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">try</span>:
+    settings.save(TOOL, values)
+<span class="tok-k">except</span> (IOError, OSError) <span class="tok-k">as</span> exc:
+    toast.error(<span class="tok-s">&#x27;Could not save settings&#x27;</span>, str(exc))
+<span class="tok-k">else</span>:
+    toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>)</code></pre></div>
+
+<h2 id="per-user-not-per-document">Per user, not per document<a class="anchor" href="#per-user-not-per-document" aria-label="Link to this section">#</a></h2>
+
+<p>Settings live under <code>%APPDATA%</code>. They belong to the person, follow them between
+models, and are shared by every document they open. That is right for a preference such as
+decimal places, and wrong for anything that describes a particular model.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>State</th><th>Belongs in</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td>A preference the user sets once</td><td><code>pynavis.settings</code></td>
+    <td>Tolerance, decimals, default output folder, whether to open the report.</td></tr>
+<tr><td>Something about the open model</td><td><code>pynavis.memory</code></td>
+    <td>A saved selection, the last clash test worked on, a per-model register.</td></tr>
+<tr><td>Something about this run only</td><td>A local variable</td>
+    <td>Anything you would otherwise be tempted to cache between runs. The scope is discarded
+        anyway, so do not try.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>For the per-document case, <code>pynavis.memory</code> solves the naming problem you would
+otherwise have to solve yourself. Its file names are built from the lowercased document path:
+a sanitised stem of up to 40 characters, plus an 8-character SHA1 of the full path.</p>
+
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>C:\Projects\Tower\structure.nwd   -&gt;   structure-3f9a2c1d.json
+D:\Archive\2019\structure.nwd     -&gt;   structure-b7e40a52.json
+(unsaved document)                -&gt;   untitled-da39a3ee.json</code></pre></div>
+
+<p>Two files called <code>structure.nwd</code> in different folders never collide, the same
+document reached through a differently cased path lands on the same file because everything is
+derived from the lowercased form, and every unsaved document shares one
+<code>untitled</code> register. If you build your own per-document store, copy that scheme
+rather than inventing another one.</p>
+
+<div class="cards">
+  <a href="click-actions.html"><span class="c-t">Click actions</span>
+    <span class="c-d">Click, Shift+Click and Alt+Click, and what each one runs.</span></a>
+  <a href="user-interface.html"><span class="c-t">Talking to the user</span>
+    <span class="c-d">The dialogs a config.py is built from, and the toasts it reports with.</span></a>
+  <a href="api-reference.html"><span class="c-t">Python API reference</span>
+    <span class="c-d">Full signatures for settings, memory and the rest of the library.</span></a>
+</div>
+  <div class="pagenav">
+<a href="user-interface.html"><span class="dir">Previous</span><span class="ttl">Talking to the user</span></a>
+<a class="next" href="api-reference.html"><span class="dir">Next</span><span class="ttl">Python API reference</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#the-convention">The convention</a>
+<a href="#the-four-functions">The four functions</a>
+<a href="#the-read-and-write-cycle">The read and write cycle</a>
+<a href="#why-load-never-raises">Why load never raises</a>
+<a href="#why-merge-drops-unknown-keys">Why merge drops unknown keys</a>
+<a href="#where-the-files-live">Where the files live</a>
+<a href="#what-pynavis-itself-keeps-in-config-json" class="h3">What pyNavis itself keeps in config.json</a>
+<a href="#the-two-machine-written-sections" class="h3">The two machine-written sections</a>
+<a href="#ribbon-hints" class="h3">Ribbon hints</a>
+<a href="#choosing-a-tool-key">Choosing a tool key</a>
+<a href="#the-tool-and-defaults-constants">The TOOL and DEFAULTS constants</a>
+<a href="#a-complete-tool">A complete tool</a>
+<a href="#save-is-not-atomic">save is not atomic</a>
+<a href="#per-user-not-per-document">Per user, not per document</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Click actions and config.py - pyNavis authoring</title>
+<meta name="description" content="One button, three behaviours: a plain click runs the script, Shift runs the bundle&#x27;s config.py, and Alt opens the folder it lives in.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<a href="tools.html"><span class="num">03</span>Bundled tools</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">05</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">07</span>Icons</a>
+<a href="shortcuts.html"><span class="num">08</span>Shortcuts and keytips</a>
+<a href="click-actions.html" class="active"><span class="num">09</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">11</span>The script environment</a>
+<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
+<a href="settings.html"><span class="num">13</span>Settings and per-tool state</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 0.4.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Bundles</p>
+  <h1>Click actions and config.py</h1>
+  <p class="lead">One button, three behaviours: a plain click runs the script, Shift runs the bundle's config.py, and Alt opens the folder it lives in.</p>
+  <p>Every pyNavis button responds to three gestures, and two of them you get without writing
+anything. The rules are short, deliberately pyRevit-shaped, and they have one edge that
+regularly catches people: keyboard shortcuts do not go through them at all.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Gesture</th><th>What happens</th><th>You provide</th></tr></thead>
+<tbody>
+<tr><td>Click</td><td>Runs <code>script.py</code></td><td><code>script.py</code></td></tr>
+<tr><td><kbd>Shift</kbd>+Click</td><td>Runs <code>config.py</code>, if the bundle has one</td>
+    <td><code>config.py</code>, optional</td></tr>
+<tr><td><kbd>Alt</kbd>+Click</td>
+    <td>Opens the bundle folder in Explorer with <code>script.py</code> selected</td>
+    <td>Nothing, this is built in</td></tr>
+<tr><td>Keyboard chord</td><td>Runs <code>script.py</code>, always</td>
+    <td><code>shortcut:</code> in <code>bundle.yaml</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="how-the-modifiers-are-read">How the modifiers are read<a class="anchor" href="#how-the-modifiers-are-read" aria-label="Link to this section">#</a></h2>
+
+<p>At the moment the button is clicked, the runtime reads the keyboard modifier state and
+picks one action from it. The order of the tests is the whole specification, and two details
+of it are intentional.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 300" width="700" role="img"
+     aria-label="Decision order for click modifiers: Ctrl is ignored, Alt opens the folder, Shift runs config.py, otherwise the script runs.">
+  <style>
+    .ca-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .ca-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .ca-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .ca-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+              text-transform: uppercase; letter-spacing: .07em; }
+    .ca-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .ca-key { fill: var(--paper); stroke: var(--frame); stroke-width: 1.2; }
+    .ca-off { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+    .ca-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+    .ca-acc { stroke: var(--accent); stroke-width: 1.6; fill: none; }
+  </style>
+  <defs>
+    <marker id="ca-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="ca-lbl" x="0" y="16">Modifier state at the click</text>
+
+  <rect class="ca-off" x="0"   y="28" width="56" height="26" rx="4"/>
+  <text class="ca-m"   x="14"  y="45">Ctrl</text>
+  <path class="ca-acc" d="M6 50 L50 32"/>
+  <text class="ca-m"   x="0"   y="70">never read</text>
+
+  <rect class="ca-key" x="72"  y="28" width="60" height="26" rx="4"/>
+  <text class="ca-t"   x="86"  y="45">Shift</text>
+
+  <rect class="ca-key" x="148" y="28" width="52" height="26" rx="4"/>
+  <text class="ca-t"   x="164" y="45">Alt</text>
+
+  <path class="ca-arw" d="M110 60 V 96" marker-end="url(#ca-a)"/>
+
+  <!-- test 1 -->
+  <rect class="ca-box" x="20"  y="100" width="180" height="34" rx="4"/>
+  <text class="ca-t"   x="36"  y="122">Is Alt held?</text>
+  <path class="ca-arw" d="M206 117 H 296" marker-end="url(#ca-a)"/>
+  <text class="ca-m"   x="238" y="110">yes</text>
+  <rect class="ca-box" x="302" y="100" width="392" height="34" rx="4"/>
+  <text class="ca-t"   x="318" y="122">Open the bundle folder, with</text>
+  <text class="ca-mono" x="490" y="122">script.py</text>
+  <text class="ca-t"   x="546" y="122">selected</text>
+
+  <path class="ca-arw" d="M110 138 V 158" marker-end="url(#ca-a)"/>
+  <text class="ca-m"   x="118" y="153">no</text>
+
+  <!-- test 2 -->
+  <rect class="ca-box" x="20"  y="162" width="180" height="34" rx="4"/>
+  <text class="ca-t"   x="36"  y="184">Is Shift held?</text>
+  <path class="ca-arw" d="M206 179 H 296" marker-end="url(#ca-a)"/>
+  <text class="ca-m"   x="238" y="172">yes</text>
+  <rect class="ca-box" x="302" y="162" width="392" height="34" rx="4"/>
+  <text class="ca-t"   x="318" y="184">Run</text>
+  <text class="ca-mono" x="348" y="184">config.py</text>
+  <text class="ca-t"   x="408" y="184">, or toast if the bundle has none</text>
+
+  <path class="ca-arw" d="M110 200 V 220" marker-end="url(#ca-a)"/>
+  <text class="ca-m"   x="118" y="215">no</text>
+
+  <!-- default -->
+  <rect class="ca-box" x="20"  y="224" width="180" height="34" rx="4"/>
+  <text class="ca-t"   x="36"  y="246">Otherwise</text>
+  <path class="ca-arw" d="M206 241 H 296" marker-end="url(#ca-a)"/>
+  <rect class="ca-box" x="302" y="224" width="392" height="34" rx="4"/>
+  <text class="ca-t"   x="318" y="246">Run</text>
+  <text class="ca-mono" x="348" y="246">script.py</text>
+
+  <text class="ca-m" x="0" y="284">Alt is tested first, so holding Alt and Shift together
+    opens the folder. Ctrl changes nothing at all.</text>
+</svg>
+</div>
+<figcaption>Three tests in a fixed order. There is no combination that reaches a fourth
+outcome.</figcaption>
+</figure>
+
+<h3 id="alt-wins-over-shift">Alt wins over Shift<a class="anchor" href="#alt-wins-over-shift" aria-label="Link to this section">#</a></h3>
+
+<p>The Alt test comes first and returns immediately, so <kbd>Alt</kbd>+<kbd>Shift</kbd>+Click
+opens the folder. It does not run <code>config.py</code>, and it does not do both.</p>
+
+<h3 id="ctrl-is-deliberately-ignored">Ctrl is deliberately ignored<a class="anchor" href="#ctrl-is-deliberately-ignored" aria-label="Link to this section">#</a></h3>
+
+<p>Ctrl is not part of the decision at all. This is a design choice, not an omission: a
+plain click and a click made while a Ctrl-containing chord is still physically held must
+behave identically, so that a tool never quietly changes behaviour because of keys the user
+happens to be resting on. <kbd>Ctrl</kbd>+Click runs the primary script, exactly like a bare
+click.</p>
+
+<h2 id="the-two-entry-points">The two entry points<a class="anchor" href="#the-two-entry-points" aria-label="Link to this section">#</a></h2>
+
+<p>Modifier handling belongs to the ribbon. A keyboard shortcut takes a different road into
+the same executor and never sees a modifier test, because the chord's own Ctrl, Shift and Alt
+are still down at the moment it fires. If chords went through the modifier check,
+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> would open a settings dialog instead of running
+the tool.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 220" width="700" role="img"
+     aria-label="A ribbon click passes through the modifier check; a keyboard chord goes straight to the executor.">
+  <style>
+    .cp-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .cp-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .cp-mono{ font: 11.5px Consolas, monospace; fill: var(--ink); }
+    .cp-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .cp-arw { stroke: var(--frame); stroke-width: 1.25; fill: none; }
+    .cp-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+              text-transform: uppercase; letter-spacing: .07em; }
+    .cp-acc { fill: var(--accent); }
+  </style>
+  <defs>
+    <marker id="cp-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0.6 L6.4 3.5 L0 6.4 z" fill="var(--frame)"/>
+    </marker>
+  </defs>
+
+  <text class="cp-lbl" x="0" y="16">Two ways in, one way through</text>
+
+  <rect class="cp-box" x="0" y="30" width="150" height="44" rx="4"/>
+  <text class="cp-t"   x="16" y="50">Ribbon click</text>
+  <text class="cp-m"   x="16" y="66">mouse, with modifiers</text>
+
+  <path class="cp-arw" d="M156 52 H 204" marker-end="url(#cp-a)"/>
+
+  <rect class="cp-box" x="210" y="30" width="200" height="44" rx="4"/>
+  <text class="cp-t"   x="226" y="50">Modifier check</text>
+  <text class="cp-m"   x="226" y="66">Alt, then Shift, then plain</text>
+
+  <path class="cp-arw" d="M416 52 H 452 Q 468 52 468 68 V 96" marker-end="url(#cp-a)"/>
+
+  <rect class="cp-box" x="0" y="126" width="150" height="44" rx="4"/>
+  <text class="cp-t"   x="16" y="146">Keyboard chord</text>
+  <text class="cp-m"   x="16" y="162">Ctrl+Shift+E</text>
+
+  <path class="cp-arw" d="M156 148 H 452 Q 468 148 468 132 V 132" marker-end="url(#cp-a)"/>
+  <text class="cp-m"   x="196" y="141">skips the modifier check entirely</text>
+
+  <rect class="cp-box" x="352" y="100" width="232" height="32" rx="4"/>
+  <text class="cp-mono" x="368" y="120">ScriptExecutor.Run</text>
+
+  <path class="cp-arw" d="M594 116 H 626" marker-end="url(#cp-a)"/>
+  <rect class="cp-box" x="632" y="100" width="64" height="32" rx="4"/>
+  <text class="cp-t"   x="646" y="120">engine</text>
+
+  <text class="cp-m" x="0" y="200">Only the top path can reach the folder or the config
+    script. The bottom path always runs the primary.</text>
+</svg>
+</div>
+<figcaption>The modifier check is a property of the ribbon button, not of the tool.</figcaption>
+</figure>
+
+<div class="note trap">
+<span class="note-t">A chord with Shift in it still runs the primary script</span>
+<p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> runs <code>script.py</code>, not
+<code>config.py</code>, even though Shift is part of it. There is no chord that reaches the
+config script or the folder. If a tool's settings need to be reachable from the keyboard,
+give the settings their own bundle rather than expecting a modifier to redirect one.</p>
+</div>
+
+<p>Chords are also guarded. One fires only when it is a fresh key press rather than a hold
+repeat, the Navisworks main window is in the foreground, and focus is not sitting in a text
+box. When focus cannot be identified, the runtime assumes it is a text input and does not
+fire, on the principle that swallowing a keystroke someone is typing is worse than missing a
+shortcut. <a href="shortcuts.html">Shortcuts and keytips</a> covers the rest.</p>
+
+<h2 id="alt-click-the-way-back-to-your-own-code">Alt+Click: the way back to your own code<a class="anchor" href="#alt-click-the-way-back-to-your-own-code" aria-label="Link to this section">#</a></h2>
+
+<p><kbd>Alt</kbd>+Click starts Explorer with the bundle's <code>script.py</code> selected. It
+runs nothing, needs no configuration, and works on every button including the ones inside
+pulldowns and stacks. It is the fastest route from a tool that is misbehaving to the file
+that is misbehaving.</p>
+
+<div class="code"><div class="code-head"><span>what it actually runs</span><button class="copy-btn" type="button">Copy</button></div><pre><code>explorer.exe /select,&quot;D:\NavisTools\MyTools.extension\...\Count.pushbutton\script.py&quot;</code></pre></div>
+
+<p>It always selects <code>script.py</code>, even on a bundle whose interesting file is
+<code>config.py</code>; the folder is open, so the other file is one click away. If Explorer
+cannot be started the failure is written to the log and nothing is shown on screen, because
+there is nothing useful to say about it.</p>
+
+<h2 id="config-py-the-secondary-action">config.py: the secondary action<a class="anchor" href="#config-py-the-secondary-action" aria-label="Link to this section">#</a></h2>
+
+<p>A bundle can ship a second script beside <code>script.py</code>, named exactly
+<code>config.py</code>, in lower case, in the same folder. <kbd>Shift</kbd>+Click runs it.</p>
+
+<div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">Count.pushbutton</span>\
+  <span class="tok-k">script.py</span>       <span class="tok-c"># click</span>
+  <span class="tok-k">config.py</span>       <span class="tok-c"># Shift+Click</span>
+  <span class="tok-k">bundle.yaml</span>
+  <span class="tok-k">icon.png</span></code></pre></div>
+
+<p>It is not a different kind of file and it gets no configuration of its own. There is no
+<code>bundle.yaml</code> for it, no separate title, no separate icon, no separate engine. It
+is the same tool with a second entry point.</p>
+
+<h3 id="what-is-different-when-config-py-runs">What is different when config.py runs<a class="anchor" href="#what-is-different-when-config-py-runs" aria-label="Link to this section">#</a></h3>
+
+<p>Exactly one thing: <code>__file__</code>. The engine, the module search paths, the other
+three injected globals and the output window are all the same as the primary run.</p>
+
+<figure>
+<div class="fig-frame">
+<svg viewBox="0 0 700 262" width="700" role="img"
+     aria-label="Side by side comparison of the globals injected for script.py and for config.py; only __file__ differs.">
+  <style>
+    .cg-t   { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink); }
+    .cg-m   { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
+    .cg-mono{ font: 11px Consolas, monospace; fill: var(--ink); }
+    .cg-box { fill: var(--paper); stroke: var(--line-strong); stroke-width: 1; }
+    .cg-hi  { fill: var(--accent); opacity: .14; }
+    .cg-lbl { font: 10.5px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted);
+              text-transform: uppercase; letter-spacing: .07em; }
+    .cg-hd  { font: 12px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--ink);
+              font-weight: 600; }
+  </style>
+
+  <text class="cg-lbl" x="0"   y="16">Click</text>
+  <text class="cg-lbl" x="360" y="16">Shift + Click</text>
+
+  <!-- left panel -->
+  <rect class="cg-box" x="0" y="26" width="330" height="164" rx="4"/>
+  <text class="cg-hd"   x="16" y="48">Primary action</text>
+  <text class="cg-m"    x="16" y="66">the tool does its work</text>
+  <rect class="cg-hi"   x="8"  y="80" width="314" height="22" rx="2"/>
+  <text class="cg-mono" x="16" y="95">__file__</text>
+  <text class="cg-m"    x="140" y="95">...\script.py</text>
+  <text class="cg-mono" x="16" y="122">__commandpath__</text>
+  <text class="cg-m"    x="140" y="122">the bundle folder</text>
+  <text class="cg-mono" x="16" y="146">__title__</text>
+  <text class="cg-m"    x="140" y="146">the button title</text>
+  <text class="cg-mono" x="16" y="170">__pynavis__</text>
+  <text class="cg-m"    x="140" y="170">the runtime host</text>
+
+  <!-- right panel -->
+  <rect class="cg-box" x="360" y="26" width="330" height="164" rx="4"/>
+  <text class="cg-hd"   x="376" y="48">Secondary action</text>
+  <text class="cg-m"    x="376" y="66">the tool is configured</text>
+  <rect class="cg-hi"   x="368" y="80" width="314" height="22" rx="2"/>
+  <text class="cg-mono" x="376" y="95">__file__</text>
+  <text class="cg-m"    x="500" y="95">...\config.py</text>
+  <text class="cg-mono" x="376" y="122">__commandpath__</text>
+  <text class="cg-m"    x="500" y="122">the bundle folder</text>
+  <text class="cg-mono" x="376" y="146">__title__</text>
+  <text class="cg-m"    x="500" y="146">the button title</text>
+  <text class="cg-mono" x="376" y="170">__pynavis__</text>
+  <text class="cg-m"    x="500" y="170">the runtime host</text>
+
+  <text class="cg-m" x="0" y="216">Same engine, same search paths, same output window title.
+    Only the highlighted row changes, so</text>
+  <text class="cg-m" x="0" y="234">code that keys settings off</text>
+  <text class="cg-mono" x="158" y="234">__title__</text>
+  <text class="cg-m" x="228" y="234">or</text>
+  <text class="cg-mono" x="244" y="234">__commandpath__</text>
+  <text class="cg-m" x="336" y="234">agrees across both.</text>
+</svg>
+</div>
+<figcaption>The config script is not a lesser environment. It is the same run with a
+different file.</figcaption>
+</figure>
+
+<div class="note">
+<span class="note-t">__title__ stays the button's title</span>
+<p><code>__title__</code> is the resolved title of the button, not of the config script, and
+the output window is still called <code>pyNavis - &lt;title&gt;</code>. That is what you want:
+a settings dialog that reports itself under the name of the tool it configures.</p>
+</div>
+
+<h3 id="the-convention">The convention<a class="anchor" href="#the-convention" aria-label="Link to this section">#</a></h3>
+
+<p>Nothing forces <code>config.py</code> to be a settings dialog, but that is what users will
+expect from a Shift-click, and it is what the shipped tools do. Read the current values,
+present them, write them back, and say what happened.</p>
+
+<div class="code"><div class="code-head"><span>Count.pushbutton\config.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Options for Count selection.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, settings, toast
+
+TOOL = <span class="tok-s">&#x27;count_selection&#x27;</span>
+DEFAULTS = {<span class="tok-s">&#x27;warn_above&#x27;</span>: <span class="tok-n">1000</span>, <span class="tok-s">&#x27;include_hidden&#x27;</span>: <span class="tok-k">False</span>}
+
+values = settings.load(TOOL, DEFAULTS)
+
+answer = forms.ask_string(
+    <span class="tok-s">&#x27;Warn when the selection is larger than:&#x27;</span>,
+    default=str(values[<span class="tok-s">&#x27;warn_above&#x27;</span>]),
+    title=__title__,                     <span class="tok-c"># the button&#x27;s title, not this file&#x27;s name</span>
+)
+<span class="tok-k">if</span> answer <span class="tok-k">is</span> <span class="tok-k">None</span>:
+    <span class="tok-k">raise</span> SystemExit                     <span class="tok-c"># cancelled: change nothing, say nothing</span>
+
+<span class="tok-k">try</span>:
+    values[<span class="tok-s">&#x27;warn_above&#x27;</span>] = int(answer)
+<span class="tok-k">except</span> ValueError:
+    toast.error(<span class="tok-s">&#x27;That is not a whole number&#x27;</span>, <span class="tok-s">&#x27;Nothing was saved.&#x27;</span>)
+    <span class="tok-k">raise</span> SystemExit
+
+values[<span class="tok-s">&#x27;include_hidden&#x27;</span>] = forms.confirm(<span class="tok-s">&#x27;Count hidden items too?&#x27;</span>, title=__title__)
+settings.save(TOOL, values)
+toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>, <span class="tok-s">&#x27;Warning above %d items.&#x27;</span> % values[<span class="tok-s">&#x27;warn_above&#x27;</span>])</code></pre></div>
+
+<p>The primary script reads the same keys back:</p>
+
+<div class="code"><div class="code-head"><span>Count.pushbutton\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Counts the items in the current selection.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection, settings, toast
+
+TOOL = <span class="tok-s">&#x27;count_selection&#x27;</span>
+DEFAULTS = {<span class="tok-s">&#x27;warn_above&#x27;</span>: <span class="tok-n">1000</span>, <span class="tok-s">&#x27;include_hidden&#x27;</span>: <span class="tok-k">False</span>}
+
+values = settings.load(TOOL, DEFAULTS)
+items = selection.get_items()
+
+<span class="tok-k">if</span> len(items) &gt; values[<span class="tok-s">&#x27;warn_above&#x27;</span>]:
+    toast.warning(<span class="tok-s">&#x27;%d item(s) selected&#x27;</span> % len(items), <span class="tok-s">&#x27;That is a large selection.&#x27;</span>)
+<span class="tok-k">else</span>:
+    toast.success(<span class="tok-s">&#x27;%d item(s) selected&#x27;</span> % len(items))</code></pre></div>
+
+<p>Define <code>TOOL</code> and <code>DEFAULTS</code> once in a small module in your
+extension's <code>lib\</code> folder and import it from both scripts once the pair grows
+beyond a couple of keys. Two copies of a defaults dictionary drift.</p>
+
+<div class="note tip">
+<span class="note-t">Cancel silently</span>
+<p>A user who cancels a dialog has told you they want nothing to happen, so a config script
+that toasts on cancel is noise. Save and toast on the way out; return quietly on
+<code>None</code>.</p>
+</div>
+
+<h3 id="when-there-is-no-config-py">When there is no config.py<a class="anchor" href="#when-there-is-no-config-py" aria-label="Link to this section">#</a></h3>
+
+<p><kbd>Shift</kbd>+Click on a bundle without a config script shows an informational toast:
+<em>Shift+Click action not defined for this tool.</em> Nothing runs, nothing fails, and no
+output window opens. That message is worth recognising, because it is also what you see when
+the file exists but the runtime did not find it.</p>
+
+<div class="note warn">
+<span class="note-t">A new config.py needs a Reload</span>
+<p>The presence of <code>config.py</code> is decided once, when the ribbon is built. Adding
+the file to a bundle that is already loaded does nothing until you click
+<strong>Reload</strong>. Editing an existing <code>config.py</code> needs no Reload: its
+contents are read fresh on every run, like <code>script.py</code>.</p>
+</div>
+
+<p>The other reason for that toast is the filename. The lookup is a plain path join for
+<code>config.py</code> in the bundle folder, so <code>Config.py</code> on a case-preserving
+share, <code>config.PY</code>, <code>configure.py</code> or a <code>config.py</code> one
+folder up are all invisible.</p>
+
+<h2 id="buttons-with-no-script">Buttons with no script<a class="anchor" href="#buttons-with-no-script" aria-label="Link to this section">#</a></h2>
+
+<p>A <code>*.urlbutton</code> and a <code>*.linkbutton</code> read no modifier state at all.
+There is no <code>script.py</code> behind either, so there is nothing for
+<kbd>Shift</kbd>+Click to run and no folder worth opening from the ribbon:
+<kbd>Ctrl</kbd>, <kbd>Shift</kbd> and <kbd>Alt</kbd> all behave as a plain click. A urlbutton
+opens its <code>url:</code>, a linkbutton runs its <code>plugin:</code>, and a failure in
+either is logged and toasted rather than raised.</p>
+
+<h2 id="dock-panel-toggles">Dock panel toggles<a class="anchor" href="#dock-panel-toggles" aria-label="Link to this section">#</a></h2>
+
+<p>A <code>*.dockpane</code> bundle renders as a ribbon toggle rather than a button, and the
+toggle reads the same modifier state with the same rules: Alt wins, Ctrl changes nothing.
+The one substitution is the Shift branch, because a panel has no <code>config.py</code>.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Gesture</th><th>What happens</th></tr></thead>
+<tbody>
+<tr><td>Click</td><td>Shows the panel when hidden, hides it when shown. The pressed state
+    follows the panel, so closing it from its own title bar releases the toggle too.</td></tr>
+<tr><td><kbd>Shift</kbd>+Click</td><td>The same toggle. There is no secondary action to
+    reach, so Shift falls through to the plain click.</td></tr>
+<tr><td><kbd>Alt</kbd>+Click</td><td>Opens the bundle folder in Explorer with
+    <code>script.py</code> selected, or <code>pane.xaml</code> when the bundle ships no
+    script.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The toggle itself runs no Python. The bundle's <code>script.py</code> runs when the
+panel's <em>content</em> is built: at the panel's first open, and again on every Reload,
+never per click. When every panel slot is claimed the toggle cannot open the panel and
+warns instead of toggling; <a href="troubleshooting.html">Troubleshooting</a> lists the slot
+messages, and <a href="buttons.html">Buttons, stacks and pulldowns</a> covers the bundle
+itself.</p>
+
+<h2 id="one-script-at-a-time">One script at a time<a class="anchor" href="#one-script-at-a-time" aria-label="Link to this section">#</a></h2>
+
+<p>Whichever entry point starts a run, the run takes a process-wide gate first. A second
+click while a script is still working is refused with a toast titled
+<em>&lt;tool&gt; is still running</em> and the detail <em>Wait for it to finish, then try
+again.</em> The name in that toast is the tool that is <em>running</em>, not the one you just
+clicked, which is usually the more useful of the two.</p>
+
+<p>This exists because long scripts pump the message loop so the window can repaint, and a
+pump delivers queued input, including the click someone made while waiting. Without the gate
+a second script could start on top of the first and both would be editing the same
+document.</p>
+
+<p>Practical consequences:</p>
+
+<ul>
+  <li>A config dialog cannot be opened while the primary script is running, and vice versa.
+    They share the gate.</li>
+  <li>Keyboard chords are refused the same way, with the same toast.</li>
+  <li><kbd>Alt</kbd>+Click is not affected. It runs no Python and never touches the gate, so
+    you can always open the folder.</li>
+</ul>
+
+<h2 id="what-the-run-leaves-behind">What the run leaves behind<a class="anchor" href="#what-the-run-leaves-behind" aria-label="Link to this section">#</a></h2>
+
+<p>Both scripts get an output window, and both get it <em>lazily</em>: the window is created
+on the first write, so a script that only toasts never opens one. This is the reason the
+house rule is to report short results with <code>pynavis.toast</code> and keep
+<code>print()</code> for genuine output. A <code>print()</code> of nothing much still opens a
+window to show it.</p>
+
+<p>If the script raises, the engine formats the traceback and writes it to that window in the
+error colour, which is often the first window a config script ever opens. Failures that
+happen before the script starts, such as an unknown <code>engine:</code> value in
+<code>bundle.yaml</code>, land in the same place. Any progress bar left open by a script that
+died is closed for you afterwards, so a crash cannot leave Navisworks unclickable.</p>
+
+<div class="cards">
+  <a href="bundle-yaml.html"><span class="c-t">The bundle.yaml reference</span>
+    <span class="c-d">Every key, its fallback, and the parser's real rules.</span></a>
+  <a href="script-environment.html"><span class="c-t">The script environment</span>
+    <span class="c-d">The injected globals, search paths and module reloading.</span></a>
+  <a href="settings.html"><span class="c-t">Per-tool settings</span>
+    <span class="c-d">Storing options that config.py writes and script.py reads.</span></a>
+</div>
+  <div class="pagenav">
+<a href="shortcuts.html"><span class="dir">Previous</span><span class="ttl">Shortcuts and keytips</span></a>
+<a class="next" href="hooks.html"><span class="dir">Next</span><span class="ttl">Hooks</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#how-the-modifiers-are-read">How the modifiers are read</a>
+<a href="#alt-wins-over-shift" class="h3">Alt wins over Shift</a>
+<a href="#ctrl-is-deliberately-ignored" class="h3">Ctrl is deliberately ignored</a>
+<a href="#the-two-entry-points">The two entry points</a>
+<a href="#alt-click-the-way-back-to-your-own-code">Alt+Click: the way back to your own code</a>
+<a href="#config-py-the-secondary-action">config.py: the secondary action</a>
+<a href="#what-is-different-when-config-py-runs" class="h3">What is different when config.py runs</a>
+<a href="#the-convention" class="h3">The convention</a>
+<a href="#when-there-is-no-config-py" class="h3">When there is no config.py</a>
+<a href="#buttons-with-no-script">Buttons with no script</a>
+<a href="#dock-panel-toggles">Dock panel toggles</a>
+<a href="#one-script-at-a-time">One script at a time</a>
+<a href="#what-the-run-leaves-behind">What the run leaves behind</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

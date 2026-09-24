@@ -1,0 +1,3 @@
+title: Select by IDs
+tooltip: Select elements by Revit element ID. Opens a box with the clipboard's IDs already filled in, ready to check or edit. Works on NWC exports and on design coordination models, where the ID sits in the item name. Shift+Click for settings.
+context: doc

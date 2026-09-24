@@ -1,0 +1,23 @@
+<Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Margin="12">
+  <Grid.RowDefinitions>
+    <RowDefinition Height="Auto"/>
+    <RowDefinition Height="*"/>
+  </Grid.RowDefinitions>
+
+  <TextBlock x:Name="Status" Grid.Row="0" Text=""
+             FontSize="11" TextAlignment="Center" Opacity="0.75"/>
+
+  <!-- The Viewbox does what the C# did with a binary search over MeasureString:
+       shrink a long name to fit and grow a short one, capped so a three letter
+       name does not fill the panel. No colours are set anywhere here, so the
+       panel follows the Navisworks theme instead of the hardcoded white and
+       blue the original used. -->
+  <Viewbox Grid.Row="1" Margin="0,6,0,0" MaxHeight="72"
+           HorizontalAlignment="Center" VerticalAlignment="Center">
+    <TextBlock x:Name="ViewName" Text="No viewpoint selected"
+               FontSize="28" FontWeight="SemiBold" TextAlignment="Center"
+               Background="Transparent" Cursor="Hand"/>
+  </Viewbox>
+</Grid>

@@ -1,0 +1,3 @@
+title: Get Coordinates
+tooltip: Click a point in the view and its coordinates go to the clipboard, ready to paste into Go to Coordinates, into a report, or back into the authoring model. The click uses the Measure tool, so the pointer snaps to vertices and edges exactly as a measurement does; Esc or right-click cancels.
+context: doc

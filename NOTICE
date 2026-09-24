@@ -1,0 +1,19 @@
+pyNavis
+Copyright 2026 Amol Shah
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+pyNavis is an independent project. It is not affiliated with, endorsed by, or
+sponsored by Autodesk, Inc. Autodesk and Navisworks are registered trademarks
+of Autodesk, Inc.
+
+The bundle folder conventions and parts of the scripting API are modelled on
+pyRevit (https://github.com/pyrevitlabs/pyRevit), whose design inspired this
+project. pyNavis contains no pyRevit source code.
+
+Binary distributions include these third-party components, each under its own
+licence:
+
+  IronPython and the IronPython standard library   Apache License 2.0
+  Python.NET (pythonnet)                            MIT License
+  Microsoft Edge WebView2 SDK                       Microsoft Software License Terms

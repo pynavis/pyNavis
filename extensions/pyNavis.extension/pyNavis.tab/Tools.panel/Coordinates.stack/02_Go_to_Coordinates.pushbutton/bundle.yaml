@@ -1,0 +1,3 @@
+title: Go to Coordinates
+tooltip: Move the view to a set of coordinates and mark the point with a cross. The box opens with the clipboard's coordinates already filled in, so a point copied by Get Coordinates is one click away. Shift+Click clears the marker.
+context: doc

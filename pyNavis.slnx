@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PyNavis.Runtime/PyNavis.Runtime.csproj" />
+    <Project Path="src/PyNavis.Tests/PyNavis.Tests.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/PyNavis/PyNavis.csproj" />
+    <Project Path="src/PyNavis.Cli/PyNavis.Cli.csproj" />
+  </Folder>
+</Solution>
