@@ -2,14 +2,6 @@
 
 Save each as `docs/tools/_assets/shots/<name>.png` (PNG, about 1200 px wide, light Navisworks theme) and re-run `python tools/build_tools_site.py`. A page shows a labelled placeholder until its file exists.
 
-## Settings (pyNavis)
-
-- [ ] `settings-window.png`: The Settings window: Appearance, Shortcuts, extension folders and engines, with
-Save and Cancel at the bottom.
-## Shortcuts (pyNavis)
-
-- [ ] `shortcuts-editor.png`: The Shortcuts editor with a chord being recorded into one row and a conflict
-flagged on another.
 ## Console (pyNavis)
 
 - [ ] `console-window.png`: The console with a short script in the lower pane and its output above.
@@ -55,9 +47,6 @@ zoomed after OK.
 
 - [ ] `sets-from-excel-workbook.png`: An exported workbook: Folder, Set, Category, Property, Op and Value, one row per
 search condition.
-## Element ID Settings (Data)
-
-- [ ] `element-id-settings.png`: The Element ID Settings window.
 ## Rename (Viewpoints)
 
 - [ ] `rename-dialog.png`: The Rename dialog: the tree on the left, the operation on the right, and the old
@@ -66,13 +55,6 @@ and new name of every ticked view in the preview.
 
 - [ ] `section-fit-diagonal.png`: A diagonal pipe run: the native fit on the left with its empty corners, Section
 Fit on the right, square to the pipes.
-## Copy State (Viewpoints)
-
-- [ ] `copy-state-switch.png`: The Copy State switch: section, hidden items, appearance.
-## Reset Speeds (Viewpoints)
-
-- [ ] `speeds-window.png`: The speeds window shared by both buttons: linear speed with a unit, angular
-speed, field of view, and a checkbox against each.
 ## Viewpoint Tracker (Viewpoints)
 
 - [ ] `viewpoint-tracker-panel.png`: The tracker docked beside the view, showing the active viewpoint's name.

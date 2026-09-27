@@ -1,0 +1,23 @@
+run at 2026-09-27 04:05:11
+document: open
+done     settings-window
+done     shortcuts-editor
+error    console-window: the dialog never opened (or closed too soon)
+done     remember-toast
+done     next-walk
+done     clash-report-confirm
+done     clash-report-table
+done     grouper-dialog
+error    resolve-clash: set "mover" and "obstacle" in shots_config.json to item names in this model
+error    true-distance-banner: set "mover" and "obstacle" in shots_config.json to item names in this model
+done     go-to-coordinates-dialog
+done     go-to-coordinates
+done     select-by-ids-box
+done     select-by-ids-result
+done     element-id-settings
+done     rename-dialog
+error    section-fit: set "mover" and "obstacle" in shots_config.json to item names in this model
+done     copy-state-switch
+done     speeds-window
+done     viewpoint-tracker-panel
+error    section-nudge: set "mover" and "obstacle" in shots_config.json to item names in this model
