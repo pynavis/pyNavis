@@ -144,7 +144,7 @@ namespace PyNavis.Tests
             });
 
             Assert.True(r.Succeeded, r.ErrorText);
-            Assert.Contains("v=0.", outw.ToString());
+            Assert.Contains("v=1.", outw.ToString());
         }
 
         [Fact]

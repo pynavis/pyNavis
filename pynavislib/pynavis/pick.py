@@ -152,9 +152,13 @@ _VK_RBUTTON = 0x02
 _VK_ESCAPE = 0x1B
 
 
-def measure_point(prompt=DEFAULT_PROMPT):
+def measure_point(prompt=DEFAULT_PROMPT, notify=None):
     """Blocks until the user clicks a point with the native Measure tool;
     returns a Hit, or None on cancel.
+
+    notify(message, detail) shows the prompt; None means a toast. Pass
+    banner.prompt to ask on the bar along the bottom of the window instead,
+    and clear it yourself when the pick returns None.
 
     The document is put into Measure > Point to Point, so the snapping, the
     cursors and the marker are the host's own rather than an imitation of
@@ -166,11 +170,11 @@ def measure_point(prompt=DEFAULT_PROMPT):
     Only hit.point is known: a measurement carries no normal, item or snap
     kind, so those are None. Esc, a right-click or picking another tool
     cancels."""
-    picked = _measure(prompt, measured_click, keep=False)
+    picked = _measure(prompt, measured_click, keep=False, notify=notify)
     return Hit(picked, None, None, None) if picked is not None else None
 
 
-def measure_points(prompt=DEFAULT_PROMPT, second_prompt=SECOND_PROMPT):
+def measure_points(prompt=DEFAULT_PROMPT, second_prompt=SECOND_PROMPT, notify=None, keep=True):
     """Blocks until the user measures a whole point-to-point line with the
     native Measure tool; returns (first, end) as 3-tuples, or None on cancel.
 
@@ -179,20 +183,27 @@ def measure_points(prompt=DEFAULT_PROMPT, second_prompt=SECOND_PROMPT):
     has landed. Any measurement already on screen is dropped first, because a
     caller asking for a line wants a new one, not whatever was left there.
 
-    Unlike measure_point, the finished measurement is the deliverable: it
+    With keep (the default) the finished measurement is the deliverable: it
     stays on screen with its native readout and the document stays on the
     Measure tool, so the caller can draw next to it and the user can measure
-    again. Esc, a right-click or picking another tool cancels; a first point
-    left behind by a cancel is dropped so the next click does not close it."""
-    return _measure(prompt, measured_line, keep=True, progress=second_prompt)
+    again. With keep=False the two points are the deliverable: the
+    measurement is dropped the moment it is complete and the tool the user
+    had comes back, as measure_point does. Esc, a right-click or picking
+    another tool cancels; a first point left behind by a cancel is dropped
+    so the next click does not close it.
+
+    notify(message, detail) shows each prompt; None means a toast. Pass
+    banner.prompt to ask on the bar along the bottom of the window instead;
+    the prompt stays there, so replace it with the result or clear it."""
+    return _measure(prompt, measured_line, keep=keep, progress=second_prompt, notify=notify)
 
 
-def _measure(prompt, decide, keep, progress=None):
+def _measure(prompt, decide, keep, progress=None, notify=None):
     """Runs the native Measure tool until `decide` says the answer is in.
 
     decide(before, after) is measured_click or measured_line: a pure reading
     of two measurement snapshots. 'waiting' polls on, 'first' is progress
-    (the snapshot moves on and `progress` is toasted), 'cancelled' ends with
+    (the snapshot moves on and `progress` is shown), 'cancelled' ends with
     None, anything else ends with its payload. With `keep` the measurement
     and the Measure tool are left in place on success; without it they are
     reset and the previous tool restored."""
@@ -204,6 +215,8 @@ def _measure(prompt, decide, keep, progress=None):
 
     doc = app.get_doc()
     log = script.get_logger()
+    if notify is None:
+        notify = toast.info
     tool = doc.Tool
     previous = tool.Value
     if previous == Api.Tool.CustomToolPlugin:
@@ -252,7 +265,7 @@ def _measure(prompt, decide, keep, progress=None):
         if kind == 'first':
             state['before'] = now
             if progress:
-                toast.info(str(progress), CANCEL_HINT)
+                notify(str(progress), CANCEL_HINT)
             return
         if kind != 'cancelled':
             answer.append(picked)
@@ -278,7 +291,7 @@ def _measure(prompt, decide, keep, progress=None):
         # from before the pick so an old Esc does not cancel this one.
         _pressed(_VK_ESCAPE)
         _pressed(_VK_RBUTTON)
-        toast.info(DEFAULT_PROMPT if prompt is None else str(prompt), CANCEL_HINT)
+        notify(DEFAULT_PROMPT if prompt is None else str(prompt), CANCEL_HINT)
         timer.Start()
         Dispatcher.PushFrame(frame)
     finally:

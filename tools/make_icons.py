@@ -298,7 +298,7 @@ def ic_grouper(c):
         c.rrect(8, 10, 88, 90, rad=12, w=7, color=c.t['accent'])
 
 
-def ic_face_distance(c):
+def ic_true_distance(c):
     """Two slanted parallel faces in ink; the accent arrow crosses them at a
     right angle, which is the whole point: the true gap, not the world axis."""
     # faces lean 20 degrees so the icon reads 'rotated project'
@@ -973,7 +973,7 @@ ICONS = {
     'Tools.panel/Element_IDs.stack/02_IDs_of_Selection.pushbutton': ic_ids_of_selection,
     'Tools.panel/99_More.slideout/Element_ID_Settings.pushbutton': ic_element_id_settings,
     'Tools.panel/Export_Viewpoints_CSV.pushbutton': ic_export_csv,
-    'Tools.panel/Face_Distance.pushbutton': ic_face_distance,
+    'Tools.panel/True_Distance.pushbutton': ic_true_distance,
     'Tools.panel/Resolve_Clash.pushbutton': ic_resolve_clash,
     'Tools.panel/Sets_From_Excel.pushbutton': ic_sets_from_excel,
     'Tools.panel/Smart_Clash_Grouper.pushbutton': ic_grouper,

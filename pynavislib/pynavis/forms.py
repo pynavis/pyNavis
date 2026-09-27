@@ -12,8 +12,13 @@ clr.AddReference('PyNavis.Runtime')
 from PyNavis.Runtime.Forms import Dialogs, Pickers
 
 
-def alert(message, title='pyNavis'):
-    Dialogs.Alert(str(message), title)
+def alert(message, title='pyNavis', copy=None):
+    """Shows a message with an OK button. copy is text a Copy button puts on
+    the clipboard without closing the dialog; None means no button."""
+    if copy is None:
+        Dialogs.Alert(str(message), title)
+    else:
+        Dialogs.Alert(str(message), title, str(copy))
 
 
 def confirm(message, title='pyNavis'):

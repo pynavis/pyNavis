@@ -357,59 +357,36 @@ issues of the same model.</p>
     viewpoints gets a dialog saying so.</li>
 </ul>
 
-<h3>Face Distance</h3>
-
-<p>The true perpendicular distance between the two faces a point-to-point measurement touches.
-A rotated project makes the measure tool's X, Y and Z readouts meaningless, and the straight
-line overshoots whenever the two clicks are not exactly opposite each other. This reports the
-gap, not the line.</p>
-
-<ul>
-  <li><strong>Needs</strong> an open document.</li>
-  <li><strong>Click</strong> opens the native Measure, Point to Point tool and asks for the two
-    faces, one toast per click. Esc, a right-click or choosing another tool cancels quietly.
-    Once the line is measured it works out which faces each point sits on from the items' own
-    triangles rather than from a screen pick, picks the pair of faces that are parallel, and
-    toasts the measured vector projected onto their normal. The same value is drawn in the view
-    as a dimension square to the faces, beside the native measurement, which stays on screen
-    with its own readout; the document is left on the Measure tool so the next two clicks
-    measure again, and the dimension goes when that measurement changes.</li>
-  <li><strong>Shift+Click</strong> asks two numbers: the fraction a feet-and-inches reading is
-    rounded to, which starts at 1/128 to match the native measure readout, and how far two
-    faces' normals may differ and still count as parallel, which starts at one degree.</li>
-  <li><strong>Settings</strong> <code>face_distance.json</code>.</li>
-</ul>
-
 <h3>Resolve Clash</h3>
 
 <p>Objects clash, and the usual next step is to drag one of them with Item Tools until it
-clears, read the offset, and type it into the authoring tool. This does the dragging. Pick the
-object that should move, pick what it must clear, and it slides the shortest axis-aligned
-distance that ends every contact, then tells you how far.</p>
+clears, read the offset, and type it into the authoring tool. This does the dragging. Select
+the object that should move, point at the face of it that is in the way and the face it must
+clear, and it slides exactly far enough along those faces' normal, then tells you how far.</p>
 
 <ul>
-  <li><strong>Needs</strong> an open document. The two objects are read from their own
-    triangles, so any shape works, not just boxes, and a fitting that clips the corner of a
-    rotated wall is solved on the faces that actually meet.</li>
-  <li><strong>Click</strong> twice. With the object that should move selected, click: it is
-    remembered and the toast asks for the obstacle. With the obstacle selected, click again.
-    The move is worked out exactly for each of the six axis directions (or both ways along the
-    one axis chosen in the options), the shortest is applied as the same permanent transform
-    Item Tools makes, the moved object is selected, and the toast reads "Moved Pipe 1234 up by
-    152 mm". Ctrl+Z puts it back. Clicking with nothing selected, or opening another file
-    between the two clicks, starts over.</li>
-  <li><strong>Already clear</strong> objects are reported with their gap along the nearest
-    axis and left alone. Touching counts as contact, the way a hard clash at zero tolerance
-    does, so a touching pair with no clearance set is "already clear" and one with a clearance
-    is pushed apart by exactly that much.</li>
-  <li><strong>Shift+Click</strong> asks a direction, Auto or X, Y or Z only, and a clearance
-    in the document's units. Clearance is measured along the axis moved: the object ends up
-    that far from the obstacle in the direction it travelled. The setting is stored with its
-    unit, so 25 mm stays 25 mm in a feet-and-inches document.</li>
-  <li><strong>Limits</strong> Objects with tens of thousands of triangles each can take a
-    while; after 30 seconds it gives up with "Too detailed to solve". One object entirely
-    inside another shares no surface with it and reads as clear, as it does in Clash
-    Detective.</li>
+  <li><strong>Needs</strong> an open document and a selection. The two faces are found from the
+    items' own triangles, so a rotated wall or a sloping soffit works as well as a floor.</li>
+  <li><strong>Click</strong> with the object that should move selected. The native Measure,
+    Point to Point tool opens and the banner along the bottom of the window asks for the face
+    of the object that must move, then for the face it must clear. The two faces must be
+    parallel. The object travels along their normal, into its own body and so away from the
+    face you clicked on it, by exactly the distance that puts that face past the other plane
+    plus the clearance, as the same permanent transform Item Tools makes. The moved object is
+    selected, a dialog reads "Moved Pipe 1234 by 152 mm" and waits to be dismissed, since that
+    number is what gets typed into the authoring tool; its Copy button puts the bare distance
+    on the clipboard. With a clearance set a dimension of it is drawn in the view where the
+    measurement was. Ctrl+Z puts it back. Esc, a
+    right-click or choosing another tool cancels quietly.</li>
+  <li><strong>Already clear</strong> faces are reported with their gap and left alone; a face
+    that touches without crossing is "already clear" too, and moves only when a clearance is
+    set. Faces that are not parallel, or a point with no face under it, are refused on the
+    banner and nothing moves.</li>
+  <li><strong>Shift+Click</strong> asks the clearance to leave between the two faces, in the
+    document's units. The setting is stored with its unit, so 25 mm stays 25 mm in a
+    feet-and-inches document.</li>
+  <li><strong>Limits</strong> Only the two planes are considered: a part of the object that
+    sticks out past the face you clicked is not checked against the obstacle.</li>
   <li><strong>Settings</strong> <code>resolve_clash.json</code>.</li>
 </ul>
 
@@ -460,6 +437,30 @@ report.</p>
 <p>Clash Detective is not in every Navisworks edition. On an edition without it, the button
 still renders and says so in a dialog when clicked, rather than failing with a traceback.</p>
 </div>
+
+<h3>True Distance</h3>
+
+<p>The true perpendicular distance between the two faces a point-to-point measurement touches.
+A rotated project makes the measure tool's X, Y and Z readouts meaningless, and the straight
+line overshoots whenever the two clicks are not exactly opposite each other. This reports the
+gap, not the line.</p>
+
+<ul>
+  <li><strong>Needs</strong> an open document.</li>
+  <li><strong>Click</strong> opens the native Measure, Point to Point tool and asks for the two
+    faces, one toast per click. Esc, a right-click or choosing another tool cancels quietly.
+    Once the line is measured it works out which faces each point sits on from the items' own
+    triangles rather than from a screen pick, picks the pair of faces that are parallel, and
+    shows the measured vector projected onto their normal on a banner across the bottom of
+    the window: green when both faces were found and parallel, amber when it had to fall back
+    to one face, red when neither point sits on a face. The native measurement is dropped
+    as soon as its two points are in and the tool you had comes back; the same value is
+    drawn in the view as a dimension square to the faces and stays until the next run.</li>
+  <li><strong>Shift+Click</strong> asks two numbers: the fraction a feet-and-inches reading is
+    rounded to, which starts at 1/128 to match the native measure readout, and how far two
+    faces' normals may differ and still count as parallel, which starts at one degree.</li>
+  <li><strong>Settings</strong> <code>true_distance.json</code>.</li>
+</ul>
 
 <h3>In the flyout: Element ID Settings</h3>
 

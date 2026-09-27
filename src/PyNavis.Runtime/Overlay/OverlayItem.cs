@@ -18,7 +18,7 @@ namespace PyNavis.Runtime.Overlay
     /// Something a tool asked to have drawn in the 3D view: a few line segments and
     /// an optional screen-facing label. An item anchored to the two points of the
     /// native measurement removes itself the first frame that measurement no
-    /// longer matches, which is how Face Distance's dimension clears when the user
+    /// longer matches, which is how True Distance's dimension clears when the user
     /// measures something else without any event wiring.
     /// </summary>
     public sealed class OverlayItem

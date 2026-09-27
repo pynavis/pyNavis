@@ -305,21 +305,22 @@ namespace PyNavis.Runtime.Ribbon
                 tooltip = string.IsNullOrEmpty(tooltip) ? $"({binding})" : $"{tooltip} ({binding})";
             if (!string.IsNullOrEmpty(tooltip))
                 button.ToolTip = tooltip;
-            // The caption says a chord exists; the tooltip above says which one.
+            // A bundle with a config.py has a Shift+Click action, which nothing on the
+            // button would otherwise reveal; the caption says so, then says a chord
+            // exists, and the tooltip above says which one.
+            if (model.ConfigScriptPath != null)
+                button.Text = RibbonMarkers.WithConfigMarker(button.Text);
             if (binding != null)
                 button.Text = RibbonMarkers.WithShortcutMarker(button.Text);
 
-            // A bundle with a config.py has a Shift+Click action, which nothing on the
-            // button would otherwise reveal.
-            var dot = RibbonMarkers.ConfigDot && model.ConfigScriptPath != null;
             var dark = Output.PyNavisTheme.IsDark;
             ApplyIcons(button,
                 dark ? model.DarkIconPath : model.IconPath,
-                dark ? model.SmallDarkIconPath : model.SmallIconPath, dot);
+                dark ? model.SmallDarkIconPath : model.SmallIconPath);
             if (model.IsToggle && ToggleStateStore.Get(model.BundleKey))
             {
                 var onPath = dark ? model.OnDarkIconPath : model.OnIconPath;
-                ApplyIcons(button, onPath, onPath, dot);
+                ApplyIcons(button, onPath, onPath);
             }
             ButtonRegistry.Register(model, button);
             return button;
@@ -460,21 +461,12 @@ namespace PyNavis.Runtime.Ribbon
         /// bundle shipping only icon.png still lands at 16 in the small slot instead
         /// of getting clipped. Theme is read once per ribbon build, and Reload rebuilds.
         /// </summary>
-        internal static void ApplyIcons(RibbonItem item, string large, string small,
-            bool configDot = false)
+        internal static void ApplyIcons(RibbonItem item, string large, string small)
         {
             var largePath = large ?? small;
             var smallPath = small ?? large;
             var largeImage = largePath != null ? RibbonIcons.Load(largePath, 32) : null;
             var smallImage = smallPath != null ? RibbonIcons.Load(smallPath, 16) : null;
-
-            // Decorated per slot, not once: the two slots are different bitmaps at
-            // different logical sizes, and the dot is sized from the art it lands on.
-            if (configDot)
-            {
-                largeImage = RibbonMarkers.WithConfigDot(largeImage);
-                smallImage = RibbonMarkers.WithConfigDot(smallImage);
-            }
 
             if (largeImage == null && smallImage == null)
             {

@@ -97,6 +97,10 @@ ever need the middle two.</figcaption>
 <tr><td><code>pynavis.toast</code></td><td>No</td>
     <td>The result of a finished action, in one line.</td>
     <td>Questions, anything the user must read to continue.</td></tr>
+<tr><td><code>pynavis.banner</code></td><td>No</td>
+    <td>The one value a tool exists to produce, such as a measurement, large across the
+        bottom of the window.</td>
+    <td>Routine confirmations; anything a toast would do.</td></tr>
 <tr><td><code>pynavis.forms</code></td><td>Yes</td>
     <td>A question you must have answered, and file pickers.</td>
     <td>Reporting a result the user did not ask about.</td></tr>
@@ -226,6 +230,32 @@ still should not narrate: one toast per outcome.</p>
 card and thickens into a rail on the left.</figcaption>
 </figure>
 
+<h2>Banner: one value, full width</h2>
+
+<p>A banner is a toast's louder sibling: a bar the full width of the Navisworks window,
+sitting on its bottom edge, filled solid in the level colour with the message in large type
+on it. It never takes focus and dismisses itself, but it lingers longer than a toast, a click
+dismisses it at once, and there is only ever one: a new banner replaces the last.</p>
+
+<pre data-lang="python">
+from pynavis import banner
+
+banner.show(level, message, detail=None)   # level: 'success' | 'error' | 'info' | 'warning'
+
+banner.success(message, detail=None)
+banner.error(message, detail=None)
+banner.info(message, detail=None)
+banner.warning(message, detail=None)
+banner.prompt(message, detail=None)        # stays until replaced or cleared
+banner.clear()                             # remove it now
+</pre>
+
+<p>Reach for it when the tool's whole point is one readout the user will look up at from
+the model, the way True Distance shows its measurement, or for the instruction a tool is
+waiting on while the user clicks in the view (<code>pick.measure_points</code> takes
+<code>notify=banner.prompt</code>). Everything else stays a toast: a banner for "Saved" is
+shouting.</p>
+
 <h3>What a toast must never do</h3>
 
 <ul>
@@ -283,7 +313,7 @@ blocks your script until the user responds.</p>
 <pre data-lang="python">
 from pynavis import forms
 
-forms.alert(message, title='pyNavis')                       # -> None
+forms.alert(message, title='pyNavis', copy=None)            # -> None; copy adds a Copy button
 forms.confirm(message, title='pyNavis')                     # -> bool, True on Yes
 forms.ask_string(prompt, default='', title='pyNavis')       # -> str or None
 forms.save_file(filter='CSV files (*.csv)|*.csv|All files (*.*)|*.*',

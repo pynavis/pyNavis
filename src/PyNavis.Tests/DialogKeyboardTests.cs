@@ -54,6 +54,36 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void Alert_WithCopyText_AddsACopyButton_ThatIsNeitherAnswerNorWayOut()
+        {
+            OnSta(() =>
+            {
+                var window = Dialogs.BuildAlert("Moved Pipe by 152.4 mm", "Resolve Clash", "152.4 mm");
+                var copy = Dialogs.CopyButtonOf(window);
+
+                Assert.NotNull(copy);
+                Assert.Equal("152.4 mm", Dialogs.CopyTextOf(window));
+                Assert.Equal("Copy", copy.Content);
+                // Copy is an aside: OK keeps Enter and Escape, and stays the only answer.
+                Assert.False(copy.IsDefault);
+                Assert.False(copy.IsCancel);
+                var buttons = Dialogs.ButtonsForTest(window);
+                Assert.Single(buttons);
+                Assert.True(buttons[0].IsDefault && buttons[0].IsCancel);
+            });
+        }
+
+        [Fact]
+        public void Alert_WithoutCopyText_HasNoCopyButton()
+        {
+            OnSta(() =>
+            {
+                Assert.Null(Dialogs.CopyButtonOf(Dialogs.BuildAlert("m", "t")));
+                Assert.Null(Dialogs.CopyButtonOf(Dialogs.BuildAlert("m", "t", "")));
+            });
+        }
+
+        [Fact]
         public void Confirm_DefaultsToTheSafeChoice_SoEnterCannotDestroy()
         {
             OnSta(() =>

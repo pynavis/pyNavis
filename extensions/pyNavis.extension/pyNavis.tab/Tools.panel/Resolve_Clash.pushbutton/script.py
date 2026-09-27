@@ -1,25 +1,32 @@
-"""Moves one object the shortest axis-aligned distance that takes it clear
-of another, and tells you how far, so the fix can be typed straight into
-the authoring tool.
+"""Moves the selected object so the face you point at clears the face it
+is clashing with, and tells you how far, so the fix can be typed straight
+into the authoring tool.
 
-Two clicks. Select the object that should move and click: the selection is
-remembered. Select what it must clear and click again: the two meshes are
-read from the model, the move is worked out exactly for the six axis
-directions (or the one axis chosen in the options), the shortest is
-applied as the same permanent transform Item Tools > Transform makes, and
-the toast reports it. Ctrl+Z reverses the move. Shift+Click sets a
-clearance and a forced direction.
+Select the object that should move and click. The native Point to Point
+measure opens and the banner along the bottom of the window asks for two
+faces: one on the object, then the one it must clear. Both faces are found
+from the items' own triangles (pynavis.faces), they must be parallel, and
+the object slides along their normal, away from the face you clicked on
+it, by exactly the distance that puts that face past the other plane plus
+the clearance from the options. The move is the same permanent transform
+Item Tools > Transform makes; Ctrl+Z reverses it. The measurement is
+dropped as soon as its two points are in and the previous tool comes back.
+The distance is the deliverable, so it goes in a dialog that stays until
+dismissed, not on the banner; refusals and "already clear" stay on the
+banner. A dimension of the clearance is drawn in the view until the next
+run. Shift+Click sets the clearance.
 
 Everything above the guard at the bottom is importable without Navisworks;
-see resolveclash.py for the words and pynavis.separation for the maths.
+see resolveclash.py for the maths and the words.
 """
 
 import resolveclash
 
-from pynavis import app, geometry, script, selection, separation, settings, toast
+from pynavis import app, banner, faces, forms, geometry, overlay, pick, script, selection, settings
+from pynavis.clash import units_to_meters
 
-# Seconds the solver may spend before giving up on very detailed objects.
-BUDGET_SECONDS = 30
+# Overlay tag for the clearance dimension this tool draws; one at a time.
+DIMENSION_TAG = 'resolve-clash'
 
 
 def names_of(items):
@@ -27,101 +34,84 @@ def names_of(items):
                                for item in items])
 
 
-def triangles_of(items, log, label):
-    """World triangles for every selected item together, with a note on why
-    when none could be read."""
-    triangles = []
-    notes = []
+def vertices_of(items, log):
+    """A spread of the mover's own points, enough to say which side of a
+    face its body lies on. Every item is read; what fails is logged."""
+    points = []
     for item in items:
-        found = geometry.world_triangles(item, note=notes.append)
-        log.info('%s "%s": %d triangle(s)%s'
-                 % (label, item.DisplayName, len(found), ('; ' + notes[-1]) if notes else ''))
-        triangles.extend(found)
-    return triangles, (notes[0] if notes else 'the selection has no faces')
-
-
-def same_items(first, second):
-    if len(first) != len(second):
-        return False
-    return all(any(a.Equals(b) for b in second) for a in first)
-
-
-def remember(doc, items):
-    script.set_envvar(resolveclash.PENDING, {
-        'file': str(doc.FileName or ''), 'title': str(doc.Title or ''), 'items': list(items)})
-
-
-def pending_for(doc):
-    """The first click's items when they belong to this document, else None."""
-    pending = script.get_envvar(resolveclash.PENDING)
-    if not pending:
-        return None
-    if pending['file'] != str(doc.FileName or '') or pending['title'] != str(doc.Title or ''):
-        script.set_envvar(resolveclash.PENDING, None)
-        return None
-    return pending['items']
+        notes = []
+        for a, b, c in geometry.world_triangles(item, note=notes.append):
+            points.append(a)
+        if notes:
+            log.info('mover "%s": %s' % (item.DisplayName, notes[0]))
+    return points
 
 
 def run():
+    from pynavis._api import Api
     doc = app.get_doc()
     log = script.get_logger()
-    items = selection.get_items()
-    mover = pending_for(doc)
-
-    if not items:
-        script.set_envvar(resolveclash.PENDING, None)
-        toast.info('Nothing selected', 'Select the object that should move, then click.')
+    mover = selection.get_items()
+    if not mover:
+        banner.info('Nothing selected', 'Select the object that should move, then click.')
         return
+    mover_name = names_of(mover)
 
-    if mover is None:
-        remember(doc, items)
-        toast.info('Now select what it must clear',
-                   '%s will move. Select the obstacle and click again.' % names_of(items))
-        return
+    overlay.clear(DIMENSION_TAG)
+    overlay.redraw()
+    banner.clear()
+    measured = pick.measure_points('Click the face of %s that must move' % mover_name,
+                                   'Now click the face it must clear',
+                                   notify=banner.prompt, keep=False)
+    if measured is None:
+        banner.clear()
+        return                              # Esc, right-click or another tool: say nothing
+    p1, p2 = measured
 
-    if same_items(mover, items):
-        toast.warning('Same object twice',
-                      'Select the object %s must clear, then click again.' % names_of(mover))
-        return
-
-    script.set_envvar(resolveclash.PENDING, None)
     values = settings.load(resolveclash.TOOL, resolveclash.DEFAULTS)
     units = str(doc.Units)
-    mover_name, obstacle_name = names_of(mover), names_of(items)
-
-    mover_triangles, why = triangles_of(mover, log, 'mover')
-    if not mover_triangles:
-        toast.error('Could not read %s' % mover_name, why)
-        return
-    obstacle_triangles, why = triangles_of(items, log, 'obstacle')
-    if not obstacle_triangles:
-        toast.error('Could not read %s' % obstacle_name, why)
-        return
-
     clearance = resolveclash.convert(values['clearance'], values['clearance_units'], units)
-    axes = resolveclash.axes_for(values['direction'])
-    log.info('solving %d x %d triangle(s), direction %s, clearance %s %s'
-             % (len(mover_triangles), len(obstacle_triangles), values['direction'],
-                clearance, units))
-    try:
-        result = separation.resolve(mover_triangles, obstacle_triangles, axes=axes,
-                                    clearance=clearance, budget_seconds=BUDGET_SECONDS)
-    except separation.TooDetailed as error:
-        log.warning(str(error))
-        toast.error('Too detailed to solve',
-                    'Gave up after %d seconds. Try a smaller part of either object.'
-                    % BUDGET_SECONDS)
-        return
-    log.info('result %s' % result)
+    view = doc.ActiveView
+    first, end = Api.Point3D(p1[0], p1[1], p1[2]), Api.Point3D(p2[0], p2[1], p2[2])
+    log.info('measurement %s -> %s, units %s, clearance %s' % (p1, p2, units, clearance))
 
-    if result['status'] != 'clear':
+    tol = faces.tolerance_for((p1, p2), units_to_meters(doc))
+    mover_faces, mover_item = faces.faces_under(view, first, tol, log, 'mover')
+    obstacle_faces, obstacle_item = faces.faces_under(view, end, tol, log, 'obstacle')
+    obstacle_name = (str(obstacle_item.DisplayName or obstacle_item.ClassDisplayName or '')
+                     if obstacle_item is not None else 'the obstacle')
+    if mover_item is not None and not any(mover_item.Equals(m) for m in mover):
+        log.warning('first point is on "%s", which is not in the selection'
+                    % mover_item.DisplayName)
+
+    result = resolveclash.plan(p1, mover_faces, p2, obstacle_faces, vertices_of(mover, log),
+                               clearance=clearance)
+    log.info('plan %s' % result)
+
+    if result['move'] > 0:
         moved = geometry.translate(mover, result['vector'], doc, name='Resolve clash')
         log.info('moved %d item(s) by %s' % (moved, result['vector']))
         selection.set_items(mover, doc)
 
     level, title, detail = resolveclash.describe(result, units, mover_name, obstacle_name,
                                                  clearance)
-    toast.show(level, title, detail)
+    if result['move'] > 0:
+        # The number is what the user came for and will type elsewhere: it
+        # must outlive a glance, so it waits to be dismissed.
+        banner.clear()
+        forms.alert(title + chr(10) + chr(10) + detail, title='Resolve Clash',
+                    copy=resolveclash.format_length(result['move'], units))
+    else:
+        banner.show(level, title, detail)
+
+    # The clearance left after the move, drawn from the obstacle's plane to
+    # the moved face; the next run clears it.
+    if result['move'] > 0 and clearance > 0:
+        foot, face = resolveclash.dimension(p1, p2, result['normal'], result['move'])
+        drawn = overlay.dimension(DIMENSION_TAG, foot, face,
+                                  resolveclash.format_length(clearance, units))
+        overlay.redraw()
+        log.info('dimension %s -> %s drawn=%s' % (foot, face, drawn))
 
 
 if '__commandpath__' in globals():

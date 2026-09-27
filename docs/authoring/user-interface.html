@@ -152,6 +152,10 @@ ever need the middle two.</figcaption>
 <tr><td><code>pynavis.toast</code></td><td>No</td>
     <td>The result of a finished action, in one line.</td>
     <td>Questions, anything the user must read to continue.</td></tr>
+<tr><td><code>pynavis.banner</code></td><td>No</td>
+    <td>The one value a tool exists to produce, such as a measurement, large across the
+        bottom of the window.</td>
+    <td>Routine confirmations; anything a toast would do.</td></tr>
 <tr><td><code>pynavis.forms</code></td><td>Yes</td>
     <td>A question you must have answered, and file pickers.</td>
     <td>Reporting a result the user did not ask about.</td></tr>
@@ -279,6 +283,30 @@ still should not narrate: one toast per outcome.</p>
 card and thickens into a rail on the left.</figcaption>
 </figure>
 
+<h2 id="banner-one-value-full-width">Banner: one value, full width<a class="anchor" href="#banner-one-value-full-width" aria-label="Link to this section">#</a></h2>
+
+<p>A banner is a toast's louder sibling: a bar the full width of the Navisworks window,
+sitting on its bottom edge, filled solid in the level colour with the message in large type
+on it. It never takes focus and dismisses itself, but it lingers longer than a toast, a click
+dismisses it at once, and there is only ever one: a new banner replaces the last.</p>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">from</span> pynavis <span class="tok-k">import</span> banner
+
+banner.show(level, message, detail=<span class="tok-k">None</span>)   <span class="tok-c"># level: &#x27;success&#x27; | &#x27;error&#x27; | &#x27;info&#x27; | &#x27;warning&#x27;</span>
+
+banner.success(message, detail=<span class="tok-k">None</span>)
+banner.error(message, detail=<span class="tok-k">None</span>)
+banner.info(message, detail=<span class="tok-k">None</span>)
+banner.warning(message, detail=<span class="tok-k">None</span>)
+banner.prompt(message, detail=<span class="tok-k">None</span>)        <span class="tok-c"># stays until replaced or cleared</span>
+banner.clear()                             <span class="tok-c"># remove it now</span></code></pre></div>
+
+<p>Reach for it when the tool's whole point is one readout the user will look up at from
+the model, the way True Distance shows its measurement, or for the instruction a tool is
+waiting on while the user clicks in the view (<code>pick.measure_points</code> takes
+<code>notify=banner.prompt</code>). Everything else stays a toast: a banner for "Saved" is
+shouting.</p>
+
 <h3 id="what-a-toast-must-never-do">What a toast must never do<a class="anchor" href="#what-a-toast-must-never-do" aria-label="Link to this section">#</a></h3>
 
 <ul>
@@ -333,7 +361,7 @@ blocks your script until the user responds.</p>
 
 <div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms
 
-forms.alert(message, title=<span class="tok-s">&#x27;pyNavis&#x27;</span>)                       <span class="tok-c"># -&gt; None</span>
+forms.alert(message, title=<span class="tok-s">&#x27;pyNavis&#x27;</span>, copy=<span class="tok-k">None</span>)            <span class="tok-c"># -&gt; None; copy adds a Copy button</span>
 forms.confirm(message, title=<span class="tok-s">&#x27;pyNavis&#x27;</span>)                     <span class="tok-c"># -&gt; bool, True on Yes</span>
 forms.ask_string(prompt, default=<span class="tok-s">&#x27;&#x27;</span>, title=<span class="tok-s">&#x27;pyNavis&#x27;</span>)       <span class="tok-c"># -&gt; str or None</span>
 forms.save_file(filter=<span class="tok-s">&#x27;CSV files (*.csv)|*.csv|All files (*.*)|*.*&#x27;</span>,
@@ -943,6 +971,7 @@ they never look at the window.</p>
 <aside class="toc"><div class="toc-head">On this page</div>
 <a href="#choosing-a-surface">Choosing a surface</a>
 <a href="#toast-one-line-no-interruption">Toast: one line, no interruption</a>
+<a href="#banner-one-value-full-width">Banner: one value, full width</a>
 <a href="#what-a-toast-must-never-do" class="h3">What a toast must never do</a>
 <a href="#the-result-idiom" class="h3">The Result idiom</a>
 <a href="#never-print-a-one-line-status" class="h3">Never print a one-line status</a>

@@ -66,8 +66,8 @@ needs and what Shift+Click does, is at [docs.pynavis.com/tools.html](https://doc
 - **Select by IDs**: select elements by Revit element ID, in a federated model
 - **IDs of Selection**: copy the Revit element IDs of the selection to the clipboard
 - **Export Viewpoints**: every saved viewpoint to CSV, with camera positions
-- **Face Distance**: true perpendicular distance between the two measured faces
-- **Resolve Clash**: slide one object clear of another and report how far, ready for the authoring tool
+- **True Distance**: true perpendicular distance between the two measured faces, on a bar across the bottom of the window
+- **Resolve Clash**: point at two faces and slide the object until they clear, reporting how far, ready for the authoring tool
 - **Sets from Excel**: export selection sets to a workbook, or import them back
 - **Smart Clash Grouper**: group clash results into issues, with a live preview
 - **Element ID Settings** (flyout): the settings both element ID tools share

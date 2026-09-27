@@ -31,7 +31,7 @@ namespace PyNavis.Runtime.Forms
             public Tokens T;
             public PyNavisConfig.UserSettings Values;
             public ComboBox Theme;
-            public CheckBox ConfigDot;
+            public TextBox ConfigMarker;
             public TextBox Marker;
             public CheckBox BareKeys;
             public ListBox Roots;
@@ -152,14 +152,13 @@ namespace PyNavis.Runtime.Forms
                 : FollowHost;
             body.Children.Add(parts.Theme);
 
-            parts.ConfigDot = new CheckBox
-            {
-                Content = "Dot on tools that have a Shift+Click action",
-                IsChecked = parts.Values.RibbonConfigDot,
-                Margin = new Thickness(0, 14, 0, 0),
-                Foreground = DesignSystem.Brush(t.Ink),
-            };
-            body.Children.Add(parts.ConfigDot);
+            body.Children.Add(Caption(t, "Marker on tools that have a Shift+Click action"));
+            parts.ConfigMarker = new TextBox { Width = 90, Text = parts.Values.RibbonConfigMarker ?? "" };
+            var configRow = new StackPanel { Orientation = Orientation.Horizontal };
+            configRow.Children.Add(DesignSystem.InputField(t, parts.ConfigMarker));
+            configRow.Children.Add(Hint(t, "Empty turns it off. Added after the name.",
+                new Thickness(10, 0, 0, 0)));
+            body.Children.Add(configRow);
 
             body.Children.Add(Caption(t, "Marker on tools that have a shortcut"));
             parts.Marker = new TextBox { Width = 90, Text = parts.Values.RibbonShortcutMarker ?? "" };
@@ -280,7 +279,7 @@ namespace PyNavis.Runtime.Forms
             {
                 Theme = Convert.ToString(parts.Theme.SelectedItem) == "Dark" ? "dark"
                     : Convert.ToString(parts.Theme.SelectedItem) == "Light" ? "light" : null,
-                RibbonConfigDot = parts.ConfigDot.IsChecked == true,
+                RibbonConfigMarker = parts.ConfigMarker.Text ?? "",
                 RibbonShortcutMarker = parts.Marker.Text ?? "",
                 ShortcutsAllowBareKeys = parts.BareKeys.IsChecked == true,
                 ExtensionPaths = parts.Roots.Items.Cast<object>()
@@ -299,8 +298,8 @@ namespace PyNavis.Runtime.Forms
         public static void SetMarkerForTest(Window window, string marker) =>
             PartsOf(window).Marker.Text = marker;
 
-        public static void SetConfigDotForTest(Window window, bool on) =>
-            PartsOf(window).ConfigDot.IsChecked = on;
+        public static void SetConfigMarkerForTest(Window window, string marker) =>
+            PartsOf(window).ConfigMarker.Text = marker;
 
         public static void AddRootForTest(Window window, string path) =>
             PartsOf(window).Roots.Items.Add(path);

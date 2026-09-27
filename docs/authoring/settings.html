@@ -329,8 +329,9 @@ know about survives every save another one makes.</p>
         <code>Contents\&lt;year&gt;</code> folder and is registered in
         <code>PackageContents.xml</code>. Written by the <strong>Panel slots</strong>
         button.</td></tr>
-<tr><td><code>ribbon.configDot</code></td><td>boolean</td><td><code>true</code></td>
-    <td>Draws a dot on the icon of any bundle that ships a <code>config.py</code>.</td></tr>
+<tr><td><code>ribbon.configMarker</code></td><td>string</td><td><code>"&#8679;"</code></td>
+    <td>Appended to the caption of any bundle that ships a <code>config.py</code>.
+        <code>""</code> turns it off.</td></tr>
 <tr><td><code>ribbon.shortcutMarker</code></td><td>string</td><td><code>"&#9679;"</code></td>
     <td>Appended to the caption of any button a chord resolves to. <code>""</code> turns it
         off.</td></tr>
@@ -413,23 +414,27 @@ rather than needing a restart.</p>
 
 <div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
   <span class="tok-f">&quot;ribbon&quot;</span>: {
-    <span class="tok-f">&quot;configDot&quot;</span>: <span class="tok-k">true</span>,
+    <span class="tok-f">&quot;configMarker&quot;</span>: <span class="tok-s">&quot;⇧&quot;</span>,
     <span class="tok-f">&quot;shortcutMarker&quot;</span>: <span class="tok-s">&quot;●&quot;</span>
   }
 }</code></pre></div>
 
-<p><code>configDot</code> draws a filled dot in the corner of the icon of any bundle that
-ships a <code>config.py</code>, so a tool with a Shift+Click action says so on the ribbon
-instead of hiding it. <code>shortcutMarker</code> is appended to the caption of any button a
-keyboard chord resolves to; the tooltip still names the chord itself.</p>
+<p><code>configMarker</code> is appended to the caption of any bundle that ships a
+<code>config.py</code>, so a tool with a Shift+Click action says so on the ribbon instead of
+hiding it; the default is the Shift key's own symbol. <code>shortcutMarker</code> is appended
+to the caption of any button a keyboard chord resolves to; the tooltip still names the chord
+itself. A button with both reads "Purge &#8679; &#9679;".</p>
 
-<p>Both default on. The marker is the string that gets drawn, so setting it to
+<p>Both default on. Each marker is the string that gets drawn, so setting it to
 <code>""</code> turns it off, and any character works in its place. A marker that begins
-with a newline takes its own caption line instead of sitting beside the name:</p>
+with a newline takes its own caption line instead of sitting beside the name. Releases before
+this one drew the config hint as a dot on the icon and switched it with a boolean
+<code>configDot</code>; a leftover <code>"configDot": false</code> still reads as off until the
+Settings window next saves the file.</p>
 
 <div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
   <span class="tok-f">&quot;ribbon&quot;</span>: {
-    <span class="tok-f">&quot;configDot&quot;</span>: <span class="tok-k">false</span>,
+    <span class="tok-f">&quot;configMarker&quot;</span>: <span class="tok-s">&quot;&quot;</span>,
     <span class="tok-f">&quot;shortcutMarker&quot;</span>: <span class="tok-s">&quot;\n●&quot;</span>
   }
 }</code></pre></div>

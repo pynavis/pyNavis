@@ -122,6 +122,8 @@ just do not fail at import time.</p>
     <td>Save and publish NWD files, and a best-effort viewpoint image export.</td><td>No</td></tr>
 <tr><td><a href="#forms"><code>forms</code></a></td>
     <td>Modal dialogs: alert, confirm, prompts, pickers, cancellable progress, custom windows.</td><td>No</td></tr>
+<tr><td><a href="#faces"><code>faces</code></a></td>
+    <td>Which faces a measured point sits on, and the parallel pair two points share.</td><td>No</td></tr>
 <tr><td><a href="#geometry"><code>geometry</code></a></td>
     <td>The world-space triangles of a model item, and moving items by a vector.</td><td>No</td></tr>
 <tr><td><a href="#memory"><code>memory</code></a></td>
@@ -150,6 +152,8 @@ just do not fail at import time.</p>
     <td>Per-tool JSON settings for the Shift+Click convention.</td><td>No</td></tr>
 <tr><td><a href="#toast"><code>toast</code></a></td>
     <td>Non-blocking status messages in the corner of the window.</td><td>No</td></tr>
+<tr><td><a href="#banner"><code>banner</code></a></td>
+    <td>One result on a full-width bar across the bottom of the window.</td><td>No</td></tr>
 <tr><td><a href="#view"><code>view</code></a></td>
     <td>Zoom onto the selection, isolate items, unhide everything.</td><td>Yes</td></tr>
 <tr><td><a href="#viewpoints"><code>viewpoints</code></a></td>
@@ -371,7 +375,8 @@ different callers. Know which one you are in.</p>
     view itself stays live, so they can orbit and zoom while they aim.
     <code>pick.point_then</code> is the non-blocking form, and the one to use from a panel or a
     modeless window.</li>
-  <li><strong><code>toast.*</code> never blocks and never takes focus.</strong> A toast
+  <li><strong><code>toast.*</code> and <code>banner.*</code> never block and never take
+    focus.</strong> A toast
     appears in the corner and dismisses itself, which is why it is the right surface for a
     one-line status.</li>
   <li><strong><code>output.*</code> writes without blocking.</strong> The output window is
@@ -983,11 +988,13 @@ it.</p>
 
 <h3 id="forms-alert">forms.alert and forms.confirm<a class="anchor" href="#forms-alert" aria-label="Link to this section">#</a></h3>
 
-<div class="sig"><span class="mod">forms.</span><span class="fn">alert</span>(message, title='pyNavis')</div>
+<div class="sig"><span class="mod">forms.</span><span class="fn">alert</span>(message, title='pyNavis', copy=None)</div>
 <div class="sig"><span class="mod">forms.</span><span class="fn">confirm</span>(message, title='pyNavis')</div>
 
 <p><code>alert</code> shows a message with a single dismiss button and returns
-<code>None</code>. <code>confirm</code> asks a Yes/No question and returns <code>True</code>
+<code>None</code>. Give it <code>copy</code>, a string, and a Copy button appears on the left
+of the footer that puts that text on the clipboard without closing the dialog; Resolve Clash
+hands it the bare distance so the number can go straight into the authoring tool. <code>confirm</code> asks a Yes/No question and returns <code>True</code>
 on Yes. Both coerce <code>message</code> with <code>str()</code>, so passing a number or a
 result object will not raise.</p>
 
@@ -1194,6 +1201,68 @@ win[<span class="tok-s">&#x27;CancelButton&#x27;</span>].Click += <span class="t
 in any WPF code-behind. <code>WPFWindow</code> only solves loading the file and threading the
 runtime's dialog chrome onto it; it is not a data-binding layer.</p>
 </div>
+
+<h2 id="faces">faces: the faces under a measured point<a class="anchor" href="#faces" aria-label="Link to this section">#</a></h2>
+
+<p><span class="pill pure">Pure</span> at import; only <code>faces_under</code> and
+<code>candidates_at</code> touch Navisworks, and they import it when called. A face is known
+by its unit normal. A point on an edge belongs to both meeting faces and on a corner to all
+of them, so a point yields a list of candidate normals and <code>choose</code> picks one per
+point. The faces come from the item's own triangles
+(<a href="#geometry-world-triangles"><code>geometry.world_triangles</code></a>), never from a
+screen pick: a pick at a point on an edge returns whichever meeting face is in front, which
+read 3in 3/16 where the gap was 4in. True Distance and Resolve Clash are the users.</p>
+
+<h3 id="faces-faces-at">faces.faces_at<a class="anchor" href="#faces-faces-at" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">faces.</span><span class="fn">faces_at</span>(point, triangles, tol)</div>
+
+<p>Unit normals of the distinct faces <code>point</code> lies on, from a list of world
+triangles, within <code>tol</code> of the plane and of every edge. Degenerate triangles are
+skipped and normals that differ only in sign are merged. <code>[]</code> when the point is on
+none.</p>
+
+<h3 id="faces-tolerance-for">faces.tolerance_for<a class="anchor" href="#faces-tolerance-for" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">faces.</span><span class="fn">tolerance_for</span>(points, units_to_meters)</div>
+
+<p>The <code>tol</code> to use: half a millimetre in model units, widened for float32
+coordinates far from the origin, since COM vertices are singles.</p>
+
+<h3 id="faces-choose">faces.choose<a class="anchor" href="#faces-choose" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">faces.</span><span class="fn">choose</span>(faces_first, faces_end, diff, parallel_degrees=PARALLEL_DEGREES)</div>
+
+<p>Returns <code>(normal, source, angle)</code>. <code>source</code> is <code>'pair'</code>
+when a face from each list is parallel within <code>parallel_degrees</code> (among several
+pairs, the one the measured line <code>diff</code> follows most closely), <code>'first'</code>
+or <code>'end'</code> when only that side has faces or no pair is parallel, and
+<code>None</code> when neither side has a face. <code>angle</code> is the degrees between the
+chosen pair, or <code>None</code> with one side.</p>
+
+<h3 id="faces-side-of">faces.side_of<a class="anchor" href="#faces-side-of" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">faces.</span><span class="fn">side_of</span>(vertices, point, normal)</div>
+
+<p><code>normal</code> flipped, if need be, to point from the plane through <code>point</code>
+towards where most of <code>vertices</code> lie: the inward direction of a face on a body.
+Normals from <code>faces_at</code> carry no reliable sign, and this is how Resolve Clash knows
+which way is away from the face that was clicked.</p>
+
+<h3 id="faces-faces-under">faces.faces_under and faces.candidates_at<a class="anchor" href="#faces-faces-under" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">faces.</span><span class="fn">faces_under</span>(view, point, tol, log, label='point')</div>
+<div class="sig"><span class="mod">faces.</span><span class="fn">candidates_at</span>(view, point, log, label='point')</div>
+
+<p><span class="pill needs-nw">Needs Navisworks</span> <code>candidates_at</code> lists the
+items under the pixel an API <code>Point3D</code> projects to, front-most first, at most
+<code>CANDIDATE_LIMIT</code> of them. <code>faces_under</code> walks them and returns
+<code>(faces, item)</code> from the first whose triangles contain the point, or
+<code>([], None)</code>; every item tried is logged under <code>label</code>.</p>
+
+<p>The vector helpers <code>sub</code>, <code>add</code>, <code>scale</code>,
+<code>dot</code>, <code>cross</code>, <code>length</code>, <code>normalize</code> and
+<code>angle_between</code> are here too, on plain 3-tuples.</p>
 
 <h2 id="geometry">geometry: the triangles of a model item<a class="anchor" href="#geometry" aria-label="Link to this section">#</a></h2>
 
@@ -1855,7 +1924,7 @@ second pick cancels the first the same way.</p>
 
 <h3 id="pick-measure-point">pick.measure_point<a class="anchor" href="#pick-measure-point" aria-label="Link to this section">#</a></h3>
 
-<div class="sig"><span class="mod">pick.</span><span class="fn">measure_point</span>(prompt=DEFAULT_PROMPT)</div>
+<div class="sig"><span class="mod">pick.</span><span class="fn">measure_point</span>(prompt=DEFAULT_PROMPT, notify=None)</div>
 
 <p><span class="pill blocks">Blocks</span> <span class="pill needs-nw">Needs Navisworks</span>
 The same question asked through the host's own Measure tool instead. The document is put into
@@ -1870,7 +1939,7 @@ plugin may not be deployed, or when a point is genuinely all you need.</p>
 
 <h3 id="pick-measure-points">pick.measure_points<a class="anchor" href="#pick-measure-points" aria-label="Link to this section">#</a></h3>
 
-<div class="sig"><span class="mod">pick.</span><span class="fn">measure_points</span>(prompt=DEFAULT_PROMPT, second_prompt=SECOND_PROMPT)</div>
+<div class="sig"><span class="mod">pick.</span><span class="fn">measure_points</span>(prompt=DEFAULT_PROMPT, second_prompt=SECOND_PROMPT, notify=None, keep=True)</div>
 
 <p><span class="pill blocks">Blocks</span> <span class="pill needs-nw">Needs Navisworks</span>
 The same Measure, Point to Point drive, asked for a whole line. It returns
@@ -1880,11 +1949,20 @@ the start and <code>second_prompt</code> the moment the first point lands. Any m
 already on screen is dropped before it starts, because a caller asking for a line wants a new
 one.</p>
 
-<p>Unlike <code>measure_point</code>, the finished measurement is the deliverable: it stays on
-screen with its native readout and the document stays on the Measure tool, so the caller can
-draw next to it with an anchored <a href="#overlay-dimension"><code>overlay.dimension</code></a>
-and the user can measure again straight away. A first point left behind by a cancel is dropped
-so the next click does not close it into a line. Face Distance is the reference user.</p>
+<p><code>notify(message, detail)</code> is how each prompt is shown; <code>None</code> means
+a toast. Pass <a href="#banner-prompt"><code>banner.prompt</code></a> to ask on the bar along
+the bottom of the window instead. That prompt stays up, so replace it with the result banner
+or call <code>banner.clear()</code> when the pick returns <code>None</code>.</p>
+
+<p>With <code>keep</code>, the default, the finished measurement is the deliverable: it stays
+on screen with its native readout and the document stays on the Measure tool, so the caller
+can draw next to it with an anchored <a href="#overlay-dimension"><code>overlay.dimension</code></a>
+and the user can measure again straight away. With <code>keep=False</code> the two points are
+the deliverable: the measurement is dropped the moment it is complete and the tool the user had
+comes back, as <code>measure_point</code> does; anything drawn from the points must then stand
+on its own rather than be anchored. A first point left behind by a cancel is dropped either
+way, so the next click does not close it into a line. True Distance and Resolve Clash use
+<code>keep=False</code>.</p>
 
 <div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Reports the straight-line length of a measurement the user makes on request.&quot;&quot;&quot;</span>
 <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> pick, toast
@@ -3083,6 +3161,57 @@ items = selection.get_items()
 <span class="tok-k">else</span>:
     toast.success(<span class="tok-s">&#x27;%d item(s) selected&#x27;</span> % len(items))</code></pre></div>
 
+<h2 id="banner">banner: one result, full width<a class="anchor" href="#banner" aria-label="Link to this section">#</a></h2>
+
+<p><span class="pill pure">Pure</span> at import; needs only the
+<code>PyNavis.Runtime</code> assembly, never the Navisworks API. A banner is a bar the full
+width of the Navisworks window on its bottom edge, filled solid in the level colour, with the
+message in large type on it. It never blocks and never takes focus. Where a toast is a note
+in the corner, a banner is a readout: use it for the one value a tool exists to produce, and
+keep everything else in a toast.</p>
+
+<h3 id="banner-show">banner.show<a class="anchor" href="#banner-show" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">banner.</span><span class="fn">show</span>(level, message, detail=None, seconds=None)</div>
+
+<p>Same contract as <a href="#toast-show"><code>toast.show</code></a>: <code>level</code> is
+one of <code>'success'</code>, <code>'error'</code>, <code>'info'</code> or
+<code>'warning'</code>, every argument is coerced with <code>str()</code>, and
+<code>detail=None</code> renders as a single line. There is only ever one banner; showing
+another replaces it. With <code>seconds=None</code> it dismisses itself after eight seconds
+(warnings ten, errors twelve); <code>0</code> keeps it up until it is replaced, cleared,
+clicked or Reload runs; any other number is its stay. Hovering holds it, and a click
+dismisses it at once.</p>
+
+<h3 id="banner-levels">banner.success, banner.error, banner.info and banner.warning<a class="anchor" href="#banner-levels" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">banner.</span><span class="fn">success</span>(message, detail=None)</div>
+<div class="sig"><span class="mod">banner.</span><span class="fn">error</span>(message, detail=None)</div>
+<div class="sig"><span class="mod">banner.</span><span class="fn">info</span>(message, detail=None)</div>
+<div class="sig"><span class="mod">banner.</span><span class="fn">warning</span>(message, detail=None)</div>
+
+<p>Four shorthands for <code>show</code> with the level filled in.</p>
+
+<h3 id="banner-prompt">banner.prompt<a class="anchor" href="#banner-prompt" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">banner.</span><span class="fn">prompt</span>(message, detail=None)</div>
+
+<p>An instruction the tool is waiting on: an info banner that stays until replaced or
+cleared. Shaped to be handed to <a href="#pick-measure-points"><code>pick.measure_points</code></a>
+as <code>notify</code>, which is how True Distance and Resolve Clash ask for their faces.</p>
+
+<h3 id="banner-clear">banner.clear<a class="anchor" href="#banner-clear" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">banner.</span><span class="fn">clear</span>()</div>
+
+<p>Removes the banner, if one is showing. True Distance calls it as its first act so a
+readout from the last measurement never sits under a new one.</p>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Shows the one number the tool produces where it can be read from across the room.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> banner
+
+banner.success(<span class="tok-s">&#x27;True distance: 4ft 0in&#x27;</span>)</code></pre></div>
+
 <h2 id="view">view: camera and visibility<a class="anchor" href="#view" aria-label="Link to this section">#</a></h2>
 
 <p><span class="pill needs-nw">Needs Navisworks</span> Three moves a tool makes right after it
@@ -3746,6 +3875,12 @@ than importing: the public module it sits behind is where it should surface.</p>
 <a href="#forms-pick-folder" class="h3">forms.pick_folder</a>
 <a href="#forms-progress" class="h3">forms.progress</a>
 <a href="#forms-wpfwindow" class="h3">forms.WPFWindow</a>
+<a href="#faces">faces: the faces under a measured point</a>
+<a href="#faces-faces-at" class="h3">faces.faces_at</a>
+<a href="#faces-tolerance-for" class="h3">faces.tolerance_for</a>
+<a href="#faces-choose" class="h3">faces.choose</a>
+<a href="#faces-side-of" class="h3">faces.side_of</a>
+<a href="#faces-faces-under" class="h3">faces.faces_under and faces.candidates_at</a>
 <a href="#geometry">geometry: the triangles of a model item</a>
 <a href="#geometry-world-triangles" class="h3">geometry.world_triangles</a>
 <a href="#geometry-translate" class="h3">geometry.translate</a>
@@ -3837,6 +3972,11 @@ than importing: the public module it sits behind is where it should surface.</p>
 <a href="#toast">toast: non-blocking status</a>
 <a href="#toast-show" class="h3">toast.show</a>
 <a href="#toast-levels" class="h3">toast.success, toast.error, toast.info and toast.warning</a>
+<a href="#banner">banner: one result, full width</a>
+<a href="#banner-show" class="h3">banner.show</a>
+<a href="#banner-levels" class="h3">banner.success, banner.error, banner.info and banner.warning</a>
+<a href="#banner-prompt" class="h3">banner.prompt</a>
+<a href="#banner-clear" class="h3">banner.clear</a>
 <a href="#view">view: camera and visibility</a>
 <a href="#view-zoom-selected" class="h3">view.zoom_selected</a>
 <a href="#view-isolate" class="h3">view.isolate</a>

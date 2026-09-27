@@ -1,27 +1,30 @@
-"""Pure half of Resolve Clash: settings, unit conversion, and the words the
-toast uses. No Navisworks import, so this is unit-testable anywhere."""
+"""Pure half of Resolve Clash: the plane-to-plane move, settings, unit
+conversion, and the words the banner uses. No Navisworks import, so this
+is unit-testable anywhere.
+
+The user measures two faces: one on the object that moves, one on what it
+must clear. The move is along the faces' shared normal, pointing from the
+mover's face into the mover's own body (so away from the obstacle), and it
+is exactly the distance that puts the mover's face on the far side of the
+obstacle's plane plus the clearance. Nothing else about either object's
+shape enters into it: the user chose the two planes, so the two planes
+decide.
+"""
+
+from pynavis.faces import add, choose, dot, normalize, scale, side_of, sub
 
 TOOL = 'resolve_clash'
 DEFAULTS = {
-    # Air to leave between the two objects along the axis moved, in
-    # clearance_units, so the same setting means the same thing in a
-    # millimetre document and a feet-and-inches one.
+    # Air to leave between the two faces after the move, in clearance_units,
+    # so the same setting means the same thing in a millimetre document and
+    # a feet-and-inches one.
     'clearance': 0.0,
     'clearance_units': 'Millimeters',
-    # 'auto' tries all six axis directions and keeps the shortest; 'x',
-    # 'y' or 'z' tries both ways along that one axis.
-    'direction': 'auto',
 }
 
-# Session variable holding the first click's selection until the second.
-PENDING = 'resolve_clash.mover'
-
-DIRECTIONS = (
-    ('auto', 'Auto (shortest of the six axis moves)'),
-    ('x', 'X only'),
-    ('y', 'Y only'),
-    ('z', 'Z only'),
-)
+# Two faces whose normals differ by more than this many degrees are not
+# parallel enough to be "the two faces": the tool refuses rather than guess.
+PARALLEL_DEGREES = 1.0
 
 _METERS_PER_UNIT = {
     'Meters': 1.0, 'Centimeters': 0.01, 'Millimeters': 0.001,
@@ -37,23 +40,6 @@ _INCHES_PER_UNIT = {'Feet': 12.0, 'Inches': 1.0, 'Yards': 36.0, 'Miles': 63360.0
 _SUFFIX = {'Meters': 'm', 'Centimeters': 'cm', 'Millimeters': 'mm',
            'Kilometers': 'km', 'Micrometers': 'um', 'Mils': 'mil',
            'Microinches': 'uin'}
-
-_WAY = {'+x': 'in +X', '-x': 'in -X', '+y': 'in +Y', '-y': 'in -Y',
-        '+z': 'up', '-z': 'down'}
-
-
-def axes_for(direction):
-    """The axis directions pynavis.separation should try for a setting."""
-    if direction in ('x', 'y', 'z'):
-        return ('+' + direction, '-' + direction)
-    return None
-
-
-def direction_label(direction):
-    for key, label in DIRECTIONS:
-        if key == direction:
-            return label
-    return DIRECTIONS[0][1]
 
 
 def convert(value, from_units, to_units):
@@ -106,25 +92,91 @@ def label(names):
     return '%s and %d more' % (names[0], len(names) - 1)
 
 
+def plan(mover_point, mover_faces, obstacle_point, obstacle_faces, mover_vertices,
+         clearance=0.0, parallel_degrees=PARALLEL_DEGREES, eps=1e-9):
+    """The move that puts the mover's measured face clear of the obstacle's.
+
+    mover_point, obstacle_point: the two measured points, (x, y, z).
+    mover_faces, obstacle_faces: candidate unit normals under each point
+        (pynavis.faces.faces_at); a point on an edge has several.
+    mover_vertices: any points of the mover's body, used only to tell
+        which side of its face the mover lies on.
+    clearance: air to leave between the two planes, in model units.
+
+    Returns a dict:
+      status    'clash' (the mover's face is past the obstacle's plane),
+                'tight' (clear, but by less than the clearance),
+                'clear' (nothing to do),
+                'not-parallel' (a face under each point but no parallel pair),
+                'no-face' (a point with no face under it: which says 'missing')
+      normal    unit direction of travel, into the mover's body, or None
+      gap       signed distance from the obstacle's plane to the mover's
+                face along normal before moving: negative is a clash
+      move      distance travelled (clearance included), 0 when clear
+      vector    (dx, dy, dz) to apply
+      angle     degrees between the two chosen faces
+      missing   'mover', 'obstacle' or None
+    """
+    mover_faces = [n for n in (normalize(f) for f in mover_faces) if n is not None]
+    obstacle_faces = [n for n in (normalize(f) for f in obstacle_faces) if n is not None]
+    result = {'normal': None, 'gap': None, 'move': 0.0, 'vector': (0.0, 0.0, 0.0),
+              'angle': None, 'missing': None}
+    if not mover_faces or not obstacle_faces:
+        result['status'] = 'no-face'
+        result['missing'] = 'mover' if not mover_faces else 'obstacle'
+        return result
+    diff = sub(obstacle_point, mover_point)
+    normal, source, angle = choose(mover_faces, obstacle_faces, diff, parallel_degrees)
+    result['angle'] = angle
+    if source != 'pair':
+        result['status'] = 'not-parallel'
+        return result
+    # Travel is into the mover's body: away from the face it was clicked on.
+    normal = side_of(mover_vertices, mover_point, normal)
+    gap = dot(sub(mover_point, obstacle_point), normal)
+    move = clearance - gap
+    result['normal'] = normal
+    result['gap'] = gap
+    if move <= eps:
+        result['status'] = 'clear'
+        return result
+    result['status'] = 'clash' if gap < -eps else 'tight'
+    result['move'] = move
+    result['vector'] = scale(normal, move)
+    return result
+
+
+def dimension(mover_point, obstacle_point, normal, moved_by=0.0):
+    """Where to draw the clearance after the move: from the obstacle's plane
+    (the foot of the mover point on it) to the mover's face, both on the
+    line through the moved mover point."""
+    start = add(mover_point, scale(normal, moved_by))
+    foot = sub(start, scale(normal, dot(sub(start, obstacle_point), normal)))
+    return foot, start
+
+
 def describe(result, units, mover, obstacle, clearance=0.0):
-    """(level, title, detail) for a toast from a pynavis.separation.resolve
-    result, after the move has been applied when there was one."""
-    axis = result['axis']
-    way = _WAY.get(axis, axis)
-    if result['status'] == 'clear':
-        if result['gap'] is None:
-            return ('info', 'Already clear',
-                    '%s and %s never meet along any axis.' % (mover, obstacle))
-        if result['gap'] == 0:
+    """(level, title, detail) for the banner from a plan() result, after the
+    move has been applied when there was one."""
+    status = result['status']
+    if status == 'no-face':
+        which = 'first' if result['missing'] == 'mover' else 'second'
+        return ('error', 'No face under the %s point' % which,
+                'Snap both points onto the two faces and try again.')
+    if status == 'not-parallel':
+        return ('error', 'The two faces are not parallel',
+                '%.1f deg apart. Pick a face on %s and the face of %s it must clear.'
+                % (result['angle'], mover, obstacle))
+    if status == 'clear':
+        if result['gap'] <= 0:
             return ('info', 'Already clear',
                     '%s touches %s but does not cross it. Set a clearance to push it away.'
                     % (mover, obstacle))
         return ('info', 'Already clear',
-                '%s is %s from %s along %s.'
-                % (mover, format_length(result['gap'], units), obstacle, _axis_name(axis)))
+                '%s is %s from %s.' % (mover, format_length(result['gap'], units), obstacle))
 
-    title = 'Moved %s %s by %s' % (mover, way, format_length(result['move'], units))
-    if result['status'] == 'tight':
+    title = 'Moved %s by %s' % (mover, format_length(result['move'], units))
+    if status == 'tight':
         detail = ('It was clear of %s by %s; now by %s. Ctrl+Z puts it back.'
                   % (obstacle, format_length(result['gap'], units),
                      format_length(clearance, units)))
@@ -134,7 +186,3 @@ def describe(result, units, mover, obstacle, clearance=0.0):
     else:
         detail = 'Clear of %s. Ctrl+Z puts it back.' % obstacle
     return ('success', title, detail)
-
-
-def _axis_name(axis):
-    return axis[1].upper()

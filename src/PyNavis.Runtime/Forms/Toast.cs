@@ -79,6 +79,7 @@ namespace PyNavis.Runtime.Forms
 
         public static Border CardOf(Window window) => PartsOf(window).Card;
         public static Border RailOf(Window window) => PartsOf(window).Rail;
+        public static TextBlock MessageBlockOf(Window window) => PartsOf(window).Message;
         public static TextBlock DetailBlockOf(Window window) => PartsOf(window).Detail;
         public static string MessageTextOf(Window window) => PartsOf(window).Message.Text;
         public static string DetailTextOf(Window window) => PartsOf(window).Detail.Text;
@@ -200,7 +201,7 @@ namespace PyNavis.Runtime.Forms
             }
         }
 
-        private static ToastLevel ParseLevel(string level)
+        public static ToastLevel ParseLevel(string level)
         {
             switch ((level ?? "").Trim().ToLowerInvariant())
             {

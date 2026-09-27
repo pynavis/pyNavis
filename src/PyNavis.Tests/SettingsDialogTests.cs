@@ -72,7 +72,7 @@ namespace PyNavis.Tests
             PyNavisConfig.SaveUserSettings(_path, Defaults());
 
             var text = Written();
-            Assert.DoesNotContain("configDot", text);
+            Assert.DoesNotContain("configMarker", text);
             Assert.DoesNotContain("shortcutMarker", text);
             Assert.DoesNotContain("theme", text);
         }
@@ -80,12 +80,24 @@ namespace PyNavis.Tests
         [Fact]
         public void TurningARibbonHintBackToItsDefault_RemovesTheKeyAgain()
         {
-            Given("{\"ribbon\": {\"configDot\": false, \"shortcutMarker\": \"*\"}}");
+            Given("{\"ribbon\": {\"configMarker\": \"\", \"shortcutMarker\": \"*\"}}");
 
             PyNavisConfig.SaveUserSettings(_path, Defaults());
 
-            Assert.DoesNotContain("configDot", Written());
+            Assert.DoesNotContain("configMarker", Written());
             Assert.DoesNotContain("ribbon", Written());
+        }
+
+        [Fact]
+        public void TheOldConfigDotBoolean_IsDroppedOnSave_AndReadAsOffUntilThen()
+        {
+            Given("{\"ribbon\": {\"configDot\": false}}");
+            Assert.Equal("", PyNavisConfig.Load(_path).RibbonConfigMarker);
+
+            PyNavisConfig.SaveUserSettings(_path, PyNavisConfig.Load(_path).ToUserSettings());
+
+            Assert.DoesNotContain("configDot", Written());
+            Assert.Equal("", PyNavisConfig.Load(_path).RibbonConfigMarker);
         }
 
         // ---- non-defaults are written ----------------------------------------
@@ -97,7 +109,7 @@ namespace PyNavis.Tests
             var settings = new PyNavisConfig.UserSettings
             {
                 Theme = "dark",
-                RibbonConfigDot = false,
+                RibbonConfigMarker = "S",
                 RibbonShortcutMarker = "*",
                 ShortcutsAllowBareKeys = true,
                 ExtensionPaths = new List<string> { @"C:\one", @"D:\two" },
@@ -109,7 +121,7 @@ namespace PyNavis.Tests
             var back = PyNavisConfig.Load(_path).ToUserSettings();
 
             Assert.Equal("dark", back.Theme);
-            Assert.False(back.RibbonConfigDot);
+            Assert.Equal("S", back.RibbonConfigMarker);
             Assert.Equal("*", back.RibbonShortcutMarker);
             Assert.True(back.ShortcutsAllowBareKeys);
             Assert.Equal(new[] { @"C:\one", @"D:\two" }, back.ExtensionPaths);
@@ -192,7 +204,7 @@ namespace PyNavis.Tests
             var given = new PyNavisConfig.UserSettings
             {
                 Theme = "light",
-                RibbonConfigDot = false,
+                RibbonConfigMarker = "",
                 RibbonShortcutMarker = "+",
                 ShortcutsAllowBareKeys = true,
                 ExtensionPaths = new List<string> { @"C:\one" },
@@ -206,7 +218,7 @@ namespace PyNavis.Tests
                 var back = SettingsDialog.CollectForTest(window);
 
                 Assert.Equal("light", back.Theme);
-                Assert.False(back.RibbonConfigDot);
+                Assert.Equal("", back.RibbonConfigMarker);
                 Assert.Equal("+", back.RibbonShortcutMarker);
                 Assert.True(back.ShortcutsAllowBareKeys);
                 Assert.Equal(new[] { @"C:\one" }, back.ExtensionPaths);
@@ -236,7 +248,7 @@ namespace PyNavis.Tests
                 var back = SettingsDialog.CollectForTest(window);
 
                 Assert.Null(back.Theme);
-                Assert.True(back.RibbonConfigDot);
+                Assert.Equal(PyNavisConfig.DefaultConfigMarker, back.RibbonConfigMarker);
                 Assert.Equal(0, SettingsDialog.RootCountOf(window));
             });
         }
@@ -247,12 +259,12 @@ namespace PyNavis.Tests
             OnSta(() =>
             {
                 var window = SettingsDialog.Build(new PyNavisConfig.UserSettings());
-                SettingsDialog.SetConfigDotForTest(window, false);
+                SettingsDialog.SetConfigMarkerForTest(window, "");
                 SettingsDialog.SetMarkerForTest(window, "");
                 SettingsDialog.AddRootForTest(window, @"D:\added");
 
                 var back = SettingsDialog.CollectForTest(window);
-                Assert.False(back.RibbonConfigDot);
+                Assert.Equal("", back.RibbonConfigMarker);
                 Assert.Equal("", back.RibbonShortcutMarker);
                 Assert.Equal(new[] { @"D:\added" }, back.ExtensionPaths);
             });

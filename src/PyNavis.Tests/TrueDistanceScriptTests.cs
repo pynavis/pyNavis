@@ -6,17 +6,17 @@ using Xunit;
 namespace PyNavis.Tests
 {
     /// <summary>
-    /// The Face Distance bundle's pure half: which faces a measured point sits
+    /// The True Distance bundle's pure half: which faces a measured point sits
     /// on (from an item's triangles), choosing the parallel pair, projecting the
     /// measurement onto their normal, and the feet-inches readout. Imported
     /// straight out of the shipped bundle folder; script.py only runs its
     /// click behaviour behind "if '__commandpath__' in globals()".
     /// </summary>
-    public class FaceDistanceScriptTests
+    public class TrueDistanceScriptTests
     {
         private readonly IronPythonEngine _engine;
 
-        public FaceDistanceScriptTests()
+        public TrueDistanceScriptTests()
         {
             _engine = new IronPythonEngine();
             var config = new EngineConfig();
@@ -24,7 +24,7 @@ namespace PyNavis.Tests
             if (Directory.Exists(stdlib)) config.SearchPaths.Add(stdlib);
             config.SearchPaths.Add(PyNavisLibTests.PyNavisLibDir);
             config.SearchPaths.Add(Dir(Path.Combine(
-                "pyNavis.tab", "Tools.panel", "Face_Distance.pushbutton")));
+                "pyNavis.tab", "Tools.panel", "True_Distance.pushbutton")));
             _engine.Initialize(config);
         }
 
@@ -54,7 +54,7 @@ namespace PyNavis.Tests
             var outw = new StringWriter();
             var r = _engine.Execute(new ScriptRequest
             {
-                Code = "import facedistance as fd\n" + Cube + code + "\nprint('all tests passed')",
+                Code = "import truedistance as fd\n" + Cube + code + "\nprint('all tests passed')",
                 Output = outw,
             });
             Assert.True(r.Succeeded, r.ErrorText);
@@ -121,7 +121,7 @@ namespace PyNavis.Tests
                 "assert r['status'] == 'not-parallel' and abs(r['angle'] - 5) < 1e-6, r\n" +
                 "assert abs(r['across'] - 10) < 1e-9 and r['source'] == 'first', r\n" +
                 "title, detail = fd.describe(r, 'Feet')\n" +
-                "assert title == 'Face to face: 10ft 0in', title\n" +
+                "assert title == 'True distance: 10ft 0in', title\n" +
                 "assert detail.startswith('The two faces are not parallel (5.0 deg apart)'), detail\n" +
                 "r = fd.resolve((0, 0, 0), (3, 4, 0), [], [(0, 1, 0)])\n" +
                 "assert r['status'] == 'one-side' and r['source'] == 'end', r\n" +
@@ -147,7 +147,7 @@ namespace PyNavis.Tests
                 "assert r['status'] == 'ok', r\n" +
                 "assert abs(r['across'] * 12 - 4.0) < 0.01, r['across'] * 12\n" +
                 "title, detail = fd.describe(r, 'Feet')\n" +
-                "assert title == 'Face to face: 0ft 4in' and detail is None, (title, detail)\n" +
+                "assert title == 'True distance: 0ft 4in' and detail is None, (title, detail)\n" +
                 "start, foot = fd.dimension(first, end, r['normal'])\n" +
                 "assert abs(fd.length(fd.sub(foot, first)) * 12 - 4.0) < 0.01\n" +
                 "assert abs(fd.dot(fd.sub(end, foot), r['normal'])) < 1e-9");

@@ -72,6 +72,7 @@ namespace PyNavis.Runtime
                 RibbonProvider.Teardown();
                 Input.ShortcutManager.UninstallHook(); // no hook may outlive its map
                 Forms.Toast.CloseAll(); // a topmost window must never outlive the runtime that made it
+                Forms.Banner.CloseAll();
                 Output.PyNavisTheme.Invalidate(); // theme may have changed since boot
                 Forms.FluentChrome.InvalidateAccent(); // and so may the Windows accent
                 var userConfig = PyNavisConfig.Load(ConfigPath);

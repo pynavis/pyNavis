@@ -1,8 +1,5 @@
 using System;
 using System.IO;
-using System.Threading;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using PyNavis.Runtime.Config;
 using PyNavis.Runtime.Ribbon;
 using Xunit;
@@ -10,10 +7,8 @@ using Xunit;
 namespace PyNavis.Tests
 {
     /// <summary>
-    /// The two hints a button can carry: the caption marker for a resolved chord and
-    /// the dot for a bundle with a config.py. The text half is pure; the bitmap half
-    /// is checked through its size and DPI, because the DPI is what makes AdWindows
-    /// draw a 96px glyph at the size of the slot it is in.
+    /// The two hints a button can carry in its caption: a marker for a resolved chord
+    /// and one for a bundle with a config.py. Both are pure string work.
     /// </summary>
     public class RibbonMarkersTests : IDisposable
     {
@@ -35,7 +30,7 @@ namespace PyNavis.Tests
         {
             var config = ConfigFrom("{}");
 
-            Assert.True(config.RibbonConfigDot);
+            Assert.Equal("\u21E7", config.RibbonConfigMarker);
             Assert.Equal("\u25CF", config.RibbonShortcutMarker);
         }
 
@@ -44,7 +39,7 @@ namespace PyNavis.Tests
         {
             var config = ConfigFrom("{\"theme\": \"dark\", \"panes\": {\"extraSlots\": 2}}");
 
-            Assert.True(config.RibbonConfigDot);
+            Assert.Equal("\u21E7", config.RibbonConfigMarker);
             Assert.Equal("\u25CF", config.RibbonShortcutMarker);
         }
 
@@ -54,9 +49,9 @@ namespace PyNavis.Tests
         public void BothKeys_AreReadFromTheRibbonSection()
         {
             var config = ConfigFrom(
-                "{\"ribbon\": {\"configDot\": false, \"shortcutMarker\": \"*\"}}");
+                "{\"ribbon\": {\"configMarker\": \"S\", \"shortcutMarker\": \"*\"}}");
 
-            Assert.False(config.RibbonConfigDot);
+            Assert.Equal("S", config.RibbonConfigMarker);
             Assert.Equal("*", config.RibbonShortcutMarker);
         }
 
@@ -76,9 +71,9 @@ namespace PyNavis.Tests
         [Fact]
         public void AMarkerOfTheWrongType_IsIgnoredRatherThanCrashingTheRibbon()
         {
-            var config = ConfigFrom("{\"ribbon\": {\"configDot\": \"yes\", \"shortcutMarker\": 7}}");
+            var config = ConfigFrom("{\"ribbon\": {\"configMarker\": 3, \"shortcutMarker\": 7}}");
 
-            Assert.True(config.RibbonConfigDot);
+            Assert.Equal("\u21E7", config.RibbonConfigMarker);
             Assert.Equal("\u25CF", config.RibbonShortcutMarker);
         }
 
@@ -122,72 +117,38 @@ namespace PyNavis.Tests
         {
             RibbonMarkers.Configure(null);
 
-            Assert.True(RibbonMarkers.ConfigDot);
+            Assert.Equal("\u21E7", RibbonMarkers.ConfigMarker);
             Assert.Equal("Memorize \u25CF", RibbonMarkers.WithShortcutMarker("Memorize"));
         }
 
-        // ---- the dot ---------------------------------------------------------
+        // ---- the config marker -----------------------------------------------
 
-        private static BitmapSource Plain(int size, double dpi)
+        [Fact]
+        public void TheConfigMarker_IsTheShiftSymbol_AndJoinsTheCaptionLikeTheOther()
         {
-            var stride = (size * PixelFormats.Pbgra32.BitsPerPixel + 7) / 8;
-            return BitmapSource.Create(size, size, dpi, dpi, PixelFormats.Pbgra32,
-                null, new byte[stride * size], stride);
-        }
-
-        private static void OnStaThread(Action body)
-        {
-            Exception failure = null;
-            var thread = new Thread(() => { try { body(); } catch (Exception ex) { failure = ex; } });
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.Start();
-            thread.Join();
-            if (failure != null) throw failure;
+            Assert.Equal("\u21E7", RibbonMarkers.ConfigMarker);
+            Assert.Equal("Purge \u21E7", RibbonMarkers.WithConfigMarker("Purge"));
+            Assert.Equal("Smart Clash\nGrouper \u21E7", RibbonMarkers.WithConfigMarker("Smart Clash\nGrouper"));
         }
 
         [Fact]
-        public void TheDot_KeepsThePixelSizeAndTheDpi_SoTheSlotSizeSurvives()
+        public void BothHints_ReadConfigFirstThenShortcut()
         {
-            // RibbonIcons.Load re-stamps DPI so a 96px bitmap draws at 32 logical
-            // units. RenderTargetBitmap always renders at 96 DPI, so losing the
-            // stamp here would put full-size art back on a ribbon button.
-            OnStaThread(() =>
-            {
-                var source = Plain(96, 288);      // 96px art stamped for a 32-unit slot
-                var dotted = RibbonMarkers.WithConfigDot(source);
-
-                Assert.NotNull(dotted);
-                Assert.Equal(96, dotted.PixelWidth);
-                Assert.Equal(96, dotted.PixelHeight);
-                Assert.Equal(288, dotted.DpiX, 3);
-                Assert.Equal(288, dotted.DpiY, 3);
-            });
+            var caption = RibbonMarkers.WithShortcutMarker(RibbonMarkers.WithConfigMarker("Purge"));
+            Assert.Equal("Purge \u21E7 \u25CF", caption);
         }
 
         [Fact]
-        public void TheDot_ActuallyMarksTheBitmap_InItsBottomRightCorner()
+        public void AnEmptyConfigMarker_TurnsItOff_AndTheOldBooleanStillDoes()
         {
-            OnStaThread(() =>
-            {
-                var source = Plain(96, 96);
-                var dotted = RibbonMarkers.WithConfigDot(source);
+            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configMarker\": \"\"}}"));
+            Assert.Equal("Purge", RibbonMarkers.WithConfigMarker("Purge"));
 
-                var stride = (96 * PixelFormats.Pbgra32.BitsPerPixel + 7) / 8;
-                var pixels = new byte[stride * 96];
-                dotted.CopyPixels(pixels, stride, 0);
+            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configDot\": false}}"));
+            Assert.Equal("Purge", RibbonMarkers.WithConfigMarker("Purge"));
 
-                int Alpha(int x, int y) => pixels[y * stride + x * 4 + 3];
-
-                // Source was fully transparent, so any opacity is the dot.
-                Assert.True(Alpha(80, 80) > 0, "no dot in the bottom right corner");
-                Assert.Equal(0, Alpha(10, 10));   // top left untouched
-            });
-        }
-
-        [Fact]
-        public void ANullBitmap_StaysNull_SoAnIconlessButtonIsNotADotOnItsOwn()
-        {
-            Assert.Null(RibbonMarkers.WithConfigDot(null));
+            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configDot\": true}}"));
+            Assert.Equal("Purge \u21E7", RibbonMarkers.WithConfigMarker("Purge"));
         }
     }
 }

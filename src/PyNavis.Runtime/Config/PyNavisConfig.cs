@@ -39,9 +39,13 @@ namespace PyNavis.Runtime.Config
         /// <summary>"panes.extraSlots": how many slots the generated satellite adds. 0 = none.</summary>
         public int ExtraPaneSlots { get; private set; }
 
-        /// <summary>"ribbon.configDot": draw a dot on buttons that have a config.py
-        /// (the Shift+Click secondary action). Default true.</summary>
-        public bool RibbonConfigDot { get; private set; } = true;
+        /// <summary>"ribbon.configMarker": appended to the caption of a button whose bundle
+        /// has a config.py (the Shift+Click secondary action). Default "⇧", the Shift
+        /// symbol. An empty string turns it off. The older boolean "ribbon.configDot":
+        /// false is still honoured as "off" when no marker key is present.</summary>
+        public string RibbonConfigMarker { get; private set; } = DefaultConfigMarker;
+
+        public const string DefaultConfigMarker = "\u21E7";
 
         /// <summary>"ribbon.shortcutMarker": appended to the caption of a button that has a
         /// resolved chord. Default "●". An empty string turns the marker off, which is
@@ -138,7 +142,7 @@ namespace PyNavis.Runtime.Config
         {
             /// <summary>"light", "dark", or null/empty to follow Navisworks.</summary>
             public string Theme;
-            public bool RibbonConfigDot = true;
+            public string RibbonConfigMarker = DefaultConfigMarker;
             public string RibbonShortcutMarker = "●";
             public bool ShortcutsAllowBareKeys;
             public List<string> ExtensionPaths = new List<string>();
@@ -151,7 +155,7 @@ namespace PyNavis.Runtime.Config
         public UserSettings ToUserSettings() => new UserSettings
         {
             Theme = Theme,
-            RibbonConfigDot = RibbonConfigDot,
+            RibbonConfigMarker = RibbonConfigMarker,
             RibbonShortcutMarker = RibbonShortcutMarker,
             ShortcutsAllowBareKeys = ShortcutsAllowBareKeys,
             ExtensionPaths = new List<string>(ExtensionPaths),
@@ -197,8 +201,10 @@ namespace PyNavis.Runtime.Config
                 ? existingRibbon : new Dictionary<string, object>();
             // Written only when it differs from the default, so a file that never
             // touched these keys stays as clean as it was.
-            if (settings.RibbonConfigDot) ribbon.Remove("configDot");
-            else ribbon["configDot"] = false;
+            ribbon.Remove("configDot");                 // the pre-marker boolean, superseded
+            var configMarker = settings.RibbonConfigMarker ?? "";
+            if (configMarker == DefaultConfigMarker) ribbon.Remove("configMarker");
+            else ribbon["configMarker"] = configMarker;
             var marker = settings.RibbonShortcutMarker ?? "";
             if (marker == "●") ribbon.Remove("shortcutMarker");
             else ribbon["shortcutMarker"] = marker;
@@ -342,8 +348,13 @@ namespace PyNavis.Runtime.Config
                 if (data != null && data.TryGetValue("ribbon", out var ribbon)
                     && ribbon is Dictionary<string, object> ribbonSection)
                 {
-                    if (ribbonSection.TryGetValue("configDot", out var dot) && dot is bool showDot)
-                        config.RibbonConfigDot = showDot;
+                    // Read as "is the key present", not "is it non-empty": "" is the
+                    // documented way to turn a marker off, so it must survive.
+                    if (ribbonSection.TryGetValue("configMarker", out var cm) && cm is string configText)
+                        config.RibbonConfigMarker = configText;
+                    else if (ribbonSection.TryGetValue("configDot", out var dot) && dot is bool showDot
+                             && !showDot)
+                        config.RibbonConfigMarker = "";
 
                     // Read as "is the key present", not "is it non-empty": "" is the
                     // documented way to turn the marker off, so it must survive.

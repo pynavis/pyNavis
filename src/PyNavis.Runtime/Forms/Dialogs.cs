@@ -17,9 +17,13 @@ namespace PyNavis.Runtime.Forms
     {
         // ---- script-facing API -------------------------------------------------
 
-        public static void Alert(string message, string title)
+        public static void Alert(string message, string title) => Alert(message, title, null);
+
+        /// <summary>As above with a Copy button that puts <paramref name="copyText"/> on
+        /// the clipboard without closing the dialog; null or empty means no button.</summary>
+        public static void Alert(string message, string title, string copyText)
         {
-            var window = BuildAlert(message, title);
+            var window = BuildAlert(message, title, copyText);
             window.ShowDialog();
         }
 
@@ -54,7 +58,14 @@ namespace PyNavis.Runtime.Forms
         // ---- construction (test seam) -----------------------------------------
 
         public static Window BuildAlert(string message, string title) =>
-            Build(title, message, null, new[] { ("OK", true) }, false);
+            BuildAlert(message, title, null);
+
+        public static Window BuildAlert(string message, string title, string copyText) =>
+            Build(title, message, null, new[] { ("OK", true) }, false, copyText);
+
+        /// <summary>The Copy button, or null when the dialog has none.</summary>
+        public static Button CopyButtonOf(Window window) => PartsOf(window).Copy;
+        public static string CopyTextOf(Window window) => PartsOf(window).CopyText;
 
         /// <summary>A yes/no question. Confirm is the dialog callers reach for
         /// before destroying something, so Enter picks No, not Yes.</summary>
@@ -78,13 +89,15 @@ namespace PyNavis.Runtime.Forms
             public TextBlock Message;
             public TextBox Input;
             public List<Button> Buttons = new List<Button>();
+            public Button Copy;
+            public string CopyText;
         }
 
         private static Parts PartsOf(Window window) => (Parts)window.Tag;
 
         private static Window Build(
             string title, string message, string inputDefault,
-            (string label, bool result)[] buttons, bool defaultIsSafe)
+            (string label, bool result)[] buttons, bool defaultIsSafe, string copyText = null)
         {
             var t = DesignSystem.Tokens.Current;
             var parts = new Parts();
@@ -120,7 +133,7 @@ namespace PyNavis.Runtime.Forms
                 BorderBrush = DesignSystem.Brush(t.LineStrong),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(24, 12, 24, 12),
-                Child = BuildButtonRow(window, parts, buttons, t, defaultIsSafe),
+                Child = BuildFooter(window, parts, buttons, t, defaultIsSafe, copyText),
             };
 
             var layout = new StackPanel();
@@ -138,6 +151,43 @@ namespace PyNavis.Runtime.Forms
                 }
             };
             return window;
+        }
+
+        /// <summary>
+        /// The answer buttons on the right and, when the caller offers something to copy,
+        /// a Copy button alone on the left: it is an aside, not an answer, so it never
+        /// closes the dialog and takes neither Enter nor Escape. The label says "Copied"
+        /// for a moment afterwards, since the clipboard gives no other sign.
+        /// </summary>
+        private static UIElement BuildFooter(
+            Window window, Parts parts, (string label, bool result)[] buttons,
+            DesignSystem.Tokens t, bool defaultIsSafe, string copyText)
+        {
+            var answers = BuildButtonRow(window, parts, buttons, t, defaultIsSafe);
+            if (string.IsNullOrEmpty(copyText)) return answers;
+
+            parts.CopyText = copyText;
+            parts.Copy = DesignSystem.Secondary(t, "Copy", () =>
+            {
+                try { Clipboard.SetText(copyText); }
+                catch (System.Exception ex) { Log.Error("Could not copy to the clipboard", ex); return; }
+                parts.Copy.Content = "Copied";
+                var timer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = System.TimeSpan.FromSeconds(1.5),
+                };
+                timer.Tick += (s, e) => { timer.Stop(); parts.Copy.Content = "Copy"; };
+                timer.Start();
+            });
+            parts.Copy.IsDefault = false;
+            parts.Copy.IsCancel = false;
+            parts.Copy.HorizontalAlignment = HorizontalAlignment.Left;
+
+            var footer = new DockPanel();
+            DockPanel.SetDock(parts.Copy, Dock.Left);
+            footer.Children.Add(parts.Copy);
+            footer.Children.Add(answers);
+            return footer;
         }
 
         private static StackPanel BuildButtonRow(

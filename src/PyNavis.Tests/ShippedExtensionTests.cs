@@ -316,10 +316,10 @@ namespace PyNavis.Tests
                 i => Assert.Equal(new[] { "Select by IDs", "IDs of Selection" },
                                   Assert.IsType<StackModel>(i).Buttons.Select(b => b.Title).ToArray()),
                 i => Assert.Equal("Export Viewpoints", Assert.IsType<PushButtonModel>(i).Title),
-                i => Assert.Equal("Face Distance", Assert.IsType<PushButtonModel>(i).Title),
                 i => Assert.Equal("Resolve Clash", Assert.IsType<PushButtonModel>(i).Title),
                 i => Assert.Equal("Sets from Excel", Assert.IsType<PushButtonModel>(i).Title),
-                i => Assert.Equal("Smart Clash Grouper", Assert.IsType<PushButtonModel>(i).Title));
+                i => Assert.Equal("Smart Clash Grouper", Assert.IsType<PushButtonModel>(i).Title),
+                i => Assert.Equal("True Distance", Assert.IsType<PushButtonModel>(i).Title));
             Assert.Collection(tools.Slideout,
                 i => Assert.Equal("Element ID Settings", Assert.IsType<PushButtonModel>(i).Title));
         }
@@ -346,7 +346,7 @@ namespace PyNavis.Tests
             var tools = ParseShipped().Tabs.Single().Panels.Single(p => p.Title == "Tools");
 
             Assert.Equal(
-                new[] { "Clash\nReport", "Export\nViewpoints", "Face\nDistance", "Resolve\nClash", "Sets from\nExcel", "Smart Clash\nGrouper" },
+                new[] { "Clash\nReport", "Export\nViewpoints", "Resolve\nClash", "Sets from\nExcel", "Smart Clash\nGrouper", "True\nDistance" },
                 tools.Items.OfType<PushButtonModel>()
                      .Select(b => b.RibbonTitle).OrderBy(t => t).ToArray());
         }

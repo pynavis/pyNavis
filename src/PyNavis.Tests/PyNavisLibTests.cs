@@ -53,7 +53,7 @@ namespace PyNavis.Tests
             var r = Run("import pynavis\nprint('version=' + pynavis.__version__)", outw);
 
             Assert.True(r.Succeeded, r.ErrorText);
-            Assert.Contains("version=0.", outw.ToString());
+            Assert.Contains("version=1.", outw.ToString());
         }
 
         [Fact]
@@ -614,6 +614,47 @@ namespace PyNavis.Tests
                 "    assert callable(getattr(toast, name)), name\n" +
                 "toast.success('unit test', 'detail line')\n" +   // no UI thread here: must not raise
                 "toast.error('unit test')\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void BannerModule_MirrorsToast_AndNeverThrowsOutsideNavisworks()
+        {
+            var r = Run(
+                "from pynavis import banner\n" +
+                "for name in ('show', 'success', 'error', 'info', 'warning', 'clear'):\n" +
+                "    assert callable(getattr(banner, name)), name\n" +
+                "banner.success('unit test', 'detail line')\n" +   // no UI thread here: must not raise
+                "banner.error('unit test')\n" +
+                "banner.prompt('unit test prompt', 'stays until cleared')\n" +
+                "banner.show('info', 'unit test', None, seconds=2)\n" +
+                "banner.clear()\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void FacesModule_PureHalf_ImportsWithoutNavisworks_AndPairsParallelFaces()
+        {
+            // The API half (faces_under) imports Navisworks lazily, so the
+            // module itself loads anywhere; the pure half is what True Distance
+            // and Resolve Clash both lean on.
+            var r = Run(
+                "from pynavis import faces\n" +
+                "tri = [((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0)),\n" +
+                "       ((0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0))]\n" +
+                "found = faces.faces_at((0.5, 0.25, 0.0), tri, 1e-6)\n" +
+                "assert len(found) == 1 and abs(abs(found[0][2]) - 1.0) < 1e-9, found\n" +
+                "assert faces.faces_at((0.5, 0.25, 0.5), tri, 1e-6) == []\n" +
+                "n, source, angle = faces.choose([(0, 0, 1)], [(0, 0, -1)], (0, 0, 1))\n" +
+                "assert source == 'pair' and angle < 1e-9, (source, angle)\n" +
+                "n, source, angle = faces.choose([(0, 0, 1)], [(1, 0, 0)], (0, 0, 1))\n" +
+                "assert source == 'first' and abs(angle - 90) < 1e-9, (source, angle)\n" +
+                "assert faces.side_of([(0, 0, 5), (0, 0, 7)], (0, 0, 0), (0, 0, -1)) == (0.0, 0.0, 1.0)\n" +
+                "assert faces.side_of([(0, 0, 5), (0, 0, 7)], (0, 0, 0), (0, 0, 1)) == (0, 0, 1)\n" +
+                "assert faces.tolerance_for([(0, 0, 0)], 0.001) == 0.5\n" +
+                "assert callable(faces.faces_under) and callable(faces.candidates_at)\n");
 
             Assert.True(r.Succeeded, r.ErrorText);
         }
