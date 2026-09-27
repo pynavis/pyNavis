@@ -32,7 +32,6 @@ PAGES = [
     # (fragment, group)
     ('overview.html',        'Start'),
     ('quickstart.html',      'Start'),
-    ('tools.html',           'Start'),
     ('anatomy.html',         'Bundles'),
     ('buttons.html',         'Bundles'),
     ('bundle-yaml.html',     'Bundles'),

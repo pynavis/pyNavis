@@ -26,55 +26,74 @@ namespace PyNavis.Tests
         // ---- defaults -------------------------------------------------------
 
         [Fact]
-        public void AFreshInstall_ShowsBothHints_WithoutAnyConfiguration()
+        public void AFreshInstall_ShowsTheShortcutDot_AndNotTheShiftArrow()
         {
             var config = ConfigFrom("{}");
 
-            Assert.Equal("\u21E7", config.RibbonConfigMarker);
+            Assert.Equal("\U0001F845", config.RibbonConfigMarker);
+            Assert.False(config.ShowConfigMarker);
             Assert.Equal("\u25CF", config.RibbonShortcutMarker);
+            Assert.True(config.ShowShortcutMarker);
         }
 
         [Fact]
-        public void AConfigWithNoRibbonSection_LeavesBothAtTheirDefaults()
+        public void AConfigWithNoRibbonSection_LeavesEverythingAtTheDefaults()
         {
             var config = ConfigFrom("{\"theme\": \"dark\", \"panes\": {\"extraSlots\": 2}}");
 
-            Assert.Equal("\u21E7", config.RibbonConfigMarker);
+            Assert.Equal("\U0001F845", config.RibbonConfigMarker);
+            Assert.False(config.ShowConfigMarker);
             Assert.Equal("\u25CF", config.RibbonShortcutMarker);
+            Assert.True(config.ShowShortcutMarker);
         }
 
-        // ---- reading the two keys -------------------------------------------
+        // ---- reading the keys -----------------------------------------------
 
         [Fact]
-        public void BothKeys_AreReadFromTheRibbonSection()
+        public void TheGlyphsAndTheSwitches_AreReadFromTheRibbonSection()
         {
             var config = ConfigFrom(
-                "{\"ribbon\": {\"configMarker\": \"S\", \"shortcutMarker\": \"*\"}}");
+                "{\"ribbon\": {\"configMarker\": \"S\", \"showConfigMarker\": true, "
+                + "\"shortcutMarker\": \"*\", \"showShortcutMarker\": false}}");
 
             Assert.Equal("S", config.RibbonConfigMarker);
+            Assert.True(config.ShowConfigMarker);
             Assert.Equal("*", config.RibbonShortcutMarker);
+            Assert.False(config.ShowShortcutMarker);
         }
 
         [Fact]
-        public void AnEmptyMarker_Survives_BecauseEmptyIsHowTheMarkerIsTurnedOff()
+        public void AnEmptyGlyph_IsNotAnOffSwitch_ItMeansTheDefaultGlyph()
         {
-            // The obvious bug here is treating "" as "missing" and handing back the
-            // default bullet, which would make the documented off switch do nothing.
+            // The switch is the boolean. A blank glyph box must not silently hide
+            // the hint, so "" reads as the default and the hint stays on.
             var config = ConfigFrom("{\"ribbon\": {\"shortcutMarker\": \"\"}}");
 
-            Assert.Equal("", config.RibbonShortcutMarker);
+            Assert.Equal("\u25CF", config.RibbonShortcutMarker);
+            Assert.True(config.ShowShortcutMarker);
 
             RibbonMarkers.Configure(config);
+            Assert.Equal("Memorize \u25CF", RibbonMarkers.WithShortcutMarker("Memorize"));
+        }
+
+        [Fact]
+        public void TheSwitch_TurnsTheMarkerOff_AndKeepsTheGlyphForWhenItComesBack()
+        {
+            var config = ConfigFrom("{\"ribbon\": {\"shortcutMarker\": \"*\", \"showShortcutMarker\": false}}");
+            RibbonMarkers.Configure(config);
+
             Assert.Equal("Memorize", RibbonMarkers.WithShortcutMarker("Memorize"));
+            Assert.Equal("*", config.RibbonShortcutMarker);
         }
 
         [Fact]
         public void AMarkerOfTheWrongType_IsIgnoredRatherThanCrashingTheRibbon()
         {
-            var config = ConfigFrom("{\"ribbon\": {\"configMarker\": 3, \"shortcutMarker\": 7}}");
+            var config = ConfigFrom("{\"ribbon\": {\"configMarker\": 3, \"shortcutMarker\": 7, \"showShortcutMarker\": \"yes\"}}");
 
-            Assert.Equal("\u21E7", config.RibbonConfigMarker);
+            Assert.Equal("\U0001F845", config.RibbonConfigMarker);
             Assert.Equal("\u25CF", config.RibbonShortcutMarker);
+            Assert.True(config.ShowShortcutMarker);
         }
 
         // ---- what the caption becomes ---------------------------------------
@@ -117,38 +136,43 @@ namespace PyNavis.Tests
         {
             RibbonMarkers.Configure(null);
 
-            Assert.Equal("\u21E7", RibbonMarkers.ConfigMarker);
+            Assert.Equal("", RibbonMarkers.ConfigMarker);
             Assert.Equal("Memorize \u25CF", RibbonMarkers.WithShortcutMarker("Memorize"));
         }
 
         // ---- the config marker -----------------------------------------------
 
         [Fact]
-        public void TheConfigMarker_IsTheShiftSymbol_AndJoinsTheCaptionLikeTheOther()
+        public void TheConfigMarker_IsOffUntilSwitchedOn_ThenJoinsTheCaptionLikeTheOther()
         {
-            Assert.Equal("\u21E7", RibbonMarkers.ConfigMarker);
-            Assert.Equal("Purge \u21E7", RibbonMarkers.WithConfigMarker("Purge"));
-            Assert.Equal("Smart Clash\nGrouper \u21E7", RibbonMarkers.WithConfigMarker("Smart Clash\nGrouper"));
+            Assert.Equal("Purge", RibbonMarkers.WithConfigMarker("Purge"));
+
+            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"showConfigMarker\": true}}"));
+            Assert.Equal("\U0001F845", RibbonMarkers.ConfigMarker);
+            Assert.Equal("Purge \U0001F845", RibbonMarkers.WithConfigMarker("Purge"));
+            Assert.Equal("Smart Clash\nGrouper \U0001F845", RibbonMarkers.WithConfigMarker("Smart Clash\nGrouper"));
         }
 
         [Fact]
         public void BothHints_ReadConfigFirstThenShortcut()
         {
+            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"showConfigMarker\": true}}"));
             var caption = RibbonMarkers.WithShortcutMarker(RibbonMarkers.WithConfigMarker("Purge"));
-            Assert.Equal("Purge \u21E7 \u25CF", caption);
+            Assert.Equal("Purge \U0001F845 \u25CF", caption);
         }
 
         [Fact]
-        public void AnEmptyConfigMarker_TurnsItOff_AndTheOldBooleanStillDoes()
+        public void TheOldConfigDotBoolean_IsReadAsTheSwitch()
         {
-            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configMarker\": \"\"}}"));
-            Assert.Equal("Purge", RibbonMarkers.WithConfigMarker("Purge"));
+            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configDot\": true}}"));
+            Assert.Equal("Purge \U0001F845", RibbonMarkers.WithConfigMarker("Purge"));
 
             RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configDot\": false}}"));
             Assert.Equal("Purge", RibbonMarkers.WithConfigMarker("Purge"));
 
-            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configDot\": true}}"));
-            Assert.Equal("Purge \u21E7", RibbonMarkers.WithConfigMarker("Purge"));
+            // The new key wins when both are present.
+            RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configDot\": true, \"showConfigMarker\": false}}"));
+            Assert.Equal("Purge", RibbonMarkers.WithConfigMarker("Purge"));
         }
     }
 }

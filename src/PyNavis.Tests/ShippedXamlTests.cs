@@ -50,7 +50,7 @@ namespace PyNavis.Tests
             },
             new object[]
             {
-                @"pyNavis.tab\Tools.panel\Element_IDs.stack\01_Select_by_IDs.pushbutton\layout.xaml",
+                @"pyNavis.tab\04_Data.panel\02_Element_IDs.stack\01_Select_by_IDs.pushbutton\layout.xaml",
                 new[] { "IdsBox", "OkButton" }
             },
             new object[]
@@ -61,11 +61,14 @@ namespace PyNavis.Tests
             new object[]
             {
                 @"pyNavis.tab\Viewpoints.panel\06_Section_Nudge.dockpane\pane.xaml",
-                new[] { "Root", "TargetName", "Readout", "SectionOn",
-                        "TargetBox", "Target1", "Target2", "Target3", "Target4", "Target5", "Target6",
-                        "PlanePad", "NudgeIn", "NudgeOut",
-                        "BoxPad", "MoveXPlus", "MoveXMinus", "MoveYPlus", "MoveYMinus", "MoveZPlus", "MoveZMinus",
-                        "StepBox", "StepUnits", "StepHalve", "StepDouble", "Hint" }
+                new[] { "Root", "Readout", "SectionOn", "Tabs", "AdjustTab", "MoveTab",
+                        "CellTop", "CellTopName", "CellTopAxis", "CellLeft", "CellLeftName", "CellLeftAxis",
+                        "CellFront", "CellFrontName", "CellFrontAxis", "CellRight", "CellRightName", "CellRightAxis",
+                        "CellBack", "CellBackName", "CellBackAxis", "CellBottom", "CellBottomName", "CellBottomAxis",
+                        "Others", "NudgeIn", "NudgeOut",
+                        "MovesWorld", "MovesScreen", "MoveLeft", "MoveRight", "MoveUp", "MoveDown", "MoveNearer", "MoveFarther",
+                        "StepBox", "StepUnits", "StepHalve", "StepDouble", "Presets",
+                        "FitSelection", "SectionOff" }
             },
             new object[]
             {

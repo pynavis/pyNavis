@@ -24,7 +24,7 @@ namespace PyNavis.Tests
             config.SearchPaths.Add(PyNavisLibTests.PyNavisLibDir);
             config.SearchPaths.Add(Dir("lib"));
             config.SearchPaths.Add(Dir(Path.Combine(
-                "pyNavis.tab", "Tools.panel", "Element_IDs.stack", "02_IDs_of_Selection.pushbutton")));
+                "pyNavis.tab", "04_Data.panel", "02_Element_IDs.stack", "02_IDs_of_Selection.pushbutton")));
             _engine.Initialize(config);
         }
 

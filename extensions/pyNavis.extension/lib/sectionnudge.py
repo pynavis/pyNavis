@@ -19,6 +19,17 @@ resizes the box. "In" always shrinks what is kept and "Out" grows it; for
 the box target In and Out move it down and up, so the two nudge chords stay
 useful whatever is selected.
 
+Directions are the screen's, not the world's. The camera's right, up and
+forward are snapped to the nearest world axes (a "frame", the way the
+ViewCube reads a view) and box moves are left, right, up, down, nearer and
+farther in that frame. Faces are named Front, Back, Left, Right, Top and
+Bottom from the same frame, so what the panel calls Front is the face
+looking at you, whatever world axis that happens to be. The state's 'moves'
+picks which frame the box moves in: 'world' is the snapped one, so the box
+stays on the building's grid like the compass ring round the ViewCube;
+'screen' is the camera's exact axes, so Left is exactly screen-left from
+any angle, like the cube itself.
+
 No f-strings: this runs on IronPython 3.4 as well as CPython.
 """
 
@@ -34,6 +45,7 @@ MAX_STEP_MM = 1e7
 
 # Session variable both shells share.
 STATE_VAR = 'section_nudge.state'
+MOVES = ('world', 'screen')
 
 # Face order in Box mode, and the inward normal of each in the box frame.
 FACES = (
@@ -42,16 +54,36 @@ FACES = (
     ('+Z', (0.0, 0.0, -1.0)), ('-Z', (0.0, 0.0, 1.0)),
 )
 
-_BOX_MOVES = {'x+': (1.0, 0.0, 0.0), 'x-': (-1.0, 0.0, 0.0),
-              'y+': (0.0, 1.0, 0.0), 'y-': (0.0, -1.0, 0.0),
-              'z+': (0.0, 0.0, 1.0), 'z-': (0.0, 0.0, -1.0)}
+# Screen-relative box moves: which frame axis, and which way along it.
+_SCREEN_MOVES = {'right': ('right', 1.0), 'left': ('right', -1.0),
+                 'up': ('up', 1.0), 'down': ('up', -1.0),
+                 'nearer': ('forward', -1.0), 'farther': ('forward', 1.0)}
+
+# The six cells of the remote, and the frame direction each one faces
+# outward along (a face's outward normal is minus its inward one).
+CELLS = ('Top', 'Left', 'Front', 'Right', 'Back', 'Bottom')
+_CELL_AXES = {'Front': ('forward', -1.0), 'Back': ('forward', 1.0),
+              'Right': ('right', 1.0), 'Left': ('right', -1.0),
+              'Top': ('up', 1.0), 'Bottom': ('up', -1.0)}
+
+# The frame when there is no camera to read: a plan view, Y up the screen.
+_PLAN_FRAME = {'right': (1.0, 0.0, 0.0), 'up': (0.0, 1.0, 0.0), 'forward': (0.0, 0.0, -1.0)}
+_AXES = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+_AXIS_NAMES = ('X', 'Y', 'Z')
+# A normal counts as axis-aligned when it is within about 18 degrees of one.
+_ALIGNED = 0.95
 
 _KEYS_ANY = {'Left': 'prev', 'Right': 'next', 'Tab': 'next',
              'Add': 'double', 'OemPlus': 'double',
              'Subtract': 'halve', 'OemMinus': 'halve'}
 _KEYS_PLANE = {'Up': 'in', 'Down': 'out'}
-_KEYS_BOX = {'Up': 'y+', 'Down': 'y-', 'Left': 'x-', 'Right': 'x+',
-             'PageUp': 'z+', 'Prior': 'z+', 'PageDown': 'z-', 'Next': 'z-'}
+_KEYS_BOX = {'Up': 'up', 'Down': 'down', 'Left': 'left', 'Right': 'right',
+             'PageUp': 'nearer', 'Prior': 'nearer', 'PageDown': 'farther', 'Next': 'farther'}
+
+_PRESETS_METRIC = (('10 mm', 10.0), ('50 mm', 50.0), ('100 mm', 100.0),
+                   ('500 mm', 500.0), ('1 m', 1000.0))
+_PRESETS_IMPERIAL = (('1/4in', 6.35), ('1in', 25.4), ('6in', 152.4),
+                     ('1ft', 304.8), ('5ft', 1524.0))
 
 _INCHES_PER_UNIT = {'Feet': 12.0, 'Inches': 1.0, 'Yards': 36.0, 'Miles': 63360.0}
 _SUFFIX = {'Meters': 'm', 'Centimeters': 'cm', 'Millimeters': 'mm',
@@ -59,11 +91,161 @@ _SUFFIX = {'Meters': 'm', 'Centimeters': 'cm', 'Millimeters': 'mm',
            'Microinches': 'uin'}
 
 
+def _dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0])
+
+
+def _scaled(v, k):
+    return (v[0] * k, v[1] * k, v[2] * k)
+
+
+def _rotate(rotation, v):
+    """v turned by a Rotation3D given as (A, B, C, D): vector part then
+    scalar, the order Rotation3D(a, b, c, d) takes them in. None when the
+    rotation is degenerate."""
+    a, b, c, d = (float(rotation[0]), float(rotation[1]),
+                  float(rotation[2]), float(rotation[3]))
+    size = (a * a + b * b + c * c + d * d) ** 0.5
+    if size == 0.0:
+        return None
+    a, b, c, d = a / size, b / size, c / size, d / size
+    axis = (a, b, c)
+    once = _cross(axis, v)
+    twice = _cross(axis, once)
+    return (v[0] + 2.0 * (d * once[0] + twice[0]),
+            v[1] + 2.0 * (d * once[1] + twice[1]),
+            v[2] + 2.0 * (d * once[2] + twice[2]))
+
+
+def _nearest_axis(v, taken=()):
+    """The signed world axis v leans towards most, skipping any in taken.
+    None when v has no length."""
+    best, best_dot = None, 0.0
+    for index, axis in enumerate(_AXES):
+        if index in taken:
+            continue
+        d = _dot(v, axis)
+        if abs(d) > best_dot:
+            best, best_dot = (index, 1.0 if d >= 0 else -1.0), abs(d)
+    return best
+
+
+def frame_from_vectors(forward, up):
+    """The camera's forward and up, snapped to world axes: {'right', 'up',
+    'forward'} as signed unit axes. Forward claims its nearest axis first,
+    up the nearest of the two left, right follows from those. A degenerate
+    camera gives the plan-view frame."""
+    f = _nearest_axis(forward)
+    if f is None:
+        return dict(_PLAN_FRAME)
+    u = _nearest_axis(up, taken=(f[0],))
+    if u is None:
+        return dict(_PLAN_FRAME)
+    forward_axis = _scaled(_AXES[f[0]], f[1])
+    up_axis = _scaled(_AXES[u[0]], u[1])
+    right_axis = _cross(forward_axis, up_axis)
+    return {'right': tuple(float(x) + 0.0 for x in right_axis),
+            'up': tuple(float(x) + 0.0 for x in up_axis),
+            'forward': tuple(float(x) + 0.0 for x in forward_axis)}
+
+
+def _unit(v):
+    size = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) ** 0.5
+    if size == 0.0:
+        return None
+    return (v[0] / size, v[1] / size, v[2] / size)
+
+
+def frame_for(rotation, snap=True):
+    """The frame of a camera carrying this Rotation3D (A, B, C, D): snapped
+    to world axes, or with snap False the camera's exact right, up and
+    forward as unit vectors. The plan-view frame when there is none."""
+    if rotation is None:
+        return dict(_PLAN_FRAME)
+    forward = _rotate(rotation, (0.0, 0.0, -1.0))
+    up = _rotate(rotation, (0.0, 1.0, 0.0))
+    if forward is None or up is None:
+        return dict(_PLAN_FRAME)
+    if snap:
+        return frame_from_vectors(forward, up)
+    forward, up = _unit(forward), _unit(up)
+    if forward is None or up is None:
+        return dict(_PLAN_FRAME)
+    return {'right': _cross(forward, up), 'up': up, 'forward': forward}
+
+
+def face_names(frame):
+    """{'Front': outward axis, ...} for the six cells in this frame."""
+    return dict((name, _scaled(frame[axis], sign))
+                for name, (axis, sign) in _CELL_AXES.items())
+
+
+def name_for_normal(inward, frame):
+    """The cell whose outward direction this inward normal faces, or None
+    when the normal is not close to any world axis."""
+    outward = _scaled(inward, -1.0)
+    for name, axis in face_names(frame).items():
+        if _dot(outward, axis) >= _ALIGNED:
+            return name
+    return None
+
+
+def axis_label(outward):
+    """'+X' style label for an axis-aligned direction, or 'tilted'."""
+    nearest = _nearest_axis(outward)
+    if nearest is None or abs(_dot(outward, _AXES[nearest[0]])) < _ALIGNED:
+        return 'tilted'
+    return ('+' if nearest[1] > 0 else '-') + _AXIS_NAMES[nearest[0]]
+
+
+def layout(snapshot, frame):
+    """Where each plane sits on the remote: {'cells': {cell: index or None},
+    'others': [indices with no cell], 'labels': {index: text}}. In Box mode
+    every face has a cell. In Planes mode the first plane facing a cell's
+    way takes it and the rest, tilted or duplicate, go under others."""
+    cells = dict.fromkeys(CELLS)
+    others = []
+    labels = {}
+    if snapshot is None:
+        return {'cells': cells, 'others': others, 'labels': labels}
+    planes = snapshot.get('planes') or []
+    for index, plane in enumerate(planes):
+        inward = plane.get('normal', (0.0, 0.0, 0.0))
+        name = name_for_normal(inward, frame)
+        if name is None:
+            labels[index] = 'Plane %d, tilted' % (index + 1)
+        elif not plane.get('enabled', True):
+            labels[index] = 'Plane %d, off' % (index + 1)
+        else:
+            labels[index] = 'Plane %d, %s (%s)' % (index + 1, name, axis_label(_scaled(inward, -1.0)))
+        if name is not None and cells[name] is None:
+            cells[name] = index
+        else:
+            others.append(index)
+    return {'cells': cells, 'others': others, 'labels': labels}
+
+
+def presets(units):
+    """The step presets a document in these units wants: [(label, mm), ...]."""
+    if units in _INCHES_PER_UNIT:
+        return list(_PRESETS_IMPERIAL)
+    return list(_PRESETS_METRIC)
+
+
 def normalize(state):
     """A well-formed state from whatever the session holds."""
     target = 'box'
     step = DEFAULT_STEP_MM
+    moves = MOVES[0]
     if isinstance(state, dict):
+        if state.get('moves') in MOVES:
+            moves = state['moves']
         raw = state.get('target', 'box')
         try:
             index = int(raw)
@@ -77,16 +259,20 @@ def normalize(state):
             step = DEFAULT_STEP_MM
         if not (MIN_STEP_MM <= step <= MAX_STEP_MM):
             step = DEFAULT_STEP_MM
-    return {'target': target, 'step_mm': step}
+    return {'target': target, 'step_mm': step, 'moves': moves}
 
 
-def plan(state, action, per_mm=1.0):
+def plan(state, action, per_mm=1.0, frame=None):
     """What an action does: {'state': new state, 'edit': what to apply to the
     clip planes or None, 'problem': text when nothing sensible could happen}.
 
     per_mm is document units per millimetre, so edits come out in document
-    units ready for the API.
+    units ready for the API. frame is the camera frame the box moves follow,
+    already snapped or not as the state's 'moves' asks; None means the plan
+    view.
     """
+    if frame is None:
+        frame = _PLAN_FRAME
     state = normalize(state)
     target = state['target']
     step = state['step_mm'] * per_mm
@@ -100,6 +286,11 @@ def plan(state, action, per_mm=1.0):
         new_state['target'] = TARGETS[(position + offset) % len(TARGETS)]
     elif action.startswith('target:'):
         new_state['target'] = normalize({'target': action[7:], 'step_mm': state['step_mm']})['target']
+    elif action.startswith('moves:'):
+        if action[6:] in MOVES:
+            new_state['moves'] = action[6:]
+        else:
+            problem = 'Unknown frame %s' % action[6:]
     elif action == 'double':
         new_state['step_mm'] = min(MAX_STEP_MM, state['step_mm'] * 2.0)
     elif action == 'halve':
@@ -119,12 +310,12 @@ def plan(state, action, per_mm=1.0):
             edit = {'kind': 'box', 'vector': (0.0, 0.0, -sign * step)}
         else:
             edit = {'kind': 'plane', 'index': target, 'distance': sign * step}
-    elif action in _BOX_MOVES:
+    elif action in _SCREEN_MOVES:
         if target == 'box':
-            unit = _BOX_MOVES[action]
-            edit = {'kind': 'box', 'vector': (unit[0] * step, unit[1] * step, unit[2] * step)}
+            axis, sign = _SCREEN_MOVES[action]
+            edit = {'kind': 'box', 'vector': _scaled(frame[axis], sign * step)}
         else:
-            problem = 'Pick the box to move it; a plane only moves in and out'
+            problem = 'Pick the whole box to move it; a face only moves in and out'
     else:
         problem = 'Unknown action %s' % action
     return {'state': new_state, 'edit': edit, 'problem': problem}
@@ -164,15 +355,86 @@ def format_length(value, units):
 
 
 def _feet_inches(total_inches, denominator=16):
+    """Feet and inches the way Revit writes them: 0' 6", 1' 0 1/8", the feet
+    always there so the eye lands on the same column every time."""
     sign = '-' if total_inches < 0 else ''
     ticks = int(round(abs(total_inches) * denominator))
     feet, rest = divmod(ticks, 12 * denominator)
     inches, num = divmod(rest, denominator)
-    text = '%s%dft %din' % (sign, feet, inches)
+    text = "%s%d' %d" % (sign, feet, inches)
     if num:
         g = _gcd(num, denominator)
         text += ' %d/%d' % (num // g, denominator // g)
-    return text
+    return text + '"'
+
+
+def _number(token):
+    """A token as a float: a decimal or a fraction like 1/8, else None."""
+    if '/' in token:
+        top, _, bottom = token.partition('/')
+        try:
+            top, bottom = float(top), float(bottom)
+        except ValueError:
+            return None
+        return top / bottom if bottom else None
+    try:
+        return float(token)
+    except ValueError:
+        return None
+
+
+def parse_length(text, units):
+    """A typed length in document units, or None when it does not read as
+    one. Metric documents take a plain number. Imperial documents take the
+    forms Revit does: 0.5 (feet, or inches on an inch document), 0 6 (feet
+    then inches), 0 0 1/8 (feet, inches, fraction), 1' 6", 6 1/2", 18",
+    1-6, and a bare fraction like 1/8 is inches."""
+    text = (text or '').strip()
+    if not text:
+        return None
+    per_unit = _INCHES_PER_UNIT.get(units)
+    if per_unit is None:
+        value = _number(text)
+        return value if value is not None else None
+
+    cleaned = (text.lower().replace("'", ' ft ').replace('"', ' in ')
+               .replace('ft.', ' ft ').replace('in.', ' in ')
+               .replace(',', ' ').replace('-', ' '))
+    for word in ('feet', 'foot', 'inches', 'inch'):
+        cleaned = cleaned.replace(word, ' ft ' if word.startswith('f') else ' in ')
+    tokens = cleaned.split()
+
+    # Group each number, and the fraction that may follow it, with the unit
+    # tag that may follow that: [(value, 'ft' | 'in' | None, is_bare_fraction)].
+    groups = []
+    for token in tokens:
+        if token in ('ft', 'in'):
+            if not groups or groups[-1][1] is not None:
+                return None
+            groups[-1][1] = token
+            continue
+        value = _number(token)
+        if value is None:
+            return None
+        if '/' in token and groups and groups[-1][1] is None and not groups[-1][2]:
+            groups[-1][0] += value
+        else:
+            groups.append([value, None, '/' in token])
+    if not groups:
+        return None
+
+    default = 'ft' if per_unit == 12.0 else 'in'
+    total_inches = 0.0
+    untagged = 0
+    for value, tag, bare_fraction in groups:
+        if tag is None:
+            if bare_fraction:
+                tag = 'in'
+            else:
+                tag = default if untagged == 0 else 'in'
+                untagged += 1
+        total_inches += value * (12.0 if tag == 'ft' else 1.0)
+    return total_inches / per_unit
 
 
 def _gcd(a, b):
@@ -188,11 +450,32 @@ def _normal_name(normal):
     return '(%.2f, %.2f, %.2f)' % (normal[0], normal[1], normal[2])
 
 
-def describe(state, snapshot, units, per_mm=1.0):
+def target_label(target, snapshot, frame):
+    """The target as the panel names it: 'Box', 'Front face (+Y)' in Box
+    mode, 'Plane 3, Left (-X)' or 'Plane 3, tilted' in Planes mode."""
+    if target == 'box':
+        return 'Box'
+    if snapshot is None:
+        return target_name(target)
+    planes = snapshot.get('planes') or []
+    if target >= len(planes):
+        return target_name(target)
+    inward = planes[target].get('normal', (0.0, 0.0, 0.0))
+    name = name_for_normal(inward, frame)
+    if snapshot.get('mode') == 'box':
+        if name is None:
+            return '%s face' % FACES[target][0]
+        return '%s face (%s)' % (name, axis_label(_scaled(inward, -1.0)))
+    return layout(snapshot, frame)['labels'].get(target, target_name(target))
+
+
+def describe(state, snapshot, units, per_mm=1.0, frame=None):
     """{'target', 'readout', 'step'}: the three lines the panel shows."""
+    if frame is None:
+        frame = _PLAN_FRAME
     state = normalize(state)
     target = state['target']
-    text = {'target': target_name(target),
+    text = {'target': target_label(target, snapshot, frame),
             'step': format_length(state['step_mm'] * per_mm, units),
             'readout': ''}
     if snapshot is None:
@@ -202,7 +485,7 @@ def describe(state, snapshot, units, per_mm=1.0):
     elif target == 'box':
         box = snapshot.get('box')
         if not box:
-            text['readout'] = 'Six planes; arrows move them all together'
+            text['readout'] = 'Six planes; the arrows move them all together'
         else:
             low, high = box['min'], box['max']
             centre = [(low[i] + high[i]) / 2.0 for i in range(3)]
@@ -233,12 +516,14 @@ def toast_for(state, action, edit, units, per_mm=1.0):
     if edit is not None:
         step = format_length(state['step_mm'] * per_mm, units)
         if edit['kind'] == 'box':
-            words = {'x+': 'in +X', 'x-': 'in -X', 'y+': 'in +Y', 'y-': 'in -Y',
-                     'z+': 'up', 'z-': 'down', 'in': 'down', 'out': 'up'}
+            words = {'left': 'left', 'right': 'right', 'up': 'up', 'down': 'down',
+                     'nearer': 'nearer', 'farther': 'farther', 'in': 'down', 'out': 'up'}
             return 'Box %s by %s' % (words.get(action, action), step)
         return '%s %s by %s' % (target_name(edit['index']), action, step)
     if action in ('double', 'halve') or action.startswith('step:'):
         return 'Step: %s' % format_length(state['step_mm'] * per_mm, units)
+    if action.startswith('moves:'):
+        return 'Box moves along the %s' % ('screen' if state['moves'] == 'screen' else 'world axes')
     return 'Target: %s' % target_name(state['target'])
 
 
@@ -268,6 +553,16 @@ def save_state(state):
     script.set_envvar(STATE_VAR, normalize(state))
 
 
+def camera_frame(doc, snap=True):
+    """The frame of the document's live camera, snapped to world axes or
+    the camera's own."""
+    try:
+        rotation = doc.CurrentViewpoint.CreateCopy().Rotation
+        return frame_for((rotation.A, rotation.B, rotation.C, rotation.D), snap)
+    except Exception:
+        return frame_for(None)
+
+
 def per_mm(doc):
     """Document units per millimetre."""
     from pynavis._api import Api
@@ -278,12 +573,17 @@ def _point(p):
     return (float(p.X), float(p.Y), float(p.Z))
 
 
-def read(doc):
+def read(doc, note=None):
     """A plain snapshot of the current viewpoint's clip planes, or None when
-    the document has none to read."""
+    the document has none to read. note, if given, is told why.
+
+    CreateCopy, not CurrentViewpoint.ClipPlanes: the current-viewpoint handle
+    has no ClipPlanes of its own, only the Viewpoint a copy hands back."""
     try:
-        planes = doc.CurrentViewpoint.ClipPlanes
-    except Exception:
+        planes = doc.CurrentViewpoint.CreateCopy().ClipPlanes
+    except Exception as error:
+        if note is not None:
+            note('Section Nudge: could not read the clip planes: %s' % error)
         return None
     from pynavis._api import Api
     mode = 'box' if planes.Mode == Api.ClipPlaneSetMode.Box else 'planes'
@@ -362,7 +662,7 @@ def run_action(action, doc=None):
     state = load_state()
     scale = per_mm(document)
     units = str(document.Units)
-    result = plan(state, action, scale)
+    result = plan(state, action, scale, camera_frame(document, state['moves'] == 'world'))
     if result['edit'] is not None and not result['problem']:
         result['problem'] = apply(result['edit'], document)
     save_state(result['state'])

@@ -29,7 +29,7 @@ namespace PyNavis.Tests
         public void LargeIcon_LoadsAtLogical32_KeepingFullPixels()
         {
             var icon = RibbonIcons.Load(
-                ShippedIcon("General.panel", "Console.pushbutton", "icon.png"), 32);
+                ShippedIcon("01_pyNavis.panel", "03_Console.pushbutton", "icon.png"), 32);
 
             Assert.Equal(32.0, icon.Width, 1);
             Assert.Equal(32.0, icon.Height, 1);
@@ -40,7 +40,7 @@ namespace PyNavis.Tests
         public void SmallIcon_LoadsAtLogical16_KeepingFullPixels()
         {
             var icon = RibbonIcons.Load(
-                ShippedIcon("General.panel", "Console.pushbutton", "icon.small.png"), 16);
+                ShippedIcon("01_pyNavis.panel", "03_Console.pushbutton", "icon.small.png"), 16);
 
             Assert.Equal(16.0, icon.Width, 1);
             Assert.Equal(16.0, icon.Height, 1);
@@ -52,7 +52,7 @@ namespace PyNavis.Tests
         {
             // Bundles without icon.small.png reuse icon.png in the 16-slot.
             var icon = RibbonIcons.Load(
-                ShippedIcon("General.panel", "Console.pushbutton", "icon.png"), 16);
+                ShippedIcon("01_pyNavis.panel", "03_Console.pushbutton", "icon.png"), 16);
 
             Assert.Equal(16.0, icon.Width, 1);
         }
@@ -61,7 +61,7 @@ namespace PyNavis.Tests
         public void LoadedIcon_IsFrozen_ForCrossThreadRibbonUse()
         {
             var icon = RibbonIcons.Load(
-                ShippedIcon("General.panel", "Console.pushbutton", "icon.png"), 32);
+                ShippedIcon("01_pyNavis.panel", "03_Console.pushbutton", "icon.png"), 32);
 
             Assert.True(icon.IsFrozen);
         }

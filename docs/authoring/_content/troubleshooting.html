@@ -597,7 +597,7 @@ The Shortcuts editor on the pyNavis panel shows conflicts directly, which is fas
 reading the log.</p>
 
 <pre data-lang="text">
-'pyNavis.tab/Tools.panel/Clash_Report.pushbutton' wants Ctrl+Shift+R but 'pyNavis.tab/General.panel/Reload.pushbutton' already has it - first wins
+'pyNavis.tab/03_Clash.panel/01_Clash_Report.pushbutton' wants Ctrl+Shift+R but 'pyNavis.tab/01_pyNavis.panel/04_Reload.pushbutton' already has it - first wins
 </pre>
 
 <h3>A config.json override does nothing</h3>
@@ -612,8 +612,8 @@ stripped name.</p>
   "shortcuts": {
     "allowBareKeys": false,
     "bindings": {
-      "pyNavis.tab/Memory.panel/01_Memorize.pushbutton": "Ctrl+Alt+M",
-      "pyNavis.tab/Memory.panel/02_Recall.pushbutton": null
+      "pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton": "Ctrl+Alt+M",
+      "pyNavis.tab/02_Selection.panel/02_Recall.pushbutton": null
     }
   }
 }
@@ -623,7 +623,7 @@ stripped name.</p>
 ignored and logged.</p>
 
 <pre data-lang="text">
-shortcut override for unknown tool 'pyNavis.tab/Memory.panel/Memorize.pushbutton' ignored
+shortcut override for unknown tool 'pyNavis.tab/02_Selection.panel/Memorize.pushbutton' ignored
 </pre>
 
 <p><strong>Fix.</strong> <kbd>Alt</kbd>+Click the button to open its folder in Explorer and

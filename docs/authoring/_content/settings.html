@@ -290,12 +290,16 @@ know about survives every save another one makes.</p>
         <code>Contents\&lt;year&gt;</code> folder and is registered in
         <code>PackageContents.xml</code>. Written by the <strong>Panel slots</strong>
         button.</td></tr>
-<tr><td><code>ribbon.configMarker</code></td><td>string</td><td><code>"&#8679;"</code></td>
-    <td>Appended to the caption of any bundle that ships a <code>config.py</code>.
-        <code>""</code> turns it off.</td></tr>
+<tr><td><code>ribbon.showShortcutMarker</code></td><td>boolean</td><td><code>true</code></td>
+    <td>Whether a button a chord resolves to carries a marker after its name. The
+        Settings window's first checkbox.</td></tr>
 <tr><td><code>ribbon.shortcutMarker</code></td><td>string</td><td><code>"&#9679;"</code></td>
-    <td>Appended to the caption of any button a chord resolves to. <code>""</code> turns it
-        off.</td></tr>
+    <td>The glyph that marker is. An empty string is not "off", it means the default.</td></tr>
+<tr><td><code>ribbon.showConfigMarker</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Whether a bundle that ships a <code>config.py</code> carries a marker after its
+        name. The Settings window's second checkbox.</td></tr>
+<tr><td><code>ribbon.configMarker</code></td><td>string</td><td><code>"&#129093;"</code></td>
+    <td>The glyph that marker is. An empty string means the default.</td></tr>
 <tr><td><code>layout.&lt;dialog&gt;.&lt;part&gt;</code></td><td>number above zero</td>
     <td>absent</td>
     <td>Remembered pane widths inside pyNavis' own dialogs, in whole pixels. Machine-written
@@ -378,17 +382,19 @@ rather than needing a restart.</p>
 <pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
 {
   "ribbon": {
-    "configMarker": "⇧",
-    "shortcutMarker": "●"
+    "showShortcutMarker": true,
+    "shortcutMarker": "●",
+    "showConfigMarker": true,
+    "configMarker": "🡅"
   }
 }
 </pre>
 
-<p><code>configMarker</code> is appended to the caption of any bundle that ships a
-<code>config.py</code>, so a tool with a Shift+Click action says so on the ribbon instead of
-hiding it; the default is the Shift key's own symbol. <code>shortcutMarker</code> is appended
-to the caption of any button a keyboard chord resolves to; the tooltip still names the chord
-itself. A button with both reads "Purge &#8679; &#9679;".</p>
+<p>Each hint is a switch and a glyph. The switch is the boolean and the glyph is the string;
+a blank glyph never turns a hint off, it just means the default glyph. Out of the box the
+shortcut dot is on and the Shift+Click arrow is off, because every tooltip already says
+Shift+Click where it applies. With both switched on as above a button reads "Purge
+&#129093; &#9679;". The Settings window shows the same two switches as checkboxes.</p>
 
 <p>Both default on. Each marker is the string that gets drawn, so setting it to
 <code>""</code> turns it off, and any character works in its place. A marker that begins
@@ -400,7 +406,7 @@ Settings window next saves the file.</p>
 <pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
 {
   "ribbon": {
-    "configMarker": "",
+    "showConfigMarker": false,
     "shortcutMarker": "\n●"
   }
 }

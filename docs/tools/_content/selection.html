@@ -1,0 +1,248 @@
+<p>Navisworks has no undo for selections. Click the wrong thing and a selection you spent ten
+minutes building is gone. The Selection panel is one register of items per document, the way
+a calculator has a memory: put a selection in it, keep working, take it back out. It lives on
+disk under <code>%APPDATA%\pyNavis\memory\</code>, keyed to the document, so it survives
+closing the model and closing Navisworks, and nothing is written into the model file.</p>
+
+<figure data-shot="selection-panel" data-wide>
+<figcaption>The Selection panel: Remember and Recall, the three set operations, Previous,
+Next and Forget, and the More menu.</figcaption>
+</figure>
+
+<p>The usual run of it: <strong>Remember</strong> what you have selected, <strong>Add</strong>,
+<strong>Subtract</strong> and <strong>Intersect</strong> as you find more, <strong>Recall</strong>
+to select the whole thing again, <strong>Previous</strong> and <strong>Next</strong> to walk
+the items one at a time, and <strong>Save as Set</strong> when the result is worth keeping in
+the document. None of these buttons greys out; an empty memory or an empty selection is
+reported in a toast.</p>
+
+<section id="remember" title="Remember" kind="Button"
+         bundle="02_Selection.panel/01_Memorize.pushbutton"
+         summary="Store the current selection in the document's memory, replacing whatever was there."
+         needs="A selection (an empty one is reported, not stored)"
+         shortcut="<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>">
+
+<h2>What it does</h2>
+<p>Replaces the memory with the current selection and toasts how many items went in. This is
+the starting point for everything else on the panel.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Select anything: a click in the view, a Find Items result, a selection set.</li>
+  <li>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> or click <strong>Remember</strong>.</li>
+  <li>Carry on. Hide things, section, click elsewhere. The memory keeps what you had.</li>
+</ol>
+
+<figure data-shot="remember-toast">
+<figcaption>The toast after Remember, counting what went into memory.</figcaption>
+</figure>
+
+<h2>Limitations</h2>
+<ul>
+  <li>One memory per document. Remember replaces it; use Add to grow it instead.</li>
+  <li>Items are stored by their path in the model tree. If the model is republished with a
+    different structure, some items may not resolve on Recall, and the toast will say how
+    many.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Before a risky operation, Remember the selection so a mis-click costs nothing.</li>
+  <li>Remember at the end of the day; the memory is still there tomorrow.</li>
+</ul>
+</section>
+
+<section id="recall" title="Recall" kind="Button"
+         bundle="02_Selection.panel/02_Recall.pushbutton"
+         summary="Select whatever is in memory, replacing the current selection."
+         needs="Something in memory"
+         shortcut="<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>">
+
+<h2>What it does</h2>
+<p>Resolves every stored item back to the model and selects it. Items that are no longer
+there, because the model was reloaded or the item deleted, are counted in the toast and
+skipped rather than failing the whole recall.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> or click <strong>Recall</strong>.</li>
+  <li>The selection is back. Zoom to it with Navisworks' own Zoom Selected if you moved.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Recall replaces the current selection. To combine, Recall first and then add to the
+    selection by hand, or use Add and Intersect in the other direction.</li>
+  <li>An empty memory toasts "Memory is empty" and leaves the selection alone.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Hand a colleague a selection: Save as Set puts it in the document; Recall is the
+    private version that stays yours.</li>
+</ul>
+</section>
+
+<section id="add" title="Add" kind="Stacked button"
+         bundle="02_Selection.panel/03_Set.stack/01_Add.pushbutton"
+         summary="Add the current selection to memory, keeping what was already there."
+         needs="A selection">
+
+<h2>What it does</h2>
+<p>Unions the current selection into the memory. Use it to build up a set over several
+passes through a model: find some pipes on level 2, Add, find the rest on level 3, Add.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Remember a first selection.</li>
+  <li>Select more. Click <strong>Add</strong>. The toast gives the new total.</li>
+  <li>Repeat, then Recall to see the whole set.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>An item already in memory is not counted twice.</li>
+</ul>
+</section>
+
+<section id="subtract" title="Subtract" kind="Stacked button"
+         bundle="02_Selection.panel/03_Set.stack/02_Subtract.pushbutton"
+         summary="Remove the current selection from memory."
+         needs="A selection">
+
+<h2>What it does</h2>
+<p>Takes the current selection out of the memory. The way to carve the unwanted part out of
+a stored set: Recall, click the items that should not be there, Subtract.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Recall the memory.</li>
+  <li>Select only the items to drop. Click <strong>Subtract</strong>.</li>
+  <li>Recall again to check.</li>
+</ol>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Everything except: Remember a whole system, select the part that is finished,
+    Subtract, and the memory is the outstanding work.</li>
+</ul>
+</section>
+
+<section id="intersect" title="Intersect" kind="Stacked button"
+         bundle="02_Selection.panel/03_Set.stack/03_Intersect.pushbutton"
+         summary="Keep only the items that are both in memory and selected right now."
+         needs="A selection">
+
+<h2>What it does</h2>
+<p>Two searches reduced to what they agree on: one stored in memory, one live in the
+selection. What survives is the overlap.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Run a search, say everything on Level 3, and Remember it.</li>
+  <li>Run another, say every item with Fire Rating set, and select it.</li>
+  <li>Click <strong>Intersect</strong>. The memory is now the fire-rated items on Level 3.
+    Recall to select them.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Intersect with an empty selection empties the memory, because nothing is in both. The
+    toast says so.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Any two Find Items searches that Navisworks cannot combine in one query.</li>
+</ul>
+</section>
+
+<section id="previous-next" title="Previous and Next" kind="Stacked buttons"
+         bundle="02_Selection.panel/04_Step.stack/02_Next.pushbutton"
+         summary="Select and zoom to one remembered item at a time, walking the list from the keyboard."
+         needs="Something in memory"
+         shortcut="<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Left</kbd> and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Right</kbd>">
+
+<h2>What it does</h2>
+<p>Selects a single item from the memory and zooms to it, then the one after it, then the
+next. This is how you walk a list of items you found earlier without losing your place:
+review each clash element, each unresolved comment, each item on a snag list.</p>
+
+<figure data-shot="next-walk" data-wide>
+<figcaption>Stepping through remembered items with Next: the view zooms to each one and the
+toast counts where you are.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Remember the list of items to review.</li>
+  <li>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Right</kbd>. The first item is selected
+    and the camera zooms to it.</li>
+  <li>Keep pressing. Both directions wrap around, so Next at the end returns to the start.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>The camera move cannot be undone. Save a viewpoint first if you want to come back.</li>
+  <li>The order is the order the items were stored in, which is the order Navisworks listed
+    them at Remember time.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>A quick model walkthrough for a meeting: Remember the ten things to show, then step
+    through them with one hand while talking.</li>
+</ul>
+</section>
+
+<section id="forget" title="Forget" kind="Stacked button"
+         bundle="02_Selection.panel/04_Step.stack/03_Clear.pushbutton"
+         summary="Empty the memory for this document."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>Empties the memory for this document and reports how many items were dropped. Other
+documents keep theirs.</p>
+
+<h2>Good to know</h2>
+<p>You rarely need this: Remember replaces the memory anyway. It is there for the moment you
+want to be certain nothing is stored, and for tidying up after a job. To delete the stored
+files for every document at once, use Purge in the More menu.</p>
+</section>
+
+<section id="more-menu" title="More menu" kind="Menu"
+         bundle="02_Selection.panel/05_More.pulldown"
+         summary="Show what is in memory, promote it to a selection set, or delete the stored memory files."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>The pulldown at the end of the panel holds the three things you do <em>to</em> the memory
+rather than with it.</p>
+
+<figure data-shot="more-menu">
+<figcaption>The More menu open: Show Contents, Save as Set, Purge.</figcaption>
+</figure>
+
+<h2>Show Contents</h2>
+<p>Lists the memory in the output window, one row per item with the model it came from and a
+link that selects it, under a line naming the document it was remembered from and when.
+Long memories are cut off at 500 rows. An empty memory prints a line telling you to select
+something and press Remember.</p>
+
+<h2>Save as Set</h2>
+<p>Promotes the memory to a native Navisworks selection set. It asks for a name, offering
+"Memory" plus the date and time, and creates the set. Unlike the memory, a selection set is
+stored inside the document, so this marks the document modified and the set travels with the
+file. This is how a private memory becomes something the team can see.</p>
+
+<h2>Purge</h2>
+<p>Deletes the stored memory files for <em>every</em> document, not just this one. It counts
+the files first and asks for confirmation naming that number, and says so quietly when there
+is nothing to delete.</p>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Save as Set makes a static set of the items as they are now, not a search, so it does
+    not follow the model when new items match.</li>
+</ul>
+</section>

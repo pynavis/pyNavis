@@ -36,7 +36,7 @@ namespace PyNavis.Tests
         {
             var candidate = Path.GetFullPath(Path.Combine(
                 PyNavisLibTests.PyNavisLibDir, "..", "extensions", "pyNavis.extension",
-                "pyNavis.tab", "Tools.panel", "Sets_From_Excel.pushbutton"));
+                "pyNavis.tab", "04_Data.panel", "03_Sets_From_Excel.pushbutton"));
             if (!Directory.Exists(candidate))
                 throw new DirectoryNotFoundException("Sets_From_Excel.pushbutton not found at " + candidate);
             return candidate;

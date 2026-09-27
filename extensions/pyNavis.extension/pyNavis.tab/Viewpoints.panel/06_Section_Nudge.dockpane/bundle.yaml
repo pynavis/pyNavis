@@ -1,3 +1,3 @@
 title: Section Nudge
-tooltip: A panel that moves the section box or planes from the keyboard instead of the drag handles. Pick the box or a plane, set a step, nudge with the arrow keys. Each nudge is one undo step. The same moves are on Ctrl+Alt chords over the 3D view.
+tooltip: A remote for the section box. The six faces are named the way you see them, Front being the face looking at you, and the box moves left, right, up, down, nearer and farther on the screen. Pick a face or the whole box, set a step, nudge. Each nudge is one undo step. The same moves are on Ctrl+Alt chords over the 3D view.
 keytip: SN

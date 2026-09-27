@@ -80,24 +80,26 @@ namespace PyNavis.Tests
         [Fact]
         public void TurningARibbonHintBackToItsDefault_RemovesTheKeyAgain()
         {
-            Given("{\"ribbon\": {\"configMarker\": \"\", \"shortcutMarker\": \"*\"}}");
+            Given("{\"ribbon\": {\"showConfigMarker\": true, \"shortcutMarker\": \"*\", \"showShortcutMarker\": false}}");
 
             PyNavisConfig.SaveUserSettings(_path, Defaults());
 
             Assert.DoesNotContain("configMarker", Written());
+            Assert.DoesNotContain("shortcutMarker", Written());
             Assert.DoesNotContain("ribbon", Written());
         }
 
         [Fact]
-        public void TheOldConfigDotBoolean_IsDroppedOnSave_AndReadAsOffUntilThen()
+        public void TheOldConfigDotBoolean_IsDroppedOnSave_AndReadAsTheSwitchUntilThen()
         {
-            Given("{\"ribbon\": {\"configDot\": false}}");
-            Assert.Equal("", PyNavisConfig.Load(_path).RibbonConfigMarker);
+            Given("{\"ribbon\": {\"configDot\": true}}");
+            Assert.True(PyNavisConfig.Load(_path).ShowConfigMarker);
 
             PyNavisConfig.SaveUserSettings(_path, PyNavisConfig.Load(_path).ToUserSettings());
 
             Assert.DoesNotContain("configDot", Written());
-            Assert.Equal("", PyNavisConfig.Load(_path).RibbonConfigMarker);
+            Assert.Contains("showConfigMarker", Written());
+            Assert.True(PyNavisConfig.Load(_path).ShowConfigMarker);
         }
 
         // ---- non-defaults are written ----------------------------------------
@@ -110,7 +112,9 @@ namespace PyNavis.Tests
             {
                 Theme = "dark",
                 RibbonConfigMarker = "S",
+                ShowConfigMarker = true,
                 RibbonShortcutMarker = "*",
+                ShowShortcutMarker = false,
                 ShortcutsAllowBareKeys = true,
                 ExtensionPaths = new List<string> { @"C:\one", @"D:\two" },
                 PyNavisLibPath = @"C:\lib",
@@ -122,7 +126,9 @@ namespace PyNavis.Tests
 
             Assert.Equal("dark", back.Theme);
             Assert.Equal("S", back.RibbonConfigMarker);
+            Assert.True(back.ShowConfigMarker);
             Assert.Equal("*", back.RibbonShortcutMarker);
+            Assert.False(back.ShowShortcutMarker);
             Assert.True(back.ShortcutsAllowBareKeys);
             Assert.Equal(new[] { @"C:\one", @"D:\two" }, back.ExtensionPaths);
             Assert.Equal(@"C:\lib", back.PyNavisLibPath);
@@ -130,15 +136,36 @@ namespace PyNavis.Tests
         }
 
         [Fact]
-        public void AnEmptyMarker_IsWritten_BecauseEmptyIsHowItIsTurnedOff()
+        public void AnEmptyGlyph_IsNotWritten_BecauseEmptyIsNotASetting()
         {
+            // Blanking the glyph box is not how the hint is turned off; the
+            // checkbox is. So "" saves as the default glyph and the file stays clean.
             Given("{}");
             var settings = Defaults();
             settings.RibbonShortcutMarker = "";
 
             PyNavisConfig.SaveUserSettings(_path, settings);
 
-            Assert.Equal("", PyNavisConfig.Load(_path).RibbonShortcutMarker);
+            Assert.DoesNotContain("shortcutMarker", Written());
+            Assert.Equal(PyNavisConfig.DefaultShortcutMarker, PyNavisConfig.Load(_path).RibbonShortcutMarker);
+            Assert.True(PyNavisConfig.Load(_path).ShowShortcutMarker);
+        }
+
+        [Fact]
+        public void TheSwitch_IsWrittenOnlyWhenItLeavesTheDefault()
+        {
+            Given("{}");
+            var settings = Defaults();
+            settings.ShowShortcutMarker = false;
+            settings.ShowConfigMarker = true;
+
+            PyNavisConfig.SaveUserSettings(_path, settings);
+
+            Assert.Contains("\"showShortcutMarker\": false", Written());
+            Assert.Contains("\"showConfigMarker\": true", Written());
+            var back = PyNavisConfig.Load(_path);
+            Assert.False(back.ShowShortcutMarker);
+            Assert.True(back.ShowConfigMarker);
         }
 
         [Fact]
@@ -205,7 +232,9 @@ namespace PyNavis.Tests
             {
                 Theme = "light",
                 RibbonConfigMarker = "",
+                ShowConfigMarker = true,
                 RibbonShortcutMarker = "+",
+                ShowShortcutMarker = false,
                 ShortcutsAllowBareKeys = true,
                 ExtensionPaths = new List<string> { @"C:\one" },
                 PyNavisLibPath = @"C:\lib",
@@ -219,7 +248,9 @@ namespace PyNavis.Tests
 
                 Assert.Equal("light", back.Theme);
                 Assert.Equal("", back.RibbonConfigMarker);
+                Assert.True(back.ShowConfigMarker);
                 Assert.Equal("+", back.RibbonShortcutMarker);
+                Assert.False(back.ShowShortcutMarker);
                 Assert.True(back.ShortcutsAllowBareKeys);
                 Assert.Equal(new[] { @"C:\one" }, back.ExtensionPaths);
                 Assert.Equal(@"C:\lib", back.PyNavisLibPath);
@@ -261,11 +292,15 @@ namespace PyNavis.Tests
                 var window = SettingsDialog.Build(new PyNavisConfig.UserSettings());
                 SettingsDialog.SetConfigMarkerForTest(window, "");
                 SettingsDialog.SetMarkerForTest(window, "");
+                SettingsDialog.SetShowMarkerForTest(window, false);
+                SettingsDialog.SetShowConfigMarkerForTest(window, true);
                 SettingsDialog.AddRootForTest(window, @"D:\added");
 
                 var back = SettingsDialog.CollectForTest(window);
                 Assert.Equal("", back.RibbonConfigMarker);
                 Assert.Equal("", back.RibbonShortcutMarker);
+                Assert.False(back.ShowShortcutMarker);
+                Assert.True(back.ShowConfigMarker);
                 Assert.Equal(new[] { @"D:\added" }, back.ExtensionPaths);
             });
         }

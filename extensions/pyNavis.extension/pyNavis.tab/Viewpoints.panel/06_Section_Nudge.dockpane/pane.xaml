@@ -6,70 +6,159 @@
     <RowDefinition Height="Auto"/>
     <RowDefinition Height="Auto"/>
     <RowDefinition Height="Auto"/>
-    <RowDefinition Height="Auto"/>
     <RowDefinition Height="*"/>
   </Grid.RowDefinitions>
 
   <!-- No colours anywhere: the panel follows the Navisworks theme. The active
        target is shown bold, which reads in both themes. -->
 
-  <!-- Row 0: which target, and where it is -->
-  <StackPanel Grid.Row="0">
-    <TextBlock x:Name="TargetName" Text="Box" FontSize="16" FontWeight="SemiBold"/>
+  <!-- Row 0: the two jobs. Adjust moves one face in or out; Move slides the
+       whole box. The Move tab is the box target, so opening it picks the box
+       and opening Adjust picks the last face used. -->
+  <TabControl x:Name="Tabs" Grid.Row="0" Padding="4">
+
+    <TabItem x:Name="AdjustTab" Header="Adjust">
+      <StackPanel>
+        <!-- The remote. The six faces laid out as an unfolded box, named the
+             way you see them (Front is the face looking at you), each with the
+             world axis it faces under the name. The script fills the names and
+             axes from the camera and greys a cell no plane faces. -->
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <Button x:Name="CellTop" Grid.Row="0" Grid.Column="1" Margin="1" Padding="0,3,0,3">
+            <StackPanel>
+              <TextBlock x:Name="CellTopName" Text="Top" TextAlignment="Center"/>
+              <TextBlock x:Name="CellTopAxis" Text="" FontSize="10" Opacity="0.6" TextAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="CellLeft" Grid.Row="1" Grid.Column="0" Margin="1" Padding="0,3,0,3">
+            <StackPanel>
+              <TextBlock x:Name="CellLeftName" Text="Left" TextAlignment="Center"/>
+              <TextBlock x:Name="CellLeftAxis" Text="" FontSize="10" Opacity="0.6" TextAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="CellFront" Grid.Row="1" Grid.Column="1" Margin="1" Padding="0,3,0,3">
+            <StackPanel>
+              <TextBlock x:Name="CellFrontName" Text="Front" TextAlignment="Center"/>
+              <TextBlock x:Name="CellFrontAxis" Text="" FontSize="10" Opacity="0.6" TextAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="CellRight" Grid.Row="1" Grid.Column="2" Margin="1" Padding="0,3,0,3">
+            <StackPanel>
+              <TextBlock x:Name="CellRightName" Text="Right" TextAlignment="Center"/>
+              <TextBlock x:Name="CellRightAxis" Text="" FontSize="10" Opacity="0.6" TextAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="CellBottom" Grid.Row="2" Grid.Column="1" Margin="1" Padding="0,3,0,3">
+            <StackPanel>
+              <TextBlock x:Name="CellBottomName" Text="Bottom" TextAlignment="Center"/>
+              <TextBlock x:Name="CellBottomAxis" Text="" FontSize="10" Opacity="0.6" TextAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="CellBack" Grid.Row="3" Grid.Column="1" Margin="1" Padding="0,3,0,3">
+            <StackPanel>
+              <TextBlock x:Name="CellBackName" Text="Back" TextAlignment="Center"/>
+              <TextBlock x:Name="CellBackAxis" Text="" FontSize="10" Opacity="0.6" TextAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <!-- Planes that face no cell (tilted, off, or a second plane the same
+             way). The script fills it; hidden when there are none. -->
+        <WrapPanel x:Name="Others" Margin="0,4,0,0" Visibility="Collapsed"/>
+
+        <UniformGrid Rows="1" Columns="2" Margin="0,8,0,0">
+          <Button x:Name="NudgeIn" Content="In" Margin="1" Padding="0,6,0,6"
+                  ToolTip="Move the face in, keeping less of the model (Up)"/>
+          <Button x:Name="NudgeOut" Content="Out" Margin="1" Padding="0,6,0,6"
+                  ToolTip="Move the face out, keeping more of the model (Down)"/>
+        </UniformGrid>
+      </StackPanel>
+    </TabItem>
+
+    <TabItem x:Name="MoveTab" Header="Move">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Which frame the box moves in: the compass ring round the ViewCube
+             (world axes, snapped to the view) or the cube itself (the screen). -->
+        <Button x:Name="MovesWorld" Grid.Row="0" Grid.Column="0" Content="World axes" Margin="1" Padding="0,3,0,3"
+                ToolTip="Moves land on the world axes nearest the screen's, like the compass ring round the ViewCube"/>
+        <Button x:Name="MovesScreen" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Content="Screen" Margin="1" Padding="0,3,0,3"
+                ToolTip="Moves follow the screen exactly, like the ViewCube itself, so Left is always screen-left"/>
+
+        <Button x:Name="MoveUp" Grid.Row="1" Grid.Column="1" Content="&#9650;" Margin="1,8,1,1" Padding="0,4,0,4"
+                ToolTip="Move the box up the screen (Up)"/>
+        <Button x:Name="MoveNearer" Grid.Row="1" Grid.Column="2" Content="Nearer" Margin="1,8,1,1" Padding="0,4,0,4"
+                ToolTip="Move the box towards you (Page Up)"/>
+        <Button x:Name="MoveLeft" Grid.Row="2" Grid.Column="0" Content="&#9664;" Margin="1" Padding="0,4,0,4"
+                ToolTip="Move the box left on the screen (Left)"/>
+        <Button x:Name="MoveRight" Grid.Row="2" Grid.Column="2" Content="&#9654;" Margin="1" Padding="0,4,0,4"
+                ToolTip="Move the box right on the screen (Right)"/>
+        <Button x:Name="MoveDown" Grid.Row="3" Grid.Column="1" Content="&#9660;" Margin="1" Padding="0,4,0,4"
+                ToolTip="Move the box down the screen (Down)"/>
+        <Button x:Name="MoveFarther" Grid.Row="3" Grid.Column="2" Content="Farther" Margin="1" Padding="0,4,0,4"
+                ToolTip="Move the box away from you (Page Down)"/>
+      </Grid>
+    </TabItem>
+  </TabControl>
+
+  <!-- Row 1: where the target is, right under the buttons that move it -->
+  <StackPanel Grid.Row="1" Margin="0,6,0,0">
     <TextBlock x:Name="Readout" Text="" FontSize="11" Opacity="0.75" TextWrapping="Wrap"/>
     <Button x:Name="SectionOn" Content="Turn sectioning on" Margin="0,6,0,0"
             Padding="8,3,8,3" HorizontalAlignment="Left" Visibility="Collapsed"/>
   </StackPanel>
 
-  <!-- Row 1: target buttons, 0 is the box, 1 to 6 the planes or faces -->
-  <UniformGrid Grid.Row="1" Rows="1" Columns="7" Margin="0,10,0,0">
-    <Button x:Name="TargetBox" Content="Box" Margin="1" Padding="0,3,0,3"/>
-    <Button x:Name="Target1" Content="1" Margin="1" Padding="0,3,0,3"/>
-    <Button x:Name="Target2" Content="2" Margin="1" Padding="0,3,0,3"/>
-    <Button x:Name="Target3" Content="3" Margin="1" Padding="0,3,0,3"/>
-    <Button x:Name="Target4" Content="4" Margin="1" Padding="0,3,0,3"/>
-    <Button x:Name="Target5" Content="5" Margin="1" Padding="0,3,0,3"/>
-    <Button x:Name="Target6" Content="6" Margin="1" Padding="0,3,0,3"/>
+  <!-- Row 2: the step, with presets in the document's units -->
+  <StackPanel Grid.Row="2" Margin="0,10,0,0">
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Grid.Column="0" Text="Step" VerticalAlignment="Center" Margin="0,0,6,0"/>
+      <TextBox x:Name="StepBox" Grid.Column="1" Text="100" VerticalAlignment="Center"
+               Padding="4,2,4,2" MinWidth="60"/>
+      <TextBlock x:Name="StepUnits" Grid.Column="2" Text="mm" VerticalAlignment="Center"
+                 Margin="6,0,6,0" Opacity="0.75"/>
+      <Button x:Name="StepHalve" Grid.Column="3" Content="-" Width="28" Margin="1"
+              ToolTip="Halve the step (minus key)"/>
+      <Button x:Name="StepDouble" Grid.Column="4" Content="+" Width="28" Margin="1"
+              ToolTip="Double the step (plus key)"/>
+    </Grid>
+    <WrapPanel x:Name="Presets" Margin="0,4,0,0"/>
+  </StackPanel>
+
+  <!-- Row 3: the two things you do before and after nudging -->
+  <UniformGrid Grid.Row="3" Rows="1" Columns="2" Margin="0,10,0,0">
+    <Button x:Name="FitSelection" Content="Fit to selection" Margin="1" Padding="0,4,0,4"
+            ToolTip="Fit the section box to the selected objects, then nudge from there"/>
+    <Button x:Name="SectionOff" Content="Sectioning off" Margin="1" Padding="0,4,0,4"
+            ToolTip="Switch sectioning off, leaving the camera where it is"/>
   </UniformGrid>
-
-  <!-- Row 2: the nudge pad. One of the two is shown at a time. -->
-  <Grid Grid.Row="2" Margin="0,8,0,0">
-    <UniformGrid x:Name="PlanePad" Rows="1" Columns="2" Visibility="Collapsed">
-      <Button x:Name="NudgeIn" Content="In  (Up)" Margin="1" Padding="0,6,0,6"/>
-      <Button x:Name="NudgeOut" Content="Out  (Down)" Margin="1" Padding="0,6,0,6"/>
-    </UniformGrid>
-    <UniformGrid x:Name="BoxPad" Rows="2" Columns="3">
-      <Button x:Name="MoveXMinus" Content="-X  (Left)" Margin="1" Padding="0,5,0,5"/>
-      <Button x:Name="MoveYPlus" Content="+Y  (Up)" Margin="1" Padding="0,5,0,5"/>
-      <Button x:Name="MoveZPlus" Content="+Z  (PgUp)" Margin="1" Padding="0,5,0,5"/>
-      <Button x:Name="MoveXPlus" Content="+X  (Right)" Margin="1" Padding="0,5,0,5"/>
-      <Button x:Name="MoveYMinus" Content="-Y  (Down)" Margin="1" Padding="0,5,0,5"/>
-      <Button x:Name="MoveZMinus" Content="-Z  (PgDn)" Margin="1" Padding="0,5,0,5"/>
-    </UniformGrid>
-  </Grid>
-
-  <!-- Row 3: the step -->
-  <Grid Grid.Row="3" Margin="0,10,0,0">
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="Auto"/>
-      <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="Auto"/>
-      <ColumnDefinition Width="Auto"/>
-      <ColumnDefinition Width="Auto"/>
-    </Grid.ColumnDefinitions>
-    <TextBlock Grid.Column="0" Text="Step" VerticalAlignment="Center" Margin="0,0,6,0"/>
-    <TextBox x:Name="StepBox" Grid.Column="1" Text="100" VerticalAlignment="Center"
-             Padding="4,2,4,2" MinWidth="60"/>
-    <TextBlock x:Name="StepUnits" Grid.Column="2" Text="mm" VerticalAlignment="Center"
-               Margin="6,0,6,0" Opacity="0.75"/>
-    <Button x:Name="StepHalve" Grid.Column="3" Content="-" Width="28" Margin="1"
-            ToolTip="Halve the step (minus key)"/>
-    <Button x:Name="StepDouble" Grid.Column="4" Content="+" Width="28" Margin="1"
-            ToolTip="Double the step (plus key)"/>
-  </Grid>
-
-  <!-- Row 4: the key legend -->
-  <TextBlock x:Name="Hint" Grid.Row="4" Margin="0,10,0,0" FontSize="10.5" Opacity="0.6"
-             TextWrapping="Wrap"
-             Text="Click the panel, then: 0 to 6 pick a target, Tab cycles, Up and Down nudge a plane, arrows and PgUp/PgDn move the box, plus and minus change the step, Enter applies a typed step. Ctrl+Z undoes a nudge."/>
 </Grid>

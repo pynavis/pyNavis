@@ -39,19 +39,34 @@ namespace PyNavis.Runtime.Config
         /// <summary>"panes.extraSlots": how many slots the generated satellite adds. 0 = none.</summary>
         public int ExtraPaneSlots { get; private set; }
 
-        /// <summary>"ribbon.configMarker": appended to the caption of a button whose bundle
-        /// has a config.py (the Shift+Click secondary action). Default "⇧", the Shift
-        /// symbol. An empty string turns it off. The older boolean "ribbon.configDot":
-        /// false is still honoured as "off" when no marker key is present.</summary>
+        /// <summary>"ribbon.configMarker": the glyph appended to the caption of a button
+        /// whose bundle has a config.py (the Shift+Click secondary action). Default the
+        /// wide Shift arrow, U+1F845. Whether it shows at all is "ribbon.showConfigMarker",
+        /// a separate boolean, so an empty glyph never doubles as an off switch. The older
+        /// boolean "ribbon.configDot" is read as that switch.</summary>
         public string RibbonConfigMarker { get; private set; } = DefaultConfigMarker;
 
-        public const string DefaultConfigMarker = "\u21E7";
+        public const string DefaultConfigMarker = "\U0001F845";
 
-        /// <summary>"ribbon.shortcutMarker": appended to the caption of a button that has a
-        /// resolved chord. Default "●". An empty string turns the marker off, which is
-        /// why there is no separate boolean: one key both enables it and says what it draws.
-        /// A marker starting with a newline puts itself on its own caption line.</summary>
-        public string RibbonShortcutMarker { get; private set; } = "●";
+        /// <summary>"ribbon.showConfigMarker": whether the config marker is drawn. Default
+        /// false: a stranger reads an unexplained glyph as a typo, and the tooltip already
+        /// says Shift+Click.</summary>
+        public bool ShowConfigMarker { get; private set; } = DefaultShowConfigMarker;
+
+        public const bool DefaultShowConfigMarker = false;
+
+        /// <summary>"ribbon.shortcutMarker": the glyph appended to the caption of a button
+        /// that has a resolved chord. Default a dot. A marker starting with a newline puts
+        /// itself on its own caption line.</summary>
+        public string RibbonShortcutMarker { get; private set; } = DefaultShortcutMarker;
+
+        public const string DefaultShortcutMarker = "\u25CF";
+
+        /// <summary>"ribbon.showShortcutMarker": whether the shortcut marker is drawn.
+        /// Default true.</summary>
+        public bool ShowShortcutMarker { get; private set; } = DefaultShowShortcutMarker;
+
+        public const bool DefaultShowShortcutMarker = true;
 
         /// <summary>"layout.&lt;dialog&gt;.&lt;part&gt;": remembered pane widths, keyed
         /// "dialog/part" (e.g. "viewpoints/tree"). Only positive finite numbers load.</summary>
@@ -143,7 +158,9 @@ namespace PyNavis.Runtime.Config
             /// <summary>"light", "dark", or null/empty to follow Navisworks.</summary>
             public string Theme;
             public string RibbonConfigMarker = DefaultConfigMarker;
-            public string RibbonShortcutMarker = "●";
+            public bool ShowConfigMarker = DefaultShowConfigMarker;
+            public string RibbonShortcutMarker = DefaultShortcutMarker;
+            public bool ShowShortcutMarker = DefaultShowShortcutMarker;
             public bool ShortcutsAllowBareKeys;
             public List<string> ExtensionPaths = new List<string>();
             /// <summary>Null or empty removes the key and lets the runtime resolve it.</summary>
@@ -156,7 +173,9 @@ namespace PyNavis.Runtime.Config
         {
             Theme = Theme,
             RibbonConfigMarker = RibbonConfigMarker,
+            ShowConfigMarker = ShowConfigMarker,
             RibbonShortcutMarker = RibbonShortcutMarker,
+            ShowShortcutMarker = ShowShortcutMarker,
             ShortcutsAllowBareKeys = ShortcutsAllowBareKeys,
             ExtensionPaths = new List<string>(ExtensionPaths),
             PyNavisLibPath = PyNavisLibPath,
@@ -202,12 +221,19 @@ namespace PyNavis.Runtime.Config
             // Written only when it differs from the default, so a file that never
             // touched these keys stays as clean as it was.
             ribbon.Remove("configDot");                 // the pre-marker boolean, superseded
-            var configMarker = settings.RibbonConfigMarker ?? "";
+            // An empty glyph is not "off" (the boolean is): it falls back to the default.
+            var configMarker = string.IsNullOrEmpty(settings.RibbonConfigMarker)
+                ? DefaultConfigMarker : settings.RibbonConfigMarker;
             if (configMarker == DefaultConfigMarker) ribbon.Remove("configMarker");
             else ribbon["configMarker"] = configMarker;
-            var marker = settings.RibbonShortcutMarker ?? "";
-            if (marker == "●") ribbon.Remove("shortcutMarker");
+            if (settings.ShowConfigMarker == DefaultShowConfigMarker) ribbon.Remove("showConfigMarker");
+            else ribbon["showConfigMarker"] = settings.ShowConfigMarker;
+            var marker = string.IsNullOrEmpty(settings.RibbonShortcutMarker)
+                ? DefaultShortcutMarker : settings.RibbonShortcutMarker;
+            if (marker == DefaultShortcutMarker) ribbon.Remove("shortcutMarker");
             else ribbon["shortcutMarker"] = marker;
+            if (settings.ShowShortcutMarker == DefaultShowShortcutMarker) ribbon.Remove("showShortcutMarker");
+            else ribbon["showShortcutMarker"] = settings.ShowShortcutMarker;
             if (ribbon.Count == 0) root.Remove("ribbon");
             else root["ribbon"] = ribbon;
 
@@ -348,19 +374,21 @@ namespace PyNavis.Runtime.Config
                 if (data != null && data.TryGetValue("ribbon", out var ribbon)
                     && ribbon is Dictionary<string, object> ribbonSection)
                 {
-                    // Read as "is the key present", not "is it non-empty": "" is the
-                    // documented way to turn a marker off, so it must survive.
-                    if (ribbonSection.TryGetValue("configMarker", out var cm) && cm is string configText)
+                    // The glyphs: an empty string is not a setting, it keeps the default.
+                    // On or off is the boolean beside each, never the glyph.
+                    if (ribbonSection.TryGetValue("configMarker", out var cm) && cm is string configText
+                        && configText.Length > 0)
                         config.RibbonConfigMarker = configText;
-                    else if (ribbonSection.TryGetValue("configDot", out var dot) && dot is bool showDot
-                             && !showDot)
-                        config.RibbonConfigMarker = "";
+                    if (ribbonSection.TryGetValue("showConfigMarker", out var showCm) && showCm is bool showConfig)
+                        config.ShowConfigMarker = showConfig;
+                    else if (ribbonSection.TryGetValue("configDot", out var dot) && dot is bool showDot)
+                        config.ShowConfigMarker = showDot;        // the older name for the switch
 
-                    // Read as "is the key present", not "is it non-empty": "" is the
-                    // documented way to turn the marker off, so it must survive.
                     if (ribbonSection.TryGetValue("shortcutMarker", out var marker)
-                        && marker is string markerText)
+                        && marker is string markerText && markerText.Length > 0)
                         config.RibbonShortcutMarker = markerText;
+                    if (ribbonSection.TryGetValue("showShortcutMarker", out var showSm) && showSm is bool showShortcut)
+                        config.ShowShortcutMarker = showShortcut;
                 }
                 if (data != null && data.TryGetValue("layout", out var layout)
                     && layout is Dictionary<string, object> layoutSection)

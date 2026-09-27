@@ -1,0 +1,268 @@
+<p>The Data panel moves facts between Navisworks and everything around it: a point to the
+clipboard and back, Revit element IDs in both directions, selection sets through Excel, and
+saved viewpoints out to CSV.</p>
+
+<section id="get-coordinates" title="Get Coordinates" kind="Stacked button"
+         bundle="04_Data.panel/01_Coordinates.stack/01_Get_Coordinates.pushbutton"
+         summary="Click a point in the view and its coordinates land on the clipboard, snapped the way a measurement snaps."
+         needs="An open document">
+
+<h2>What it does</h2>
+<p>Puts the view into a pick that runs on the native Measure tool, so the pointer snaps to
+vertices, edges and line ends exactly as a measurement does. The point that reaches the
+clipboard is the snapped one, written as <code>X, Y, Z</code> at three decimals in model
+units, which is the shape Go to Coordinates reads back.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Get Coordinates</strong>.</li>
+  <li>Click the point. The cursor snaps as you hover.</li>
+  <li>Paste wherever the point is needed: a report, a survey schedule, an email, or Go to
+    Coordinates.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Model units, not a shared coordinate system. If the model is offset from the survey
+    grid, so is the point.</li>
+  <li>Esc, a right-click or picking another tool cancels and copies nothing.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Report exactly where a clash is to someone who does not have the model open.</li>
+</ul>
+</section>
+
+<section id="go-to-coordinates" title="Go to Coordinates" kind="Stacked button"
+         bundle="04_Data.panel/01_Coordinates.stack/02_Go_to_Coordinates.pushbutton"
+         summary="Move the view to a set of coordinates and mark the point with a cross."
+         needs="An open document"
+         shift="Clears the marker and leaves the view alone">
+
+<h2>What it does</h2>
+<p>The other half of the pair. A point copied by Get Coordinates, or pasted out of a clash
+report or a survey schedule, is one click from being on screen. The camera keeps the
+direction it is already looking and only moves, standing five metres back from the point, so
+the angle you set up survives and the point lands in the middle of the view. A cross
+labelled with the coordinates is drawn on the point.</p>
+
+<figure data-shot="go-to-coordinates" data-wide>
+<figcaption>The dialog pre-filled from the clipboard, and the marked point in the view after
+OK.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Copy a point from anywhere: three numbers separated by commas, spaces, semicolons or
+    tabs, with or without brackets or X=/Y=/Z= labels.</li>
+  <li>Click <strong>Go to Coordinates</strong>. The box opens already filled if the clipboard
+    held three numbers.</li>
+  <li>Click OK. The camera moves and the cross appears. Orbit straight away and the view
+    turns around the point, because the focal distance moved with it.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Three numbers or nothing. A comma always separates, so "1,5 2 3" is four numbers and
+    is refused rather than read as a European decimal.</li>
+  <li>One marker at a time. A new point replaces the cross; Shift+Click removes it.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Walk a list of survey points from a spreadsheet: copy, click, look, next row.</li>
+</ul>
+</section>
+
+<section id="select-by-ids" title="Select by IDs" kind="Stacked button"
+         bundle="04_Data.panel/02_Element_IDs.stack/01_Select_by_IDs.pushbutton"
+         summary="Paste a column of Revit element IDs and the elements are selected in the federated model, without opening Revit."
+         needs="An open document"
+         shift="Opens Element ID Settings">
+
+<h2>What it does</h2>
+<p>Selects elements by Revit element ID, in a federated model. Paste a column of IDs out of a
+clash report, a schedule or an email and the elements are selected in the view, zoomed to or
+isolated according to the settings. It looks in both places an element ID survives
+federation: the "Element ID" property tab an NWC exported from Revit carries, and the
+"[123456]" suffix a model published straight through design coordination carries in its
+name instead.</p>
+
+<figure data-shot="select-by-ids-box" data-wide>
+<figcaption>The paste box pre-filled from the clipboard, and the elements selected and
+zoomed after OK.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Copy the IDs. One per line, or separated by commas or spaces; other text between them
+    is ignored.</li>
+  <li>Click <strong>Select by IDs</strong>. The box shows the IDs it found for approval and
+    editing.</li>
+  <li>Click OK. Above one ID a progress window names the ID being looked for and offers
+    Cancel. What is found replaces the current selection.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Only real elements match. Nested parts under a family instance carry an "Element ID"
+    tab holding the <em>type's</em> ID, the same number on every instance, so the tools only
+    accept nodes the exporter marked as elements. A pasted type ID finds nothing rather than
+    selecting the first instance of that family.</li>
+  <li>One ID resolves to one item by default and stops at the first hit, around a second per
+    ID on a large model. The same element exported into two sibling files needs "Select
+    every copy" in the settings, which is a full walk per ID.</li>
+  <li>Needs the exporter to have written element IDs. An NWC from a non-Revit source has
+    none.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Round-trip with Revit: IDs of Selection in Navisworks, Select by ID in Revit, or the
+    reverse.</li>
+  <li>Check a list of "fixed" elements from an email against the current model.</li>
+</ul>
+</section>
+
+<section id="ids-of-selection" title="IDs of Selection" kind="Stacked button"
+         bundle="04_Data.panel/02_Element_IDs.stack/02_IDs_of_Selection.pushbutton"
+         summary="Copy the Revit element IDs of the selected items to the clipboard."
+         needs="A selection"
+         shift="Opens Element ID Settings">
+
+<h2>What it does</h2>
+<p>The reverse trip. Resolves an ID for each selected item, reading it off the nearest
+ancestor that is a real element, because a click in the view usually lands on a geometry
+leaf below the element. The list goes to the clipboard, ready for Select by IDs, for Revit's
+own Select by ID, or for a report.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Select the items, in the view or from a set.</li>
+  <li>Click <strong>IDs of Selection</strong>. The toast names a single ID or counts several,
+    and says how many selected items carry no ID at all.</li>
+  <li>Paste.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Items with no element ID, such as a whole file node or non-Revit geometry, are counted
+    in the toast and skipped.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Tell a modeller exactly which elements to fix, in the one identifier both tools
+    share.</li>
+</ul>
+</section>
+
+<section id="sets-from-excel" title="Sets from Excel" kind="Button"
+         bundle="04_Data.panel/03_Sets_From_Excel.pushbutton"
+         summary="Export every selection set to a workbook, one row per condition, or import a workbook back as new sets."
+         needs="An open document">
+
+<h2>What it does</h2>
+<p>Round-trips selection sets through an Excel workbook. Export to review a model's sets in a
+spreadsheet or hand them to someone, edit the rows, and import them back as new sets, or
+carry a library of standard sets from one federated model to the next.</p>
+
+<figure data-shot="sets-from-excel-workbook" data-wide>
+<figcaption>An exported workbook: Folder, Set, Category, Property, Op and Value, one row per
+search condition.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Sets from Excel</strong> and choose Export or Import.</li>
+  <li><strong>Export</strong> asks where to save an <code>.xlsx</code> and writes one row per
+    search condition. A set with several conditions repeats its folder and name once per
+    condition. A set with no conditions, including a static set, still gets a row with the
+    condition columns blank so it stays visible.</li>
+  <li><strong>Import</strong> asks for a workbook, checks every row before touching the
+    document, prints any problems to the output window and refuses if there are any, and
+    otherwise creates the sets behind a progress window you can cancel.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Search sets only travel as their conditions. A static set exports as a name with no
+    conditions and is skipped on import, because its members belong to the original file.</li>
+  <li>Import creates new sets; it does not update sets that already exist with the same
+    name.</li>
+  <li>Property names must match what the target model calls them. A set that searches for
+    "Level" in one exporter's vocabulary finds nothing in another's.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>An office standard: keep one workbook of the sets every project should have and
+    import it into each new federated model.</li>
+  <li>Review a model's sets without opening the model: the workbook reads as a list.</li>
+</ul>
+</section>
+
+<section id="export-viewpoints" title="Export Viewpoints" kind="Button"
+         bundle="04_Data.panel/04_Export_Viewpoints_CSV.pushbutton"
+         summary="Every saved viewpoint to a CSV: name, folder, type and camera position."
+         needs="Saved viewpoints in the document">
+
+<h2>What it does</h2>
+<p>Writes every saved viewpoint in the document to a CSV file with the columns Name, Folder,
+Type, CameraX, CameraY and CameraZ. For an audit of what a model's saved views actually are,
+or to diff two issues of the same model.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Export Viewpoints</strong>.</li>
+  <li>Choose where to save. The name offered is the document's title plus
+    <code>_viewpoints.csv</code>.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Animations and cuts have no camera of their own, so those rows are written with the
+    three position columns blank rather than dropped.</li>
+  <li>Camera position only. Direction, section planes and hidden items are not exported;
+    use Copy State to carry those.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Compare two exports in a spreadsheet to see which views were added, renamed or moved
+    between issues.</li>
+</ul>
+</section>
+
+<section id="element-id-settings" title="Element ID Settings" kind="Button in the flyout"
+         bundle="04_Data.panel/99_More.slideout/Element_ID_Settings.pushbutton"
+         summary="How Select by IDs and IDs of Selection find and copy element IDs. One store, shared by both."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>The settings both element ID tools share, in the panel flyout so they can be found
+without knowing about Shift+Click. There is one store behind them, because which property
+holds the ID is a fact about the model rather than about the button that reads it.</p>
+
+<figure data-shot="element-id-settings">
+<figcaption>The Element ID Settings window.</figcaption>
+</figure>
+
+<h2>The settings</h2>
+<ul>
+  <li><strong>Property category and property</strong>, which start at "Element ID" and
+    "Value", the tab and field the Revit exporter writes. A blank box falls back to the
+    default rather than saving an empty value that would make every search fail silently.</li>
+  <li><strong>Zoom</strong> onto what was selected, on by default.</li>
+  <li><strong>Isolate</strong>, which hides everything else as well, off by default.</li>
+  <li><strong>Fill the box from the clipboard</strong>, on by default.</li>
+  <li><strong>Select every copy</strong>, off by default. On, it keeps walking for every
+    copy of the element instead of stopping at the first hit, at the cost of a full walk of
+    the document per ID.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>Open it from the flyout arrow on the Data panel title, or Shift+Click either element ID
+button; it is the same window.</p>
+</section>

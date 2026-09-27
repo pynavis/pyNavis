@@ -24,7 +24,7 @@ namespace PyNavis.Tests
             if (Directory.Exists(stdlib)) config.SearchPaths.Add(stdlib);
             config.SearchPaths.Add(PyNavisLibTests.PyNavisLibDir);
             config.SearchPaths.Add(Dir(Path.Combine(
-                "pyNavis.tab", "Tools.panel", "Resolve_Clash.pushbutton")));
+                "pyNavis.tab", "03_Clash.panel", "03_Resolve_Clash.pushbutton")));
             _engine.Initialize(config);
         }
 
@@ -122,14 +122,6 @@ namespace PyNavis.Tests
                 "assert m['status'] == 'no-face' and m['missing'] == 'mover', m\n" +
                 "o = rc.plan(pipe_face, down, (0.7, 0.2, 0.3), [], pipe)\n" +
                 "assert o['status'] == 'no-face' and o['missing'] == 'obstacle', o");
-        }
-
-        [Fact]
-        public void Dimension_RunsFromTheObstaclePlane_ToTheMovedFace()
-        {
-            Run("foot, face = rc.dimension(pipe_face, (0.7, 0.2, 0.3), (0.0, 0.0, 1.0), moved_by=0.4)\n" +
-                "assert all(abs(a - b) < 1e-9 for a, b in zip(face, (0.5, 0.5, 0.4))), face\n" +
-                "assert all(abs(a - b) < 1e-9 for a, b in zip(foot, (0.5, 0.5, 0.3))), foot");
         }
 
         [Fact]

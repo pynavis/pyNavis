@@ -31,7 +31,9 @@ namespace PyNavis.Runtime.Forms
             public Tokens T;
             public PyNavisConfig.UserSettings Values;
             public ComboBox Theme;
+            public CheckBox ShowConfigMarker;
             public TextBox ConfigMarker;
+            public CheckBox ShowMarker;
             public TextBox Marker;
             public CheckBox BareKeys;
             public ListBox Roots;
@@ -152,21 +154,36 @@ namespace PyNavis.Runtime.Forms
                 : FollowHost;
             body.Children.Add(parts.Theme);
 
-            body.Children.Add(Caption(t, "Marker on tools that have a Shift+Click action"));
-            parts.ConfigMarker = new TextBox { Width = 90, Text = parts.Values.RibbonConfigMarker ?? "" };
-            var configRow = new StackPanel { Orientation = Orientation.Horizontal };
-            configRow.Children.Add(DesignSystem.InputField(t, parts.ConfigMarker));
-            configRow.Children.Add(Hint(t, "Empty turns it off. Added after the name.",
-                new Thickness(10, 0, 0, 0)));
-            body.Children.Add(configRow);
-
-            body.Children.Add(Caption(t, "Marker on tools that have a shortcut"));
-            parts.Marker = new TextBox { Width = 90, Text = parts.Values.RibbonShortcutMarker ?? "" };
+            // Each hint is a checkbox (on or off) beside the glyph it draws. The glyph box
+            // is never the switch: empty just means the default glyph.
+            parts.ShowMarker = new CheckBox
+            {
+                Content = "Mark tools that have a keyboard shortcut with",
+                IsChecked = parts.Values.ShowShortcutMarker,
+                Foreground = DesignSystem.Brush(t.Ink),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            parts.Marker = new TextBox { Width = 60, Text = parts.Values.RibbonShortcutMarker ?? "" };
             var markerRow = new StackPanel { Orientation = Orientation.Horizontal };
+            markerRow.Children.Add(parts.ShowMarker);
             markerRow.Children.Add(DesignSystem.InputField(t, parts.Marker));
-            markerRow.Children.Add(Hint(t, "Empty turns it off. The tooltip still names the keys.",
-                new Thickness(10, 0, 0, 0)));
+            markerRow.Children.Add(Hint(t, "after the name. The tooltip names the keys either way.",
+                new Thickness(8, 0, 0, 0)));
             body.Children.Add(markerRow);
+
+            parts.ShowConfigMarker = new CheckBox
+            {
+                Content = "Mark tools that have a Shift+Click action with",
+                IsChecked = parts.Values.ShowConfigMarker,
+                Foreground = DesignSystem.Brush(t.Ink),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            parts.ConfigMarker = new TextBox { Width = 60, Text = parts.Values.RibbonConfigMarker ?? "" };
+            var configRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+            configRow.Children.Add(parts.ShowConfigMarker);
+            configRow.Children.Add(DesignSystem.InputField(t, parts.ConfigMarker));
+            configRow.Children.Add(Hint(t, "after the name.", new Thickness(8, 0, 0, 0)));
+            body.Children.Add(configRow);
 
             body.Children.Add(Note(t, "Takes effect on the next Reload."));
             return DesignSystem.GroupFrame(t, "Appearance", body);
@@ -280,7 +297,9 @@ namespace PyNavis.Runtime.Forms
                 Theme = Convert.ToString(parts.Theme.SelectedItem) == "Dark" ? "dark"
                     : Convert.ToString(parts.Theme.SelectedItem) == "Light" ? "light" : null,
                 RibbonConfigMarker = parts.ConfigMarker.Text ?? "",
+                ShowConfigMarker = parts.ShowConfigMarker.IsChecked == true,
                 RibbonShortcutMarker = parts.Marker.Text ?? "",
+                ShowShortcutMarker = parts.ShowMarker.IsChecked == true,
                 ShortcutsAllowBareKeys = parts.BareKeys.IsChecked == true,
                 ExtensionPaths = parts.Roots.Items.Cast<object>()
                     .Select(Convert.ToString).Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
@@ -300,6 +319,12 @@ namespace PyNavis.Runtime.Forms
 
         public static void SetConfigMarkerForTest(Window window, string marker) =>
             PartsOf(window).ConfigMarker.Text = marker;
+
+        public static void SetShowMarkerForTest(Window window, bool show) =>
+            PartsOf(window).ShowMarker.IsChecked = show;
+
+        public static void SetShowConfigMarkerForTest(Window window, bool show) =>
+            PartsOf(window).ShowConfigMarker.IsChecked = show;
 
         public static void AddRootForTest(Window window, string path) =>
             PartsOf(window).Roots.Items.Add(path);

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Select by IDs - pyNavis tools</title>
+<meta name="description" content="Paste a column of Revit element IDs and the elements are selected in the federated model, without opening Revit.">
+<link rel="stylesheet" href="_assets/site.css">
+<link rel="stylesheet" href="_assets/tools.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tools guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the tools" autocomplete="off"
+           spellcheck="false" aria-label="Search the tools guide">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">pyNavis</div>
+<a href="settings.html"><img class="nav-icon" src="_assets/icons/settings.png" alt="">Settings</a>
+<a href="shortcuts.html"><img class="nav-icon" src="_assets/icons/shortcuts.png" alt="">Shortcuts</a>
+<a href="console.html"><img class="nav-icon" src="_assets/icons/console.png" alt="">Console</a>
+<a href="reload.html"><img class="nav-icon" src="_assets/icons/reload.png" alt="">Reload</a>
+<a href="panel-slots.html"><img class="nav-icon" src="_assets/icons/panel-slots.png" alt="">Panel slots</a>
+<div class="grp">Selection</div>
+<a href="remember.html"><img class="nav-icon" src="_assets/icons/remember.png" alt="">Remember</a>
+<a href="recall.html"><img class="nav-icon" src="_assets/icons/recall.png" alt="">Recall</a>
+<a href="add.html"><img class="nav-icon" src="_assets/icons/add.png" alt="">Add</a>
+<a href="subtract.html"><img class="nav-icon" src="_assets/icons/subtract.png" alt="">Subtract</a>
+<a href="intersect.html"><img class="nav-icon" src="_assets/icons/intersect.png" alt="">Intersect</a>
+<a href="previous-next.html"><img class="nav-icon" src="_assets/icons/previous-next.png" alt="">Previous and Next</a>
+<a href="forget.html"><img class="nav-icon" src="_assets/icons/forget.png" alt="">Forget</a>
+<a href="more-menu.html"><img class="nav-icon" src="_assets/icons/more-menu.png" alt="">More menu</a>
+<div class="grp">Clash</div>
+<a href="clash-report.html"><img class="nav-icon" src="_assets/icons/clash-report.png" alt="">Clash Report</a>
+<a href="smart-clash-grouper.html"><img class="nav-icon" src="_assets/icons/smart-clash-grouper.png" alt="">Smart Clash Grouper</a>
+<a href="resolve-clash.html"><img class="nav-icon" src="_assets/icons/resolve-clash.png" alt="">Resolve Clash</a>
+<a href="true-distance.html"><img class="nav-icon" src="_assets/icons/true-distance.png" alt="">True Distance</a>
+<div class="grp">Data</div>
+<a href="get-coordinates.html"><img class="nav-icon" src="_assets/icons/get-coordinates.png" alt="">Get Coordinates</a>
+<a href="go-to-coordinates.html"><img class="nav-icon" src="_assets/icons/go-to-coordinates.png" alt="">Go to Coordinates</a>
+<a href="select-by-ids.html" class="active"><img class="nav-icon" src="_assets/icons/select-by-ids.png" alt="">Select by IDs</a>
+<a href="ids-of-selection.html"><img class="nav-icon" src="_assets/icons/ids-of-selection.png" alt="">IDs of Selection</a>
+<a href="sets-from-excel.html"><img class="nav-icon" src="_assets/icons/sets-from-excel.png" alt="">Sets from Excel</a>
+<a href="export-viewpoints.html"><img class="nav-icon" src="_assets/icons/export-viewpoints.png" alt="">Export Viewpoints</a>
+<a href="element-id-settings.html"><img class="nav-icon" src="_assets/icons/element-id-settings.png" alt="">Element ID Settings</a>
+<div class="grp">Viewpoints</div>
+<a href="rename.html"><img class="nav-icon" src="_assets/icons/rename.png" alt="">Rename</a>
+<a href="delete.html"><img class="nav-icon" src="_assets/icons/delete.png" alt="">Delete</a>
+<a href="manage.html"><img class="nav-icon" src="_assets/icons/manage.png" alt="">Manage</a>
+<a href="section-fit.html"><img class="nav-icon" src="_assets/icons/section-fit.png" alt="">Section Fit</a>
+<a href="section-plan.html"><img class="nav-icon" src="_assets/icons/section-plan.png" alt="">Section Plan</a>
+<a href="section-clear.html"><img class="nav-icon" src="_assets/icons/section-clear.png" alt="">Section Clear</a>
+<a href="copy-state.html"><img class="nav-icon" src="_assets/icons/copy-state.png" alt="">Copy State</a>
+<a href="paste-state.html"><img class="nav-icon" src="_assets/icons/paste-state.png" alt="">Paste State</a>
+<a href="reset-speeds.html"><img class="nav-icon" src="_assets/icons/reset-speeds.png" alt="">Reset Speeds</a>
+<a href="reset-viewpoints.html"><img class="nav-icon" src="_assets/icons/reset-viewpoints.png" alt="">Reset Viewpoints</a>
+<a href="viewpoint-tracker.html"><img class="nav-icon" src="_assets/icons/viewpoint-tracker.png" alt="">Viewpoint Tracker</a>
+<a href="section-nudge.html"><img class="nav-icon" src="_assets/icons/section-nudge.png" alt="">Section Nudge</a>
+<a href="tracker-window.html"><img class="nav-icon" src="_assets/icons/tracker-window.png" alt="">Tracker Window</a>
+</nav>
+  <div class="side-foot">
+    <span>pyNavis 1.0.0</span>
+    <a class="side-link" href="https://docs.pynavis.com/">Authoring guide</a>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <div class="hero"><img class="hero-icon" src="_assets/icons/select-by-ids.png" alt=""><div><p class="eyebrow">Data panel</p><h1>Select by IDs</h1><p class="lead">Paste a column of Revit element IDs and the elements are selected in the federated model, without opening Revit.</p></div></div><div class="facts"><div class="fact"><span class="fact-k">On the ribbon</span><span class="fact-v">Stacked button, Data panel</span></div><div class="fact"><span class="fact-k">Needs</span><span class="fact-v">An open document</span></div><div class="fact"><span class="fact-k">Shift+Click</span><span class="fact-v">Opens Element ID Settings</span></div></div>
+  <h2 id="what-it-does">What it does<a class="anchor" href="#what-it-does" aria-label="Link to this section">#</a></h2>
+<p>Selects elements by Revit element ID, in a federated model. Paste a column of IDs out of a
+clash report, a schedule or an email and the elements are selected in the view, zoomed to or
+isolated according to the settings. It looks in both places an element ID survives
+federation: the "Element ID" property tab an NWC exported from Revit carries, and the
+"[123456]" suffix a model published straight through design coordination carries in its
+name instead.</p>
+
+<figure class="shot pending wide"><div class="shot-box"><span class="shot-label">Screenshot to come</span><span class="shot-name">select-by-ids-box.png</span></div><figcaption>The paste box pre-filled from the clipboard, and the elements selected and
+zoomed after OK.</figcaption></figure>
+
+<h2 id="how-to-use-it">How to use it<a class="anchor" href="#how-to-use-it" aria-label="Link to this section">#</a></h2>
+<ol class="steps">
+  <li>Copy the IDs. One per line, or separated by commas or spaces; other text between them
+    is ignored.</li>
+  <li>Click <strong>Select by IDs</strong>. The box shows the IDs it found for approval and
+    editing.</li>
+  <li>Click OK. Above one ID a progress window names the ID being looked for and offers
+    Cancel. What is found replaces the current selection.</li>
+</ol>
+
+<h2 id="limitations">Limitations<a class="anchor" href="#limitations" aria-label="Link to this section">#</a></h2>
+<ul>
+  <li>Only real elements match. Nested parts under a family instance carry an "Element ID"
+    tab holding the <em>type's</em> ID, the same number on every instance, so the tools only
+    accept nodes the exporter marked as elements. A pasted type ID finds nothing rather than
+    selecting the first instance of that family.</li>
+  <li>One ID resolves to one item by default and stops at the first hit, around a second per
+    ID on a large model. The same element exported into two sibling files needs "Select
+    every copy" in the settings, which is a full walk per ID.</li>
+  <li>Needs the exporter to have written element IDs. An NWC from a non-Revit source has
+    none.</li>
+</ul>
+
+<h2 id="other-uses">Other uses<a class="anchor" href="#other-uses" aria-label="Link to this section">#</a></h2>
+<ul>
+  <li>Round-trip with Revit: IDs of Selection in Navisworks, Select by ID in Revit, or the
+    reverse.</li>
+  <li>Check a list of "fixed" elements from an email against the current model.</li>
+</ul>
+  <div class="pagenav">
+<a href="go-to-coordinates.html"><span class="dir">Previous</span><span class="ttl">Go to Coordinates</span></a>
+<a class="next" href="ids-of-selection.html"><span class="dir">Next</span><span class="ttl">IDs of Selection</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#what-it-does">What it does</a>
+<a href="#how-to-use-it">How to use it</a>
+<a href="#limitations">Limitations</a>
+<a href="#other-uses">Other uses</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

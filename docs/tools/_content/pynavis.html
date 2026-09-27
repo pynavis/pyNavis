@@ -1,0 +1,237 @@
+<p>The first panel is pyNavis itself: the things you set once, and the two developer tools
+that stay useful long after setup. Nothing here touches a model.</p>
+
+<section id="settings" title="Settings" kind="Button"
+         bundle="01_pyNavis.panel/01_Settings.pushbutton"
+         summary="One window over the parts of pyNavis you are meant to change: theme, ribbon hints, where extensions load from, and the engine paths."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>pyNavis keeps its configuration in one JSON file, <code>%APPDATA%\pyNavis\config.json</code>.
+Most of that file is maintained by pyNavis itself. Settings is the window over the handful
+of keys a person is meant to change, so nobody has to open the file in a text editor to
+switch the theme or add an extension folder.</p>
+
+<figure data-shot="settings-window" data-wide>
+<figcaption>The Settings window: Appearance, Shortcuts, extension folders and engines, with
+Save and Cancel at the bottom.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Settings</strong>. The window opens with the current values.</li>
+  <li><strong>Appearance.</strong> Pick a theme, or leave it following Navisworks. Two
+    checkboxes control the hints on button captions: a dot after a tool that has a keyboard
+    shortcut, on by default, and an arrow after a tool that has a Shift+Click action, off by
+    default. The box beside each checkbox is the glyph it draws. Leave a box empty and the
+    default glyph is used; the checkbox is the only off switch.</li>
+  <li><strong>Shortcuts.</strong> One checkbox: whether a shortcut may be bound without Ctrl
+    or Alt in it. Off, every chord must carry one of them, which keeps a stray letter from
+    firing a tool while you type a viewpoint name.</li>
+  <li><strong>Where extensions are loaded from.</strong> Add or remove the folders pyNavis
+    scans for <code>*.extension</code> folders. Two locations are always scanned whether
+    listed or not: <code>%APPDATA%\pyNavis\extensions</code>, where the installer puts the
+    shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> when it exists.</li>
+  <li><strong>Engines.</strong> The <code>pynavislib</code> folder and a CPython executable.
+    Leave both empty unless you know why you are changing them; CPython is only used by
+    bundles that declare <code>engine: cpython</code>.</li>
+  <li>Click <strong>Save</strong>. If an engine path changed, pyNavis says Navisworks needs a
+    restart. Otherwise it offers to reload the ribbon there and then.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Which tool holds which shortcut is not edited here. That is the Shortcuts editor's job.</li>
+  <li>Engine paths take effect only after Navisworks restarts. A Reload cannot swap a Python
+    engine under a running ribbon.</li>
+  <li>The window edits only the keys listed above. Shortcut overrides, dock panel slot
+    assignments and window layouts stay in the file untouched, because the tools that own
+    them would otherwise fight the window for the same keys.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Point pyNavis at a shared network folder of extensions so a whole team gets the same
+    tools, then keep your own experiments in a second, local folder.</li>
+  <li>Turn the Shift+Click arrow on while learning the tab, then off again once you know
+    which tools carry settings.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>Cancel says nothing and changes nothing. Every key the window writes is described in the
+authoring guide's <a href="https://docs.pynavis.com/settings.html">config.json reference</a>,
+which is where to look if you would rather edit the file directly.</p>
+</section>
+
+<section id="shortcuts" title="Shortcuts" kind="Button"
+         bundle="01_pyNavis.panel/02_Shortcuts.pushbutton"
+         summary="The keyboard shortcut editor: every tool that can carry a chord, the chord it has now, and a field to press a new one into."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>Every pyNavis tool can have a keyboard shortcut, and the shipped tools come with a few
+already bound. This editor lists all of them, searchable, and lets you change, clear or
+restore any of them. Your changes are stored in <code>config.json</code> and the tools' own
+defaults are never touched, so a Reset always has something to go back to.</p>
+
+<figure data-shot="shortcuts-editor" data-wide>
+<figcaption>The Shortcuts editor with a chord being recorded into one row and a conflict
+flagged on another.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Shortcuts</strong>. Type in the search box to narrow the list.</li>
+  <li>Click the field on a row and press the keys you want, for example
+    <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>. The field shows the chord and the row's
+    badge reads "custom".</li>
+  <li><kbd>Backspace</kbd> in a field clears the binding so the tool has none.
+    <kbd>Esc</kbd> leaves the field as it was.</li>
+  <li>A chord already used by another tool is flagged on the row, naming the tool that has
+    it, so you can decide which one keeps it.</li>
+  <li>Each row has a Reset that returns it to the tool's own default, and one action at the
+    bottom restores every default at once.</li>
+  <li>Click <strong>Save</strong>. The ribbon reloads so the new chords are live straight
+    away, and a toast confirms it.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>A chord always runs the tool's primary action, never its Shift+Click settings.</li>
+  <li>Chords fire when the 3D view or the ribbon has focus. A dialog with a text box takes
+    the keys for itself, as it should.</li>
+  <li>Unless allowed in Settings, a chord must include Ctrl or Alt. Navisworks and some
+    graphics drivers claim a few chords for themselves; if a chord never fires, rebind it.</li>
+  <li>The two dock panels, Viewpoint Tracker and Section Nudge, take a keytip rather than a
+    chord, so they are not listed.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Switch off a chord you keep hitting by accident rather than living with it.</li>
+  <li>The six Section Nudge chords live here too, under their Nudge titles, which is how you
+    move them off <kbd>Ctrl</kbd>+<kbd>Alt</kbd> on a machine where the display driver owns
+    those keys.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>Bindings are keyed by the tool's folder path, so a tool that moves to another panel loses
+its override and goes back to its default. The shipped tools do not move between releases.</p>
+</section>
+
+<section id="console" title="Console" kind="Button"
+         bundle="01_pyNavis.panel/03_Console.pushbutton"
+         summary="An interactive Python console running inside Navisworks, with the same API and helpers your scripts get."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>Opens a window where you type Python and run it against the open model, in the same
+process and with the same <code>pynavis</code> library the ribbon tools use. It is the
+fastest way to answer "what does this API call return on this model" before writing it into
+a tool, and a handy calculator for one-off jobs that do not deserve a button.</p>
+
+<figure data-shot="console-window" data-wide>
+<figcaption>The console with a short script in the lower pane and its output above.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Console</strong>. It opens with no document and with one alike.</li>
+  <li>Type in the lower pane. Run with <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or the Run button.
+    Output collects in the upper pane.</li>
+  <li><kbd>Up</kbd> and <kbd>Down</kbd> at the edges of the input walk back through what you
+    have already run.</li>
+  <li>Start with <code>from pynavis import selection, toast</code> and
+    <code>selection.get_items()</code>: the list you get back is the same one every tool
+    starts from.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>It is a console, not an editor: there is no file, no save, and history lives for the
+    session only. Anything worth keeping belongs in a bundle.</li>
+  <li>Code runs on the Navisworks UI thread, like every tool. A long loop freezes the window
+    until it finishes.</li>
+  <li>The IronPython engine runs here. A bundle that needs numpy runs on CPython and cannot
+    be tried in this console.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Count something the interface will not: items in the selection by category, saved
+    viewpoints per folder, clash results per status.</li>
+  <li>Try a search condition and see what it matches before building a selection set.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>The <a href="https://docs.pynavis.com/api-reference.html">Python API reference</a> lists
+every helper available here. If you find yourself pasting the same lines twice, the
+<a href="https://docs.pynavis.com/quickstart.html">quickstart</a> shows how to turn them
+into a button in five minutes.</p>
+</section>
+
+<section id="reload" title="Reload" kind="Button"
+         bundle="01_pyNavis.panel/04_Reload.pushbutton"
+         summary="Rescan every extension folder and rebuild the ribbon, without restarting Navisworks."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>Reads every extension folder again and rebuilds the pyNavis tab from what it finds. New
+bundles appear, renamed ones move, changed captions, tooltips, icons and shortcuts take
+effect, and each extension's <code>startup.py</code> runs again. Editing a tool and clicking
+Reload is the whole development loop.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Change something on disk: a new folder, an edited <code>bundle.yaml</code>, a new
+    icon.</li>
+  <li>Click <strong>Reload</strong>. A toast says when the tab is rebuilt.</li>
+  <li>Click your button. A script edit alone does not even need this: <code>script.py</code>
+    is read fresh on every click.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Three things need a Navisworks restart instead: a changed engine path, a
+    <code>*.lib</code> folder added or removed, and new dock panel slots.</li>
+  <li>Reload rebuilds pyNavis' tab only. Other add-ins are untouched.</li>
+  <li>Open dock panels are repainted with fresh controls; a panel that was mid-edit loses the
+    edit.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>Reload writes <code>==== pyNavis reload ====</code> to
+<code>%APPDATA%\pyNavis\logs\pyNavis.log</code> and then lists every bundle it skipped and
+why, so a button that fails to appear is one log line away from an explanation.</p>
+</section>
+
+<section id="panel-slots" title="Panel slots" kind="Button in the flyout"
+         bundle="01_pyNavis.panel/99_More.slideout/Panel_Slots.pushbutton"
+         summary="Make more dock panel slots when the five that ship are all claimed."
+         needs="Nothing, and no administrator rights">
+
+<h2>What it does</h2>
+<p>A dock panel bundle needs a slot in the loader to live in, and five ship with pyNavis.
+Each dock panel claims one for life. When a sixth panel arrives this tool generates a small
+satellite assembly holding more slots, up to 95 extra.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Open the pyNavis panel's flyout (the small arrow on the panel title) and click
+    <strong>Panel slots</strong>.</li>
+  <li>It reports how many slots exist and asks how many extra you want.</li>
+  <li>Restart Navisworks. The new slots exist only after that.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Every slot is visible in <code>View &gt; Windows</code> as "pyNavis Panel N", claimed
+    or not. Asking for 95 puts 95 entries in that menu.</li>
+  <li>The satellite is written beside the loader in
+    <code>%APPDATA%\Autodesk\ApplicationPlugins\pyNavis.bundle</code>, so it is per user.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>You will not need this unless you install extensions that bring their own dock panels.
+The two shipped panels use two of the five slots.</p>
+</section>

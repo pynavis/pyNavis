@@ -26,25 +26,24 @@
 <div class="grp">Start</div>
 <a href="overview.html"><span class="num">01</span>How pyNavis works</a>
 <a href="quickstart.html"><span class="num">02</span>Your first button</a>
-<a href="tools.html"><span class="num">03</span>Bundled tools</a>
 <div class="grp">Bundles</div>
-<a href="anatomy.html"><span class="num">04</span>Anatomy of an extension</a>
-<a href="buttons.html"><span class="num">05</span>Buttons, stacks and pulldowns</a>
-<a href="bundle-yaml.html"><span class="num">06</span>The bundle.yaml reference</a>
-<a href="icons.html"><span class="num">07</span>Icons</a>
-<a href="shortcuts.html"><span class="num">08</span>Shortcuts and keytips</a>
-<a href="click-actions.html"><span class="num">09</span>Click actions and config.py</a>
-<a href="hooks.html"><span class="num">10</span>Hooks</a>
+<a href="anatomy.html"><span class="num">03</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">04</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">05</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">06</span>Icons</a>
+<a href="shortcuts.html"><span class="num">07</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">08</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">09</span>Hooks</a>
 <div class="grp">Scripts</div>
-<a href="script-environment.html"><span class="num">11</span>The script environment</a>
-<a href="user-interface.html"><span class="num">12</span>Talking to the user</a>
-<a href="settings.html" class="active"><span class="num">13</span>Settings and per-tool state</a>
+<a href="script-environment.html"><span class="num">10</span>The script environment</a>
+<a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
+<a href="settings.html" class="active"><span class="num">12</span>Settings and per-tool state</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
+<a href="api-reference.html"><span class="num">13</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
-<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+<a href="cookbook.html"><span class="num">14</span>Cookbook</a>
+<a href="troubleshooting.html"><span class="num">15</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">16</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.0.0</span>
@@ -329,12 +328,16 @@ know about survives every save another one makes.</p>
         <code>Contents\&lt;year&gt;</code> folder and is registered in
         <code>PackageContents.xml</code>. Written by the <strong>Panel slots</strong>
         button.</td></tr>
-<tr><td><code>ribbon.configMarker</code></td><td>string</td><td><code>"&#8679;"</code></td>
-    <td>Appended to the caption of any bundle that ships a <code>config.py</code>.
-        <code>""</code> turns it off.</td></tr>
+<tr><td><code>ribbon.showShortcutMarker</code></td><td>boolean</td><td><code>true</code></td>
+    <td>Whether a button a chord resolves to carries a marker after its name. The
+        Settings window's first checkbox.</td></tr>
 <tr><td><code>ribbon.shortcutMarker</code></td><td>string</td><td><code>"&#9679;"</code></td>
-    <td>Appended to the caption of any button a chord resolves to. <code>""</code> turns it
-        off.</td></tr>
+    <td>The glyph that marker is. An empty string is not "off", it means the default.</td></tr>
+<tr><td><code>ribbon.showConfigMarker</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Whether a bundle that ships a <code>config.py</code> carries a marker after its
+        name. The Settings window's second checkbox.</td></tr>
+<tr><td><code>ribbon.configMarker</code></td><td>string</td><td><code>"&#129093;"</code></td>
+    <td>The glyph that marker is. An empty string means the default.</td></tr>
 <tr><td><code>layout.&lt;dialog&gt;.&lt;part&gt;</code></td><td>number above zero</td>
     <td>absent</td>
     <td>Remembered pane widths inside pyNavis' own dialogs, in whole pixels. Machine-written
@@ -414,16 +417,18 @@ rather than needing a restart.</p>
 
 <div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
   <span class="tok-f">&quot;ribbon&quot;</span>: {
-    <span class="tok-f">&quot;configMarker&quot;</span>: <span class="tok-s">&quot;⇧&quot;</span>,
-    <span class="tok-f">&quot;shortcutMarker&quot;</span>: <span class="tok-s">&quot;●&quot;</span>
+    <span class="tok-f">&quot;showShortcutMarker&quot;</span>: <span class="tok-k">true</span>,
+    <span class="tok-f">&quot;shortcutMarker&quot;</span>: <span class="tok-s">&quot;●&quot;</span>,
+    <span class="tok-f">&quot;showConfigMarker&quot;</span>: <span class="tok-k">true</span>,
+    <span class="tok-f">&quot;configMarker&quot;</span>: <span class="tok-s">&quot;🡅&quot;</span>
   }
 }</code></pre></div>
 
-<p><code>configMarker</code> is appended to the caption of any bundle that ships a
-<code>config.py</code>, so a tool with a Shift+Click action says so on the ribbon instead of
-hiding it; the default is the Shift key's own symbol. <code>shortcutMarker</code> is appended
-to the caption of any button a keyboard chord resolves to; the tooltip still names the chord
-itself. A button with both reads "Purge &#8679; &#9679;".</p>
+<p>Each hint is a switch and a glyph. The switch is the boolean and the glyph is the string;
+a blank glyph never turns a hint off, it just means the default glyph. Out of the box the
+shortcut dot is on and the Shift+Click arrow is off, because every tooltip already says
+Shift+Click where it applies. With both switched on as above a button reads "Purge
+&#129093; &#9679;". The Settings window shows the same two switches as checkboxes.</p>
 
 <p>Both default on. Each marker is the string that gets drawn, so setting it to
 <code>""</code> turns it off, and any character works in its place. A marker that begins
@@ -434,7 +439,7 @@ Settings window next saves the file.</p>
 
 <div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
   <span class="tok-f">&quot;ribbon&quot;</span>: {
-    <span class="tok-f">&quot;configMarker&quot;</span>: <span class="tok-s">&quot;&quot;</span>,
+    <span class="tok-f">&quot;showConfigMarker&quot;</span>: <span class="tok-k">false</span>,
     <span class="tok-f">&quot;shortcutMarker&quot;</span>: <span class="tok-s">&quot;\n●&quot;</span>
   }
 }</code></pre></div>

@@ -110,7 +110,7 @@ namespace PyNavis.Tests
         public void MistypedBundleSuffix_IsReported_NotSilentlyIgnored()
         {
             MakeButton("MyExt", "Tools", "General", "Good");
-            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "General.panel", "Oops.pushbuton"));
+            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "01_pyNavis.panel", "Oops.pushbuton"));
 
             var ext = ParseSingle();
 
@@ -122,8 +122,8 @@ namespace PyNavis.Tests
         public void PlainHelperFolders_AreNotReported()
         {
             MakeButton("MyExt", "Tools", "General", "Good");
-            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "General.panel", "assets"));
-            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "General.panel", "__pycache__"));
+            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "01_pyNavis.panel", "assets"));
+            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "01_pyNavis.panel", "__pycache__"));
 
             Assert.Empty(ParseSingle().Problems);
         }
@@ -132,7 +132,7 @@ namespace PyNavis.Tests
         public void PushButtonWithoutScript_IsReported()
         {
             MakeButton("MyExt", "Tools", "General", "Good");
-            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "General.panel", "Empty.pushbutton"));
+            Directory.CreateDirectory(Path.Combine(_root, "MyExt.extension", "Tools.tab", "01_pyNavis.panel", "Empty.pushbutton"));
 
             var problem = Assert.Single(ParseSingle().Problems);
             Assert.Contains("Empty.pushbutton", problem);
@@ -146,7 +146,7 @@ namespace PyNavis.Tests
         {
             MakeStackButton("MyExt", "Tools", "General", "Pair", "One");
             MakeStackButton("MyExt", "Tools", "General", "Pair", "Two");
-            var smart = Path.Combine(_root, "MyExt.extension", "Tools.tab", "General.panel", "Pair.stack", "Three.smartbutton");
+            var smart = Path.Combine(_root, "MyExt.extension", "Tools.tab", "01_pyNavis.panel", "Pair.stack", "Three.smartbutton");
             Directory.CreateDirectory(smart);
             File.WriteAllText(Path.Combine(smart, "script.py"), "");
 

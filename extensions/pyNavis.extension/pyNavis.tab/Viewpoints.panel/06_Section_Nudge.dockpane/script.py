@@ -1,10 +1,20 @@
 # -*- coding: utf-8 -*-
 """The Section Nudge panel: move the section box or planes from the keyboard.
 
-Pick a target (the box, or one of the six planes or faces), set a step, and
-nudge. Every nudge is one viewpoint write, so Ctrl+Z steps back one nudge.
-The behaviour lives in lib/sectionnudge.py, which the six chord bundles beside
-this panel share, so a key here and a chord over the view do the same thing.
+The panel is a remote: the six faces laid out as an unfolded box and named the
+way you see them, Front being the face that looks at you, with the world axis
+each faces printed under its name. The camera's right, up and forward are
+snapped to world axes (the way the ViewCube reads a view) and the names follow
+the camera on the readout timer, so orbit round the model and Front stays the
+face in front of you. Two tabs: Adjust holds the
+remote and a face is the target; Move is the whole box. Face targets nudge
+In and Out; the box moves left, right, up,
+down, nearer and farther on the screen: along the nearest world axes (the
+compass ring round the ViewCube) or exactly along the screen (the cube
+itself), as the World axes / Screen switch says. Every
+nudge is one viewpoint write, so Ctrl+Z steps back one nudge. The behaviour
+lives in lib/sectionnudge.py, which the six chord bundles beside this panel
+share, so a key here and a chord over the view do the same thing.
 
 Reload re-runs this script against fresh controls; the previous run's timer is
 stopped through the session holder first, the way the Viewpoint Tracker does.
@@ -14,18 +24,22 @@ import clr
 
 import sectionnudge
 
-from pynavis import app, script, toast
+from pynavis import app, script, section, selection, settings, toast
 
 clr.AddReference('PresentationFramework')
 clr.AddReference('PresentationCore')
 clr.AddReference('WindowsBase')
 
 from System import TimeSpan
-from System.Windows import FontWeights, Visibility
+from System.Windows import FontWeights, Thickness, Visibility
+from System.Windows.Controls import Control
+from System.Windows.Media import BrushConverter
+from System.Windows.Controls import Button
 from System.Windows.Input import Key
 from System.Windows.Threading import DispatcherPriority, DispatcherTimer
 
-# How often the readout follows changes made outside the panel.
+# How often the readout and the face names follow the camera and changes made
+# outside the panel.
 REFRESH_MS = 1000
 
 pane = __pane__
@@ -39,10 +53,40 @@ if previous is not None:
 find = pane.Find
 root = find('Root')
 step_box = find('StepBox')
-targets = {'box': find('TargetBox')}
-for i in range(6):
-    targets[i] = find('Target%d' % (i + 1))
+tabs = find('Tabs')
+adjust_tab, move_tab = find('AdjustTab'), find('MoveTab')
+cells = dict((name, find('Cell' + name)) for name in sectionnudge.CELLS)
+cell_names = dict((name, find('Cell%sName' % name)) for name in sectionnudge.CELLS)
+cell_axes = dict((name, find('Cell%sAxis' % name)) for name in sectionnudge.CELLS)
+others_panel = find('Others')
+presets_panel = find('Presets')
+moves_buttons = {'world': find('MovesWorld'), 'screen': find('MovesScreen')}
+
 scale = [1.0]                   # document units per mm, refreshed with the readout
+
+# The active choice gets the same fill the buttons show on hover, so the
+# selected face reads at a glance rather than only by weight; the pair is
+# picked for the host theme so it stays visible on dark.
+_brush = BrushConverter()
+if script.is_dark_theme():
+    ACTIVE_FILL, ACTIVE_EDGE = _brush.ConvertFromString('#3A5A7A'), _brush.ConvertFromString('#7FB2E5')
+else:
+    ACTIVE_FILL, ACTIVE_EDGE = _brush.ConvertFromString('#BEE6FD'), _brush.ConvertFromString('#3C7FB1')
+
+
+def mark(button, active):
+    """Bold and filled when active; back to the theme's own look when not."""
+    button.FontWeight = FontWeights.Bold if active else FontWeights.Normal
+    if active:
+        button.Background = ACTIVE_FILL
+        button.BorderBrush = ACTIVE_EDGE
+    else:
+        button.ClearValue(Control.BackgroundProperty)
+        button.ClearValue(Control.BorderBrushProperty)
+last_face = [0]                 # the face to come back to when Adjust reopens
+syncing = [False]               # refresh is moving the tab, not the user
+cell_index = {}                 # cell name -> plane index, from the last refresh
+shown_units = [None]            # which units the presets were built for
 
 
 def safely(work):
@@ -54,26 +98,79 @@ def safely(work):
         log.error('Section Nudge: %s' % error)
 
 
+def small_button(text, action):
+    button = Button()
+    button.Content = text
+    button.Margin = Thickness(1)
+    button.Padding = Thickness(6, 2, 6, 2)
+    button.Click += lambda sender, args: safely(lambda: act(action))
+    return button
+
+
+def fill_presets(units):
+    presets_panel.Children.Clear()
+    for label, mm in sectionnudge.presets(units):
+        presets_panel.Children.Add(small_button(label, 'step:%r' % mm))
+    shown_units[0] = units
+
+
+def fill_others(indices, labels, target):
+    others_panel.Children.Clear()
+    for index in indices:
+        button = small_button(labels.get(index, sectionnudge.target_name(index)),
+                              'target:%d' % index)
+        mark(button, index == target)
+        others_panel.Children.Add(button)
+    others_panel.Visibility = Visibility.Visible if indices else Visibility.Collapsed
+
+
 def refresh():
     doc = app.get_doc()
     state = sectionnudge.load_state()
-    snapshot = sectionnudge.read(doc)
+    snapshot = sectionnudge.read(doc, note=log.warning)
+    frame = sectionnudge.camera_frame(doc)
     units = str(doc.Units)
     scale[0] = sectionnudge.per_mm(doc)
-    text = sectionnudge.describe(state, snapshot, units, scale[0])
+    text = sectionnudge.describe(state, snapshot, units, scale[0], frame)
+    placed = sectionnudge.layout(snapshot, frame)
+    target = state['target']
 
-    find('TargetName').Text = text['target']
     find('Readout').Text = text['readout']
-    find('StepUnits').Text = units.lower()
+    imperial = units in ('Feet', 'Inches', 'Yards', 'Miles')
+    find('StepUnits').Text = '' if imperial else units.lower()
     if not step_box.IsKeyboardFocusWithin:
-        step_box.Text = '%g' % (state['step_mm'] * scale[0])
-    for key, button in targets.items():
-        button.FontWeight = FontWeights.Bold if key == state['target'] else FontWeights.Normal
-    is_box = state['target'] == 'box'
-    find('BoxPad').Visibility = Visibility.Visible if is_box else Visibility.Collapsed
-    find('PlanePad').Visibility = Visibility.Collapsed if is_box else Visibility.Visible
+        step = state['step_mm'] * scale[0]
+        step_box.Text = text['step'] if imperial else '%g' % step
+    if units != shown_units[0]:
+        fill_presets(units)
+
+    is_box = target == 'box'
+    if not is_box:
+        last_face[0] = target
+    syncing[0] = True
+    try:
+        tabs.SelectedItem = move_tab if is_box else adjust_tab
+    finally:
+        syncing[0] = False
+    for name, button in moves_buttons.items():
+        mark(button, name == state['moves'])
+    planes = (snapshot or {}).get('planes') or []
+    cell_index.clear()
+    for name in sectionnudge.CELLS:
+        index = placed['cells'][name]
+        cell_index[name] = index
+        cells[name].IsEnabled = index is not None
+        mark(cells[name], index == target)
+        if index is None or index >= len(planes):
+            cell_axes[name].Text = ''
+        else:
+            inward = planes[index].get('normal', (0.0, 0.0, 0.0))
+            cell_axes[name].Text = sectionnudge.axis_label((-inward[0], -inward[1], -inward[2]))
+    fill_others(placed['others'], placed['labels'], target)
+
     off = snapshot is not None and not snapshot['enabled']
     find('SectionOn').Visibility = Visibility.Visible if off else Visibility.Collapsed
+    find('SectionOff').IsEnabled = snapshot is not None and not off
 
 
 def act(action):
@@ -84,9 +181,8 @@ def act(action):
 
 
 def apply_typed_step():
-    try:
-        typed = float(step_box.Text.strip())
-    except ValueError:
+    typed = sectionnudge.parse_length(step_box.Text, str(app.get_doc().Units))
+    if typed is None:
         toast.warning('That is not a distance')
         return
     if typed <= 0:
@@ -100,17 +196,24 @@ def wire(name, action):
     find(name).Click += lambda sender, args: safely(lambda: act(action))
 
 
-wire('TargetBox', 'target:box')
-for i in range(6):
-    wire('Target%d' % (i + 1), 'target:%d' % i)
+def pick_cell(name):
+    index = cell_index.get(name)
+    if index is not None:
+        act('target:%d' % index)
+
+
+for cell in sectionnudge.CELLS:
+    cells[cell].Click += (lambda n: lambda sender, args: safely(lambda: pick_cell(n)))(cell)
 wire('NudgeIn', 'in')
 wire('NudgeOut', 'out')
-wire('MoveXPlus', 'x+')
-wire('MoveXMinus', 'x-')
-wire('MoveYPlus', 'y+')
-wire('MoveYMinus', 'y-')
-wire('MoveZPlus', 'z+')
-wire('MoveZMinus', 'z-')
+wire('MoveLeft', 'left')
+wire('MoveRight', 'right')
+wire('MoveUp', 'up')
+wire('MoveDown', 'down')
+wire('MoveNearer', 'nearer')
+wire('MoveFarther', 'farther')
+wire('MovesWorld', 'moves:world')
+wire('MovesScreen', 'moves:screen')
 wire('StepHalve', 'halve')
 wire('StepDouble', 'double')
 
@@ -122,7 +225,41 @@ def turn_on(sender, args):
     safely(work)
 
 
+def turn_off(sender, args):
+    def work():
+        result = section.clear()
+        toast.show(result.level, result.message, result.detail)
+        refresh()
+    safely(work)
+
+
+def fit(sender, args):
+    def work():
+        values = settings.load(section.TOOL, section.DEFAULTS)
+        result = section.fit_to_selection(selection.get_items(), values)
+        toast.show(result.level, result.message, result.detail)
+        refresh()
+    safely(work)
+
+
+def on_tab(sender, args):
+    # The Move tab is the box target and Adjust is a face, so switching tabs
+    # switches targets; refresh moving the tab to match the target must not
+    # bounce back through here.
+    if syncing[0] or args.Source is not tabs:
+        return
+    def work():
+        if tabs.SelectedItem is move_tab:
+            act('target:box')
+        else:
+            act('target:%d' % last_face[0])
+    safely(work)
+
+
+tabs.SelectionChanged += on_tab
 find('SectionOn').Click += turn_on
+find('SectionOff').Click += turn_off
+find('FitSelection').Click += fit
 
 
 def on_key(sender, args):

@@ -315,7 +315,7 @@ def recall(doc=None):
     state = _state(doc)
     entries = state['items']
     if not entries:
-        return Result('error', 'Memory is empty', 'Press MWrite to fill it.')
+        return Result('error', 'Memory is empty', 'Press Remember to fill it.')
 
     items, missing, missing_models = resolve_entries(entries, doc)
     if not items:
@@ -390,7 +390,7 @@ def _step(doc, delta):
     state = _state(doc)
     entries = state['items']
     if not entries:
-        return Result('error', 'Memory is empty', 'Press MWrite to fill it.')
+        return Result('error', 'Memory is empty', 'Press Remember to fill it.')
 
     # Only entries that actually resolve are worth stepping onto.
     live = []

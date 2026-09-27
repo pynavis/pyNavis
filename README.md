@@ -34,58 +34,61 @@ brings the same idea to Navisworks.
 
 ## Bundled tools
 
-One tab, `pyNavis`, with four panels. Full detail for every tool, including what each one
-needs and what Shift+Click does, is at [docs.pynavis.com/tools.html](https://docs.pynavis.com/tools.html).
+One tab, `pyNavis`, with five panels: pyNavis, Selection, Clash, Data and Viewpoints. Full detail for every tool, including what each one
+needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](https://tools.pynavis.com).
 
-**General**
+**pyNavis**
 
-- **Console**: an interactive Python console inside Navisworks
-- **Reload**: rescan the extension folders and rebuild the ribbon, no restart
 - **Settings**: theme, ribbon hints, extension folders and engine paths
 - **Shortcuts**: view and rebind every keyboard chord
+- **Console**: an interactive Python console inside Navisworks
+- **Reload**: rescan the extension folders and rebuild the ribbon, no restart
 - **Panel slots** (flyout): generate dock panel slots beyond the five that ship
 
-**Memory** (one selection register per document, kept on disk)
+**Selection** (undo for selections: one register per document, kept on disk)
 
-- **MWrite**: store the current selection
-- **MRead**: select whatever is in memory
-- **MAppend**: add the selection to memory
-- **MDeduct**: remove the selection from memory
+- **Remember**: store the current selection
+- **Recall**: select whatever is in memory
+- **Add**: add the selection to memory
+- **Subtract**: remove the selection from memory
 - **Intersect**: keep only what is both in memory and selected
-- **Prev** / **Next**: select and zoom to one memorized item at a time, wrapping
-- **MClear**: empty the memory for this document
-- **Show Contents**: list the memory in the output window, one link per item
+- **Previous** / **Next**: select and zoom to one remembered item at a time, wrapping
+- **Forget**: empty the memory for this document
+- **More** menu: **Show Contents** lists the memory in the output window, one link per item
 - **Save as Set**: promote the memory to a Navisworks selection set
 - **Purge**: delete the stored memory files for every document
 
-**Tools**
+**Clash**
 
 - **Clash Report**: result counts by status for every clash test, with CSV export
+- **Smart Clash Grouper**: group clash results into issues, with a live preview
+- **Resolve Clash**: point at two faces and slide the object until they clear, reporting how far, ready for the authoring tool
+- **True Distance**: true perpendicular distance between the two measured faces, on a bar across the bottom of the window
+
+**Data**
+
 - **Get Coordinates**: click a point and copy its coordinates to the clipboard
 - **Go to Coordinates**: move the view to a point and mark it with a cross
 - **Select by IDs**: select elements by Revit element ID, in a federated model
 - **IDs of Selection**: copy the Revit element IDs of the selection to the clipboard
-- **Export Viewpoints**: every saved viewpoint to CSV, with camera positions
-- **True Distance**: true perpendicular distance between the two measured faces, on a bar across the bottom of the window
-- **Resolve Clash**: point at two faces and slide the object until they clear, reporting how far, ready for the authoring tool
 - **Sets from Excel**: export selection sets to a workbook, or import them back
-- **Smart Clash Grouper**: group clash results into issues, with a live preview
+- **Export Viewpoints**: every saved viewpoint to CSV, with camera positions
 - **Element ID Settings** (flyout): the settings both element ID tools share
 
 **Viewpoints**
 
-- **Renamer**: batch rename saved viewpoints with a live preview
-- **Deleter**: bulk delete viewpoints, empty folders and animations
-- **Manager**: sort, move, create folders and purge empty ones
-- **Fit**: fit the six section planes to the selection, square to the objects
-- **Plan**: fit the planes, then look straight down at them
-- **Clear**: switch sectioning off without moving the camera
+- **Rename**: batch rename saved viewpoints with a live preview
+- **Delete**: bulk delete viewpoints, empty folders and animations
+- **Manage**: sort, move, create folders and purge empty ones
+- **Section Fit**: fit the six section planes to the selection, square to the objects
+- **Section Plan**: fit the planes, then look straight down at them
+- **Section Clear**: switch sectioning off without moving the camera
 - **Copy State**: copy section state, hidden items or appearance overrides
 - **Paste State**: paste back what was copied for this document
 - **Reset Speeds**: push your walk speed, turn speed and field of view at the view
 - **Reset Viewpoints**: write the same three into saved viewpoints you pick
 - **Viewpoint Tracker**: a dock panel naming the view you are looking through
-- **Section Nudge**: a dock panel that moves the section box or planes from the keyboard, plus Ctrl+Alt chords
+- **Section Nudge**: a dock panel remote for the section box, faces named the way you see them and moves that follow the screen, plus Ctrl+Alt chords
 - **Tracker Window** (flyout): the same two lines in a floating window
 
 ## Requirements
@@ -186,6 +189,7 @@ and work straight from disk: open `index.html` in a browser.
 | `extensions/` | The shipped pyNavis extension |
 | `tests/fixtures` | A Smoke extension of worked examples covering every bundle kind (not installed; see its README) |
 | `docs/authoring` | The tool-authoring guide, published at docs.pynavis.com (generated by `tools/build_docs.py`) |
+| `docs/tools` | The tools guide, published at tools.pynavis.com (generated by `tools/build_tools_site.py`) |
 | `site/` | The homepage at pynavis.com, a single static page |
 | `tools/` | Installer, dev deploy script, icon, logo and docs generators |
 

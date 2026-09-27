@@ -15,34 +15,47 @@ namespace PyNavis.Runtime.Ribbon
     /// </summary>
     public static class RibbonMarkers
     {
-        /// <summary>Appended to a button caption when the bundle has a config.py.
-        /// "ribbon.configMarker". Empty turns it off. The default is the Shift key's own
-        /// symbol, so the caption says which modifier opens the action.</summary>
+        /// <summary>What is appended to a button caption when the bundle has a config.py:
+        /// the "ribbon.configMarker" glyph when "ribbon.showConfigMarker" is on, else "".
+        /// Off by default: a stranger reads an unexplained glyph as a typo, and the
+        /// tooltip already says Shift+Click.</summary>
         public static string ConfigMarker { get; private set; } = DefaultConfigMarker;
 
-        public const string DefaultConfigMarker = "\u21E7";
+        public const string DefaultConfigMarker = "";           // the switch is off
 
-        /// <summary>Appended to a button caption when a chord resolves to it.
-        /// "ribbon.shortcutMarker". Empty turns it off.</summary>
-        public static string ShortcutMarker { get; private set; } = "●";
+        /// <summary>What is appended to a button caption when a chord resolves to it: the
+        /// "ribbon.shortcutMarker" glyph when "ribbon.showShortcutMarker" is on, else "".
+        /// On by default, with a dot.</summary>
+        public static string ShortcutMarker { get; private set; } = DefaultShortcutMarker;
+
+        public const string DefaultShortcutMarker = PyNavisConfig.DefaultShortcutMarker;
 
         /// <summary>Re-reads both settings. Called once per ribbon build.</summary>
         public static void Configure(PyNavisConfig config)
         {
-            ConfigMarker = config == null ? DefaultConfigMarker : (config.RibbonConfigMarker ?? "");
-            ShortcutMarker = config == null ? "●" : (config.RibbonShortcutMarker ?? "");
+            if (config == null)
+            {
+                ResetForTests();
+                return;
+            }
+            ConfigMarker = config.ShowConfigMarker ? Glyph(config.RibbonConfigMarker, PyNavisConfig.DefaultConfigMarker) : "";
+            ShortcutMarker = config.ShowShortcutMarker ? Glyph(config.RibbonShortcutMarker, PyNavisConfig.DefaultShortcutMarker) : "";
         }
+
+        /// <summary>An empty glyph is never "off": it means the default glyph.</summary>
+        private static string Glyph(string configured, string fallback) =>
+            string.IsNullOrEmpty(configured) ? fallback : configured;
 
         /// <summary>Test seam: puts both settings back where a fresh install has them.</summary>
         internal static void ResetForTests()
         {
             ConfigMarker = DefaultConfigMarker;
-            ShortcutMarker = "●";
+            ShortcutMarker = DefaultShortcutMarker;
         }
 
         /// <summary>The caption a button with a config.py should show; see WithShortcutMarker
         /// for how a marker joins a caption. When both hints apply, this one goes first
-        /// so the caption reads "Name ⇧ ●".</summary>
+        /// so the caption reads "Name 🡅 ●".</summary>
         public static string WithConfigMarker(string caption) => Append(caption, ConfigMarker);
 
         /// <summary>

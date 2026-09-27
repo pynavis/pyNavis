@@ -1,0 +1,394 @@
+<p>The Viewpoints panel looks after saved views, the section box, view state and navigation
+speeds: the things that decide whether a review model is pleasant to walk or a chore.</p>
+
+<section id="rename" title="Rename" kind="Stacked button"
+         bundle="Viewpoints.panel/01_Manage.stack/01_Renamer.pushbutton"
+         summary="Batch rename saved viewpoints with find and replace, numbering, prefixes and case cleanup, with a live preview."
+         needs="Saved viewpoints in the document">
+
+<h2>What it does</h2>
+<p>The tool for a viewpoint tree that arrived from three people with three naming
+conventions. Tick the views, choose an operation, watch the preview, apply.</p>
+
+<figure data-shot="rename-dialog" data-wide>
+<figcaption>The Rename dialog: the tree on the left, the operation on the right, and the old
+and new name of every ticked view in the preview.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Rename</strong> and tick the viewpoints to change.</li>
+  <li>Choose an operation: find and replace, plain or regular expression; a prefix and a
+    suffix; sequential numbering with a start and a padding; or a case cleanup.</li>
+  <li>Read the preview. Collisions, two views ending up with the same name, are flagged as
+    you type, and nothing applies while one remains.</li>
+  <li>Click <strong>Apply</strong>. The toast counts what was renamed.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Folders are renamed like viewpoints, but their contents are not renumbered as a
+    unit; tick the children for that.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Number a folder of views in walk order before exporting a report, so the pages come
+    out in sequence.</li>
+  <li>Strip a date suffix off fifty views in one go.</li>
+</ul>
+</section>
+
+<section id="delete" title="Delete" kind="Stacked button"
+         bundle="Viewpoints.panel/01_Manage.stack/02_Deleter.pushbutton"
+         summary="Bulk delete saved viewpoints, empty folders and animations, which the tree does one at a time."
+         needs="Saved viewpoints in the document">
+
+<h2>What it does</h2>
+<p>Search and tick, or pick out views by type, by being duplicates, or by having comments,
+then delete them as one operation.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Delete</strong>. Search or use the pickers to tick what should go.</li>
+  <li>Confirm. The dialog names how many items will be removed, because this changes the
+    document.</li>
+  <li>The toast reports what was removed and anything that failed.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Deleting is one undo step in Navisworks, so <kbd>Ctrl</kbd>+<kbd>Z</kbd> works, but
+    check the count in the confirmation first.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Clear out every view with a comment after the comments have been actioned.</li>
+</ul>
+</section>
+
+<section id="manage" title="Manage" kind="Stacked button"
+         bundle="Viewpoints.panel/01_Manage.stack/03_Manager.pushbutton"
+         summary="Sort, move, create folders and purge empty ones in the saved viewpoint tree."
+         needs="Saved viewpoints in the document">
+
+<h2>What it does</h2>
+<p>Where Rename fixes names, this fixes structure. The dialog stays open and applies each
+action as you choose it, re-reading the tree afterwards so the next action is never planned
+against a stale picture.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Manage</strong>.</li>
+  <li>Sort the tree A to Z, move ticked items into a folder, create a folder, or purge
+    folders that hold no viewpoints. Each applies at once.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>A move that is not legal, such as a folder into itself, is refused with a reason rather
+    than half applied.</li>
+  <li>Purge asks for confirmation naming how many folders it would remove.</li>
+</ul>
+</section>
+
+<section id="section-fit" title="Section Fit" kind="Stacked button"
+         bundle="Viewpoints.panel/02_Section.stack/01_Fit.pushbutton"
+         summary="Fit the six section planes to the selection, turned to the objects rather than the world."
+         needs="A selection"
+         shift="The padding each plane stands off the objects, and the snap angle">
+
+<h2>What it does</h2>
+<p>Navisworks' own Fit Section to Selection gives a box square to the world, so a diagonal
+run of pipe gets four corners of empty space. This gives planes parallel to the run, with a
+little padding so faces do not graze the geometry.</p>
+
+<figure data-shot="section-fit-diagonal" data-wide>
+<figcaption>A diagonal pipe run: the native fit on the left with its empty corners, Section
+Fit on the right, square to the pipes.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Select the objects.</li>
+  <li>Click <strong>Section Fit</strong>. The toast reports the box it made.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Inside the snap angle, 1.5 degrees by default, the box stays square to the world,
+    because a small tilt costs every plane's alignment and buys nothing.</li>
+  <li>A selection with no geometry, such as a folder node, has nothing to fit.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Section to one room's worth of services before a walkthrough, then nudge the faces
+    with Section Nudge.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>The padding starts at 150 mm. Both settings are shared with Section Plan in
+<code>section_planes.json</code>.</p>
+</section>
+
+<section id="section-plan" title="Section Plan" kind="Stacked button"
+         bundle="Viewpoints.panel/02_Section.stack/02_Plan.pushbutton"
+         summary="Section Fit, then an orthographic plan view of the box, square on."
+         needs="A selection">
+
+<h2>What it does</h2>
+<p>Fits the planes the same way Section Fit does, then swings the camera to an orthographic
+plan of them. The camera turns with the box, so the objects sit square on screen rather than
+skewed across it.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Select the objects and click <strong>Section Plan</strong>.</li>
+</ol>
+
+<h2>Good to know</h2>
+<p>Plan has no Shift+Click of its own; change the padding and snap angle from Section Fit.</p>
+</section>
+
+<section id="section-clear" title="Section Clear" kind="Stacked button"
+         bundle="Viewpoints.panel/02_Section.stack/03_Clear.pushbutton"
+         summary="Switch sectioning off without moving the camera."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>Turns the section planes off and leaves the view exactly where it is, so you keep the
+angle you worked to get and only lose the clipping.</p>
+</section>
+
+<section id="copy-state" title="Copy State" kind="Stacked button"
+         bundle="Viewpoints.panel/03_State.stack/01_Copy_State.pushbutton"
+         summary="Copy the section planes, the hidden items or the appearance overrides to disk, to put back later."
+         needs="An open document">
+
+<h2>What it does</h2>
+<p>The answer to setting up a section, a set of hidden items or a colour scheme and then
+needing to look at something else. Pick a kind of state and it is written under
+<code>%APPDATA%\pyNavis\viewstate\</code> keyed to the document, so it is still there in
+another session.</p>
+
+<figure data-shot="copy-state-switch">
+<figcaption>The Copy State switch: section, hidden items, appearance.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Copy State</strong> and pick section, hidden items or appearance.</li>
+  <li>Change whatever you need to.</li>
+  <li>Click <strong>Paste State</strong> to put it back.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>One copy of each kind per document. Copying section again replaces the earlier copy.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Copy the appearance overrides of a colour-coded review, clear them to take clean
+    screenshots, paste them back.</li>
+</ul>
+</section>
+
+<section id="paste-state" title="Paste State" kind="Stacked button"
+         bundle="Viewpoints.panel/03_State.stack/02_Paste_State.pushbutton"
+         summary="Put back a kind of state copied earlier with Copy State."
+         needs="Something copied for this document">
+
+<h2>What it does</h2>
+<p>Offers only the kinds actually copied for this document and restores the one you pick.
+With nothing copied yet it says so instead of showing an empty picker.</p>
+</section>
+
+<section id="reset-speeds" title="Reset Speeds" kind="Stacked button"
+         bundle="Viewpoints.panel/04_Speeds.stack/01_Reset_Speeds.pushbutton"
+         summary="Push your walk speed, turn speed and field of view at the current view, in one keystroke."
+         needs="An open document"
+         shortcut="<kbd>Alt</kbd>+<kbd>Q</kbd>"
+         shift="Opens the shared speeds window">
+
+<h2>What it does</h2>
+<p>Navisworks resets navigation speed constantly: every recalled viewpoint brings its own,
+and a model in the wrong units makes walking either a crawl or a sprint. This puts your
+numbers back.</p>
+
+<figure data-shot="speeds-window">
+<figcaption>The speeds window shared by both buttons: linear speed with a unit, angular
+speed, field of view, and a checkbox against each.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Shift+Click once to set the three values. The defaults are 30 m/s, 45 degrees per
+    second and 84 degrees. Untick any a reset should leave alone.</li>
+  <li>Whenever walking feels wrong, press <kbd>Alt</kbd>+<kbd>Q</kbd>.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Field of view needs a perspective view. In an orthographic one it warns and applies the
+    two speeds only.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>The unit dropdown converts the number rather than relabelling it, so switching m/s to ft/s
+turns 30 into 98.4252. The speed is stored in the unit you typed and converted to the
+document's units when applied, so it means the same thing in a model drawn in feet.</p>
+</section>
+
+<section id="reset-viewpoints" title="Reset Viewpoints" kind="Stacked button"
+         bundle="Viewpoints.panel/04_Speeds.stack/02_Reset_Viewpoints.pushbutton"
+         summary="Write the same speeds and field of view into saved viewpoints you pick, without loading any of them."
+         needs="Saved viewpoints in the document"
+         shortcut="<kbd>Alt</kbd>+<kbd>Z</kbd>"
+         shift="Opens the shared speeds window">
+
+<h2>What it does</h2>
+<p>A set of views handed over by someone else navigates the way they liked. This rewrites the
+ticked views with your numbers, each one copied, its camera edited and swapped back, so
+nothing is loaded and the whole run is one undo step.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Press <kbd>Alt</kbd>+<kbd>Z</kbd> or click <strong>Reset Viewpoints</strong>. The
+    values about to be written are named at the top of the browser.</li>
+  <li>Tick views or whole folders and click OK. The progress window can stop the run part
+    way, keeping what was written.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Folders have no camera and animations keep theirs on their own cuts; both are counted
+    and skipped.</li>
+  <li>On some Navisworks releases a view has to be rebuilt to take the change, and the toast
+    says plainly when redlines and appearance overrides were not carried over.</li>
+</ul>
+</section>
+
+<section id="viewpoint-tracker" title="Viewpoint Tracker" kind="Dock panel"
+         bundle="Viewpoints.panel/05_Viewpoint_Tracker.dockpane"
+         summary="A dock panel that always says which saved view you are looking through, and whether you are still on it."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>Two lines, live. The top line reads "Active viewpoint" while the camera still sits where
+the saved view put it and "Last viewpoint" once you have walked off. The bottom line is the
+view's name, sized to fit the panel. Click the name to go back.</p>
+
+<figure data-shot="viewpoint-tracker-panel">
+<figcaption>The tracker docked beside the view, showing the active viewpoint's name.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Viewpoint Tracker</strong> on the ribbon to show the panel. Dock it
+    wherever suits; the button follows the panel's visibility.</li>
+  <li>Recall views as usual. The panel updates within a quarter of a second of the camera
+    settling.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Before any saved view has been current it shows "No viewpoint selected".</li>
+  <li><code>View &gt; Windows</code> lists the panel by its slot name, "pyNavis Panel N",
+    not by its title.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Presenting: the audience can see which view is on screen without you saying so.</li>
+  <li>Tracker Window in the panel flyout is the same two lines as a floating always-on-top
+    window, for when the dock panel is in the way.</li>
+</ul>
+</section>
+
+<section id="section-nudge" title="Section Nudge" kind="Dock panel"
+         bundle="Viewpoints.panel/06_Section_Nudge.dockpane"
+         summary="A remote for the section box: faces named the way you see them, moves that follow the screen, a known step per press."
+         needs="An open document (with sectioning off it offers to turn it on)">
+
+<h2>What it does</h2>
+<p>Dragging a section handle is imprecise and easy to overshoot. This panel moves the box or
+one of its faces a known distance per press, every press one undo step, from buttons or from
+the keyboard.</p>
+
+<figure data-shot="section-nudge-adjust" data-wide>
+<figcaption>The Adjust tab: the six faces laid out as an unfolded box, named as you see them,
+with the world axis under each and the active face highlighted.</figcaption>
+</figure>
+
+<h2>Adjust: one face at a time</h2>
+<p>The six faces sit in an unfolded box and are named the way you see them: Front is the
+face looking at you, Left is on the screen's left. The names follow the camera, so orbit
+round the model and Front is still the face in front of you; the small axis label under each
+name tells you which world axis that currently is. Click a face, then <strong>In</strong> to
+keep less of the model or <strong>Out</strong> to keep more. A tilted plane, a switched-off
+one, or a second plane facing the same way is listed under the remote by number.</p>
+
+<h2>Move: the whole box</h2>
+<p>The Move tab slides all six planes together: left, right, up, down on the screen, nearer
+or farther from you. Two frames to choose from. <strong>World axes</strong> snaps each move
+to the world axis nearest the screen direction, like the compass ring round the ViewCube, so
+the box stays on the building's grid. <strong>Screen</strong> follows the camera exactly,
+like the cube itself, so Left is always screen-left even from an odd angle.</p>
+
+<figure data-shot="section-nudge-move">
+<figcaption>The Move tab with the World axes / Screen switch and the direction pad.</figcaption>
+</figure>
+
+<h2>The step</h2>
+<p>Halve and double buttons, presets in the document's units, and a box to type a value. On
+an imperial document the box reads and writes feet and inches the way Revit does: 0.5 is
+half a foot and shows as 0' 6", 0 0 1/8 is an eighth of an inch, and 1' 6", 6 1/2", 18" and
+1-6 all work.</p>
+
+<h2>Keys and chords</h2>
+<ul>
+  <li>With the panel focused: 0 to 6 pick a target, Tab cycles; Up and Down nudge a face;
+    arrows move the box across the screen and Page Up and Page Down bring it nearer or push
+    it farther; plus and minus change the step; Enter applies a typed step.</li>
+  <li>Over the 3D view, no panel needed: <kbd>Ctrl</kbd>+<kbd>Alt</kbd> with Up and Down
+    nudge, with Left and Right change the target, with Page Up and Page Down double and halve
+    the step. Each is listed in the Shortcuts editor under its Nudge title, so it can be
+    moved off Ctrl+Alt on a machine where the display driver owns those keys.</li>
+</ul>
+
+<h2>Limitations</h2>
+<ul>
+  <li>In Box mode, shrinking a face past the opposite face is refused.</li>
+  <li>The readout follows changes made elsewhere once a second, so a handle dragged in the
+    view shows up after a beat.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Fit to selection and Sectioning off sit at the bottom of the panel, so a whole
+    sectioning job stays in one place.</li>
+  <li>Step through a building floor by floor: set the step to the storey height and press
+    Up.</li>
+</ul>
+</section>
+
+<section id="tracker-window" title="Tracker Window" kind="Button in the flyout"
+         bundle="Viewpoints.panel/99_More.slideout/Tracker_Window.pushbutton"
+         summary="The viewpoint tracker as a floating window that stays on top of everything."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>The same two lines as the Viewpoint Tracker panel in a floating window that stays on top,
+for when the dock panel is in the way or you are walking the model with another application
+on screen. Both run the same code, so they can never disagree.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Open the Viewpoints panel flyout and click <strong>Tracker Window</strong>.</li>
+  <li>Click the name to go back to that view. Clicking the button again focuses the window
+    that is already open rather than opening a second.</li>
+</ol>
+</section>

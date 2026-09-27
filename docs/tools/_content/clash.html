@@ -1,0 +1,215 @@
+<p>The Clash panel is the coordination meeting's toolkit, in the order a meeting uses it:
+get the numbers, group the noise into issues, fix what can be fixed on the spot, and measure
+the real gap where the argument is about millimetres.</p>
+
+<section id="clash-report" title="Clash Report" kind="Button"
+         bundle="03_Clash.panel/01_Clash_Report.pushbutton"
+         summary="A one-screen count of every clash test by status, with a CSV export for the report."
+         needs="Nothing (a document with no tests is told so)">
+
+<h2>What it does</h2>
+<p>Prints one row per Clash Detective test with its total and the count in each status: New,
+Active, Reviewed, Approved and Resolved. A line underneath totals the tests and the results.
+It is the number you read out at the start of the meeting, and the evidence line in the
+weekly report, without opening Clash Detective and adding the columns up by eye.</p>
+
+<figure data-shot="clash-report-table" data-wide>
+<figcaption>The output window after Clash Report: one row per test, statuses across, totals
+at the bottom.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Run or refresh your clash tests in Clash Detective as usual.</li>
+  <li>Click <strong>Clash Report</strong>. The table appears in the output window.</li>
+  <li>Answer the question that follows: export the same table to CSV? Yes asks where to
+    save it.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Counts only. It does not list individual clashes; that is what the Clash Detective
+    report and Smart Clash Grouper are for.</li>
+  <li>Needs Navisworks Manage. Simulate has no Clash Detective, and the tool says so in a
+    dialog rather than failing.</li>
+  <li>Groups count as one result each, the same way Clash Detective's own summary counts
+    them.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Export the CSV every week into the same folder and you have a trend line of open
+    clashes for free.</li>
+  <li>Paste the table into the meeting minutes as the state of play at the time of the
+    meeting.</li>
+</ul>
+</section>
+
+<section id="smart-clash-grouper" title="Smart Clash Grouper" kind="Button"
+         bundle="03_Clash.panel/02_Smart_Clash_Grouper.pushbutton"
+         summary="Turn a test's results into reviewable issues, grouping by root cause, element, level, grid or proximity, with a live preview."
+         needs="Navisworks Manage with clash tests"
+         shift="Presets for the dialog: smart mode, the rule chain, the cluster distance, whether existing groups are kept">
+
+<h2>What it does</h2>
+<p>Three hundred clashes between the same two runs of pipework are one problem. This tool
+says so before anyone opens a report. It groups a test's results into issues, either by the
+element that causes them or by a chain of rules you choose, shows you the groups it would
+make, and only then writes them into Clash Detective.</p>
+
+<figure data-shot="grouper-dialog" data-wide>
+<figcaption>The grouper dialog: tests on the left with their counts, the rule chain in the
+middle, the live preview of groups on the right.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>Smart Clash Grouper</strong>. The dialog lists the tests in the document
+    and fills in their result counts as it counts them.</li>
+  <li>Tick the tests to group.</li>
+  <li>Leave <strong>smart grouping</strong> on to group by the root-cause element, or switch
+    it off and chain your own rules: element on side A or side B, proximity cluster, nearest
+    level, grid intersection, source model, status, or assigned to. Rules apply in order, so
+    "level, then element" gives one issue per element per level.</li>
+  <li>Watch the preview. It shows the groups the current rules would produce, largest first,
+    before anything is written.</li>
+  <li>Click <strong>Group</strong>. The output window reports each test: how the grouping was
+    decided, the largest groups with a link that shows the first clash in each, how many
+    clashes were left in existing groups and how many stayed individual.</li>
+</ol>
+
+<figure data-shot="grouper-result">
+<figcaption>Clash Detective after grouping: one group per root-cause element instead of a
+flat list of hundreds.</figcaption>
+</figure>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Ungroup removes only the groups this tool made. Groups made by hand are never
+    touched, which also means the tool cannot tidy up someone else's grouping.</li>
+  <li>Grid and level rules need grids and levels in the model. A model exported without them
+    falls back to proximity.</li>
+  <li>The proximity cluster distance starts at two metres and is the setting most worth
+    tuning: too small and one duct gets ten groups, too large and two rooms merge.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Group by <strong>assigned to</strong> before a meeting so each trade sees only its own
+    pile.</li>
+  <li>Group by <strong>source model</strong> to find out which link is generating most of the
+    noise this week.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>Shift+Click stores presets in <code>smart_clash_grouper.json</code>; every run can still
+change all of them in the dialog. The groups it writes are ordinary Clash Detective groups
+and behave like any other in the report.</p>
+</section>
+
+<section id="resolve-clash" title="Resolve Clash" kind="Button"
+         bundle="03_Clash.panel/03_Resolve_Clash.pushbutton"
+         summary="Point at two faces and slide the selected object until it clears, then read off exactly how far it moved."
+         needs="A selection, the object that should move"
+         shift="The clearance to leave between the two faces, in the document's units">
+
+<h2>What it does</h2>
+<p>Objects clash, and the usual next step is to drag one with Item Tools until it clears,
+read the offset and type it into the authoring tool. This does the dragging. Select the
+object that should move, point at the face of it that is in the way and the face it must
+clear, and it slides exactly far enough along those faces' normal, then tells you how far,
+ready to type into Revit.</p>
+
+<figure data-shot="resolve-clash-before-after" data-wide>
+<figcaption>A pipe through a beam before, and sitting on the beam after, with the dialog
+reporting the distance moved.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Select the object that should move, say the pipe.</li>
+  <li>Click <strong>Resolve Clash</strong>. The native Point to Point measure opens and the
+    banner along the bottom of the window asks for the face of the pipe that must move.</li>
+  <li>Click the underside of the pipe. The banner now asks for the face it must clear.</li>
+  <li>Click the top of the beam. The pipe slides up until its underside is past the beam's
+    top plus the clearance, and a dialog reads "Moved Pipe 1234 by 152 mm".</li>
+  <li>Click <strong>Copy</strong> in the dialog and paste the bare distance into the
+    authoring tool. <kbd>Ctrl</kbd>+<kbd>Z</kbd> puts the pipe back in Navisworks.</li>
+</ol>
+
+<figure data-shot="resolve-clash-dialog">
+<figcaption>The result dialog, with the distance and a Copy button that puts just the number
+on the clipboard.</figcaption>
+</figure>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Only the two faces are considered. A part of the object that sticks out past the face
+    you clicked is not checked against the obstacle.</li>
+  <li>The two faces must be parallel. A vertical face against a beam top is refused on the
+    banner, and nothing moves.</li>
+  <li>The move is a Navisworks transform, the same one Item Tools makes. It changes the
+    review model only, never the source file; the number is what goes back to the author.</li>
+  <li>Faces already clear are reported with their gap and left alone; set a clearance to push
+    them apart anyway.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>A quick "what if": move the pipe, see whether it now hits the ceiling, undo.</li>
+  <li>Sloping soffits and rotated walls work as well as floors, because the faces come from
+    the objects' own triangles rather than the world axes.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>Esc, a right-click or choosing another tool cancels quietly. The clearance is stored with
+its unit in <code>resolve_clash.json</code>, so 25 mm stays 25 mm in a feet-and-inches
+document.</p>
+</section>
+
+<section id="true-distance" title="True Distance" kind="Button"
+         bundle="03_Clash.panel/04_True_Distance.pushbutton"
+         summary="The real perpendicular distance between two measured faces, unaffected by project rotation or an off-square click."
+         needs="An open document"
+         shift="The fraction feet-and-inches readings round to, and how far two faces may tilt and still count as parallel">
+
+<h2>What it does</h2>
+<p>A rotated project makes the measure tool's X, Y and Z readouts meaningless, and the
+straight line overshoots whenever the two clicks are not exactly opposite each other. This
+reports the gap, not the line: the measured vector projected onto the faces' shared normal,
+which is the number a tape held square to the faces would give.</p>
+
+<figure data-shot="true-distance-banner" data-wide>
+<figcaption>Two faces measured off-square: the native readout says 4in 3/16, the green
+banner says the true gap is 4in, and the dimension is drawn square to the faces.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>True Distance</strong>. The native Point to Point tool opens.</li>
+  <li>Click a point on the first face, then a point on the second. Snap to corners if you
+    like; the result is the same.</li>
+  <li>Read the banner across the bottom of the window. Green: both faces found and
+    parallel. Amber: only one face found, measured square to that one. Red: no face under
+    either point.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Both points must sit on real geometry. A point in empty space has no face.</li>
+  <li>Faces more than the tolerance apart in angle are reported as not parallel, with the
+    angle, and the reading falls back to the first face.</li>
+  <li>The banner stays about eight seconds; the dimension drawn in the view stays until the
+    next run.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Floor to ceiling heights: horizontal faces are parallel faces too.</li>
+  <li>Checking a clearance someone claims was fixed, without trusting a diagonal line.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>On an imperial document the reading matches the native readout style, and the rounding
+fraction is yours to set. Settings live in <code>true_distance.json</code>.</p>
+</section>
