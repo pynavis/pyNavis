@@ -1,0 +1,5 @@
+# The guides live on their own hosts; these paths on the main domain used to fall
+# back to index.html with broken relative assets.
+/authoring/*  https://docs.pynavis.com/:splat   302
+/docs/*       https://docs.pynavis.com/:splat   302
+/tools/*      https://tools.pynavis.com/:splat  302
