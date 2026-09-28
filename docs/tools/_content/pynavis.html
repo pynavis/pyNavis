@@ -65,6 +65,12 @@ Save and Cancel at the bottom.</figcaption>
 <p>Cancel says nothing and changes nothing. Every key the window writes is described in the
 authoring guide's <a href="https://docs.pynavis.com/settings.html">config.json reference</a>,
 which is where to look if you would rather edit the file directly.</p>
+
+<p>The last line of the window says which pyNavis this is, for which Navisworks, and where its
+runtime lives, with a Copy button beside it. Paste that line into any bug report. The same
+line is the first thing pyNavis writes to <code>%APPDATA%\pyNavis\logs\pyNavis.log</code>
+at every start, and <code>pynavis.script.get_host().Version</code> returns the version to a
+script.</p>
 </section>
 
 <section id="shortcuts" title="Shortcuts" kind="Button"

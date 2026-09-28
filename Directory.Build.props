@@ -22,6 +22,18 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- One version number for everything, read from pynavislib\pynavis\__init__.py
+         (the file tools\package.ps1 names the installer from). Stamped as the
+         assembly, file and informational version of every project. -->
+    <PyNavisInitText>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)pynavislib/pynavis/__init__.py'))</PyNavisInitText>
+    <PyNavisProductVersion>$([System.Text.RegularExpressions.Regex]::Replace($(PyNavisInitText), '(?s).*__version__\s*=\s*.([0-9][0-9.]*).*', '%241'))</PyNavisProductVersion>
+    <Version>$(PyNavisProductVersion)</Version>
+    <AssemblyVersion>$(PyNavisProductVersion).0</AssemblyVersion>
+    <FileVersion>$(PyNavisProductVersion).0</FileVersion>
+    <InformationalVersion>$(PyNavisProductVersion)</InformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <!-- Navisworks' internal version is simply year - 2003 (2023 -> 20.0 ... 2027 -> 24.0). -->
     <NavisRegVersion>$([MSBuild]::Subtract($(NavisVersion), 2003)).0</NavisRegVersion>
   </PropertyGroup>

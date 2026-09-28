@@ -49,6 +49,7 @@ namespace PyNavis.Runtime.Forms
             public TextBlock AiStatus;
             public Grid AiFrame;
             public System.Text.StringBuilder AiText = new System.Text.StringBuilder();
+            public TextBlock VersionLine;
             public bool Saved;
         }
 
@@ -151,6 +152,7 @@ namespace PyNavis.Runtime.Forms
             page.Children.Add(Engines(parts));
             page.Children.Add(Assistant(parts, hasKey));
             page.Children.Add(Actions(parts));
+            page.Children.Add(About(parts));
 
             var scroll = new ScrollViewer
             {
@@ -462,6 +464,29 @@ namespace PyNavis.Runtime.Forms
             return row;
         }
 
+        /// <summary>The version line at the very bottom, with Copy: the first thing to
+        /// paste into a bug report, and the only place in the UI that says which build
+        /// this is.</summary>
+        private static UIElement About(Parts parts)
+        {
+            var t = parts.T;
+            var grid = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            parts.VersionLine = Hint(t, PyNavisVersion.Summary(), new Thickness(0));
+            parts.VersionLine.VerticalAlignment = VerticalAlignment.Center;
+            grid.Children.Add(parts.VersionLine);
+            var copy = DesignSystem.Quiet(t, "Copy", () =>
+            {
+                try { Clipboard.SetText(PyNavisVersion.Summary()); }
+                catch (Exception ex) { Log.Error("Could not copy the version line", ex); }
+            });
+            copy.ToolTip = "Copy the version line for a bug report";
+            Grid.SetColumn(copy, 1);
+            grid.Children.Add(copy);
+            return grid;
+        }
+
         // ---- reading the window back -------------------------------------------
 
         private static PyNavisConfig.UserSettings Collect(Parts parts) =>
@@ -514,6 +539,8 @@ namespace PyNavis.Runtime.Forms
             PartsOf(window).AiMaxTokens.Text = text;
 
         public static string AiSectionTextForTest(Window window) => PartsOf(window).AiText.ToString();
+
+        public static string VersionLineOf(Window window) => PartsOf(window).VersionLine.Text;
 
         // ---- small chrome ------------------------------------------------------
 

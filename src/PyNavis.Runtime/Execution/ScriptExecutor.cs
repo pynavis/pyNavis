@@ -102,7 +102,8 @@ namespace PyNavis.Runtime.Execution
 
         private PyNavisHost() { }
 
-        public string Version => typeof(PyNavisHost).Assembly.GetName().Version.ToString();
+        /// <summary>The product version, "1.0.0", the same one the installer carries.</summary>
+        public string Version => PyNavisVersion.Product;
 
         /// <summary>True when the host UI renders dark; scripts theme their own dialogs with this.</summary>
         public bool IsDarkTheme => Output.PyNavisTheme.IsDark;

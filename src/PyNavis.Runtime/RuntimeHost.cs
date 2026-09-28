@@ -17,10 +17,10 @@ namespace PyNavis.Runtime
     public static class RuntimeHost
     {
         private static readonly IRibbonProvider RibbonProvider = new AdWindowsRibbonProvider();
-        private static readonly string ApiVersion = ReadNavisApiVersion();
+        private static string ApiVersion => PyNavisVersion.HostApiVersion;
 
         /// <summary>Host release year (2023-2027), for min/max_host_version gating.</summary>
-        public static int HostYear { get; } = Execution.HostGate.YearFromApiVersion(ApiVersion) ?? 0;
+        public static int HostYear => PyNavisVersion.HostYear;
 
         private static bool _booted;
         private static List<ExtensionModel> _extensions = new List<ExtensionModel>();
@@ -42,7 +42,7 @@ namespace PyNavis.Runtime
             _booted = true;
 
             Log.Info("==== pyNavis runtime booting ====");
-            Log.Info($"Runtime assembly: {typeof(RuntimeHost).Assembly.Location}");
+            Log.Info(PyNavisVersion.Summary());
             Log.Info($"Navisworks API assembly: {ApiVersion}");
 
             var userConfig = PyNavisConfig.Load(ConfigPath);
@@ -230,17 +230,5 @@ MessageBox.Show(
             return libs;
         }
 
-        private static string ReadNavisApiVersion()
-        {
-            try
-            {
-                return typeof(Autodesk.Navisworks.Api.Application).Assembly.GetName().Version.ToString();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("Could not read Navisworks API version", ex);
-                return "unknown";
-            }
-        }
     }
 }
