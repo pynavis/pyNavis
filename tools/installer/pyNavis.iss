@@ -38,7 +38,7 @@ AppVersion={#AppVersion}
 AppVerName=pyNavis {#AppVersion}
 AppPublisher=pyNavis
 AppPublisherURL=https://pynavis.com
-AppSupportURL=https://wiki.pynavis.com
+AppSupportURL=https://docs.pynavis.com
 AppUpdatesURL=https://pynavis.com
 UninstallDisplayName=pyNavis {#AppVersion}
 VersionInfoVersion={#AppVersion}
@@ -83,7 +83,7 @@ Source: "{#StageDir}\bundle\*"; DestDir: "{#BundleDir}"; Flags: ignoreversion re
 Source: "{#StageDir}\appdata\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Run]
-Filename: "https://wiki.pynavis.com"; Description: "Open the pyNavis wiki at wiki.pynavis.com"; Flags: postinstall shellexec nowait skipifsilent unchecked
+Filename: "https://tools.pynavis.com"; Description: "Open the tools guide at tools.pynavis.com"; Flags: postinstall shellexec nowait skipifsilent unchecked
 
 [Code]
 const
