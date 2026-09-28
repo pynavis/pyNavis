@@ -28,7 +28,7 @@ namespace PyNavis.Runtime.Forms
     /// </summary>
     public static class AiChatPane
     {
-        public const string GuideUrl = "https://pynavis.com/authoring/ai-assistant.html";
+        public const string GuideUrl = "https://docs.pynavis.com/ai-assistant.html";
         public const string BetaLine =
             "Ask AI is a beta. It is new and lightly tested. Read what it proposes before you click Create.";
         public const string FooterLine =
