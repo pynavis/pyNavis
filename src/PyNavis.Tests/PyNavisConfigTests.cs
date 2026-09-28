@@ -45,15 +45,15 @@ namespace PyNavis.Tests
                     ""allowBareKeys"": true,
                     ""bindings"": {
                         ""pyNavis.tab/02_Selection.panel/02_Recall.pushbutton"": ""Ctrl+Alt+R"",
-                        ""pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton"": null
+                        ""pyNavis.tab/02_Selection.panel/01_Remember.pushbutton"": null
                     }
                 }
             }"));
 
             Assert.True(c.ShortcutsAllowBareKeys);
             Assert.Equal("Ctrl+Alt+R", c.ShortcutBindings["pyNavis.tab/02_Selection.panel/02_Recall.pushbutton"]);
-            Assert.True(c.ShortcutBindings.ContainsKey("pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton"));
-            Assert.Null(c.ShortcutBindings["pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton"]);
+            Assert.True(c.ShortcutBindings.ContainsKey("pyNavis.tab/02_Selection.panel/01_Remember.pushbutton"));
+            Assert.Null(c.ShortcutBindings["pyNavis.tab/02_Selection.panel/01_Remember.pushbutton"]);
         }
 
         [Fact]

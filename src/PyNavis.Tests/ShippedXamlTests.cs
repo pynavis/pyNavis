@@ -60,6 +60,11 @@ namespace PyNavis.Tests
             },
             new object[]
             {
+                @"pyNavis.tab\05_AI_(beta).panel\01_Ask_AI.dockpane\pane.xaml",   // script.py adds the C# pane into Host
+                new[] { "Host" }
+            },
+            new object[]
+            {
                 @"pyNavis.tab\Viewpoints.panel\06_Section_Nudge.dockpane\pane.xaml",
                 new[] { "Root", "Readout", "SectionOn", "Tabs", "AdjustTab", "MoveTab",
                         "CellTop", "CellTopName", "CellTopAxis", "CellLeft", "CellLeftName", "CellLeftAxis",

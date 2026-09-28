@@ -1,0 +1,7 @@
+<Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      x:Name="Host">
+  <!-- The chat lives in the runtime (PyNavis.Runtime.Forms.AiChatPane) so its
+       conversation survives the Reload that creating a tool triggers. script.py
+       drops that one shared control into this grid on every build. -->
+</Grid>

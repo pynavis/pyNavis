@@ -1,0 +1,2 @@
+title: Open AI Folder
+tooltip: Opens the folder where Ask AI writes its tools, AI.extension under your pyNavis extensions, in Explorer. Every generated tool is an ordinary bundle there, so you can read it, edit it, or delete it like any other.

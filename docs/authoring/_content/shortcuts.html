@@ -14,8 +14,8 @@ them as fast as you iterate on the script.</p>
 tool overrides it in <code>config.json</code>. Neither knows about the other, and the user
 always wins.</p>
 
-<pre data-lang="yaml" data-file="01_Memorize.pushbutton\bundle.yaml">
-title: Memorize
+<pre data-lang="yaml" data-file="01_Remember.pushbutton\bundle.yaml">
+title: Remember
 tooltip: Stores the current selection in the memory register.
 shortcut: Ctrl+Shift+M
 keytip: MM
@@ -26,14 +26,14 @@ keytip: MM
   "shortcuts": {
     "allowBareKeys": false,
     "bindings": {
-      "pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton": "Ctrl+Alt+M",
+      "pyNavis.tab/02_Selection.panel/01_Remember.pushbutton": "Ctrl+Alt+M",
       "pyNavis.tab/02_Selection.panel/02_Recall.pushbutton": null
     }
   }
 }
 </pre>
 
-<p>The first entry rebinds Memorize. The second disables Recall entirely: <code>null</code>
+<p>The first entry rebinds Remember. The second disables Recall entirely: <code>null</code>
 means unbound, not "use the default". Users rarely write this file by hand, because the
 built-in <strong>Shortcuts</strong> editor on the pyNavis panel writes it for them, but the
 format is plain and worth knowing.</p>
@@ -159,7 +159,7 @@ of a panel in order, with stack and pulldown children flattened in place, and a 
   <text class="sc1-lbl" x="450" y="14">Active binding</text>
 
   <rect class="sc1-soft" x="8"   y="26" width="136" height="50" rx="3"/>
-  <text class="sc1-t"    x="20"  y="48">Memorize</text>
+  <text class="sc1-t"    x="20"  y="48">Remember</text>
   <text class="sc1-m"    x="20"  y="66">first in ribbon order</text>
   <rect class="sc1-box"  x="162" y="26" width="126" height="50" rx="3"/>
   <text class="sc1-mono" x="174" y="56">Ctrl+Shift+M</text>
@@ -194,14 +194,14 @@ of a panel in order, with stack and pulldown children flattened in place, and a 
   <text class="sc1-md"   x="322" y="192">(no entry)</text>
   <rect class="sc1-box"  x="450" y="162" width="238" height="50" rx="3"/>
   <text class="sc1-t"    x="462" y="184">Skipped</text>
-  <text class="sc1-m"    x="462" y="202">Memorize already owns that chord</text>
+  <text class="sc1-m"    x="462" y="202">Remember already owns that chord</text>
   <path class="sc1-arw" d="M290 187 H 306" marker-end="url(#sc1-a)"/>
   <path class="sc1-arw" d="M430 187 H 446" marker-end="url(#sc1-a)"/>
 
   <text class="sc1-m" x="8" y="248">Every problem is written to the log with the prefix</text>
   <text class="sc1-md" x="8" y="266">Shortcut: 'pyNavis.tab/03_Clash.panel/01_Clash_Report.pushbutton'
     wants Ctrl+Shift+M</text>
-  <text class="sc1-md" x="8" y="284">but 'pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton'
+  <text class="sc1-md" x="8" y="284">but 'pyNavis.tab/02_Selection.panel/01_Remember.pushbutton'
     already has it - first wins</text>
 </svg>
 </div>
@@ -268,7 +268,7 @@ removes from the visible title.</p>
   <text class="sc2-dim"  x="32"  y="64">pyNavis.extension\</text>
   <text class="sc2-mono" x="52"  y="88">pyNavis.tab\</text>
   <text class="sc2-mono" x="72"  y="112">02_Selection.panel\</text>
-  <text class="sc2-mono" x="92"  y="136">01_Memorize.pushbutton\</text>
+  <text class="sc2-mono" x="92"  y="136">01_Remember.pushbutton\</text>
 
   <rect x="42" y="74" width="3" height="70" fill="var(--accent)"/>
   <text class="sc2-m" x="16" y="164">The accent bar marks the levels that</text>
@@ -279,12 +279,12 @@ removes from the visible title.</p>
   <text class="sc2-lbl" x="376" y="72">The key</text>
   <rect class="sc2-box" x="376" y="82" width="308" height="48" rx="4"/>
   <text class="sc2-key" x="388" y="112">pyNavis.tab/02_Selection.panel/</text>
-  <text class="sc2-key" x="388" y="128">01_Memorize.pushbutton</text>
+  <text class="sc2-key" x="388" y="128">01_Remember.pushbutton</text>
 
   <text class="sc2-m" x="376" y="160">Backslashes become forward slashes.</text>
   <text class="sc2-m" x="376" y="178">.tab, .panel and .pushbutton are kept.</text>
   <text class="sc2-m" x="376" y="196">The 01_ prefix is kept, even though the</text>
-  <text class="sc2-m" x="376" y="214">button is titled just &#8220;Memorize&#8221;.</text>
+  <text class="sc2-m" x="376" y="214">button is titled just &#8220;Remember&#8221;.</text>
   <text class="sc2-m" x="376" y="232">Lookup is case-insensitive.</text>
 </svg>
 </div>

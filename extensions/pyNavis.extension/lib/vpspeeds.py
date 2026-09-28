@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Writes the stored speeds and field of view into saved viewpoints.
 
-Reset Speeds does this to the view on screen. This does it to saved views in the
+Apply Speeds does this to the view on screen. This does it to saved views in the
 document, without loading a single one of them.
 
 Getting there took two dead ends worth recording, because both look like they
@@ -201,7 +201,7 @@ def apply(snapshot, guids, values, doc=None, progress=None, cancelled=None):
         return 0, 0, [], FULL_COPY, False
 
     # The field of view is an angle on the screen, so it converts through the
-    # viewport ratio, and it has to be the SAME ratio Reset Speeds uses or the
+    # viewport ratio, and it has to be the SAME ratio Apply Speeds uses or the
     # two buttons write subtly different lenses for the same setting. That is why
     # the refresh lives in pynavis.view rather than in either script: reading the
     # ratio cold here is exactly how they drifted apart. Without a usable ratio

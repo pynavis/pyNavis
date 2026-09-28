@@ -31,10 +31,13 @@ brings the same idea to Navisworks.
   and charts, per-tool settings, Excel read and write, and Navisworks helpers for selection
   sets, properties, clash tests, viewpoints, sectioning and exports.
 - **Light and dark themes** that follow Navisworks, with a full icon set for both.
+- **Ask AI (beta).** A chat panel that writes a tool from a plain-words request, using your
+  own Anthropic or OpenAI-compatible key, and revises it when you ask. Or copy the same
+  authoring guide into any assistant you already use.
 
 ## Bundled tools
 
-One tab, `pyNavis`, with five panels: pyNavis, Selection, Clash, Data and Viewpoints. Full detail for every tool, including what each one
+One tab, `pyNavis`, with six panels: pyNavis, Selection, Clash, Data, AI (beta) and Viewpoints. Full detail for every tool, including what each one
 needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](https://tools.pynavis.com).
 
 **pyNavis**
@@ -61,8 +64,9 @@ needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](htt
 **Clash**
 
 - **Clash Report**: result counts by status for every clash test, with CSV export
-- **Smart Clash Grouper**: group clash results into issues, with a live preview
-- **Resolve Clash**: point at two faces and slide the object until they clear, reporting how far, ready for the authoring tool
+- **Clash Grouper**: group clash results into issues, with a live preview
+- **Clear Clash**: point at two faces and slide the object until they clear, reporting how far, ready for the authoring tool
+- **Set Gap**: point at two faces and type the gap you want; the object slides the exact difference, tighter or apart, clash or no clash
 - **True Distance**: true perpendicular distance between the two measured faces, on a bar across the bottom of the window
 
 **Data**
@@ -71,9 +75,16 @@ needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](htt
 - **Go to Coordinates**: move the view to a point and mark it with a cross
 - **Select by IDs**: select elements by Revit element ID, in a federated model
 - **IDs of Selection**: copy the Revit element IDs of the selection to the clipboard
-- **Sets from Excel**: export selection sets to a workbook, or import them back
+- **Excel Sets**: export selection sets to a workbook, or import them back
 - **Export Viewpoints**: every saved viewpoint to CSV, with camera positions
 - **Element ID Settings** (flyout): the settings both element ID tools share
+
+
+**AI (beta)**
+
+- **Ask AI**: a dock panel chat that writes a pyNavis tool from your request, creates it on an AI tab, and revises it; needs your own API key or a local OpenAI-compatible server
+- **AI Settings**: provider, endpoint, model and key, stored encrypted outside `config.json`
+- **Open AI Folder**: the `AI.extension` folder the generated tools live in
 
 **Viewpoints**
 
@@ -85,8 +96,8 @@ needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](htt
 - **Section Clear**: switch sectioning off without moving the camera
 - **Copy State**: copy section state, hidden items or appearance overrides
 - **Paste State**: paste back what was copied for this document
-- **Reset Speeds**: push your walk speed, turn speed and field of view at the view
-- **Reset Viewpoints**: write the same three into saved viewpoints you pick
+- **Apply Speeds**: push your walk speed, turn speed and field of view at the view
+- **Speeds to Saved**: write the same three into saved viewpoints you pick
 - **Viewpoint Tracker**: a dock panel naming the view you are looking through
 - **Section Nudge**: a dock panel remote for the section box, faces named the way you see them and moves that follow the screen, plus Ctrl+Alt chords
 - **Tracker Window** (flyout): the same two lines in a floating window
@@ -119,6 +130,8 @@ Setup writes into your own profile:
 load, so one bundle serves every release you have installed.
 
 Start Navisworks and look for the **pyNavis** tab.
+
+pyNavis is provided as is, under the [Apache License 2.0](LICENSE), with no warranty. Setup shows the licence before it installs; if you build and install from source instead, the same terms apply.
 
 ## Build from source
 

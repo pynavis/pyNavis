@@ -11,7 +11,7 @@ Which face a point sits on comes from the item's own triangles
 a pick at a measured point on an edge returns whichever of the meeting
 faces is in front, and that gave 3in 3/16 where the gap was 4in.
 
-True Distance and Resolve Clash are the users.
+True Distance, Clear Clash and Set Gap are the users.
 """
 
 import math

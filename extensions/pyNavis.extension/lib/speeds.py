@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Navigation speeds and field of view, with no Navisworks in sight.
 
-Reset Speeds and Reset Viewpoints both push three numbers at a viewpoint: how fast
+Apply Speeds and Speeds to Saved both push three numbers at a viewpoint: how fast
 walking moves the camera (linear speed), how fast it turns (angular speed),
 and how wide the lens is (field of view). Every decision about those numbers
 lives here, so the two buttons can never disagree and both can be tested

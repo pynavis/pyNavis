@@ -1,7 +1,7 @@
 """How far one triangle mesh must slide along a world axis to stop touching
 another.
 
-Pure: plain tuples in, plain dicts out, no Navisworks import. Resolve Clash
+Pure: plain tuples in, plain dicts out, no Navisworks import. Clear Clash
 feeds it the two selected items' world triangles (pynavis.geometry) and
 applies the answer as a permanent transform.
 

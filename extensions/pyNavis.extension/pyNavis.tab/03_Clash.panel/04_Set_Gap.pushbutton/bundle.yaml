@@ -1,0 +1,3 @@
+title: Set\nGap
+tooltip: Two clicks and a number. Select the object that should move and click, then click a face on it and the face it should sit against. A prompt asks for the gap to leave, showing the gap as it is now, and the object slides the exact difference, tighter or apart, clash or no clash. Ctrl+Z puts it back. Shift+Click sets the default gap.
+context: doc

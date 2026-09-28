@@ -6,7 +6,7 @@ using Xunit;
 namespace PyNavis.Tests
 {
     /// <summary>
-    /// The IronPython-to-C# delegate contract for the Smart Clash Grouper.
+    /// The IronPython-to-C# delegate contract for the Clash Grouper.
     ///
     /// These exist because of a bug that reached the user's screen: the bundle
     /// script built its counts delegate as Func[int, TestCounts], and IronPython

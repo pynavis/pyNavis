@@ -38,8 +38,9 @@ EXTENSION = os.path.join(ROOT, 'extensions', 'pyNavis.extension', 'pyNavis.tab')
 PANELS = [
     ('pynavis.html',    'pyNavis',    'The tool itself: settings, shortcuts, the console, Reload.'),
     ('selection.html',  'Selection',  'Undo for selections: remember a selection, get it back, build on it.'),
-    ('clash.html',      'Clash',      'Report, group and resolve clashes, and measure the real gap.'),
+    ('clash.html',      'Clash',      'Report, group and clear clashes, set the gap between systems, and measure the real gap.'),
     ('data.html',       'Data',       'Coordinates, Revit element IDs, selection sets and viewpoints, in and out.'),
+    ('ai.html',         'AI (beta)',  'A chat that writes pyNavis tools for you, and the setup behind it.'),
     ('viewpoints.html', 'Viewpoints', 'Saved views, the section box, view state and navigation speeds.'),
 ]
 
@@ -111,11 +112,10 @@ def figures(body, tool, wanted):
             return ('<figure class="shot%s"><img src="_assets/shots/%s.png" alt="%s" loading="lazy">'
                     '<figcaption>%s</figcaption></figure>'
                     % (wide, name, html.escape(TAG_RE.sub('', caption)), caption))
+        # No file yet: the figure is dropped from the page entirely (a "to come"
+        # box on a public site reads as unfinished). SHOTLIST.md still lists it.
         wanted.append((tool, name, TAG_RE.sub('', caption)))
-        return ('<figure class="shot pending%s"><div class="shot-box">'
-                '<span class="shot-label">Screenshot to come</span>'
-                '<span class="shot-name">%s.png</span></div>'
-                '<figcaption>%s</figcaption></figure>' % (wide, name, caption))
+        return ''
     return FIGURE_RE.sub(repl, body)
 
 

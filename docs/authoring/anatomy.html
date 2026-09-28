@@ -42,8 +42,9 @@
 <a href="api-reference.html"><span class="num">13</span>Python API reference</a>
 <div class="grp">Practice</div>
 <a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="troubleshooting.html"><span class="num">15</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">16</span>Design rules for tools</a>
+<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.0.0</span>
@@ -446,7 +447,7 @@ folder with two or more digits and an underscore. The prefix sorts the folder an
 stripped from the title.</p>
 
 <div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-f">02_Selection.panel</span>\
-  <span class="tok-f">01_Memorize.pushbutton</span>\      <span class="tok-c"># shows as &quot;Memorize&quot;</span>
+  <span class="tok-f">01_Remember.pushbutton</span>\      <span class="tok-c"># shows as &quot;Remember&quot;</span>
   <span class="tok-f">02_Recall.pushbutton</span>\        <span class="tok-c"># shows as &quot;Recall&quot;</span>
   <span class="tok-f">03_Set.stack</span>\
   <span class="tok-f">04_Step.stack</span>\
@@ -462,13 +463,13 @@ mistake in pyNavis.</p>
 
 <div class="do-dont">
 <div class="do"><div class="dd-t">Do</div>
-<pre><span class="tok-f">01_Memorize.pushbutton</span>
+<pre><span class="tok-f">01_Remember.pushbutton</span>
 <span class="tok-f">02_Recall.pushbutton</span>
 ...
 <span class="tok-f">09_Purge.pushbutton</span>
 <span class="tok-f">10_Export.pushbutton</span></pre></div>
 <div class="dont"><div class="dd-t">Don't</div>
-<pre><span class="tok-f">1_Memorize.pushbutton</span>
+<pre><span class="tok-f">1_Remember.pushbutton</span>
 <span class="tok-f">2_Recall.pushbutton</span>
 ...
 <span class="tok-f">9_Purge.pushbutton</span>
@@ -524,10 +525,10 @@ underscore, then turn every remaining underscore into a space.</p>
   <text class="an2-lbl" x="470" y="82">Why</text>
 
   <!-- row 1 -->
-  <text class="an2-mono" x="0" y="108">01_Memorize</text>
+  <text class="an2-mono" x="0" y="108">01_Remember</text>
   <line class="an2-cut" x1="0" y1="104" x2="19" y2="104"/>
   <path class="an2-arw" d="M232 104 H 276" marker-end="url(#an2-a)"/>
-  <text class="an2-t"   x="290" y="108">Memorize</text>
+  <text class="an2-t"   x="290" y="108">Remember</text>
   <text class="an2-m"   x="470" y="108">Two digits: the prefix is an order hint.</text>
 
   <!-- row 2 -->
@@ -727,7 +728,7 @@ is dropped and logged rather than drawn twice.</p>
 <p>Each button also carries a stable key: its path relative to the <code>.extension</code>
 folder, with forward slashes, keeping every suffix and every <code>NN_</code> prefix.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pyNavis.tab/02_Selection.panel/01_Remember.pushbutton
 pyNavis.tab/02_Selection.panel/03_Set.stack/01_Add.pushbutton</code></pre></div>
 
 <p>That key is what <code>config.json</code> uses to rebind or disable a tool's keyboard

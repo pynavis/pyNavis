@@ -42,8 +42,9 @@
 <a href="api-reference.html"><span class="num">13</span>Python API reference</a>
 <div class="grp">Practice</div>
 <a href="cookbook.html" class="active"><span class="num">14</span>Cookbook</a>
-<a href="troubleshooting.html"><span class="num">15</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">16</span>Design rules for tools</a>
+<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.0.0</span>
@@ -1283,7 +1284,7 @@ instead of trying to save the whole OR as a single set.</p>
 <p>The export step is deliberately plain: <code>sets.to_dict(saved)</code> turns the saved
 set's compiled conditions back into the same <code>{'or': [{'and': [...]}]}</code> shape the
 builder produces, and the script flattens that one AND group into spreadsheet rows by hand.
-The shipped <strong>Sets from Excel</strong> tool, on the Tools panel, does the same thing for
+The shipped <strong>Excel Sets</strong> tool, on the Tools panel, does the same thing for
 every set in the document at once, plus the matching import: it flattens
 <code>sets.export_all()</code> to one row per condition and rebuilds
 <code>sets.import_dict()</code>'s shape from rows sharing a folder and set name, so it is the
@@ -1313,7 +1314,7 @@ path = forms.open_file(
 <span class="note-t">Excel has no int type, and ignore_case does not travel</span>
 <p>Every numeric cell <code>xl.read</code> hands back is a <code>float</code>, so a condition
 value that started as the integer <code>3</code> comes back as <code>3.0</code>. The shipped
-Sets from Excel tool normalises an integral float back to <code>int</code> on the way in for
+Excel Sets tool normalises an integral float back to <code>int</code> on the way in for
 exactly this reason; a hand-rolled import like the sketch above should do the same before
 handing a value to <code>import_dict</code>. Separately, <code>sets.to_dict</code> and
 <code>sets.export_all</code> cannot recover whether a condition was built with
@@ -1953,7 +1954,7 @@ means this panel.</p>
 </div>
   <div class="pagenav">
 <a href="api-reference.html"><span class="dir">Previous</span><span class="ttl">Python API reference</span></a>
-<a class="next" href="troubleshooting.html"><span class="dir">Next</span><span class="ttl">Troubleshooting</span></a>
+<a class="next" href="ai-assistant.html"><span class="dir">Next</span><span class="ttl">Writing tools with an AI assistant</span></a>
 </div>
 </article>
 <aside class="toc"><div class="toc-head">On this page</div>

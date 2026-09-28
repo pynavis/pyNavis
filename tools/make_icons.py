@@ -326,6 +326,21 @@ def ic_resolve_clash(c):
         c.arrow_v(48, 30, 4, w=7, head=16)
 
 
+def ic_set_gap(c):
+    """A box floating above a beam with air between them; the double-headed
+    accent arrow in the gap is the number the tool sets, tighter or apart."""
+    if c.small:
+        c.rrect(8, 70, 88, 90, rad=4, w=12)          # the other object
+        c.rrect(22, 6, 74, 28, rad=4, w=12)          # the mover, clear of it
+        c.arrow_v(48, 49, 30, w=12, head=20)
+        c.arrow_v(48, 49, 68, w=12, head=20)
+    else:
+        c.rrect(8, 72, 88, 88, rad=5, w=7)
+        c.rrect(24, 8, 72, 28, rad=5, w=7)
+        c.arrow_v(48, 50, 30, w=7, head=14)
+        c.arrow_v(48, 50, 70, w=7, head=14)
+
+
 def _perp_arrow(c, cx, cy, lean, w, head, span):
     """Double-headed accent arrow through (cx, cy), perpendicular to faces
     that lean 'lean' units across 80 units of height."""
@@ -551,6 +566,68 @@ def ic_viewpoint_tracker_on(c):
     drawn at the small size."""
     eye(c)
     c.disc(48, 48, 13, c.t['accent'])
+
+
+def sparkle(c, cx, cy, r, color=None):
+    """Four-point star: the mark of a thing the assistant made."""
+    col = color or c.t['accent']
+    k = r * 0.3
+    pts = [(cx, cy - r), (cx + k, cy - k), (cx + r, cy), (cx + k, cy + k),
+           (cx, cy + r), (cx - k, cy + k), (cx - r, cy), (cx - k, cy - k)]
+    c.poly(pts, fill=col, w=0)
+
+
+def _bubble(c, fill=None, w=None):
+    """A speech bubble: rounded body with a tail at the lower left."""
+    if fill:
+        c.rrect(8, 10, 88, 66, rad=14, fill=fill, w=0)
+        c.poly([(24, 62), (24, 88), (46, 62)], fill=fill, w=0)
+    else:
+        c.rrect(8, 10, 88, 66, rad=14, w=w)
+        c.line([(24, 64), (24, 88), (46, 64)], w=w)
+
+
+def ic_ask_ai(c):
+    """A speech bubble in ink with an accent sparkle inside: a chat that makes
+    tools. This is the ribbon toggle's OFF art, the panel closed."""
+    if c.small:
+        _bubble(c, w=12)
+        sparkle(c, 48, 38, 18)
+    else:
+        _bubble(c, w=7)
+        sparkle(c, 48, 38, 15)
+
+
+def ic_ask_ai_on(c):
+    """The same bubble filled with accent, the sparkle punched out in paper:
+    the ribbon toggle's ON art while the panel is open. Large only."""
+    _bubble(c, fill=c.t['accent'])
+    sparkle(c, 48, 38, 15, color=c.t['paper'])
+
+
+def ic_ai_settings(c):
+    """A key in ink, the bow left, teeth right, with the accent sparkle over the
+    bow: the API key that lets the assistant in."""
+    if c.small:
+        c.circle(28, 52, 16, w=12)
+        c.line([(44, 52), (90, 52)], w=12)
+        c.line([(74, 52), (74, 70)], w=12)
+        sparkle(c, 28, 52, 9)
+    else:
+        c.circle(28, 52, 14, w=7)
+        c.line([(42, 52), (90, 52)], w=7)
+        c.line([(70, 52), (70, 68)], w=7)
+        c.line([(84, 52), (84, 66)], w=7)
+        sparkle(c, 28, 52, 8)
+
+
+def ic_open_ai_folder(c):
+    """A folder in ink with the accent sparkle on its face: where the
+    assistant's tools live on disk."""
+    w = 12 if c.small else 7
+    c.rrect(8, 30, 88, 82, rad=6, w=w)
+    c.line([(8, 30), (12, 18), (40, 18), (48, 30)], w=w)
+    sparkle(c, 62, 58, 16 if c.small else 14)
 
 
 def ic_tracker_window(c):
@@ -973,10 +1050,11 @@ ICONS = {
     '04_Data.panel/02_Element_IDs.stack/02_IDs_of_Selection.pushbutton': ic_ids_of_selection,
     '04_Data.panel/99_More.slideout/Element_ID_Settings.pushbutton': ic_element_id_settings,
     '04_Data.panel/04_Export_Viewpoints_CSV.pushbutton': ic_export_csv,
-    '03_Clash.panel/04_True_Distance.pushbutton': ic_true_distance,
-    '03_Clash.panel/03_Resolve_Clash.pushbutton': ic_resolve_clash,
-    '04_Data.panel/03_Sets_From_Excel.pushbutton': ic_sets_from_excel,
-    '03_Clash.panel/02_Smart_Clash_Grouper.pushbutton': ic_grouper,
+    '03_Clash.panel/05_True_Distance.pushbutton': ic_true_distance,
+    '03_Clash.panel/03_Clear_Clash.pushbutton': ic_resolve_clash,
+    '03_Clash.panel/04_Set_Gap.pushbutton': ic_set_gap,
+    '04_Data.panel/03_Excel_Sets.pushbutton': ic_sets_from_excel,
+    '03_Clash.panel/02_Clash_Grouper.pushbutton': ic_grouper,
     'Viewpoints.panel/01_Manage.stack/01_Renamer.pushbutton': ic_vp_renamer,
     'Viewpoints.panel/01_Manage.stack/02_Deleter.pushbutton': ic_vp_deleter,
     'Viewpoints.panel/01_Manage.stack/03_Manager.pushbutton': ic_vp_manager,
@@ -985,19 +1063,22 @@ ICONS = {
     'Viewpoints.panel/02_Section.stack/03_Clear.pushbutton': ic_section_clear,
     'Viewpoints.panel/03_State.stack/01_Copy_State.pushbutton': ic_state_copy,
     'Viewpoints.panel/03_State.stack/02_Paste_State.pushbutton': ic_state_paste,
-    'Viewpoints.panel/04_Speeds.stack/01_Reset_Speeds.pushbutton': ic_reset_speeds,
-    'Viewpoints.panel/04_Speeds.stack/02_Reset_Viewpoints.pushbutton': ic_reset_viewpoints,
+    'Viewpoints.panel/04_Speeds.stack/01_Apply_Speeds.pushbutton': ic_reset_speeds,
+    'Viewpoints.panel/04_Speeds.stack/02_Speeds_to_Saved.pushbutton': ic_reset_viewpoints,
     'Viewpoints.panel/05_Viewpoint_Tracker.dockpane': ic_viewpoint_tracker,
     'Viewpoints.panel/06_Section_Nudge.dockpane': ic_section_nudge,
     'Viewpoints.panel/99_More.slideout/Tracker_Window.pushbutton': ic_tracker_window,
-    '02_Selection.panel/01_Memorize.pushbutton': ic_memorize,
+    '05_AI_(beta).panel/01_Ask_AI.dockpane': ic_ask_ai,
+    '05_AI_(beta).panel/02_Setup.stack/01_AI_Settings.pushbutton': ic_ai_settings,
+    '05_AI_(beta).panel/02_Setup.stack/02_Open_AI_Folder.pushbutton': ic_open_ai_folder,
+    '02_Selection.panel/01_Remember.pushbutton': ic_memorize,
     '02_Selection.panel/02_Recall.pushbutton': ic_recall,
     '02_Selection.panel/03_Set.stack/01_Add.pushbutton': ic_add,
     '02_Selection.panel/03_Set.stack/02_Subtract.pushbutton': ic_subtract,
     '02_Selection.panel/03_Set.stack/03_Intersect.pushbutton': ic_intersect,
     '02_Selection.panel/04_Step.stack/01_Prev.pushbutton': ic_prev,
     '02_Selection.panel/04_Step.stack/02_Next.pushbutton': ic_next,
-    '02_Selection.panel/04_Step.stack/03_Clear.pushbutton': ic_clear,
+    '02_Selection.panel/04_Step.stack/03_Forget.pushbutton': ic_clear,
     '02_Selection.panel/05_More.pulldown': ic_memory_menu,
     '02_Selection.panel/05_More.pulldown/01_Show_Contents.pushbutton': ic_show,
     '02_Selection.panel/05_More.pulldown/02_Save_as_Set.pushbutton': ic_save_set,
@@ -1036,6 +1117,7 @@ DOCKPANE_ON = {
     (SMOKE_TAB, 'Panes.panel/01_Pane_Demo.dockpane'): ic_smoke_pane_on,
     (TAB, 'Viewpoints.panel/05_Viewpoint_Tracker.dockpane'): ic_viewpoint_tracker_on,
     (TAB, 'Viewpoints.panel/06_Section_Nudge.dockpane'): ic_section_nudge_on,
+    (TAB, '05_AI_(beta).panel/01_Ask_AI.dockpane'): ic_ask_ai_on,
 }
 
 GROUPS = [(TAB, ICONS), (SMOKE_TAB, SMOKE_ICONS)]

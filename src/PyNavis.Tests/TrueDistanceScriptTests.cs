@@ -24,7 +24,7 @@ namespace PyNavis.Tests
             if (Directory.Exists(stdlib)) config.SearchPaths.Add(stdlib);
             config.SearchPaths.Add(PyNavisLibTests.PyNavisLibDir);
             config.SearchPaths.Add(Dir(Path.Combine(
-                "pyNavis.tab", "03_Clash.panel", "04_True_Distance.pushbutton")));
+                "pyNavis.tab", "03_Clash.panel", "05_True_Distance.pushbutton")));
             _engine.Initialize(config);
         }
 

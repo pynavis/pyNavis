@@ -44,6 +44,7 @@ PAGES = [
     ('settings.html',        'Scripts'),
     ('api-reference.html',   'Reference'),
     ('cookbook.html',        'Practice'),
+    ('ai-assistant.html',    'Practice'),
     ('troubleshooting.html', 'Practice'),
     ('style-guide.html',     'Practice'),
 ]

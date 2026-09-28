@@ -58,7 +58,7 @@ namespace PyNavis.Tests
         {
             OnSta(() =>
             {
-                var window = Dialogs.BuildAlert("Moved Pipe by 152.4 mm", "Resolve Clash", "152.4 mm");
+                var window = Dialogs.BuildAlert("Moved Pipe by 152.4 mm", "Clear Clash", "152.4 mm");
                 var copy = Dialogs.CopyButtonOf(window);
 
                 Assert.NotNull(copy);

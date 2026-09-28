@@ -6,11 +6,11 @@ using Xunit;
 namespace PyNavis.Tests
 {
     /// <summary>
-    /// The Resolve Clash bundle's pure half: the plane-to-plane move from two
-    /// measured faces, clearance conversion between unit names, the length
-    /// readout, and the banner wording for each outcome. Imported straight out
-    /// of the shipped bundle folder; script.py only runs its click behaviour
-    /// behind "if '__commandpath__' in globals()".
+    /// The Clear Clash half of extensions/pyNavis.extension/lib/facemove.py: the
+    /// plane-to-plane move from two measured faces, clearance conversion between
+    /// unit names, the length readout, and the banner wording for each outcome.
+    /// The module sits in the extension's lib so Set Gap can share it; its gap
+    /// planner is covered in SetGapScriptTests.
     /// </summary>
     public class ResolveClashScriptTests
     {
@@ -23,8 +23,7 @@ namespace PyNavis.Tests
             var stdlib = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lib");
             if (Directory.Exists(stdlib)) config.SearchPaths.Add(stdlib);
             config.SearchPaths.Add(PyNavisLibTests.PyNavisLibDir);
-            config.SearchPaths.Add(Dir(Path.Combine(
-                "pyNavis.tab", "03_Clash.panel", "03_Resolve_Clash.pushbutton")));
+            config.SearchPaths.Add(Dir("lib"));
             _engine.Initialize(config);
         }
 
@@ -51,7 +50,7 @@ namespace PyNavis.Tests
             var outw = new StringWriter();
             var r = _engine.Execute(new ScriptRequest
             {
-                Code = "import resolveclash as rc\n" + Scene + code + "\nprint('all tests passed')",
+                Code = "import facemove as rc\n" + Scene + code + "\nprint('all tests passed')",
                 Output = outw,
             });
             Assert.True(r.Succeeded, r.ErrorText);

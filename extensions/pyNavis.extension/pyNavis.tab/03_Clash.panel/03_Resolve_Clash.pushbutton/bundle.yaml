@@ -1,3 +1,0 @@
-title: Resolve\nClash
-tooltip: Two clicks. Select the object that should move and click, then select what it must clear and click again. The object slides the shortest axis-aligned distance that clears it and the toast says how far, ready to type into the authoring tool. Ctrl+Z puts it back. Shift+Click for direction and clearance.
-context: doc

@@ -6,7 +6,7 @@ using Xunit;
 namespace PyNavis.Tests
 {
     /// <summary>
-    /// The pure half of the Reset Speeds / Reset Viewpoints bundles:
+    /// The pure half of the Apply Speeds / Speeds to Saved bundles:
     /// extensions/pyNavis.extension/lib/speeds.py, imported through the real
     /// IronPython engine. Nothing in that module touches Navisworks, so
     /// importing it here runs no host code and moves no camera.

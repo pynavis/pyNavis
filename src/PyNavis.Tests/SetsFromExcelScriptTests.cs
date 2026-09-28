@@ -6,7 +6,7 @@ using Xunit;
 namespace PyNavis.Tests
 {
     /// <summary>
-    /// The Sets from Excel bundle's pure row&lt;-&gt;spec converters
+    /// The Excel Sets bundle's pure row&lt;-&gt;spec converters
     /// (rows_to_spec / spec_to_rows), imported straight out of the shipped
     /// script.py through the real IronPython engine.
     ///
@@ -36,9 +36,9 @@ namespace PyNavis.Tests
         {
             var candidate = Path.GetFullPath(Path.Combine(
                 PyNavisLibTests.PyNavisLibDir, "..", "extensions", "pyNavis.extension",
-                "pyNavis.tab", "04_Data.panel", "03_Sets_From_Excel.pushbutton"));
+                "pyNavis.tab", "04_Data.panel", "03_Excel_Sets.pushbutton"));
             if (!Directory.Exists(candidate))
-                throw new DirectoryNotFoundException("Sets_From_Excel.pushbutton not found at " + candidate);
+                throw new DirectoryNotFoundException("Excel_Sets.pushbutton not found at " + candidate);
             return candidate;
         }
 

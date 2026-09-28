@@ -1,0 +1,141 @@
+<p>The AI panel is a beta. It puts a chat inside Navisworks that writes pyNavis tools for you:
+describe the button you want, read what the model proposes, click Create, and the button
+appears on its own AI tab. The two small buttons beside it hold the setup and the folder the
+tools land in. It is new and lightly tested, and it is not the only way to do this: the same
+authoring guide the panel gives the model can be copied into any assistant you already use.</p>
+
+<section id="ask-ai" title="Ask AI" kind="Dock panel"
+         bundle="05_AI_(beta).panel/01_Ask_AI.dockpane"
+         summary="Beta. A chat panel that turns a plain-words request into a working pyNavis tool on the ribbon, and revises it when you ask."
+         needs="An API key from AI Settings, or a local OpenAI-compatible server with none">
+
+<h2>What it does</h2>
+<p>You type what the tool should do. The panel sends that, together with the pyNavis
+authoring guide, to the model you chose in AI Settings. The reply comes back as a short
+explanation plus the files of one bundle: <code>bundle.yaml</code>, <code>script.py</code>
+and sometimes <code>config.py</code>. Nothing touches disk until you click
+<strong>Create tool</strong>. Then the bundle is written into <code>AI.extension</code>
+under your pyNavis extensions folder, the ribbon reloads, and the tool is on the AI tab.</p>
+
+<figure data-shot="ask-ai-panel" data-wide>
+<figcaption>The Ask AI panel: a request, the model's reply with the files, and the Create tool
+card below the transcript.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Click <strong>AI Settings</strong> once, pick a provider, paste your key, and click
+    <strong>Test</strong> until the status line says it connected.</li>
+  <li>Click <strong>Ask AI</strong> to show the panel and dock it beside the view.</li>
+  <li>Describe the tool in plain words. If it depends on property names, select a few
+    representative items first and tick <strong>Attach selection</strong>: the model then sees
+    the real category and property names instead of guessing. Names only, never values.
+    Ctrl+Enter sends.</li>
+  <li>Read the reply. <strong>View files</strong> shows exactly what would be written. If the
+    model asked a question instead, answer it.</li>
+  <li>Click <strong>Create tool</strong>. The ribbon reloads and the button is on the AI tab.
+    Click it.</li>
+  <li>Keep talking to change it: "make it also hide the rest" sends the files as they are on
+    disk and comes back with a new version, and the card now reads <strong>Update
+    tool</strong>. If the tool failed when you ran it, <strong>Send last error to AI</strong>
+    pastes the traceback into the chat for a fix.</li>
+  <li><strong>New tool</strong> starts a fresh conversation. The dropdown beside it lists
+    every tool Ask AI has made so far; pick one to continue it in a new conversation, with its
+    files put in front of the model.</li>
+</ol>
+
+<h2>What leaves your machine</h2>
+<p>Every request carries the authoring guide and your chat so far. Only when you ticked the
+box, it also carries the selection summary: the item count, the category names and the
+property names under each, capped at a few kilobytes. Never a value: a value is project data
+(a source file, a client, a project number in a custom tab), so the reader does not even ask
+Navisworks for one. No file name, no path, no geometry, no user name. The request goes to the
+provider you configured and nowhere else; pyNavis has no server in the middle.</p>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Beta. Read the code before you run it. The model works from the guide and from what
+    you say; it cannot see your model unless you attach the selection, and it cannot run the
+    tool itself.</li>
+  <li>One bundle per conversation, with only those three files. The model cannot write
+    helper modules, hooks, dock panels or icons; generated tools get a lettered icon in one
+    of five colours, never the blue of the shipped tools, so you can always tell them apart.</li>
+  <li>It rewrites only tools it made, inside <code>AI.extension</code>. Hand-written bundles
+    are never touched.</li>
+  <li>The conversation lives for the Navisworks session. Closing Navisworks forgets it; the
+    tools stay, and the dropdown in the panel header brings any of them back for editing.</li>
+  <li>It takes one of the five dock panel slots.</li>
+</ul>
+
+<h2>Other uses</h2>
+<ul>
+  <li>Use it as a starting point: create the tool, then open the folder and edit
+    <code>script.py</code> by hand like any other bundle. Reload is not even needed for a
+    script edit.</li>
+  <li>Prefer your own chatbot? <strong>Copy authoring guide</strong> in the panel's footer
+    puts the same guide on the clipboard. Paste it, ask for the tool, and save the files it
+    gives you into a <code>*.pushbutton</code> folder yourself. The
+    <a href="https://pynavis.com/authoring/ai-assistant.html">authoring docs</a> walk through
+    that path.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>Anthropic requests send the guide as a cached prompt block, so from the second message on
+most of it is read from the provider's cache rather than billed in full. The
+<strong>Longest answer</strong> setting caps a reply; if the transcript says the answer hit the
+limit, raise it and ask again.</p>
+</section>
+
+<section id="ai-settings" title="AI Settings" kind="Stacked button"
+         bundle="05_AI_(beta).panel/02_Setup.stack/01_AI_Settings.pushbutton"
+         summary="The provider, endpoint, model and API key Ask AI uses: the Settings window opened on its AI section."
+         needs="Nothing">
+
+<h2>What it does</h2>
+<p>Opens the ordinary Settings window scrolled to <strong>AI assistant (beta)</strong>. Two
+providers: <strong>Anthropic</strong>, and <strong>OpenAI-compatible</strong>, which covers
+OpenAI itself, Azure OpenAI, Ollama, LM Studio and most local servers through one base URL.
+The model is a list you can also type into. <strong>Test</strong> sends one tiny request
+with the values as they stand and reports what came back.</p>
+
+<figure data-shot="ai-settings-section">
+<figcaption>The AI assistant section of Settings: provider, base URL, model, key with Test,
+and the longest answer.</figcaption>
+</figure>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li>Pick the provider. For a local server choose OpenAI-compatible and set the base URL,
+    for example <code>http://localhost:11434/v1</code>; leave the key empty.</li>
+  <li>Paste the key. It is stored encrypted for your Windows account in
+    <code>%APPDATA%\pyNavis\secrets.json</code>, never in <code>config.json</code>, so
+    sharing your config or a screenshot of it never shares the key.</li>
+  <li>Click <strong>Test</strong>, then <strong>Save</strong>. Ask AI uses the new values from
+    its next message; no Reload is needed for these.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>The key is readable only by the Windows account that saved it. A copied
+    <code>secrets.json</code> reads as "no key" on another machine.</li>
+  <li>Provider, base URL, model and longest answer live in <code>config.json</code> under
+    <code>ai</code>, like every other setting.</li>
+</ul>
+</section>
+
+<section id="open-ai-folder" title="Open AI Folder" kind="Stacked button"
+         bundle="05_AI_(beta).panel/02_Setup.stack/02_Open_AI_Folder.pushbutton"
+         summary="Explorer on the folder where Ask AI writes its tools."
+         needs="At least one tool created">
+
+<h2>What it does</h2>
+<p>Opens <code>%APPDATA%\pyNavis\extensions\AI.extension\AI.tab\Generated.panel</code> in
+Explorer. Every generated tool is an ordinary bundle folder there: read it, edit it, copy it
+into your own extension, or delete it. Before the first tool exists it says so instead of
+opening an empty window.</p>
+
+<h2>Good to know</h2>
+<p>Deleting a tool's folder and clicking Reload removes it from the ribbon. Renaming the
+folder changes its bundle key, so a shortcut bound to it in the Shortcuts editor would need
+rebinding.</p>
+</section>

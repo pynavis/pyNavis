@@ -6,7 +6,7 @@ using Xunit;
 namespace PyNavis.Tests
 {
     /// <summary>
-    /// The pure half of Reset Viewpoints: extensions/pyNavis.extension/lib/vpspeeds.py,
+    /// The pure half of Speeds to Saved: extensions/pyNavis.extension/lib/vpspeeds.py,
     /// imported through the real IronPython engine. Only the parts that decide WHICH
     /// saved viewpoints get written are testable here; the writing itself needs a live
     /// document and is covered by the in-app checklist.
@@ -163,7 +163,7 @@ namespace PyNavis.Tests
             var root = Path.GetFullPath(Path.Combine(
                 PyNavisLibTests.PyNavisLibDir, "..", "extensions", "pyNavis.extension"));
             var speedsButton = Path.Combine(root, "pyNavis.tab", "Viewpoints.panel",
-                "04_Speeds.stack", "01_Reset_Speeds.pushbutton", "script.py");
+                "04_Speeds.stack", "01_Apply_Speeds.pushbutton", "script.py");
             var applier = Path.Combine(root, "lib", "vpspeeds.py");
 
             foreach (var path in new[] { speedsButton, applier })

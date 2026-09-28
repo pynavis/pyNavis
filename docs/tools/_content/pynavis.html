@@ -35,6 +35,10 @@ Save and Cancel at the bottom.</figcaption>
   <li><strong>Engines.</strong> The <code>pynavislib</code> folder and a CPython executable.
     Leave both empty unless you know why you are changing them; CPython is only used by
     bundles that declare <code>engine: cpython</code>.</li>
+  <li><strong>AI assistant (beta).</strong> The provider, endpoint, model and API key the
+    Ask AI panel uses, with a Test button. The key is stored encrypted in
+    <code>secrets.json</code>, not in <code>config.json</code>. The AI Settings button on the
+    AI panel opens the window scrolled to this section.</li>
   <li>Click <strong>Save</strong>. If an engine path changed, pyNavis says Navisworks needs a
     restart. Otherwise it offers to reload the ribbon there and then.</li>
 </ol>

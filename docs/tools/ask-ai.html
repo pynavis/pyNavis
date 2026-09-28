@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask AI - pyNavis tools</title>
+<meta name="description" content="Beta. A chat panel that turns a plain-words request into a working pyNavis tool on the ribbon, and revises it when you ask.">
+<link rel="stylesheet" href="_assets/site.css">
+<link rel="stylesheet" href="_assets/tools.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tools guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the tools" autocomplete="off"
+           spellcheck="false" aria-label="Search the tools guide">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">pyNavis</div>
+<a href="settings.html"><img class="nav-icon" src="_assets/icons/settings.png" alt="">Settings</a>
+<a href="shortcuts.html"><img class="nav-icon" src="_assets/icons/shortcuts.png" alt="">Shortcuts</a>
+<a href="console.html"><img class="nav-icon" src="_assets/icons/console.png" alt="">Console</a>
+<a href="reload.html"><img class="nav-icon" src="_assets/icons/reload.png" alt="">Reload</a>
+<a href="panel-slots.html"><img class="nav-icon" src="_assets/icons/panel-slots.png" alt="">Panel slots</a>
+<div class="grp">Selection</div>
+<a href="remember.html"><img class="nav-icon" src="_assets/icons/remember.png" alt="">Remember</a>
+<a href="recall.html"><img class="nav-icon" src="_assets/icons/recall.png" alt="">Recall</a>
+<a href="add.html"><img class="nav-icon" src="_assets/icons/add.png" alt="">Add</a>
+<a href="subtract.html"><img class="nav-icon" src="_assets/icons/subtract.png" alt="">Subtract</a>
+<a href="intersect.html"><img class="nav-icon" src="_assets/icons/intersect.png" alt="">Intersect</a>
+<a href="previous-next.html"><img class="nav-icon" src="_assets/icons/previous-next.png" alt="">Previous and Next</a>
+<a href="forget.html"><img class="nav-icon" src="_assets/icons/forget.png" alt="">Forget</a>
+<a href="more-menu.html"><img class="nav-icon" src="_assets/icons/more-menu.png" alt="">More menu</a>
+<div class="grp">Clash</div>
+<a href="clash-report.html"><img class="nav-icon" src="_assets/icons/clash-report.png" alt="">Clash Report</a>
+<a href="clash-grouper.html"><img class="nav-icon" src="_assets/icons/clash-grouper.png" alt="">Clash Grouper</a>
+<a href="clear-clash.html"><img class="nav-icon" src="_assets/icons/clear-clash.png" alt="">Clear Clash</a>
+<a href="set-gap.html"><img class="nav-icon" src="_assets/icons/set-gap.png" alt="">Set Gap</a>
+<a href="true-distance.html"><img class="nav-icon" src="_assets/icons/true-distance.png" alt="">True Distance</a>
+<div class="grp">Data</div>
+<a href="get-coordinates.html"><img class="nav-icon" src="_assets/icons/get-coordinates.png" alt="">Get Coordinates</a>
+<a href="go-to-coordinates.html"><img class="nav-icon" src="_assets/icons/go-to-coordinates.png" alt="">Go to Coordinates</a>
+<a href="select-by-ids.html"><img class="nav-icon" src="_assets/icons/select-by-ids.png" alt="">Select by IDs</a>
+<a href="ids-of-selection.html"><img class="nav-icon" src="_assets/icons/ids-of-selection.png" alt="">IDs of Selection</a>
+<a href="excel-sets.html"><img class="nav-icon" src="_assets/icons/excel-sets.png" alt="">Excel Sets</a>
+<a href="export-viewpoints.html"><img class="nav-icon" src="_assets/icons/export-viewpoints.png" alt="">Export Viewpoints</a>
+<a href="element-id-settings.html"><img class="nav-icon" src="_assets/icons/element-id-settings.png" alt="">Element ID Settings</a>
+<div class="grp">AI (beta)</div>
+<a href="ask-ai.html" class="active"><img class="nav-icon" src="_assets/icons/ask-ai.png" alt="">Ask AI</a>
+<a href="ai-settings.html"><img class="nav-icon" src="_assets/icons/ai-settings.png" alt="">AI Settings</a>
+<a href="open-ai-folder.html"><img class="nav-icon" src="_assets/icons/open-ai-folder.png" alt="">Open AI Folder</a>
+<div class="grp">Viewpoints</div>
+<a href="rename.html"><img class="nav-icon" src="_assets/icons/rename.png" alt="">Rename</a>
+<a href="delete.html"><img class="nav-icon" src="_assets/icons/delete.png" alt="">Delete</a>
+<a href="manage.html"><img class="nav-icon" src="_assets/icons/manage.png" alt="">Manage</a>
+<a href="section-fit.html"><img class="nav-icon" src="_assets/icons/section-fit.png" alt="">Section Fit</a>
+<a href="section-plan.html"><img class="nav-icon" src="_assets/icons/section-plan.png" alt="">Section Plan</a>
+<a href="section-clear.html"><img class="nav-icon" src="_assets/icons/section-clear.png" alt="">Section Clear</a>
+<a href="copy-state.html"><img class="nav-icon" src="_assets/icons/copy-state.png" alt="">Copy State</a>
+<a href="paste-state.html"><img class="nav-icon" src="_assets/icons/paste-state.png" alt="">Paste State</a>
+<a href="apply-speeds.html"><img class="nav-icon" src="_assets/icons/apply-speeds.png" alt="">Apply Speeds</a>
+<a href="speeds-to-saved.html"><img class="nav-icon" src="_assets/icons/speeds-to-saved.png" alt="">Speeds to Saved</a>
+<a href="viewpoint-tracker.html"><img class="nav-icon" src="_assets/icons/viewpoint-tracker.png" alt="">Viewpoint Tracker</a>
+<a href="section-nudge.html"><img class="nav-icon" src="_assets/icons/section-nudge.png" alt="">Section Nudge</a>
+<a href="tracker-window.html"><img class="nav-icon" src="_assets/icons/tracker-window.png" alt="">Tracker Window</a>
+</nav>
+  <div class="side-foot">
+    <span>pyNavis 1.0.0</span>
+    <a class="side-link" href="https://docs.pynavis.com/">Authoring guide</a>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <div class="hero"><img class="hero-icon" src="_assets/icons/ask-ai.png" alt=""><div><p class="eyebrow">AI (beta) panel</p><h1>Ask AI</h1><p class="lead">Beta. A chat panel that turns a plain-words request into a working pyNavis tool on the ribbon, and revises it when you ask.</p></div></div><div class="facts"><div class="fact"><span class="fact-k">On the ribbon</span><span class="fact-v">Dock panel, AI (beta) panel</span></div><div class="fact"><span class="fact-k">Needs</span><span class="fact-v">An API key from AI Settings, or a local OpenAI-compatible server with none</span></div></div>
+  <h2 id="what-it-does">What it does<a class="anchor" href="#what-it-does" aria-label="Link to this section">#</a></h2>
+<p>You type what the tool should do. The panel sends that, together with the pyNavis
+authoring guide, to the model you chose in AI Settings. The reply comes back as a short
+explanation plus the files of one bundle: <code>bundle.yaml</code>, <code>script.py</code>
+and sometimes <code>config.py</code>. Nothing touches disk until you click
+<strong>Create tool</strong>. Then the bundle is written into <code>AI.extension</code>
+under your pyNavis extensions folder, the ribbon reloads, and the tool is on the AI tab.</p>
+
+
+
+<h2 id="how-to-use-it">How to use it<a class="anchor" href="#how-to-use-it" aria-label="Link to this section">#</a></h2>
+<ol class="steps">
+  <li>Click <strong>AI Settings</strong> once, pick a provider, paste your key, and click
+    <strong>Test</strong> until the status line says it connected.</li>
+  <li>Click <strong>Ask AI</strong> to show the panel and dock it beside the view.</li>
+  <li>Describe the tool in plain words. If it depends on property names, select a few
+    representative items first and tick <strong>Attach selection</strong>: the model then sees
+    the real category and property names instead of guessing. Names only, never values.
+    Ctrl+Enter sends.</li>
+  <li>Read the reply. <strong>View files</strong> shows exactly what would be written. If the
+    model asked a question instead, answer it.</li>
+  <li>Click <strong>Create tool</strong>. The ribbon reloads and the button is on the AI tab.
+    Click it.</li>
+  <li>Keep talking to change it: "make it also hide the rest" sends the files as they are on
+    disk and comes back with a new version, and the card now reads <strong>Update
+    tool</strong>. If the tool failed when you ran it, <strong>Send last error to AI</strong>
+    pastes the traceback into the chat for a fix.</li>
+  <li><strong>New tool</strong> starts a fresh conversation. The dropdown beside it lists
+    every tool Ask AI has made so far; pick one to continue it in a new conversation, with its
+    files put in front of the model.</li>
+</ol>
+
+<h2 id="what-leaves-your-machine">What leaves your machine<a class="anchor" href="#what-leaves-your-machine" aria-label="Link to this section">#</a></h2>
+<p>Every request carries the authoring guide and your chat so far. Only when you ticked the
+box, it also carries the selection summary: the item count, the category names and the
+property names under each, capped at a few kilobytes. Never a value: a value is project data
+(a source file, a client, a project number in a custom tab), so the reader does not even ask
+Navisworks for one. No file name, no path, no geometry, no user name. The request goes to the
+provider you configured and nowhere else; pyNavis has no server in the middle.</p>
+
+<h2 id="limitations">Limitations<a class="anchor" href="#limitations" aria-label="Link to this section">#</a></h2>
+<ul>
+  <li>Beta. Read the code before you run it. The model works from the guide and from what
+    you say; it cannot see your model unless you attach the selection, and it cannot run the
+    tool itself.</li>
+  <li>One bundle per conversation, with only those three files. The model cannot write
+    helper modules, hooks, dock panels or icons; generated tools get a lettered icon in one
+    of five colours, never the blue of the shipped tools, so you can always tell them apart.</li>
+  <li>It rewrites only tools it made, inside <code>AI.extension</code>. Hand-written bundles
+    are never touched.</li>
+  <li>The conversation lives for the Navisworks session. Closing Navisworks forgets it; the
+    tools stay, and the dropdown in the panel header brings any of them back for editing.</li>
+  <li>It takes one of the five dock panel slots.</li>
+</ul>
+
+<h2 id="other-uses">Other uses<a class="anchor" href="#other-uses" aria-label="Link to this section">#</a></h2>
+<ul>
+  <li>Use it as a starting point: create the tool, then open the folder and edit
+    <code>script.py</code> by hand like any other bundle. Reload is not even needed for a
+    script edit.</li>
+  <li>Prefer your own chatbot? <strong>Copy authoring guide</strong> in the panel's footer
+    puts the same guide on the clipboard. Paste it, ask for the tool, and save the files it
+    gives you into a <code>*.pushbutton</code> folder yourself. The
+    <a href="https://pynavis.com/authoring/ai-assistant.html">authoring docs</a> walk through
+    that path.</li>
+</ul>
+
+<h2 id="good-to-know">Good to know<a class="anchor" href="#good-to-know" aria-label="Link to this section">#</a></h2>
+<p>Anthropic requests send the guide as a cached prompt block, so from the second message on
+most of it is read from the provider's cache rather than billed in full. The
+<strong>Longest answer</strong> setting caps a reply; if the transcript says the answer hit the
+limit, raise it and ask again.</p>
+  <div class="pagenav">
+<a href="element-id-settings.html"><span class="dir">Previous</span><span class="ttl">Element ID Settings</span></a>
+<a class="next" href="ai-settings.html"><span class="dir">Next</span><span class="ttl">AI Settings</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#what-it-does">What it does</a>
+<a href="#how-to-use-it">How to use it</a>
+<a href="#what-leaves-your-machine">What leaves your machine</a>
+<a href="#limitations">Limitations</a>
+<a href="#other-uses">Other uses</a>
+<a href="#good-to-know">Good to know</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

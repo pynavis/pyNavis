@@ -1,0 +1,3 @@
+title: Ask AI
+tooltip: Beta. A chat panel that writes pyNavis tools for you. Describe the button you want, read what the model proposes, click Create, and it appears on the AI tab. Needs an API key from AI Settings, or a local OpenAI-compatible server. You can also build tools with any other assistant using the authoring guide the panel copies for you.
+keytip: AA

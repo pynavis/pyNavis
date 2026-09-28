@@ -42,8 +42,9 @@
 <a href="api-reference.html"><span class="num">13</span>Python API reference</a>
 <div class="grp">Practice</div>
 <a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="troubleshooting.html"><span class="num">15</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">16</span>Design rules for tools</a>
+<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.0.0</span>
@@ -328,6 +329,20 @@ know about survives every save another one makes.</p>
         <code>Contents\&lt;year&gt;</code> folder and is registered in
         <code>PackageContents.xml</code>. Written by the <strong>Panel slots</strong>
         button.</td></tr>
+<tr><td><code>ai.provider</code></td><td><code>"anthropic"</code> or <code>"openai"</code></td>
+    <td>absent (Anthropic)</td>
+    <td>Which chat API the Ask AI panel talks to. <code>"openai"</code> is any
+        OpenAI-compatible endpoint. See <a href="ai-assistant.html">Writing tools with an AI
+        assistant</a>.</td></tr>
+<tr><td><code>ai.baseUrl</code></td><td>string</td><td>absent</td>
+    <td>The endpoint, when not the provider's public one: an Azure OpenAI resource, Ollama,
+        a local server. Absent means <code>https://api.anthropic.com</code> or
+        <code>https://api.openai.com/v1</code>.</td></tr>
+<tr><td><code>ai.model</code></td><td>string</td><td>absent</td>
+    <td>The model name. Absent means the provider's default.</td></tr>
+<tr><td><code>ai.maxTokens</code></td><td>integer above zero</td><td><code>8192</code></td>
+    <td>The longest reply the panel asks for. The API key is not in this file at all: it is
+        in <code>secrets.json</code> beside it, encrypted for the Windows user.</td></tr>
 <tr><td><code>ribbon.showShortcutMarker</code></td><td>boolean</td><td><code>true</code></td>
     <td>Whether a button a chord resolves to carries a marker after its name. The
         Settings window's first checkbox.</td></tr>
@@ -456,7 +471,7 @@ TOOL = <span class="tok-s">&#x27;section_planes&#x27;</span>
 TOOL = <span class="tok-s">&#x27;count_selection&#x27;</span></pre>
 </div>
 <div class="dont"><div class="dd-t">Don't</div>
-<pre>TOOL = <span class="tok-s">&#x27;Smart Clash Grouper&#x27;</span>   <span class="tok-c"># spaces in a filename</span>
+<pre>TOOL = <span class="tok-s">&#x27;Clash Grouper&#x27;</span>   <span class="tok-c"># spaces in a filename</span>
 TOOL = __title__               <span class="tok-c"># renaming the button loses settings</span>
 TOOL = <span class="tok-s">&#x27;settings&#x27;</span>              <span class="tok-c"># says nothing about which tool</span></pre>
 </div>

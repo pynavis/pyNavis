@@ -962,7 +962,7 @@ it.</p>
 
 <p><code>alert</code> shows a message with a single dismiss button and returns
 <code>None</code>. Give it <code>copy</code>, a string, and a Copy button appears on the left
-of the footer that puts that text on the clipboard without closing the dialog; Resolve Clash
+of the footer that puts that text on the clipboard without closing the dialog; Clear Clash
 hands it the bare distance so the number can go straight into the authoring tool. <code>confirm</code> asks a Yes/No question and returns <code>True</code>
 on Yes. Both coerce <code>message</code> with <code>str()</code>, so passing a number or a
 result object will not raise.</p>
@@ -1187,7 +1187,7 @@ of them, so a point yields a list of candidate normals and <code>choose</code> p
 point. The faces come from the item's own triangles
 (<a href="#geometry-world-triangles"><code>geometry.world_triangles</code></a>), never from a
 screen pick: a pick at a point on an edge returns whichever meeting face is in front, which
-read 3in 3/16 where the gap was 4in. True Distance and Resolve Clash are the users.</p>
+read 3in 3/16 where the gap was 4in. True Distance, Clear Clash and Set Gap are the users.</p>
 
 <h3 id="faces-faces-at">faces.faces_at</h3>
 
@@ -1222,7 +1222,7 @@ chosen pair, or <code>None</code> with one side.</p>
 
 <p><code>normal</code> flipped, if need be, to point from the plane through <code>point</code>
 towards where most of <code>vertices</code> lie: the inward direction of a face on a body.
-Normals from <code>faces_at</code> carry no reliable sign, and this is how Resolve Clash knows
+Normals from <code>faces_at</code> carry no reliable sign, and this is how Clear Clash knows
 which way is away from the face that was clicked.</p>
 
 <h3 id="faces-faces-under">faces.faces_under and faces.candidates_at</h3>
@@ -1947,7 +1947,7 @@ and the user can measure again straight away. With <code>keep=False</code> the t
 the deliverable: the measurement is dropped the moment it is complete and the tool the user had
 comes back, as <code>measure_point</code> does; anything drawn from the points must then stand
 on its own rather than be anchored. A first point left behind by a cancel is dropped either
-way, so the next click does not close it into a line. True Distance and Resolve Clash use
+way, so the next click does not close it into a line. True Distance and Clear Clash use
 <code>keep=False</code>.</p>
 
 <pre data-lang="python">
@@ -2664,7 +2664,7 @@ else:
 no Navisworks import anywhere. Give it two meshes as
 <a href="#geometry-world-triangles"><code>geometry.world_triangles</code></a> returns them and
 it answers how far the first must slide along a world axis before the two share no point.
-Resolve Clash is the reference user: it feeds the two selected objects in and applies the
+Clear Clash is the reference user: it feeds the two selected objects in and applies the
 answer with <a href="#geometry-translate"><code>geometry.translate</code></a>.</p>
 
 <p>The answer is exact for the chosen direction and holds for any shape, convex or not. Every
@@ -3020,7 +3020,7 @@ returns <code>{'sets': [{'name', 'folder', 'query'}, ...]}</code>, the shape
 so an export can be handed straight back to <code>import_dict</code> unfiltered. Pass
 <code>include_static=True</code> to get those <code>{'name', 'folder', 'items'}</code> entries
 back when the export is for <em>showing</em> the whole tree rather than re-importing it, as the
-shipped Sets from Excel tool does; <code>import_dict</code> rejects such an entry, so filter
+shipped Excel Sets tool does; <code>import_dict</code> rejects such an entry, so filter
 them out yourself if you take that route.</p>
 
 <p><code>import_dict</code> batch-creates sets from that shape, all inside one transaction, and
@@ -3208,7 +3208,7 @@ dismisses it at once.</p>
 
 <p>An instruction the tool is waiting on: an info banner that stays until replaced or
 cleared. Shaped to be handed to <a href="#pick-measure-points"><code>pick.measure_points</code></a>
-as <code>notify</code>, which is how True Distance and Resolve Clash ask for their faces.</p>
+as <code>notify</code>, which is how True Distance and Clear Clash ask for their faces.</p>
 
 <h3 id="banner-clear">banner.clear</h3>
 

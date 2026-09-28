@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Web.Script.Serialization;
+using PyNavis.Runtime.Ai;
 
 namespace PyNavis.Runtime.Config
 {
@@ -67,6 +68,10 @@ namespace PyNavis.Runtime.Config
         public bool ShowShortcutMarker { get; private set; } = DefaultShowShortcutMarker;
 
         public const bool DefaultShowShortcutMarker = true;
+
+        /// <summary>"ai": provider, endpoint, model and answer length for the assistant.
+        /// The key is not here; SecretStore keeps it.</summary>
+        public AiSettings Ai { get; private set; } = new AiSettings();
 
         /// <summary>"layout.&lt;dialog&gt;.&lt;part&gt;": remembered pane widths, keyed
         /// "dialog/part" (e.g. "viewpoints/tree"). Only positive finite numbers load.</summary>
@@ -166,6 +171,7 @@ namespace PyNavis.Runtime.Config
             /// <summary>Null or empty removes the key and lets the runtime resolve it.</summary>
             public string PyNavisLibPath;
             public string CPythonPath;
+            public AiSettings Ai = new AiSettings();
         }
 
         /// <summary>The current file as a UserSettings, for a window to edit and hand back.</summary>
@@ -180,6 +186,7 @@ namespace PyNavis.Runtime.Config
             ExtensionPaths = new List<string>(ExtensionPaths),
             PyNavisLibPath = PyNavisLibPath,
             CPythonPath = CPythonPath,
+            Ai = Ai.Clone(),
         };
 
         /// <summary>
@@ -236,6 +243,13 @@ namespace PyNavis.Runtime.Config
             else ribbon["showShortcutMarker"] = settings.ShowShortcutMarker;
             if (ribbon.Count == 0) root.Remove("ribbon");
             else root["ribbon"] = ribbon;
+
+            var ai = root.TryGetValue("ai", out var aiRaw)
+                && aiRaw is Dictionary<string, object> existingAi
+                ? existingAi : new Dictionary<string, object>();
+            (settings.Ai ?? new AiSettings()).WriteSection(ai);
+            if (ai.Count == 0) root.Remove("ai");
+            else root["ai"] = ai;
 
             WriteRoot(path, root);
         }
@@ -389,6 +403,11 @@ namespace PyNavis.Runtime.Config
                         config.RibbonShortcutMarker = markerText;
                     if (ribbonSection.TryGetValue("showShortcutMarker", out var showSm) && showSm is bool showShortcut)
                         config.ShowShortcutMarker = showShortcut;
+                }
+                if (data != null && data.TryGetValue("ai", out var aiSection)
+                    && aiSection is Dictionary<string, object> aiMap)
+                {
+                    config.Ai = AiSettings.FromSection(aiMap);
                 }
                 if (data != null && data.TryGetValue("layout", out var layout)
                     && layout is Dictionary<string, object> layoutSection)

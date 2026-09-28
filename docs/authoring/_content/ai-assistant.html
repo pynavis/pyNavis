@@ -1,0 +1,117 @@
+<!-- title: Writing tools with an AI assistant -->
+<!-- eyebrow: Practice -->
+<!-- lead: The Ask AI panel, what it sends and what it writes, and how to get the same result from any chatbot you already use. -->
+
+<p>pyNavis ships an <strong>AI (beta)</strong> panel whose Ask AI dock panel writes bundles
+from a plain-words request. It is a convenience over the same contract this guide describes,
+not a different way of building tools: what comes back is a <code>bundle.yaml</code>, a
+<code>script.py</code> and sometimes a <code>config.py</code>, written into an ordinary
+<code>*.pushbutton</code> folder you can open and edit. This page explains the mechanism so
+you can trust it, tune it, or reproduce it elsewhere.</p>
+
+<h2>The panel is a beta, and not the only way</h2>
+
+<p>The panel is new and lightly tested. Read every script it proposes before you click
+Create. And you do not need it at all: any assistant that can read a long document will write
+pyNavis tools once it has the authoring guide. The panel's footer has a <strong>Copy authoring
+guide</strong> button that puts that exact guide on the clipboard, and the rest of this page
+tells you what to do with it.</p>
+
+<h2>What the model is given</h2>
+
+<p>Every request carries a system prompt made of two parts:</p>
+
+<ul>
+  <li><strong>The output rules.</strong> Answer with one bundle; a <code>Title:</code> line;
+    an <code>Icon:</code> line naming one or two letters and a colour; one fenced block per
+    file with the file name in the fence's info string; no other files or paths; no
+    <code>__main__</code> guard; toasts, never <code>print()</code>; ask a question instead of
+    guessing a property name.</li>
+  <li><strong>The authoring guide.</strong> A generated document, <code>authoring-pack.md</code>,
+    shipped beside the runtime: what a pushbutton is, the hard rules, the silent failure
+    modes, the script templates, the design rules and the full <code>pynavis</code> API
+    reference. It is built from the same sources as this site.</li>
+</ul>
+
+<p>Then the conversation so far. When you tick <strong>Attach selection</strong>, the newest
+message also carries the schema of the current selection: the item count, the category names
+and the property names under each, capped at about four kilobytes. Never a value. A value is
+project data, a source file name, a client, a project number in a custom tab, and this text
+leaves the machine, so the reader in <code>SelectionReader</code> does not read values at all
+and <code>SelectionSummary</code> would drop one if it were handed it. Nothing else about the
+document goes: no file name, no path, no geometry. When the conversation is revising a tool,
+the newest message also carries that tool's files exactly as they are on disk, so the model
+edits what exists rather than what it remembers.</p>
+
+<h2>What comes back, and what is written</h2>
+
+<p>The reply is parsed for fenced blocks named <code>bundle.yaml</code>,
+<code>script.py</code> or <code>config.py</code>. Any other name is refused and listed in
+the transcript, never written. A reply with no <code>script.py</code> is a question, not a
+proposal. A complete proposal shows a card: <strong>Create tool</strong> the first time,
+<strong>Update tool</strong> afterwards.</p>
+
+<p>Create writes the bundle into the per-user extension root, which pyNavis always scans:</p>
+
+<pre>%APPDATA%\pyNavis\extensions\AI.extension\
+    extension.yaml                       name: AI
+    AI.tab\Generated.panel\
+        Isolate_Level.pushbutton\
+            bundle.yaml
+            script.py
+            config.py                    only when proposed
+            icon.png  icon.dark.png  icon.small.png  icon.small.dark.png</pre>
+
+<p>The folder name is the title with everything but letters, digits and underscores removed,
+numbered if it already exists. The four icons are painted in-app: a rounded square in violet,
+teal, amber, rose or green with the letters from the <code>Icon:</code> line. Blue is
+deliberately not in that set, so a tool the assistant wrote never passes for a shipped one.
+The files are written to a staging folder and moved into place in one step, then the ribbon
+reloads. Update rewrites the same folder, so the bundle key, and any shortcut bound to it,
+survive.</p>
+
+<h2>Coming back to a tool</h2>
+
+<p>The panel header has a dropdown of every tool in <code>AI.extension</code>. Picking one
+starts a fresh conversation that is already editing that tool: its files ride on your next
+message, and the card reads <strong>Update tool</strong>. Nothing is sent until you type.</p>
+
+<h2>The fix loop</h2>
+
+<p>Every script that fails records its traceback per bundle for the session. When the tool
+the conversation is editing has one, the transcript offers <strong>Send last error to
+AI</strong>, which pastes the traceback as the next message and asks for complete revised
+files. Creating or updating the tool clears the recorded error.</p>
+
+<h2>Doing the same with any assistant</h2>
+
+<ol>
+  <li>In the Ask AI panel, click <strong>Copy authoring guide</strong>. No key is needed for
+    that button. The clipboard now holds the output rules and the guide, about thirty thousand
+    tokens.</li>
+  <li>Paste it into your chatbot as the first message, or as a project or custom instruction
+    if it supports one, then describe the tool.</li>
+  <li>Save what comes back as files: make a folder <code>&lt;Name&gt;.pushbutton</code> under
+    a panel in one of your extensions, put <code>script.py</code> and <code>bundle.yaml</code>
+    in it, and click Reload. See <a href="quickstart.html">Your first button</a> for the
+    folder chain and <a href="icons.html">Icons</a> for the art; without an icon the button
+    still works, it just has none.</li>
+  <li>If it fails, copy the traceback from the output window or the log at
+    <code>%APPDATA%\pyNavis\logs\pyNavis.log</code> back into the chat.</li>
+</ol>
+
+<p>The guide is what makes this work. A model that has not read it will happily wrap the code
+in <code>if __name__ == '__main__':</code> (which never runs in pyNavis), <code>print()</code>
+its result (which opens an empty output window) and invent library functions. With it, the
+answer usually runs first time.</p>
+
+<h2>Settings and privacy</h2>
+
+<p>Provider, base URL, model and the longest answer are the <code>ai</code> section of
+<code>config.json</code>, edited from <strong>AI Settings</strong> or the AI section of the
+Settings window. The API key is not there: it is in <code>secrets.json</code> beside it,
+encrypted with Windows DPAPI for the current user, so a shared or screenshotted
+<code>config.json</code> never carries a key. Two providers are supported, Anthropic and any
+OpenAI-compatible endpoint, which also covers a local server with no key at all. Requests go
+from Navisworks straight to that endpoint; pyNavis runs no service in between and keeps no
+copy of the conversation.</p>

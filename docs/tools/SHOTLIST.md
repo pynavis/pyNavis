@@ -19,18 +19,23 @@ toast counts where you are.
 
 - [ ] `clash-report-table.png`: The output window after Clash Report: one row per test, statuses across, totals
 at the bottom.
-## Smart Clash Grouper (Clash)
+## Clash Grouper (Clash)
 
 - [ ] `grouper-dialog.png`: The grouper dialog: tests on the left with their counts, the rule chain in the
 middle, the live preview of groups on the right.
 - [ ] `grouper-result.png`: Clash Detective after grouping: one group per root-cause element instead of a
 flat list of hundreds.
-## Resolve Clash (Clash)
+## Clear Clash (Clash)
 
-- [ ] `resolve-clash-before-after.png`: A pipe through a beam before, and sitting on the beam after, with the dialog
+- [ ] `clear-clash-before-after.png`: A pipe through a beam before, and sitting on the beam after, with the dialog
 reporting the distance moved.
-- [ ] `resolve-clash-dialog.png`: The result dialog, with the distance and a Copy button that puts just the number
+- [ ] `clear-clash-dialog.png`: The result dialog, with the distance and a Copy button that puts just the number
 on the clipboard.
+## Set Gap (Clash)
+
+- [ ] `set-gap-before-after.png`: A tray 350 mm below a duct before, and 100 mm below it after, with the dialog
+reporting the distance moved.
+- [ ] `set-gap-prompt.png`: The prompt, showing the gap as it is now and asking for the gap to leave.
 ## True Distance (Clash)
 
 - [ ] `true-distance-banner.png`: Two faces measured off-square: the native readout says 4in 3/16, the green
@@ -43,10 +48,18 @@ OK.
 
 - [ ] `select-by-ids-box.png`: The paste box pre-filled from the clipboard, and the elements selected and
 zoomed after OK.
-## Sets from Excel (Data)
+## Excel Sets (Data)
 
-- [ ] `sets-from-excel-workbook.png`: An exported workbook: Folder, Set, Category, Property, Op and Value, one row per
+- [ ] `excel-sets-workbook.png`: An exported workbook: Folder, Set, Category, Property, Op and Value, one row per
 search condition.
+## Ask AI (AI (beta))
+
+- [ ] `ask-ai-panel.png`: The Ask AI panel: a request, the model's reply with the files, and the Create tool
+card below the transcript.
+## AI Settings (AI (beta))
+
+- [ ] `ai-settings-section.png`: The AI assistant section of Settings: provider, base URL, model, key with Test,
+and the longest answer.
 ## Rename (Viewpoints)
 
 - [ ] `rename-dialog.png`: The Rename dialog: the tree on the left, the operation on the right, and the old

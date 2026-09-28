@@ -24,13 +24,35 @@ namespace PyNavis.Tests
         }
 
         [Fact]
-        public void ThePanels_ReadAsFiveNouns_InThisOrder()
+        public void ThePanels_ReadAsSixNouns_InThisOrder()
         {
             // The folder prefixes order the panels; Viewpoints has none and sorts
-            // last because digits come before letters.
+            // last because digits come before letters, so the AI panel lands before it.
             var tab = Assert.Single(ParseShipped().Tabs);
-            Assert.Equal(new[] { "pyNavis", "Selection", "Clash", "Data", "Viewpoints" },
+            Assert.Equal(new[] { "pyNavis", "Selection", "Clash", "Data", "AI (beta)", "Viewpoints" },
                 tab.Panels.Select(p => p.Title).ToArray());
+        }
+
+        [Fact]
+        public void AiPanel_ShipsTheChatPane_AndASetupStack_AllMarkedBeta()
+        {
+            var ai = ParseShipped().Tabs.Single().Panels.Single(p => p.Title == "AI (beta)");
+
+            Assert.Collection(ai.Items,
+                i =>
+                {
+                    var pane = Assert.IsType<DockPaneModel>(i);
+                    Assert.Equal("Ask AI", pane.Title);
+                    Assert.Contains("beta", pane.Tooltip, StringComparison.OrdinalIgnoreCase);
+                    Assert.True(File.Exists(pane.XamlPath), "missing pane.xaml");
+                    Assert.NotNull(pane.ScriptPath);
+                    foreach (var name in new[] { "icon.on.png", "icon.on.dark.png" })
+                        Assert.True(File.Exists(Path.Combine(pane.Directory, name)), "missing " + name);
+                },
+                i => Assert.Equal(new[] { "AI Settings", "Open AI Folder" },
+                        Assert.IsType<StackModel>(i).Buttons.Select(b => b.Title).ToArray()));
+            Assert.All(ai.Buttons, b => Assert.False(string.IsNullOrWhiteSpace(b.Tooltip)));
+            Assert.Empty(ai.Slideout);
         }
 
         [Fact]
@@ -112,7 +134,7 @@ namespace PyNavis.Tests
                                 : new[] { ((PushButtonModel)i).Directory })
                 .ToList();
 
-            Assert.Equal(41, bundles.Count);
+            Assert.Equal(45, bundles.Count);
 
             var expected = new[]
             {
@@ -246,7 +268,7 @@ namespace PyNavis.Tests
             Assert.All(state.Buttons, b => Assert.False(string.IsNullOrWhiteSpace(b.Tooltip)));
 
             var speeds = Assert.IsType<StackModel>(viewpoints.Items[3]);
-            Assert.Equal(new[] { "Reset Speeds", "Reset Viewpoints" },
+            Assert.Equal(new[] { "Apply Speeds", "Speeds to Saved" },
                 speeds.Buttons.Select(b => b.Title).ToArray());
             Assert.All(speeds.Buttons, b => Assert.False(string.IsNullOrWhiteSpace(b.Tooltip)));
 
@@ -290,15 +312,15 @@ namespace PyNavis.Tests
         {
             var viewpoints = ParseShipped().Tabs.Single().Panels.Single(p => p.Title == "Viewpoints");
             var stack = viewpoints.Items.OfType<StackModel>()
-                                  .Single(s => s.Buttons.Any(b => b.Title == "Reset Speeds"));
+                                  .Single(s => s.Buttons.Any(b => b.Title == "Apply Speeds"));
 
             // Shift+Click on either button reaches the settings the two share,
             // so neither may lose its config.py.
             Assert.All(stack.Buttons, b => Assert.NotNull(b.ConfigScriptPath));
 
             // The chords the C# add-in shipped with, carried over as defaults.
-            Assert.Equal("Alt+Q", stack.Buttons.Single(b => b.Title == "Reset Speeds").Shortcut);
-            Assert.Equal("Alt+Z", stack.Buttons.Single(b => b.Title == "Reset Viewpoints").Shortcut);
+            Assert.Equal("Alt+Q", stack.Buttons.Single(b => b.Title == "Apply Speeds").Shortcut);
+            Assert.Equal("Alt+Z", stack.Buttons.Single(b => b.Title == "Speeds to Saved").Shortcut);
         }
 
         [Fact]
@@ -315,15 +337,16 @@ namespace PyNavis.Tests
         }
 
         [Fact]
-        public void ClashPanel_Ships_TheFourClashTools_InWorkflowOrder()
+        public void ClashPanel_Ships_TheFiveClashTools_InWorkflowOrder()
         {
             var tab = Assert.Single(ParseShipped().Tabs);
             var clash = tab.Panels.Single(p => p.Title == "Clash");
 
             Assert.Collection(clash.Items,
                 i => Assert.Equal("Clash Report", Assert.IsType<PushButtonModel>(i).Title),
-                i => Assert.Equal("Smart Clash Grouper", Assert.IsType<PushButtonModel>(i).Title),
-                i => Assert.Equal("Resolve Clash", Assert.IsType<PushButtonModel>(i).Title),
+                i => Assert.Equal("Clash Grouper", Assert.IsType<PushButtonModel>(i).Title),
+                i => Assert.Equal("Clear Clash", Assert.IsType<PushButtonModel>(i).Title),
+                i => Assert.Equal("Set Gap", Assert.IsType<PushButtonModel>(i).Title),
                 i => Assert.Equal("True Distance", Assert.IsType<PushButtonModel>(i).Title));
             Assert.Empty(clash.Slideout);
         }
@@ -339,7 +362,7 @@ namespace PyNavis.Tests
                                   Assert.IsType<StackModel>(i).Buttons.Select(b => b.Title).ToArray()),
                 i => Assert.Equal(new[] { "Select by IDs", "IDs of Selection" },
                                   Assert.IsType<StackModel>(i).Buttons.Select(b => b.Title).ToArray()),
-                i => Assert.Equal("Sets from Excel", Assert.IsType<PushButtonModel>(i).Title),
+                i => Assert.Equal("Excel Sets", Assert.IsType<PushButtonModel>(i).Title),
                 i => Assert.Equal("Export Viewpoints", Assert.IsType<PushButtonModel>(i).Title));
             Assert.Collection(data.Slideout,
                 i => Assert.Equal("Element ID Settings", Assert.IsType<PushButtonModel>(i).Title));
@@ -367,7 +390,7 @@ namespace PyNavis.Tests
             var panels = ParseShipped().Tabs.Single().Panels.Where(p => p.Title == "Clash" || p.Title == "Data");
 
             Assert.Equal(
-                new[] { "Clash\nReport", "Export\nViewpoints", "Resolve\nClash", "Sets from\nExcel", "Smart Clash\nGrouper", "True\nDistance" },
+                new[] { "Clash\nGrouper", "Clash\nReport", "Clear\nClash", "Excel\nSets", "Export\nViewpoints", "Set\nGap", "True\nDistance" },
                 panels.SelectMany(p => p.Items.OfType<PushButtonModel>())
                       .Select(b => b.RibbonTitle).OrderBy(t => t).ToArray());
         }

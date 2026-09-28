@@ -290,6 +290,20 @@ know about survives every save another one makes.</p>
         <code>Contents\&lt;year&gt;</code> folder and is registered in
         <code>PackageContents.xml</code>. Written by the <strong>Panel slots</strong>
         button.</td></tr>
+<tr><td><code>ai.provider</code></td><td><code>"anthropic"</code> or <code>"openai"</code></td>
+    <td>absent (Anthropic)</td>
+    <td>Which chat API the Ask AI panel talks to. <code>"openai"</code> is any
+        OpenAI-compatible endpoint. See <a href="ai-assistant.html">Writing tools with an AI
+        assistant</a>.</td></tr>
+<tr><td><code>ai.baseUrl</code></td><td>string</td><td>absent</td>
+    <td>The endpoint, when not the provider's public one: an Azure OpenAI resource, Ollama,
+        a local server. Absent means <code>https://api.anthropic.com</code> or
+        <code>https://api.openai.com/v1</code>.</td></tr>
+<tr><td><code>ai.model</code></td><td>string</td><td>absent</td>
+    <td>The model name. Absent means the provider's default.</td></tr>
+<tr><td><code>ai.maxTokens</code></td><td>integer above zero</td><td><code>8192</code></td>
+    <td>The longest reply the panel asks for. The API key is not in this file at all: it is
+        in <code>secrets.json</code> beside it, encrypted for the Windows user.</td></tr>
 <tr><td><code>ribbon.showShortcutMarker</code></td><td>boolean</td><td><code>true</code></td>
     <td>Whether a button a chord resolves to carries a marker after its name. The
         Settings window's first checkbox.</td></tr>
@@ -425,7 +439,7 @@ TOOL = 'count_selection'
 </pre>
 </div>
 <div class="dont"><div class="dd-t">Don't</div>
-<pre data-bare="true" data-lang="python">TOOL = 'Smart Clash Grouper'   # spaces in a filename
+<pre data-bare="true" data-lang="python">TOOL = 'Clash Grouper'   # spaces in a filename
 TOOL = __title__               # renaming the button loses settings
 TOOL = 'settings'              # says nothing about which tool
 </pre>

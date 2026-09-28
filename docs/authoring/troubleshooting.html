@@ -42,8 +42,9 @@
 <a href="api-reference.html"><span class="num">13</span>Python API reference</a>
 <div class="grp">Practice</div>
 <a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="troubleshooting.html" class="active"><span class="num">15</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">16</span>Design rules for tools</a>
+<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html" class="active"><span class="num">16</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.0.0</span>
@@ -623,7 +624,7 @@ stripped name.</p>
   <span class="tok-f">&quot;shortcuts&quot;</span>: {
     <span class="tok-f">&quot;allowBareKeys&quot;</span>: <span class="tok-k">false</span>,
     <span class="tok-f">&quot;bindings&quot;</span>: {
-      <span class="tok-f">&quot;pyNavis.tab/02_Selection.panel/01_Memorize.pushbutton&quot;</span>: <span class="tok-s">&quot;Ctrl+Alt+M&quot;</span>,
+      <span class="tok-f">&quot;pyNavis.tab/02_Selection.panel/01_Remember.pushbutton&quot;</span>: <span class="tok-s">&quot;Ctrl+Alt+M&quot;</span>,
       <span class="tok-f">&quot;pyNavis.tab/02_Selection.panel/02_Recall.pushbutton&quot;</span>: <span class="tok-k">null</span>
     }
   }
@@ -632,7 +633,7 @@ stripped name.</p>
 <p><code>null</code> disables a binding the bundle declared. A key that matches no tool is
 ignored and logged.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>shortcut override for unknown tool &#x27;pyNavis.tab/02_Selection.panel/Memorize.pushbutton&#x27; ignored</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>shortcut override for unknown tool &#x27;pyNavis.tab/02_Selection.panel/Remember.pushbutton&#x27; ignored</code></pre></div>
 
 <p><strong>Fix.</strong> <kbd>Alt</kbd>+Click the button to open its folder in Explorer and
 read the path off the address bar, or use the Shortcuts editor, which writes the key for you.
@@ -760,7 +761,7 @@ one-script-at-a-time gate, every event except <code>before-command</code> and
 command's. See <a href="hooks.html">Hooks</a> for the full rules, including the debounced
 events.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 10:41:02.118 [INFO ] Hook MyTools:selection-changed skipped: &#x27;Smart Clash Grouper&#x27; is running.</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 10:41:02.118 [INFO ] Hook MyTools:selection-changed skipped: &#x27;Clash Grouper&#x27; is running.</code></pre></div>
 
 <h3 id="startup-py-failed">startup.py failed<a class="anchor" href="#startup-py-failed" aria-label="Link to this section">#</a></h3>
 
@@ -929,7 +930,7 @@ gate is released when the run ends, and there is no way to cancel a script from 
 Build cancellation into long tools yourself, the way the shipped grouper and viewpoint
 managers do.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:22:41.118 [INFO ] Refused &#x27;Clash report&#x27;: &#x27;Smart Clash Grouper&#x27; is still running.</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:22:41.118 [INFO ] Refused &#x27;Clash report&#x27;: &#x27;Clash Grouper&#x27; is still running.</code></pre></div>
 
 <h2 id="where-to-look">Where to look<a class="anchor" href="#where-to-look" aria-label="Link to this section">#</a></h2>
 
@@ -1007,7 +1008,7 @@ last.</p>
       construction.</span></a>
 </div>
   <div class="pagenav">
-<a href="cookbook.html"><span class="dir">Previous</span><span class="ttl">Cookbook</span></a>
+<a href="ai-assistant.html"><span class="dir">Previous</span><span class="ttl">Writing tools with an AI assistant</span></a>
 <a class="next" href="style-guide.html"><span class="dir">Next</span><span class="ttl">Design rules for tools</span></a>
 </div>
 </article>

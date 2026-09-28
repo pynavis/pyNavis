@@ -1,0 +1,3 @@
+title: Excel\nSets
+tooltip: Exports every selection set to an Excel workbook (one row per condition), or imports a workbook back into new sets.
+context: doc

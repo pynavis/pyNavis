@@ -639,7 +639,7 @@ namespace PyNavis.Tests
         {
             // The API half (faces_under) imports Navisworks lazily, so the
             // module itself loads anywhere; the pure half is what True Distance
-            // and Resolve Clash both lean on.
+            // and Clear Clash both lean on.
             var r = Run(
                 "from pynavis import faces\n" +
                 "tri = [((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0)),\n" +
@@ -1166,7 +1166,7 @@ namespace PyNavis.Tests
             // replace the title.
             var host = Execution.PyNavisHost.Instance;
             host.LogSource = null;
-            host.SetCommandContext(null, null, "Memorize", "Smoke.tab/P.panel/Memorize.pushbutton");
+            host.SetCommandContext(null, null, "Memorize", "Smoke.tab/P.panel/Remember.pushbutton");
 
             var r = Run(
                 "from pynavis import script\n" +
@@ -1183,7 +1183,7 @@ namespace PyNavis.Tests
             // button the user clicks.
             var host = Execution.PyNavisHost.Instance;
             host.LogSource = "hook Smoke:camera-moved";
-            host.SetCommandContext(null, null, "Memorize", "Smoke.tab/P.panel/Memorize.pushbutton");
+            host.SetCommandContext(null, null, "Memorize", "Smoke.tab/P.panel/Remember.pushbutton");
 
             Assert.Null(host.LogSource);
         }

@@ -109,8 +109,8 @@ namespace PyNavis.Tests
         {
             // A large button's RibbonTitle carries its own newline to wrap a long name.
             // Appending past that would strand the marker beside the first word.
-            Assert.Equal("Smart Clash\nGrouper \u25CF",
-                RibbonMarkers.WithShortcutMarker("Smart Clash\nGrouper"));
+            Assert.Equal("Clash\nGrouper \u25CF",
+                RibbonMarkers.WithShortcutMarker("Clash\nGrouper"));
         }
 
         [Fact]
@@ -150,7 +150,7 @@ namespace PyNavis.Tests
             RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"showConfigMarker\": true}}"));
             Assert.Equal("\U0001F845", RibbonMarkers.ConfigMarker);
             Assert.Equal("Purge \U0001F845", RibbonMarkers.WithConfigMarker("Purge"));
-            Assert.Equal("Smart Clash\nGrouper \U0001F845", RibbonMarkers.WithConfigMarker("Smart Clash\nGrouper"));
+            Assert.Equal("Clash\nGrouper \U0001F845", RibbonMarkers.WithConfigMarker("Clash\nGrouper"));
         }
 
         [Fact]

@@ -15,7 +15,7 @@ using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
 namespace PyNavis.Runtime.Forms
 {
     /// <summary>
-    /// The Smart Clash Grouper dialog, built to the pyNavis design system v2
+    /// The Clash Grouper dialog, built to the pyNavis design system v2
     /// (docs/design-system): one solid paper surface, hairline-divided sections,
     /// native affordances (checkbox, segmented control, toggle), accent only in
     /// the primary action, the selection rail and the focus ring, numbers as
@@ -264,7 +264,7 @@ namespace PyNavis.Runtime.Forms
 
             var window = new Window
             {
-                Title = "Smart Clash Grouper",
+                Title = "Clash Grouper",
                 Width = 600,
                 // Tall enough for ~11 test rows at the default size: on a
                 // 54-test model the old 720 showed six and left the preview
@@ -1325,7 +1325,7 @@ namespace PyNavis.Runtime.Forms
                 if (!Dialogs.Confirm(
                     "Remove the groups this tool previously created in the selected "
                     + "tests?\n\nGroups you made by hand are kept, and no clash is renamed.",
-                    "Smart Clash Grouper"))
+                    "Clash Grouper"))
                     return;
                 parts.Result = ConfigFrom(parts);
                 parts.Result.Action = "ungroup";

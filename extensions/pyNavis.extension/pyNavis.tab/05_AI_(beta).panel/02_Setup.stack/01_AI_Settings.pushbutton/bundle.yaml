@@ -1,0 +1,2 @@
+title: AI Settings
+tooltip: Which provider Ask AI talks to (Anthropic, or any OpenAI-compatible endpoint such as Azure OpenAI or a local server), the model, and your API key. The key is stored encrypted for your Windows account, never in config.json. Opens the Settings window on its AI section.

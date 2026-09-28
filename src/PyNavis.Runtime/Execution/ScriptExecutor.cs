@@ -63,6 +63,7 @@ namespace PyNavis.Runtime.Execution
                 {
                     Log.Error($"Script '{button.Title}' failed:\n{result.ErrorText}");
                     writer.WriteError(result.ErrorText + Environment.NewLine);
+                    Ai.FailureLog.Record(button.Directory, result.ErrorText);   // "Send last error" in Ask AI
                 }
             }
             catch (Exception ex)
@@ -70,6 +71,7 @@ namespace PyNavis.Runtime.Execution
                 // e.g. unknown engine id, engine creation failure
                 Log.Error($"Could not run '{button.Title}'", ex);
                 writer.WriteError(ex.Message + Environment.NewLine);
+                Ai.FailureLog.Record(button.Directory, ex.ToString());
             }
             finally
             {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using PyNavis.Runtime.Ai;
 using PyNavis.Runtime.Config;
 using PyNavis.Runtime.Output;
 using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
@@ -39,6 +40,15 @@ namespace PyNavis.Runtime.Forms
             public ListBox Roots;
             public TextBox Lib;
             public TextBox CPython;
+            public ComboBox AiProvider;
+            public TextBox AiBaseUrl;
+            public ComboBox AiModel;
+            public PasswordBox AiKey;
+            public bool AiKeyTouched;
+            public TextBox AiMaxTokens;
+            public TextBlock AiStatus;
+            public Grid AiFrame;
+            public System.Text.StringBuilder AiText = new System.Text.StringBuilder();
             public bool Saved;
         }
 
@@ -65,13 +75,26 @@ namespace PyNavis.Runtime.Forms
         /// the change costs. The script-facing entry, so a bundle stays a few lines.
         /// IO and parse failures propagate to the caller to report.
         /// </summary>
-        public static Outcome ShowAndSave()
+        public static Outcome ShowAndSave() => ShowAndSave(null);
+
+        /// <summary>As above, scrolled to one section ("ai") when asked. The API key is
+        /// saved to the secret store, never to config.json.</summary>
+        public static Outcome ShowAndSave(string section)
         {
             var path = RuntimeHost.UserConfigPath;
             var current = PyNavisConfig.Load(path).ToUserSettings();
+            var secrets = SecretStore.Default;
 
-            var edited = Show(current);
-            if (edited == null) return Outcome.Cancelled;
+            var window = Build(current, secrets.Has(SecretStore.AiKeyName));
+            if (section == "ai")
+                window.Loaded += (s, e) => PartsOf(window).AiFrame?.BringIntoView();
+            window.ShowDialog();
+            var parts = PartsOf(window);
+            Live.Remove(window);
+            if (!parts.Saved) return Outcome.Cancelled;
+            var edited = Collect(parts);
+            var enteredKey = EnteredKey(parts);
+            if (enteredKey != null) secrets.Set(SecretStore.AiKeyName, enteredKey);
 
             // Compared before the write, because afterwards there is nothing left to
             // compare against and the restart notice would be a guess.
@@ -98,7 +121,11 @@ namespace PyNavis.Runtime.Forms
             return parts.Saved ? Collect(parts) : null;
         }
 
-        public static Window Build(PyNavisConfig.UserSettings current)
+        public static Window Build(PyNavisConfig.UserSettings current) => Build(current, false);
+
+        /// <summary><paramref name="hasKey"/>: whether a key is already stored, so the
+        /// key box can say "saved" instead of looking empty.</summary>
+        public static Window Build(PyNavisConfig.UserSettings current, bool hasKey)
         {
             var t = Tokens.Current;
             var values = current ?? new PyNavisConfig.UserSettings();
@@ -122,6 +149,7 @@ namespace PyNavis.Runtime.Forms
             page.Children.Add(Shortcuts(parts));
             page.Children.Add(Roots(parts));
             page.Children.Add(Engines(parts));
+            page.Children.Add(Assistant(parts, hasKey));
             page.Children.Add(Actions(parts));
 
             var scroll = new ScrollViewer
@@ -269,6 +297,151 @@ namespace PyNavis.Runtime.Forms
             return DesignSystem.GroupFrame(t, "Engines", body);
         }
 
+        private static UIElement Assistant(Parts parts, bool hasKey)
+        {
+            var t = parts.T;
+            var ai = parts.Values.Ai ?? new AiSettings();
+            var body = new StackPanel();
+
+            body.Children.Add(Caption(t, "Provider"));
+            parts.AiProvider = new ComboBox { Width = 200, Height = 26, HorizontalAlignment = HorizontalAlignment.Left };
+            parts.AiProvider.Items.Add(ProviderAnthropic);
+            parts.AiProvider.Items.Add(ProviderOpenAi);
+            parts.AiProvider.SelectedItem = ai.Provider == AiProvider.OpenAiCompatible ? ProviderOpenAi : ProviderAnthropic;
+            body.Children.Add(parts.AiProvider);
+
+            body.Children.Add(Caption(t, "Base URL"));
+            parts.AiBaseUrl = new TextBox { Text = ai.BaseUrl ?? "" };
+            body.Children.Add(DesignSystem.InputField(t, parts.AiBaseUrl));
+            body.Children.Add(AiHint(parts,
+                "Leave empty for the provider's public endpoint. For OpenAI-compatible, this is where "
+                + "Azure OpenAI, Ollama or a local server lives, ending in /v1."));
+
+            body.Children.Add(Caption(t, "Model"));
+            parts.AiModel = new ComboBox { IsEditable = true, Width = 260, Height = 26, HorizontalAlignment = HorizontalAlignment.Left };
+            FillModels(parts, ai.Provider);
+            parts.AiModel.Text = ai.Model ?? "";
+            body.Children.Add(parts.AiModel);
+            parts.AiProvider.SelectionChanged += (s, e) =>
+            {
+                var chosen = Convert.ToString(parts.AiProvider.SelectedItem) == ProviderOpenAi
+                    ? AiProvider.OpenAiCompatible : AiProvider.Anthropic;
+                FillModels(parts, chosen);
+            };
+            body.Children.Add(AiHint(parts, "Empty picks the provider's default. Any model name can be typed."));
+
+            body.Children.Add(Caption(t, "API key"));
+            parts.AiKey = new PasswordBox { Height = 26, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
+            parts.AiKey.PasswordChanged += (s, e) => parts.AiKeyTouched = true;
+            var keyRow = new Grid();
+            keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            keyRow.Children.Add(parts.AiKey);
+            var test = DesignSystem.Quiet(t, "Test", () => TestConnection(parts));
+            test.Margin = new Thickness(8, 0, 0, 0);
+            Grid.SetColumn(test, 1);
+            keyRow.Children.Add(test);
+            body.Children.Add(keyRow);
+            body.Children.Add(AiHint(parts, hasKey
+                ? "A key is saved. Leave the box empty to keep it, or type a new one to replace it."
+                : "Stored encrypted for your Windows account in secrets.json, never in config.json. "
+                  + "A local server needs no key."));
+            parts.AiStatus = Hint(t, "", new Thickness(0, 6, 0, 0));
+            body.Children.Add(parts.AiStatus);
+
+            body.Children.Add(Caption(t, "Longest answer (tokens)"));
+            parts.AiMaxTokens = new TextBox { Width = 100, Text = ai.MaxTokens.ToString(), HorizontalAlignment = HorizontalAlignment.Left };
+            body.Children.Add(DesignSystem.InputField(t, parts.AiMaxTokens));
+
+            body.Children.Add(Note(t, AiHintText(parts,
+                "Ask AI is a beta. Every request sends the authoring guide plus your chat to the provider "
+                + "you chose here, and nothing else. You can also build tools with any assistant: the "
+                + "Copy authoring guide button on the Ask AI panel gives you the same guide to paste "
+                + "into the chatbot you already use.")));
+            parts.AiFrame = DesignSystem.GroupFrame(t, "AI assistant (beta)", body);
+            return parts.AiFrame;
+        }
+
+        private const string ProviderAnthropic = "Anthropic";
+        private const string ProviderOpenAi = "OpenAI-compatible";
+
+        private static void FillModels(Parts parts, AiProvider provider)
+        {
+            var typed = parts.AiModel.Text;
+            parts.AiModel.Items.Clear();
+            foreach (var name in provider == AiProvider.OpenAiCompatible ? AiSettings.OpenAiModels : AiSettings.AnthropicModels)
+                parts.AiModel.Items.Add(name);
+            parts.AiModel.Text = typed;
+        }
+
+        private static TextBlock AiHint(Parts parts, string text) =>
+            Hint(parts.T, AiHintText(parts, text), new Thickness(0, 6, 0, 0));
+
+        private static string AiHintText(Parts parts, string text)
+        {
+            parts.AiText.AppendLine(text);
+            return text;
+        }
+
+        private static string EnteredKey(Parts parts)
+        {
+            if (parts.AiKey == null || !parts.AiKeyTouched) return null;
+            var key = parts.AiKey.Password?.Trim();
+            return string.IsNullOrEmpty(key) ? null : key;
+        }
+
+        private static AiSettings CollectAi(Parts parts)
+        {
+            var ai = new AiSettings
+            {
+                Provider = Convert.ToString(parts.AiProvider.SelectedItem) == ProviderOpenAi
+                    ? AiProvider.OpenAiCompatible : AiProvider.Anthropic,
+                BaseUrl = string.IsNullOrWhiteSpace(parts.AiBaseUrl.Text) ? null : parts.AiBaseUrl.Text.Trim(),
+                Model = string.IsNullOrWhiteSpace(parts.AiModel.Text) ? null : parts.AiModel.Text.Trim(),
+            };
+            int tokens;
+            ai.MaxTokens = int.TryParse((parts.AiMaxTokens.Text ?? "").Trim(), out tokens) && tokens > 0
+                ? tokens : AiSettings.DefaultMaxTokens;
+            return ai;
+        }
+
+        /// <summary>One tiny request with the settings as they stand in the window,
+        /// reported on the status line. Runs off the UI thread; the window stays live.</summary>
+        private static async void TestConnection(Parts parts)
+        {
+            var settings = CollectAi(parts);
+            var key = EnteredKey(parts) ?? SecretStore.Default.Get(SecretStore.AiKeyName) ?? "";
+            parts.AiStatus.Text = "Testing " + settings.EffectiveModel + " at " + settings.EffectiveBaseUrl + "...";
+            parts.AiStatus.Foreground = DesignSystem.Brush(parts.T.Muted);
+            try
+            {
+                var provider = ChatProviders.Create(settings, key);
+                var request = new ChatRequest { Model = settings.EffectiveModel, MaxTokens = 16 };
+                request.Messages.Add(new ChatMessage("user", "Reply with the single word OK."));
+                var reply = new System.Text.StringBuilder();
+                using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(45)))
+                    await provider.StreamAsync(request, s => reply.Append(s), cts.Token);
+                parts.AiStatus.Text = "Connected. The model replied: " + Trim(reply.ToString(), 60);
+                parts.AiStatus.Foreground = DesignSystem.Brush(parts.T.Success);
+            }
+            catch (ProviderException ex)
+            {
+                parts.AiStatus.Text = ex.Message;
+                parts.AiStatus.Foreground = DesignSystem.Brush(parts.T.Error);
+            }
+            catch (Exception ex)
+            {
+                parts.AiStatus.Text = "Could not connect: " + ex.Message;
+                parts.AiStatus.Foreground = DesignSystem.Brush(parts.T.Error);
+            }
+        }
+
+        private static string Trim(string text, int max)
+        {
+            var t = (text ?? "").Trim().Replace("\n", " ");
+            return t.Length <= max ? t : t.Substring(0, max) + "...";
+        }
+
         private static UIElement Actions(Parts parts)
         {
             var row = new StackPanel
@@ -305,6 +478,7 @@ namespace PyNavis.Runtime.Forms
                     .Select(Convert.ToString).Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
                 PyNavisLibPath = parts.Lib.Text,
                 CPythonPath = parts.CPython.Text,
+                Ai = CollectAi(parts),
             };
 
         // ---- test seams --------------------------------------------------------
@@ -330,6 +504,16 @@ namespace PyNavis.Runtime.Forms
             PartsOf(window).Roots.Items.Add(path);
 
         public static int RootCountOf(Window window) => PartsOf(window).Roots.Items.Count;
+
+        public static void SetAiKeyForTest(Window window, string key) =>
+            PartsOf(window).AiKey.Password = key;
+
+        public static string EnteredKeyForTest(Window window) => EnteredKey(PartsOf(window));
+
+        public static void SetAiMaxTokensForTest(Window window, string text) =>
+            PartsOf(window).AiMaxTokens.Text = text;
+
+        public static string AiSectionTextForTest(Window window) => PartsOf(window).AiText.ToString();
 
         // ---- small chrome ------------------------------------------------------
 

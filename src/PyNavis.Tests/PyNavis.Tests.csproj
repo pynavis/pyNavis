@@ -24,6 +24,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The AI provider tests build a fake HttpMessageHandler and read JSON bodies -->
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PyNavis.Runtime\PyNavis.Runtime.csproj" />
     <ProjectReference Include="..\PyNavis\PyNavis.csproj" />
     <ProjectReference Include="..\PyNavis.Cli\PyNavis.Cli.csproj" />
