@@ -31,6 +31,9 @@
     <AssemblyVersion>$(PyNavisProductVersion).0</AssemblyVersion>
     <FileVersion>$(PyNavisProductVersion).0</FileVersion>
     <InformationalVersion>$(PyNavisProductVersion)</InformationalVersion>
+    <!-- No "+commit" suffix on the product version: the hash would be from a private
+         working repo and mean nothing to whoever reads the file properties. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <PropertyGroup>
