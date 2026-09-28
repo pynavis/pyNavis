@@ -89,16 +89,6 @@ Type: filesandordirs; Name: "{app}\2025\runtime"
 Type: filesandordirs; Name: "{app}\2026\runtime"
 Type: filesandordirs; Name: "{app}\2027\runtime"
 Type: filesandordirs; Name: "{app}\cli"
-untime"
-Type: filesandordirs; Name: "{app}4
-untime"
-Type: filesandordirs; Name: "{app}5
-untime"
-Type: filesandordirs; Name: "{app}6
-untime"
-Type: filesandordirs; Name: "{app}7
-untime"
-Type: filesandordirs; Name: "{app}\cli"
 
 [Files]
 ; The Autodesk bundle: PackageContents.xml plus Contents\<year>\PyNavis.dll for every
