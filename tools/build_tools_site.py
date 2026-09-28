@@ -39,9 +39,9 @@ PANELS = [
     ('pynavis.html',    'pyNavis',    'The tool itself: settings, shortcuts, the console, Reload.'),
     ('selection.html',  'Selection',  'Undo for selections: remember a selection, get it back, build on it.'),
     ('clash.html',      'Clash',      'Report, group and clear clashes, set the gap between systems, and measure the real gap.'),
-    ('data.html',       'Data',       'Coordinates, Revit element IDs, selection sets and viewpoints, in and out.'),
-    ('ai.html',         'AI (beta)',  'A chat that writes pyNavis tools for you, and the setup behind it.'),
     ('viewpoints.html', 'Viewpoints', 'Saved views, the section box, view state and navigation speeds.'),
+    ('ai.html',         'AI (beta)',  'A chat that writes pyNavis tools for you, and the setup behind it.'),
+    ('data.html',       'Data',       'Coordinates, Revit element IDs, selection sets and viewpoints, in and out.'),
 ]
 
 SECTION_RE = re.compile(r'<section\b([^>]*)>(.*?)</section>', re.DOTALL)

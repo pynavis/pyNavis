@@ -40,26 +40,6 @@ reporting the distance moved.
 
 - [ ] `true-distance-banner.png`: Two faces measured off-square: the native readout says 4in 3/16, the green
 banner says the true gap is 4in, and the dimension is drawn square to the faces.
-## Go to Coordinates (Data)
-
-- [ ] `go-to-coordinates.png`: The dialog pre-filled from the clipboard, and the marked point in the view after
-OK.
-## Select by IDs (Data)
-
-- [ ] `select-by-ids-box.png`: The paste box pre-filled from the clipboard, and the elements selected and
-zoomed after OK.
-## Excel Sets (Data)
-
-- [ ] `excel-sets-workbook.png`: An exported workbook: Folder, Set, Category, Property, Op and Value, one row per
-search condition.
-## Ask AI (AI (beta))
-
-- [ ] `ask-ai-panel.png`: The Ask AI panel: a request, the model's reply with the files, and the Create tool
-card below the transcript.
-## AI Settings (AI (beta))
-
-- [ ] `ai-settings-section.png`: The AI assistant section of Settings: provider, base URL, model, key with Test,
-and the longest answer.
 ## Rename (Viewpoints)
 
 - [ ] `rename-dialog.png`: The Rename dialog: the tree on the left, the operation on the right, and the old
@@ -76,3 +56,23 @@ Fit on the right, square to the pipes.
 - [ ] `section-nudge-adjust.png`: The Adjust tab: the six faces laid out as an unfolded box, named as you see them,
 with the world axis under each and the active face highlighted.
 - [ ] `section-nudge-move.png`: The Move tab with the World axes / Screen switch and the direction pad.
+## Ask AI (AI (beta))
+
+- [ ] `ask-ai-panel.png`: The Ask AI panel: a request, the model's reply with the files, and the Create tool
+card below the transcript.
+## AI Settings (AI (beta))
+
+- [ ] `ai-settings-section.png`: The AI assistant section of Settings: provider, base URL, model, key with Test,
+and the longest answer.
+## Go to Coordinates (Data)
+
+- [ ] `go-to-coordinates.png`: The dialog pre-filled from the clipboard, and the marked point in the view after
+OK.
+## Select by IDs (Data)
+
+- [ ] `select-by-ids-box.png`: The paste box pre-filled from the clipboard, and the elements selected and
+zoomed after OK.
+## Excel Sets (Data)
+
+- [ ] `excel-sets-workbook.png`: An exported workbook: Folder, Set, Category, Property, Op and Value, one row per
+search condition.

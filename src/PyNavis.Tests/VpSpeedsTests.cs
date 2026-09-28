@@ -162,7 +162,7 @@ namespace PyNavis.Tests
             // directly, which is exactly how they drifted apart the first time.
             var root = Path.GetFullPath(Path.Combine(
                 PyNavisLibTests.PyNavisLibDir, "..", "extensions", "pyNavis.extension"));
-            var speedsButton = Path.Combine(root, "pyNavis.tab", "Viewpoints.panel",
+            var speedsButton = Path.Combine(root, "pyNavis.tab", "04_Viewpoints.panel",
                 "04_Speeds.stack", "01_Apply_Speeds.pushbutton", "script.py");
             var applier = Path.Combine(root, "lib", "vpspeeds.py");
 

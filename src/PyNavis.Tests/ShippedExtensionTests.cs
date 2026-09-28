@@ -26,10 +26,10 @@ namespace PyNavis.Tests
         [Fact]
         public void ThePanels_ReadAsSixNouns_InThisOrder()
         {
-            // The folder prefixes order the panels; Viewpoints has none and sorts
-            // last because digits come before letters, so the AI panel lands before it.
+            // The folder prefixes order the panels: setup first, then the model work
+            // (selection, clash, viewpoints), then the AI panel, and data in and out last.
             var tab = Assert.Single(ParseShipped().Tabs);
-            Assert.Equal(new[] { "pyNavis", "Selection", "Clash", "Data", "AI (beta)", "Viewpoints" },
+            Assert.Equal(new[] { "pyNavis", "Selection", "Clash", "Viewpoints", "AI (beta)", "Data" },
                 tab.Panels.Select(p => p.Title).ToArray());
         }
 

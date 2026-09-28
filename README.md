@@ -37,7 +37,7 @@ brings the same idea to Navisworks.
 
 ## Bundled tools
 
-One tab, `pyNavis`, with six panels: pyNavis, Selection, Clash, Data, AI (beta) and Viewpoints. Full detail for every tool, including what each one
+One tab, `pyNavis`, with six panels: pyNavis, Selection, Clash, Viewpoints, AI (beta) and Data. Full detail for every tool, including what each one
 needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](https://tools.pynavis.com).
 
 **pyNavis**
@@ -69,23 +69,6 @@ needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](htt
 - **Set Gap**: point at two faces and type the gap you want; the object slides the exact difference, tighter or apart, clash or no clash
 - **True Distance**: true perpendicular distance between the two measured faces, on a bar across the bottom of the window
 
-**Data**
-
-- **Get Coordinates**: click a point and copy its coordinates to the clipboard
-- **Go to Coordinates**: move the view to a point and mark it with a cross
-- **Select by IDs**: select elements by Revit element ID, in a federated model
-- **IDs of Selection**: copy the Revit element IDs of the selection to the clipboard
-- **Excel Sets**: export selection sets to a workbook, or import them back
-- **Export Viewpoints**: every saved viewpoint to CSV, with camera positions
-- **Element ID Settings** (flyout): the settings both element ID tools share
-
-
-**AI (beta)**
-
-- **Ask AI**: a dock panel chat that writes a pyNavis tool from your request, creates it on an AI tab, and revises it; needs your own API key or a local OpenAI-compatible server
-- **AI Settings**: provider, endpoint, model and key, stored encrypted outside `config.json`
-- **Open AI Folder**: the `AI.extension` folder the generated tools live in
-
 **Viewpoints**
 
 - **Rename**: batch rename saved viewpoints with a live preview
@@ -101,6 +84,23 @@ needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](htt
 - **Viewpoint Tracker**: a dock panel naming the view you are looking through
 - **Section Nudge**: a dock panel remote for the section box, faces named the way you see them and moves that follow the screen, plus Ctrl+Alt chords
 - **Tracker Window** (flyout): the same two lines in a floating window
+
+
+**AI (beta)**
+
+- **Ask AI**: a dock panel chat that writes a pyNavis tool from your request, creates it on an AI tab, and revises it; needs your own API key or a local OpenAI-compatible server
+- **AI Settings**: provider, endpoint, model and key, stored encrypted outside `config.json`
+- **Open AI Folder**: the `AI.extension` folder the generated tools live in
+
+**Data**
+
+- **Get Coordinates**: click a point and copy its coordinates to the clipboard
+- **Go to Coordinates**: move the view to a point and mark it with a cross
+- **Select by IDs**: select elements by Revit element ID, in a federated model
+- **IDs of Selection**: copy the Revit element IDs of the selection to the clipboard
+- **Excel Sets**: export selection sets to a workbook, or import them back
+- **Export Viewpoints**: every saved viewpoint to CSV, with camera positions
+- **Element ID Settings** (flyout): the settings both element ID tools share
 
 ## Requirements
 

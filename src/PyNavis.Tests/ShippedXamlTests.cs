@@ -50,12 +50,12 @@ namespace PyNavis.Tests
             },
             new object[]
             {
-                @"pyNavis.tab\04_Data.panel\02_Element_IDs.stack\01_Select_by_IDs.pushbutton\layout.xaml",
+                @"pyNavis.tab\06_Data.panel\02_Element_IDs.stack\01_Select_by_IDs.pushbutton\layout.xaml",
                 new[] { "IdsBox", "OkButton" }
             },
             new object[]
             {
-                @"pyNavis.tab\Viewpoints.panel\05_Viewpoint_Tracker.dockpane\pane.xaml",
+                @"pyNavis.tab\04_Viewpoints.panel\05_Viewpoint_Tracker.dockpane\pane.xaml",
                 new[] { "Status", "ViewName" }
             },
             new object[]
@@ -65,7 +65,7 @@ namespace PyNavis.Tests
             },
             new object[]
             {
-                @"pyNavis.tab\Viewpoints.panel\06_Section_Nudge.dockpane\pane.xaml",
+                @"pyNavis.tab\04_Viewpoints.panel\06_Section_Nudge.dockpane\pane.xaml",
                 new[] { "Root", "Readout", "SectionOn", "Tabs", "AdjustTab", "MoveTab",
                         "CellTop", "CellTopName", "CellTopAxis", "CellLeft", "CellLeftName", "CellLeftAxis",
                         "CellFront", "CellFrontName", "CellFrontAxis", "CellRight", "CellRightName", "CellRightAxis",
@@ -77,7 +77,7 @@ namespace PyNavis.Tests
             },
             new object[]
             {
-                @"pyNavis.tab\Viewpoints.panel\99_More.slideout\Tracker_Window.pushbutton\window.xaml",
+                @"pyNavis.tab\04_Viewpoints.panel\99_More.slideout\Tracker_Window.pushbutton\window.xaml",
                 new[] { "Status", "ViewName" }
             },
         };
@@ -126,7 +126,7 @@ namespace PyNavis.Tests
             // unwrapped as a fallback, but it is not the supported form and nothing
             // else would report it.
             var path = Path.Combine(ExtensionDir(),
-                @"pyNavis.tab\Viewpoints.panel\05_Viewpoint_Tracker.dockpane\pane.xaml");
+                @"pyNavis.tab\04_Viewpoints.panel\05_Viewpoint_Tracker.dockpane\pane.xaml");
 
             OnSta(() =>
             {
