@@ -74,6 +74,32 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Messages]
 WelcomeLabel2=This will install pyNavis {#AppVersion} for the current user only. No administrator rights are needed and nothing is written to the Navisworks program folder.%n%nClose Navisworks before you continue.
 
+[InstallDelete]
+; Before copying, the previous version's shipped extension and runtimes go, so a bundle
+; folder that was renamed between releases cannot survive beside its replacement and
+; put every tool on it on the ribbon twice. Only what this installer owns is listed:
+; config.json, secrets.json, the logs, the AI.extension the assistant writes and any
+; other extension the user added are untouched. The loader bundle is not wiped either,
+; because the runtime-generated PyNavisPanes.dll (extra panel slots) lives there; the
+; loader DLL and manifest are simply overwritten by [Files].
+Type: filesandordirs; Name: "{app}\extensions\pyNavis.extension"
+Type: filesandordirs; Name: "{app}\2023\runtime"
+Type: filesandordirs; Name: "{app}\2024\runtime"
+Type: filesandordirs; Name: "{app}\2025\runtime"
+Type: filesandordirs; Name: "{app}\2026\runtime"
+Type: filesandordirs; Name: "{app}\2027\runtime"
+Type: filesandordirs; Name: "{app}\cli"
+untime"
+Type: filesandordirs; Name: "{app}4
+untime"
+Type: filesandordirs; Name: "{app}5
+untime"
+Type: filesandordirs; Name: "{app}6
+untime"
+Type: filesandordirs; Name: "{app}7
+untime"
+Type: filesandordirs; Name: "{app}\cli"
+
 [Files]
 ; The Autodesk bundle: PackageContents.xml plus Contents\<year>\PyNavis.dll for every
 ; Navisworks release this build supports.
