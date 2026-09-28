@@ -13,6 +13,10 @@ brings the same idea to Navisworks.
 
 > pyNavis is an independent project and is not affiliated with or endorsed by Autodesk.
 
+<p align="center">
+  <img src="assets/screenshots/ribbon.png" alt="The pyNavis ribbon tab: pyNavis, Selection, Clash, Viewpoints, AI (beta) and Data panels" width="100%">
+</p>
+
 ## What you get
 
 - **A ribbon built from folders.** `*.pushbutton`, `*.stack`, `*.pulldown`, `*.splitbutton`,
