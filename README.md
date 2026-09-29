@@ -21,7 +21,7 @@ brings the same idea to Navisworks.
 
 - **A ribbon built from folders.** `*.pushbutton`, `*.stack`, `*.pulldown`, `*.splitbutton`,
   `*.toggle`, `*.smartbutton`, `*.urlbutton`, `*.linkbutton`, `*.slideout` and more. Rename a
-  folder and the button renames; prefix it `03_` and it reorders.
+  folder and the button renames; list the folders in a `layout:` and they reorder.
 - **Two Python engines.** IronPython 3.4 ships with pyNavis and is the default. Set
   `engine: cpython` in `bundle.yaml` to run a script on your installed CPython when you need numpy, pandas or any other compiled package.
 - **Live reload.** Edit a script, click the button again. Add a bundle, press Reload.
@@ -161,6 +161,22 @@ same way but points `config.json` at the repository's `bin` folder, so a rebuild
 by the next Navisworks start without reinstalling anything.
 
 Run the tests with `dotnet test`.
+
+### Releasing
+
+Versions are `MAJOR.MINOR.PATCH`: PATCH for fixes, MINOR for anything new (a tool, a
+`bundle.yaml` or `config.json` key, a `pynavis` function, a Navisworks year), MAJOR when
+something existing changes meaning or goes away. The one source is `__version__` in
+`pynavislib/pynavis/__init__.py`; the build stamps it into every assembly, the installer
+name, the Autodesk manifest, the Settings window and the docs. To cut a release:
+
+1. Set `__version__` and add the `## [x.y.z] - yyyy-mm-dd` entry at the top of
+   [CHANGELOG.md](CHANGELOG.md). The tests and `tools\package.ps1` refuse a mismatch.
+2. Rebuild the generated docs: `python toolsuild_docs.py` and `python toolsuild_tools_site.py`.
+3. `dotnet test`, then `powershell -ExecutionPolicy Bypass -File tools\package.ps1` with
+   Navisworks closed. It writes `dist\pyNavis-x.y.z-setup.exe`.
+4. Commit as `Release x.y.z`, tag it `vx.y.z`, push, and publish a GitHub release with the
+   setup program attached and the changelog entry as its notes.
 
 ## Write your first button
 

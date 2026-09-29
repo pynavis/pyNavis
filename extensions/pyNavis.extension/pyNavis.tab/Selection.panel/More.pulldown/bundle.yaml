@@ -1,0 +1,6 @@
+title: More
+tooltip: Inspect the memory, promote it to a set, or delete stored memory files
+layout:
+  - Show_Contents
+  - Save_as_Set
+  - Purge

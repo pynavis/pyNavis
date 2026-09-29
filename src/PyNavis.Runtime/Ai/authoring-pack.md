@@ -99,7 +99,9 @@ Check these first when a bundle does not appear or does nothing:
 - A `.stack` needs exactly 2 or 3 pushbuttons; otherwise it is skipped.
 - A `.pulldown` with no usable pushbuttons is skipped.
 - `.extension` folders are found only directly under a root, never nested deeper.
-- `10_` sorts before `2_`. Zero-pad to a fixed width.
+- A tool in the wrong place is missing from its container's `layout:` list, or the entry
+  does not match the folder name. Unlisted folders go last, in name order. A misspelt
+  entry is reported in the log and the problem list.
 - A single-digit prefix is not stripped from the title: `1_Keep` displays as "1 Keep".
 - A bad `engine:` value fails at click time, not load time.
 - Icon variants fall back to `icon.png` only. Shipping only `icon.dark.png` gives you
@@ -718,7 +720,7 @@ except ImportError:
     clash = None
 ```
 
-`import pynavis` exposes exactly one public name, `pynavis.__version__` (currently `'1.0.0'`).
+`import pynavis` exposes exactly one public name, `pynavis.__version__`, the release number as a string (the same number Settings and the installer show).
 There are no re-exports, no `__all__`, no automatic submodule import. `pynavis.clash` after a
 bare `import pynavis` is an `AttributeError`. House style, used by every shipped bundle, is
 `from pynavis import ...` with modules in alphabetical order, at module level, immediately

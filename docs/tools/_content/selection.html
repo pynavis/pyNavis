@@ -17,7 +17,7 @@ the document. None of these buttons greys out; an empty memory or an empty selec
 reported in a toast.</p>
 
 <section id="remember" title="Remember" kind="Button"
-         bundle="02_Selection.panel/01_Remember.pushbutton"
+         bundle="Selection.panel/Remember.pushbutton"
          summary="Store the current selection in the document's memory, replacing whatever was there."
          needs="A selection (an empty one is reported, not stored)"
          shortcut="<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>">
@@ -53,7 +53,7 @@ the starting point for everything else on the panel.</p>
 </section>
 
 <section id="recall" title="Recall" kind="Button"
-         bundle="02_Selection.panel/02_Recall.pushbutton"
+         bundle="Selection.panel/Recall.pushbutton"
          summary="Select whatever is in memory, replacing the current selection."
          needs="Something in memory"
          shortcut="<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>">
@@ -84,7 +84,7 @@ skipped rather than failing the whole recall.</p>
 </section>
 
 <section id="add" title="Add" kind="Stacked button"
-         bundle="02_Selection.panel/03_Set.stack/01_Add.pushbutton"
+         bundle="Selection.panel/Set.stack/Add.pushbutton"
          summary="Add the current selection to memory, keeping what was already there."
          needs="A selection">
 
@@ -106,7 +106,7 @@ passes through a model: find some pipes on level 2, Add, find the rest on level 
 </section>
 
 <section id="subtract" title="Subtract" kind="Stacked button"
-         bundle="02_Selection.panel/03_Set.stack/02_Subtract.pushbutton"
+         bundle="Selection.panel/Set.stack/Subtract.pushbutton"
          summary="Remove the current selection from memory."
          needs="A selection">
 
@@ -129,7 +129,7 @@ a stored set: Recall, click the items that should not be there, Subtract.</p>
 </section>
 
 <section id="intersect" title="Intersect" kind="Stacked button"
-         bundle="02_Selection.panel/03_Set.stack/03_Intersect.pushbutton"
+         bundle="Selection.panel/Set.stack/Intersect.pushbutton"
          summary="Keep only the items that are both in memory and selected right now."
          needs="A selection">
 
@@ -158,7 +158,7 @@ selection. What survives is the overlap.</p>
 </section>
 
 <section id="previous-next" title="Previous and Next" kind="Stacked buttons"
-         bundle="02_Selection.panel/04_Step.stack/02_Next.pushbutton"
+         bundle="Selection.panel/Step.stack/Next.pushbutton"
          summary="Select and zoom to one remembered item at a time, walking the list from the keyboard."
          needs="Something in memory"
          shortcut="<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Left</kbd> and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Right</kbd>">
@@ -196,7 +196,7 @@ toast counts where you are.</figcaption>
 </section>
 
 <section id="forget" title="Forget" kind="Stacked button"
-         bundle="02_Selection.panel/04_Step.stack/03_Forget.pushbutton"
+         bundle="Selection.panel/Step.stack/Forget.pushbutton"
          summary="Empty the memory for this document."
          needs="Nothing">
 
@@ -211,7 +211,7 @@ files for every document at once, use Purge in the More menu.</p>
 </section>
 
 <section id="more-menu" title="More menu" kind="Menu"
-         bundle="02_Selection.panel/05_More.pulldown"
+         bundle="Selection.panel/More.pulldown"
          summary="Show what is in memory, promote it to a selection set, or delete the stored memory files."
          needs="Nothing">
 

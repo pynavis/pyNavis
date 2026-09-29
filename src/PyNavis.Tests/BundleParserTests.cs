@@ -413,17 +413,39 @@ namespace PyNavis.Tests
             Assert.Equal(new[] { "A", "B" }, Assert.IsType<StackModel>(panel.Slideout[1]).Buttons.Select(b => b.Title));
             // Buttons (shortcuts, context, panes) sees the slideout too.
             Assert.Equal(new[] { "Main", "Settings", "A", "B" }, panel.Buttons.Select(b => b.Title));
-            Assert.Equal("T.tab/P.panel/99_More.slideout/01_Settings.pushbutton", panel.Buttons[1].BundleKey);
+            Assert.Equal("T.tab/P.panel/More.slideout/Settings.pushbutton", panel.Buttons[1].BundleKey);
         }
 
         [Fact]
         public void BundleKey_IsExtensionRelative_WithForwardSlashes()
         {
-            MakeStackButton("MyExt", "Tab", "Panel", "02_Set", "01_Add");
-            MakeStackButton("MyExt", "Tab", "Panel", "02_Set", "02_Sub");
+            MakeStackButton("MyExt", "Tab", "Panel", "Set", "Add");
+            MakeStackButton("MyExt", "Tab", "Panel", "Set", "Sub");
             var buttons = ParseSingle().Tabs[0].Panels[0].Buttons;
-            Assert.Equal("Tab.tab/Panel.panel/02_Set.stack/01_Add.pushbutton", buttons[0].BundleKey);
-            Assert.Equal("Tab.tab/Panel.panel/02_Set.stack/02_Sub.pushbutton", buttons[1].BundleKey);
+            Assert.Equal("Tab.tab/Panel.panel/Set.stack/Add.pushbutton", buttons[0].BundleKey);
+            Assert.Equal("Tab.tab/Panel.panel/Set.stack/Sub.pushbutton", buttons[1].BundleKey);
+        }
+
+        // The ordering prefix is a sort hint, not identity: renumbering a panel must not
+        // orphan the shortcut overrides and pane slots config.json holds under the key.
+        [Fact]
+        public void BundleKey_LeavesOrderingPrefixes_OutOfEverySegment()
+        {
+            MakeStackButton("MyExt", "Tab", "02_Panel", "03_Set", "01_Add");
+            MakeStackButton("MyExt", "Tab", "02_Panel", "03_Set", "02_Sub");
+            var buttons = ParseSingle().Tabs[0].Panels[0].Buttons;
+            Assert.Equal("Tab.tab/Panel.panel/Set.stack/Add.pushbutton", buttons[0].BundleKey);
+            Assert.Equal("Tab.tab/Panel.panel/Set.stack/Sub.pushbutton", buttons[1].BundleKey);
+        }
+
+        [Fact]
+        public void BundleKey_OnADockPane_LeavesOrderingPrefixesOut()
+        {
+            var dir = Path.Combine(_root, "MyExt.extension", "T.tab", "04_Viewpoints.panel", "05_Tracker.dockpane");
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "pane.xaml"), "<Grid xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" />");
+            var pane = Assert.IsType<DockPaneModel>(ParseSingle().Tabs[0].Panels[0].Items[0]);
+            Assert.Equal("T.tab/Viewpoints.panel/Tracker.dockpane", pane.BundleKey);
         }
 
         [Fact]
@@ -575,6 +597,118 @@ namespace PyNavis.Tests
             var button = ParseSingle().Tabs[0].Panels[0].Buttons[0];
             Assert.Null(button.ContextRule);
             Assert.Null(button.MinHostYear);
+        }
+
+        // ---- layout: lists ---------------------------------------------------------
+        // A container's own yaml (extension.yaml for tabs, bundle.yaml everywhere else)
+        // may list its children in order. Folders then carry no numbers, so inserting a
+        // tool is one new line and nothing gets renamed.
+
+        private void WriteYaml(string relativePath, string text) =>
+            File.WriteAllText(Path.Combine(_root, "MyExt.extension", relativePath), text);
+
+        [Fact]
+        public void Layout_InPanelYaml_OrdersItems_UnlistedOnesFollowInNameOrder()
+        {
+            MakeButton("MyExt", "T", "P", "Alpha");
+            MakeButton("MyExt", "T", "P", "Mid");
+            MakeButton("MyExt", "T", "P", "Zeta");
+            MakeButton("MyExt", "T", "P", "Beta");
+            WriteYaml(Path.Combine("T.tab", "P.panel", "bundle.yaml"), "layout:\n  - Zeta\n  - Mid\n");
+
+            var titles = ParseSingle().Tabs[0].Panels[0].Buttons.Select(b => b.Title).ToArray();
+            Assert.Equal(new[] { "Zeta", "Mid", "Alpha", "Beta" }, titles);
+        }
+
+        [Fact]
+        public void Layout_Entries_MatchWithOrWithoutSuffix_IgnoringCaseAndOrderingPrefix()
+        {
+            MakeButton("MyExt", "T", "P", "Alpha");
+            MakeButton("MyExt", "T", "P", "01_Beta");
+            MakeButton("MyExt", "T", "P", "Gamma");
+            WriteYaml(Path.Combine("T.tab", "P.panel", "bundle.yaml"),
+                "layout:\n  - gamma.pushbutton\n  - Beta\n  - Alpha\n");
+
+            var titles = ParseSingle().Tabs[0].Panels[0].Buttons.Select(b => b.Title).ToArray();
+            Assert.Equal(new[] { "Gamma", "Beta", "Alpha" }, titles);
+        }
+
+        [Fact]
+        public void Layout_EntryWithNoFolder_IsReported_AndTheRestStillOrder()
+        {
+            MakeButton("MyExt", "T", "P", "Alpha");
+            MakeButton("MyExt", "T", "P", "Zeta");
+            WriteYaml(Path.Combine("T.tab", "P.panel", "bundle.yaml"), "layout:\n  - Zeta\n  - Ghost\n  - Alpha\n");
+
+            var ext = ParseSingle();
+            Assert.Equal(new[] { "Zeta", "Alpha" }, ext.Tabs[0].Panels[0].Buttons.Select(b => b.Title));
+            Assert.Contains(ext.Problems, p => p.Contains("Ghost") && p.Contains("layout"));
+        }
+
+        [Fact]
+        public void Layout_InTabYaml_OrdersPanels()
+        {
+            MakeButton("MyExt", "T", "Alpha", "A");
+            MakeButton("MyExt", "T", "Zeta", "Z");
+            WriteYaml(Path.Combine("T.tab", "bundle.yaml"), "layout:\n  - Zeta\n  - Alpha\n");
+
+            var panels = ParseSingle().Tabs[0].Panels.Select(p => p.Title).ToArray();
+            Assert.Equal(new[] { "Zeta", "Alpha" }, panels);
+        }
+
+        [Fact]
+        public void Layout_InExtensionYaml_OrdersTabs()
+        {
+            MakeButton("MyExt", "Alpha", "P", "A");
+            MakeButton("MyExt", "Zeta", "P", "Z");
+            WriteYaml("extension.yaml", "name: MyExt\nlayout:\n  - Zeta\n  - Alpha\n");
+
+            var tabs = ParseSingle().Tabs.Select(t => t.Title).ToArray();
+            Assert.Equal(new[] { "Zeta", "Alpha" }, tabs);
+        }
+
+        [Fact]
+        public void Layout_InStackAndPulldownYaml_OrdersTheirButtons()
+        {
+            MakeStackButton("MyExt", "T", "P", "S", "Alpha");
+            MakeStackButton("MyExt", "T", "P", "S", "Zeta");
+            WriteYaml(Path.Combine("T.tab", "P.panel", "S.stack", "bundle.yaml"), "layout:\n  - Zeta\n  - Alpha\n");
+            MakePulldownButton("MyExt", "T", "P", "U", "Alpha");
+            MakePulldownButton("MyExt", "T", "P", "U", "Zeta");
+            WriteYaml(Path.Combine("T.tab", "P.panel", "U.pulldown", "bundle.yaml"),
+                "title: Menu\nlayout:\n  - Zeta\n  - Alpha\n");
+
+            var panel = ParseSingle().Tabs[0].Panels[0];
+            Assert.Equal(new[] { "Zeta", "Alpha" }, Assert.IsType<StackModel>(panel.Items[0]).Buttons.Select(b => b.Title));
+            var pulldown = Assert.IsType<PulldownModel>(panel.Items[1]);
+            Assert.Equal("Menu", pulldown.Title);
+            Assert.Equal(new[] { "Zeta", "Alpha" }, pulldown.Buttons.Select(b => b.Title));
+        }
+
+        [Fact]
+        public void Layout_InSlideoutYaml_OrdersItsItems()
+        {
+            MakeButton("MyExt", "T", "P", "Main");
+            var below = Path.Combine(_root, "MyExt.extension", "T.tab", "P.panel", "More.slideout");
+            foreach (var name in new[] { "Alpha", "Zeta" })
+            {
+                Directory.CreateDirectory(Path.Combine(below, name + ".pushbutton"));
+                File.WriteAllText(Path.Combine(below, name + ".pushbutton", "script.py"), "print(1)\n");
+            }
+            File.WriteAllText(Path.Combine(below, "bundle.yaml"), "layout:\n  - Zeta\n  - Alpha\n");
+
+            var panel = ParseSingle().Tabs[0].Panels[0];
+            Assert.Equal(new[] { "Zeta", "Alpha" }, panel.Slideout.Select(i => ((PushButtonModel)i).Title));
+        }
+
+        [Fact]
+        public void Layout_Absent_KeepsNameOrder_SoOldExtensionsAreUntouched()
+        {
+            MakeButton("MyExt", "T", "P", "02_Zeta");
+            MakeButton("MyExt", "T", "P", "01_Alpha");
+            MakeButton("MyExt", "T", "P", "Beta");
+            var titles = ParseSingle().Tabs[0].Panels[0].Buttons.Select(b => b.Title).ToArray();
+            Assert.Equal(new[] { "Alpha", "Zeta", "Beta" }, titles);
         }
     }
 }

@@ -84,7 +84,7 @@ namespace PyNavis.Runtime.Bundles
                 }
             }
 
-            foreach (var tabDir in SortedDirs(extensionDir, "*.tab"))
+            foreach (var tabDir in OrderedDirs(extensionDir, "*.tab", extYaml, ext))
             {
                 var tabName = BaseName(tabDir, ".tab");
                 var tab = new TabModel
@@ -93,7 +93,8 @@ namespace PyNavis.Runtime.Bundles
                     Id = "PYNAVIS_TAB_" + Sanitize(ext.Name + "_" + tabName),
                 };
 
-                foreach (var panelDir in SortedDirs(tabDir, "*.panel"))
+                var tabYaml = ReadYaml(Path.Combine(tabDir, "bundle.yaml"));
+                foreach (var panelDir in OrderedDirs(tabDir, "*.panel", tabYaml, ext))
                 {
                     var panel = new PanelModel { Title = ToTitle(BaseName(panelDir, ".panel")) };
                     ParsePanelItems(panelDir, ext, panel.Items, panel.Slideout);
@@ -109,7 +110,8 @@ namespace PyNavis.Runtime.Bundles
         private static void ParsePanelItems(string dir, ExtensionModel ext,
             List<PanelItem> items, List<PanelItem> slideout)
         {
-            foreach (var itemDir in SortedDirs(dir, "*"))
+            var yaml = ReadYaml(Path.Combine(dir, "bundle.yaml"));
+            foreach (var itemDir in OrderedDirs(dir, "*", yaml, ext))
             {
                 var itemName = Path.GetFileName(itemDir);
                 if (itemName.EndsWith(".slideout", StringComparison.OrdinalIgnoreCase))
@@ -210,7 +212,8 @@ namespace PyNavis.Runtime.Bundles
         {
             var stack = new StackModel { Directory = stackDir };
             ReportNonPushButtons(stackDir, ext);
-            foreach (var buttonDir in SortedDirs(stackDir, "*.pushbutton"))
+            var yaml = ReadYaml(Path.Combine(stackDir, "bundle.yaml"));
+            foreach (var buttonDir in OrderedDirs(stackDir, "*.pushbutton", yaml, ext))
             {
                 var button = ParsePushButton(buttonDir, ext);
                 if (button != null) stack.Buttons.Add(button);
@@ -245,7 +248,7 @@ namespace PyNavis.Runtime.Bundles
             };
 
             ReportNonPushButtons(pulldownDir, ext);
-            foreach (var buttonDir in SortedDirs(pulldownDir, "*.pushbutton"))
+            foreach (var buttonDir in OrderedDirs(pulldownDir, "*.pushbutton", yaml, ext))
             {
                 var button = ParsePushButton(buttonDir, ext);
                 if (button != null) pulldown.Buttons.Add(button);
@@ -420,8 +423,9 @@ namespace PyNavis.Runtime.Bundles
             return pane;
         }
 
-        /// <summary>Bundle path relative to its extension folder, forward slashes: the
-        /// stable identity shortcut config keys use.</summary>
+        /// <summary>Bundle path relative to its extension folder, forward slashes, with
+        /// the NN_ ordering prefixes dropped: the stable identity shortcut overrides and
+        /// pane slots are stored under (see <see cref="BundleKeys"/>).</summary>
         private static string RelativeKey(string extensionDir, string bundleDir)
         {
             var full = Path.GetFullPath(bundleDir);
@@ -429,7 +433,7 @@ namespace PyNavis.Runtime.Bundles
             var rel = full.StartsWith(root, StringComparison.OrdinalIgnoreCase)
                 ? full.Substring(root.Length).TrimStart(Path.DirectorySeparatorChar)
                 : full;
-            return rel.Replace(Path.DirectorySeparatorChar, '/');
+            return BundleKeys.Normalize(rel.Replace(Path.DirectorySeparatorChar, '/'));
         }
 
         /// <summary>The four icon variants for a bundle folder; missing ones fall back to
@@ -465,6 +469,40 @@ namespace PyNavis.Runtime.Bundles
             }
         }
 
+        // Children in ribbon order: the container's "layout:" list first, in list order,
+        // then every unlisted folder in name order, so a forgotten entry never hides a
+        // tool. An entry names a child folder with or without its kind suffix; case and
+        // any NN_ prefix are ignored on both sides. The yaml is the container's own
+        // (extension.yaml for tabs, bundle.yaml everywhere else).
+        private static IEnumerable<string> OrderedDirs(string parent, string pattern,
+            Dictionary<string, string> containerYaml, ExtensionModel ext)
+        {
+            var dirs = SortedDirs(parent, pattern).ToList();
+            var layout = BundleYaml.ListOf(containerYaml, "layout");
+            if (layout.Count == 0) return dirs;
+
+            var ordered = new List<string>();
+            foreach (var entry in layout)
+            {
+                var match = dirs.FirstOrDefault(d => LayoutEntryMatches(entry, Path.GetFileName(d)));
+                if (match == null)
+                    Report(ext, $"The layout in '{parent}' names '{entry}', but no such folder is there - ignored.");
+                else if (!ordered.Contains(match))
+                    ordered.Add(match);
+            }
+            ordered.AddRange(dirs.Where(d => !ordered.Contains(d)));
+            return ordered;
+        }
+
+        private static bool LayoutEntryMatches(string entry, string folderName)
+        {
+            var want = BundleKeys.StripPrefix(entry.Trim());
+            var have = BundleKeys.StripPrefix(folderName);
+            if (string.Equals(want, have, StringComparison.OrdinalIgnoreCase)) return true;
+            var dot = have.LastIndexOf('.');
+            return dot > 0 && string.Equals(want, have.Substring(0, dot), StringComparison.OrdinalIgnoreCase);
+        }
+
         private static Dictionary<string, string> ReadYaml(string path)
         {
             try
@@ -489,13 +527,9 @@ namespace PyNavis.Runtime.Bundles
         }
 
         // Folders may carry an NN_ prefix purely to order them on the panel; it is not
-        // part of the title. Two or more digits, so a tool genuinely called "1_Thing"
-        // keeps its name (a bundle.yaml title always wins anyway).
-        private static readonly System.Text.RegularExpressions.Regex OrderPrefix =
-            new System.Text.RegularExpressions.Regex(@"^\d{2,}_");
-
+        // part of the title (a bundle.yaml title always wins anyway).
         private static string ToTitle(string folderName) =>
-            OrderPrefix.Replace(folderName, "").Replace('_', ' ');
+            BundleKeys.StripPrefix(folderName).Replace('_', ' ');
 
         private static string Sanitize(string value)
         {

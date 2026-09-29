@@ -44,16 +44,34 @@ namespace PyNavis.Tests
                 ""shortcuts"": {
                     ""allowBareKeys"": true,
                     ""bindings"": {
-                        ""pyNavis.tab/02_Selection.panel/02_Recall.pushbutton"": ""Ctrl+Alt+R"",
-                        ""pyNavis.tab/02_Selection.panel/01_Remember.pushbutton"": null
+                        ""pyNavis.tab/Selection.panel/Recall.pushbutton"": ""Ctrl+Alt+R"",
+                        ""pyNavis.tab/Selection.panel/Remember.pushbutton"": null
                     }
                 }
             }"));
 
             Assert.True(c.ShortcutsAllowBareKeys);
-            Assert.Equal("Ctrl+Alt+R", c.ShortcutBindings["pyNavis.tab/02_Selection.panel/02_Recall.pushbutton"]);
-            Assert.True(c.ShortcutBindings.ContainsKey("pyNavis.tab/02_Selection.panel/01_Remember.pushbutton"));
-            Assert.Null(c.ShortcutBindings["pyNavis.tab/02_Selection.panel/01_Remember.pushbutton"]);
+            Assert.Equal("Ctrl+Alt+R", c.ShortcutBindings["pyNavis.tab/Selection.panel/Recall.pushbutton"]);
+            Assert.True(c.ShortcutBindings.ContainsKey("pyNavis.tab/Selection.panel/Remember.pushbutton"));
+            Assert.Null(c.ShortcutBindings["pyNavis.tab/Selection.panel/Remember.pushbutton"]);
+        }
+
+        // A config.json written before the shipped folders lost their NN_ prefixes names
+        // tools by the old prefixed keys. They must land on the same tools after the
+        // upgrade, so the installer needs no migration step of its own.
+        [Fact]
+        public void Load_DropsOrderingPrefixes_FromBindingAndPaneKeys()
+        {
+            var c = PyNavisConfig.Load(WriteConfig(@"{
+                ""shortcuts"": { ""bindings"": {
+                    ""pyNavis.tab/02_Selection.panel/02_Recall.pushbutton"": ""Ctrl+Alt+R"" } },
+                ""panes"": { ""assignments"": {
+                    ""pyNavis.tab/04_Viewpoints.panel/05_Viewpoint_Tracker.dockpane"": 2 } }
+            }"));
+
+            Assert.Equal("Ctrl+Alt+R", c.ShortcutBindings["pyNavis.tab/Selection.panel/Recall.pushbutton"]);
+            Assert.False(c.ShortcutBindings.ContainsKey("pyNavis.tab/02_Selection.panel/02_Recall.pushbutton"));
+            Assert.Equal(2, c.PaneAssignments["pyNavis.tab/Viewpoints.panel/Viewpoint_Tracker.dockpane"]);
         }
 
         [Fact]

@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.0.0</span>
+    <span>pynavis 1.1.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -83,19 +83,25 @@ inherited from pyRevit, not a promise of YAML semantics.</p>
   <li>Split the text on <code>\n</code>. Trim a trailing <code>\r</code>, then trim
     whitespace from both ends of the line.</li>
   <li>Skip the line if it is now empty, or if it starts with <code>#</code>.</li>
-  <li>Find the <em>first</em> <code>:</code>. If there is none, or it is the first character,
-    skip the line.</li>
+  <li>If the previous key had nothing after its colon and this line starts with
+    <code>- </code>, the rest of the line is one item of that key's block list. One matching
+    layer of quotes is removed from the item, exactly as for a value below, and the item is
+    appended. Nothing else on this line is looked at.</li>
+  <li>Otherwise find the <em>first</em> <code>:</code>. If there is none, or it is the first
+    character, skip the line.</li>
   <li>The key is everything before that colon, trimmed and lowercased.</li>
   <li>The value is everything after that colon, trimmed.</li>
   <li>If the value is two characters or longer and starts and ends with the same quote
     character, <code>&quot;</code> or <code>'</code>, remove exactly one character from each
     end.</li>
-  <li>Store it. A key seen twice keeps the last value.</li>
+  <li>Store it. A key seen twice keeps the last value. An empty value opens a block list for
+    the <code>- </code> lines that follow; any other line closes it.</li>
 </ol>
 
 <p>That is all of it. There is no escape processing, no type coercion, no schema, and no
-error reporting. A file that cannot be read, or that does not exist, yields an empty
-dictionary and the bundle falls back on its defaults.</p>
+error reporting. The block list is the one shape of structure the reader knows, and
+<code>layout:</code> is the only key that reads one. A file that cannot be read, or that does
+not exist, yields an empty dictionary and the bundle falls back on its defaults.</p>
 
 <figure>
 <div class="fig-frame">
@@ -171,8 +177,8 @@ dictionary and the bundle falls back on its defaults.</p>
     on one line, in that order.</text>
 </svg>
 </div>
-<figcaption>The parser has no concept of structure. It sees lines, a first colon, and two
-strings.</figcaption>
+<figcaption>The parser has almost no concept of structure. It sees lines, a first colon, and
+two strings; the block list under an empty value is the one exception.</figcaption>
 </figure>
 
 <h2 id="inputs-that-surprise-people">Inputs that surprise people<a class="anchor" href="#inputs-that-surprise-people" aria-label="Link to this section">#</a></h2>
@@ -216,7 +222,8 @@ worth reading once so you recognise them when a value comes out wrong.</p>
 <tr><td><code>title: A</code> then <code>title: B</code></td><td><code>title</code></td>
     <td><code>B</code></td><td>Duplicate keys overwrite. The last one wins.</td></tr>
 <tr><td><code>title:</code></td><td><code>title</code></td><td>empty string</td>
-    <td>The key exists with an empty value, which is not the same as being absent.</td></tr>
+    <td>The key exists with an empty value, which is not the same as being absent. It also
+        opens a block list, so any <code>- </code> lines under it become its items.</td></tr>
 </tbody>
 </table>
 </div>
@@ -237,7 +244,9 @@ do not raise an error either; they parse into keys you will never read again.</p
 <ul>
   <li><strong>Nesting.</strong> An indented block is just more top-level keys, and the parent
     line becomes a key with an empty value.</li>
-  <li><strong>Lists.</strong> A line of <code>- item</code> has no colon and is dropped.</li>
+  <li><strong>Lists, except one shape.</strong> A key with nothing after its colon followed
+    by <code>- item</code> lines is a block list, and <code>layout:</code> is the only key
+    that reads one. A <code>- item</code> line anywhere else has no colon and is dropped.</li>
   <li><strong>Multi-line values.</strong> There is no <code>|</code> or <code>&gt;</code>
     handling. A tooltip is one line.</li>
   <li><strong>Anchors, aliases, tags, documents.</strong> None of the YAML machinery
@@ -265,8 +274,9 @@ do not raise an error either; they parse into keys you will never read again.</p
 </div>
 
 <p>In the second file the title keeps the comment, <code>tooltip</code> is literally
-<code>&gt;</code>, the two prose lines vanish for having no colon, <code>options</code> is an
-empty string, and the two list lines vanish as well. Nothing warns you.</p>
+<code>&gt;</code>, the two prose lines vanish for having no colon, and <code>options</code>
+parses as a block list of two items that no key reads, so it is stored and ignored. Nothing
+warns you.</p>
 
 <h2 id="the-keys-a-pushbutton-reads">The keys a pushbutton reads<a class="anchor" href="#the-keys-a-pushbutton-reads" aria-label="Link to this section">#</a></h2>
 
@@ -281,7 +291,7 @@ rendered control.</p>
 <thead><tr><th>Key</th><th>Falls back to</th><th>What it does</th></tr></thead>
 <tbody>
 <tr><td><code>title</code></td>
-    <td><code>__title__</code> in the script, then the folder name with any
+    <td><code>__title__</code> in the script, then the folder name with any legacy
         <code>NN_</code> prefix removed and underscores turned into spaces</td>
     <td>The caption on the button. A literal <code>\n</code> breaks it onto a second line,
         see below.</td></tr>
@@ -423,12 +433,14 @@ covers only the two runs that go through the script executor, a click or a chord
 <h2 id="the-keys-a-pulldown-reads">The keys a pulldown reads<a class="anchor" href="#the-keys-a-pulldown-reads" aria-label="Link to this section">#</a></h2>
 
 <p>A <code>*.pulldown</code> folder may carry its own <code>bundle.yaml</code> describing the
-menu button itself. It reads three keys: <code>title</code>, <code>tooltip</code> and
-<code>keytip</code>. <code>shortcut</code> and <code>engine</code> are ignored there, because
-a pulldown does not run anything; only the pushbuttons inside it do.</p>
+menu button itself. It reads four keys: <code>title</code>, <code>tooltip</code>,
+<code>keytip</code>, and <code>layout</code>, which orders the menu rows (see
+<a href="#layout-ordering-the-folders-inside-a-container">layout</a> below).
+<code>shortcut</code> and <code>engine</code> are ignored there, because a pulldown does not
+run anything; only the pushbuttons inside it do.</p>
 
 <p><code>*.splitbutton</code> and <code>*.splitpushbutton</code> are parsed exactly the same
-way and read the identical three keys. <a href="buttons.html">Buttons, stacks and
+way and read the identical four keys. <a href="buttons.html">Buttons, stacks and
 pulldowns</a> covers what makes their header click different from a plain pulldown's.</p>
 
 <h2 id="the-keys-a-urlbutton-reads">The keys a urlbutton reads<a class="anchor" href="#the-keys-a-urlbutton-reads" aria-label="Link to this section">#</a></h2>
@@ -517,7 +529,7 @@ covers what the toggle does and what <code>__pane__</code> exposes.</p>
 <h2 id="the-keys-an-extension-reads">The keys an extension reads<a class="anchor" href="#the-keys-an-extension-reads" aria-label="Link to this section">#</a></h2>
 
 <p>An <code>*.extension</code> folder may carry <code>extension.yaml</code>, a different
-filename read by the same parser. It has two keys.</p>
+filename read by the same parser. It has three keys.</p>
 
 <div class="table-scroll">
 <table>
@@ -528,6 +540,9 @@ filename read by the same parser. It has two keys.</p>
 <tr><td><code>engine</code></td><td><code>ironpython</code></td>
     <td>The default engine for every pushbutton in the extension. A bundle's own
         <code>engine</code> still overrides it.</td></tr>
+<tr><td><code>layout</code></td><td>Tab folders in name order</td>
+    <td>The order of the extension's <code>*.tab</code> folders, as a block list. See
+        below.</td></tr>
 </tbody>
 </table>
 </div>
@@ -578,32 +593,79 @@ filename read by the same parser. It has two keys.</p>
 <figcaption>The same two-step fallback applies to every pushbutton in the extension.</figcaption>
 </figure>
 
-<h2 id="folders-that-read-nothing">Folders that read nothing<a class="anchor" href="#folders-that-read-nothing" aria-label="Link to this section">#</a></h2>
+<h2 id="layout-ordering-the-folders-inside-a-container">layout: ordering the folders inside a container<a class="anchor" href="#layout-ordering-the-folders-inside-a-container" aria-label="Link to this section">#</a></h2>
 
-<p>Four folder kinds have no configuration file at all, and putting one there is a common
-way to lose an afternoon.</p>
+<p>Every container reads one more key, <code>layout</code>, from its own file: the tabs of an
+extension from <code>extension.yaml</code>, and the folders inside a <code>*.tab</code>,
+<code>*.panel</code>, <code>*.stack</code>, <code>*.pulldown</code>,
+<code>*.splitbutton</code>, <code>*.splitpushbutton</code> or <code>*.slideout</code> from a
+<code>bundle.yaml</code> in that folder. Its value is a block list of child folder names, in
+the order they should appear.</p>
+
+<div class="code"><div class="code-head"><span>Selection.panel\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">layout</span>:
+  - Remember
+  - Recall
+  - Set
+  - Step
+  - More</code></pre></div>
+
+<p>The block list is the one piece of structure the reader understands: a key with nothing
+after its colon, followed by lines that start with <code>- </code>. Quotes around an item are
+optional, and one matching layer is removed exactly as for a value. A <code>#</code> line
+between items is skipped and the list carries on. The next line that is neither an item nor a
+comment closes the list.</p>
+
+<p>How the list is applied:</p>
+
+<ul>
+  <li>Listed children come first, in list order.</li>
+  <li>Unlisted children follow in case-insensitive name order, so a forgotten entry never
+    hides a tool.</li>
+  <li>An entry may name the folder with or without its kind suffix: <code>Recall</code> and
+    <code>Recall.pushbutton</code> both match. Case is ignored, and so is a legacy
+    <code>NN_</code> prefix on either side.</li>
+  <li>An entry that names no folder in the container is logged, counted into the extension's
+    problem list on the same channel as a mistyped suffix, and skipped.</li>
+</ul>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\logs\pyNavis.log</span><button class="copy-btn" type="button">Copy</button></div><pre><code>The layout in &#x27;D:\NavisTools\...\Selection.panel&#x27; names &#x27;Recal&#x27;, but no such folder is there - ignored.</code></pre></div>
+
+<p>Without a <code>layout:</code> list the folders sort by name, which is how older
+extensions ordered themselves, with an <code>NN_</code> prefix on every folder. That still
+works. <a href="anatomy.html#ordering-panels-and-buttons">Anatomy of an extension</a> covers
+the rules in full.</p>
+
+<h2 id="folders-that-read-only-a-layout-list">Folders that read only a layout list<a class="anchor" href="#folders-that-read-only-a-layout-list" aria-label="Link to this section">#</a></h2>
+
+<p>Four folder kinds read a single key, <code>layout</code>, from their
+<code>bundle.yaml</code> and nothing else. Putting a title or an icon there is a common way
+to lose an afternoon.</p>
 
 <div class="table-scroll">
 <table>
 <thead><tr><th>Folder</th><th>Config file</th><th>Title comes from</th></tr></thead>
 <tbody>
-<tr><td><code>*.tab</code></td><td>None</td><td>The folder name</td></tr>
-<tr><td><code>*.panel</code></td><td>None</td><td>The folder name</td></tr>
-<tr><td><code>*.stack</code></td><td>None</td><td>Nothing: a stack has no visible label</td></tr>
-<tr><td><code>*.slideout</code></td><td>None</td>
+<tr><td><code>*.tab</code></td><td><code>bundle.yaml</code>, <code>layout:</code> only</td>
+    <td>The folder name</td></tr>
+<tr><td><code>*.panel</code></td><td><code>bundle.yaml</code>, <code>layout:</code> only</td>
+    <td>The folder name</td></tr>
+<tr><td><code>*.stack</code></td><td><code>bundle.yaml</code>, <code>layout:</code> only</td>
+    <td>Nothing: a stack has no visible label</td></tr>
+<tr><td><code>*.slideout</code></td><td><code>bundle.yaml</code>, <code>layout:</code> only</td>
     <td>Nothing: the flyout is labelled by the panel</td></tr>
 </tbody>
 </table>
 </div>
 
 <div class="note trap">
-<span class="note-t">bundle.yaml inside a .stack or a .slideout is read by nothing</span>
-<p>Stacks are parsed by walking straight to the <code>*.pushbutton</code> folders inside them,
-and a slideout is parsed by walking straight to the panel items inside it. Neither folder's own
-<code>bundle.yaml</code> is ever opened, and neither is looked at for an icon. If you want a
-title on a stacked row, put it in the pushbutton's <code>bundle.yaml</code>, one level down.
-There is also no <code>panel.yaml</code> or <code>tab.yaml</code>; rename the folder
-instead.</p>
+<span class="note-t">bundle.yaml inside a .stack or a .slideout is read for layout: and nothing else</span>
+<p>A stack is parsed by reading its <code>layout:</code> list, if there is one, and then
+walking to the <code>*.pushbutton</code> folders inside it; a slideout is parsed the same way
+over the panel items inside it. No other key in that <code>bundle.yaml</code> is read, and
+neither folder is looked at for an icon. If you want a title on a stacked row, put it in the
+pushbutton's <code>bundle.yaml</code>, one level down. There is also no
+<code>panel.yaml</code> or <code>tab.yaml</code>: a tab or a panel is titled by its folder
+name, and its <code>bundle.yaml</code> carries only the list.</p>
 </div>
 
 <h2 id="how-title-and-tooltip-actually-resolve">How title and tooltip actually resolve<a class="anchor" href="#how-title-and-tooltip-actually-resolve" aria-label="Link to this section">#</a></h2>
@@ -653,7 +715,7 @@ folder name</strong>. The two chains are not the same length, which matters.</p>
 
   <rect class="bp-box" x="536" y="30" width="160" height="52" rx="4"/>
   <text class="bp-mono" x="550" y="52">folder name</text>
-  <text class="bp-m"    x="550" y="70">01_Count &#8594; Count</text>
+  <text class="bp-m"    x="550" y="70">Fit_All &#8594; Fit All</text>
 
   <line x1="0" y1="112" x2="700" y2="112" stroke="var(--line)" stroke-width="1"/>
 
@@ -771,8 +833,12 @@ pyRevit, because several familiar keys have no equivalent here.</p>
     <td>Not read. The real keys are <code>min_host_version</code> and
         <code>max_host_version</code>, both a bare year; see above.</td></tr>
 <tr><td><code>highlight</code>, <code>beta</code></td><td>Not read. There are no badges.</td></tr>
-<tr><td><code>layout</code>, <code>collapsed</code>, <code>panel background</code></td>
-    <td>Not read. Panel layout comes from folder names and ordering only.</td></tr>
+<tr><td><code>layout</code> on a pushbutton</td>
+    <td>Not read there. A pushbutton has no children to order; the key is read on containers
+        only, as a plain list of folder names. See above.</td></tr>
+<tr><td><code>collapsed</code>, <code>panel background</code></td>
+    <td>Not read. A panel is the folder tree and its <code>layout:</code> list, and nothing
+        collapses.</td></tr>
 <tr><td><code>modules</code></td>
     <td>Not read. The search path is the bundle folder plus the extension's
         <code>lib\</code>.</td></tr>
@@ -787,7 +853,7 @@ tables on this page, assume it does nothing.</p>
 
 <h2 id="a-complete-example">A complete example<a class="anchor" href="#a-complete-example" aria-label="Link to this section">#</a></h2>
 
-<div class="code"><div class="code-head"><span>Survey.tab\Export.panel\01_Points.pushbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># Points exporter. Comments have to live on their own line.</span>
+<div class="code"><div class="code-head"><span>Survey.tab\Export.panel\Points.pushbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># Points exporter. Comments have to live on their own line.</span>
 <span class="tok-k">title</span>: Export points
 <span class="tok-k">tooltip</span>: Writes every selected item to a CSV file, one row per item.
 <span class="tok-k">engine</span>: ironpython
@@ -796,7 +862,7 @@ tables on this page, assume it does nothing.</p>
 
 <div class="cards">
   <a href="anatomy.html"><span class="c-t">Anatomy of an extension</span>
-    <span class="c-d">Folder suffixes, ordering prefixes, stacks and pulldowns.</span></a>
+    <span class="c-d">Folder suffixes, the layout list, stacks and pulldowns.</span></a>
   <a href="shortcuts.html"><span class="c-t">Shortcuts and keytips</span>
     <span class="c-d">Valid chords, user overrides, and when a chord will not fire.</span></a>
   <a href="click-actions.html"><span class="c-t">Click actions and config.py</span>
@@ -819,7 +885,8 @@ tables on this page, assume it does nothing.</p>
 <a href="#the-keys-a-linkbutton-reads">The keys a linkbutton reads</a>
 <a href="#the-keys-a-dockpane-reads">The keys a dockpane reads</a>
 <a href="#the-keys-an-extension-reads">The keys an extension reads</a>
-<a href="#folders-that-read-nothing">Folders that read nothing</a>
+<a href="#layout-ordering-the-folders-inside-a-container">layout: ordering the folders inside a container</a>
+<a href="#folders-that-read-only-a-layout-list">Folders that read only a layout list</a>
 <a href="#how-title-and-tooltip-actually-resolve">How title and tooltip actually resolve</a>
 <a href="#breaking-a-long-caption-onto-two-lines" class="h3">Breaking a long caption onto two lines</a>
 <a href="#how-the-script-is-scanned">How the script is scanned</a>

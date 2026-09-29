@@ -14,8 +14,8 @@ organised by symptom; each entry ends with the line to search for.</p>
 
 <div class="note tip">
 <span class="note-t">Look at the toast first</span>
-<p>After every boot and every Reload, pyNavis counts the bundle folders it had to drop and
-toasts <em>N bundle folders were skipped</em>, quoting the first one in full and pointing at
+<p>After every boot and every Reload, pyNavis counts the problems it found in the bundle
+folders and toasts <em>N bundle problems found</em>, quoting the first one in full and pointing at
 the log folder for the rest. If you saw that toast, the answer is already on screen and the
 rest of this section is just the detail. If you did not, the problem is more likely a
 misspelled <code>.extension</code>, <code>.tab</code> or <code>.panel</code>, or a root that
@@ -178,7 +178,7 @@ are invisible.</p>
 
 <p><strong>Log.</strong> A folder inside a <code>.panel</code> whose name contains a dot is
 taken to be an attempted bundle, so a bad bundle suffix is reported and counted into the
-<em>N bundle folders were skipped</em> toast after the scan:</p>
+<em>N bundle problems found</em> toast after the scan:</p>
 
 <pre data-lang="text">
 2026-09-20 09:14:02.427 [ERROR] 'D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\Count.pushbuttons' is not a bundle kind pyNavis knows (check the folder suffix) - skipped.
@@ -234,7 +234,7 @@ stack of two and still works, and a stack of two where one is broken disappears 
 <code>.stack</code> folder. For anything else use a <code>.pulldown</code>.</p>
 
 <pre data-lang="text">
-2026-09-20 09:14:02.431 [ERROR] Stack 'D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\01_Pick.stack' holds 4 button(s); a stack needs 2 or 3 - skipped.
+2026-09-20 09:14:02.431 [ERROR] Stack 'D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\Pick.stack' holds 4 button(s); a stack needs 2 or 3 - skipped.
 </pre>
 
 <h3>A pulldown has no usable pushbuttons</h3>
@@ -247,7 +247,7 @@ show when opened, so it is skipped. Usually every child is missing its
 <code>script.py</code>. Unlike stacks there is no upper limit.</p>
 
 <pre data-lang="text">
-2026-09-20 09:14:02.436 [ERROR] Pulldown 'D:\NavisTools\MyTools.extension\MyTools.tab\Tools.panel\05_More.pulldown' has no usable pushbuttons - skipped.
+2026-09-20 09:14:02.436 [ERROR] Pulldown 'D:\NavisTools\MyTools.extension\MyTools.tab\Tools.panel\More.pulldown' has no usable pushbuttons - skipped.
 </pre>
 
 <h3>The whole tab is missing, not just one button</h3>
@@ -298,22 +298,32 @@ without restarting Navisworks and re-activates the tab you were on.</p>
 
 <h2>The buttons are in the wrong order</h2>
 
-<h3>10 comes before 2</h3>
+<h3>A tool is in the wrong place</h3>
 
-<p><strong>Cause.</strong> Folders are sorted lexicographically, not numerically, so
-<code>10_Export</code> sorts before <code>2_Import</code>. This bites the moment a panel grows
-past nine tools.</p>
+<p><strong>Cause.</strong> Order comes from the <code>layout:</code> list in the container's
+own <code>bundle.yaml</code>, or <code>extension.yaml</code> for tabs. A folder that is not in
+the list, or whose entry does not match the folder name, is not lost: it is appended after
+every listed folder, in name order, which is usually the far end of the panel.</p>
 
-<p><strong>Fix.</strong> Zero-pad every prefix to a fixed width, and pad them all the same:
-<code>02_</code>, <code>10_</code>. Leave gaps if you expect to insert tools later.</p>
+<p><strong>Fix.</strong> Add the folder to the list, spelling the entry the way the folder is
+named. The kind suffix is optional and case does not matter, but the rest of the name has to
+match: <code>Clash_Report</code>, not <code>Clash Report</code>. An entry that matches nothing
+is reported in the log and counted into the same warning toast as a mistyped suffix. With no
+list at all the folders sort by name, which is how an extension that still carries
+<code>NN_</code> prefixes keeps its order.</p>
+
+<pre data-lang="text">
+2026-09-20 09:14:02.433 [ERROR] The layout in 'D:\NavisTools\MyTools.extension\MyTools.tab\Tools.panel' names 'Clash Report', but no such folder is there - ignored.
+</pre>
 
 <h3>The number is showing in the title</h3>
 
-<p><strong>Cause.</strong> The ordering prefix is stripped only when it is <em>two or
+<p><strong>Cause.</strong> The legacy ordering prefix is stripped only when it is <em>two or
 more</em> digits followed by an underscore. A single-digit <code>1_Keep</code> keeps its
 prefix, and because underscores render as spaces the button reads &ldquo;1 Keep&rdquo;.</p>
 
-<p><strong>Fix.</strong> Always use two digits. <code>01_Keep</code> shows as
+<p><strong>Fix.</strong> Drop the digit and order the folder with the <code>layout:</code>
+list instead, or, if you keep the prefix, use two digits: <code>01_Keep</code> shows as
 &ldquo;Keep&rdquo;. The rule is deliberate, so that a tool genuinely called
 <code>1_Thing</code> keeps its name, and a <code>title:</code> in <code>bundle.yaml</code>
 overrides all of it anyway.</p>
@@ -597,38 +607,38 @@ The Shortcuts editor on the pyNavis panel shows conflicts directly, which is fas
 reading the log.</p>
 
 <pre data-lang="text">
-'pyNavis.tab/03_Clash.panel/01_Clash_Report.pushbutton' wants Ctrl+Shift+R but 'pyNavis.tab/01_pyNavis.panel/04_Reload.pushbutton' already has it - first wins
+'pyNavis.tab/Clash.panel/Clash_Report.pushbutton' wants Ctrl+Shift+R but 'pyNavis.tab/pyNavis.panel/Reload.pushbutton' already has it - first wins
 </pre>
 
 <h3>A config.json override does nothing</h3>
 
 <p><strong>Cause.</strong> Overrides are keyed by <strong>BundleKey</strong>: the bundle
 folder path relative to its <code>.extension</code> folder, with forward slashes, with every
-suffix kept and every <code>NN_</code> prefix kept. It is not the title, and it is not the
-stripped name.</p>
+suffix kept and any <code>NN_</code> prefix dropped. It is not the title, and it is not the
+folder name on its own.</p>
 
 <pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
 {
   "shortcuts": {
     "allowBareKeys": false,
     "bindings": {
-      "pyNavis.tab/02_Selection.panel/01_Remember.pushbutton": "Ctrl+Alt+M",
-      "pyNavis.tab/02_Selection.panel/02_Recall.pushbutton": null
+      "pyNavis.tab/Selection.panel/Remember.pushbutton": "Ctrl+Alt+M",
+      "pyNavis.tab/Selection.panel/Recall.pushbutton": null
     }
   }
 }
 </pre>
 
 <p><code>null</code> disables a binding the bundle declared. A key that matches no tool is
-ignored and logged.</p>
+ignored and logged; here the <code>.pushbutton</code> suffix was left off.</p>
 
 <pre data-lang="text">
-shortcut override for unknown tool 'pyNavis.tab/02_Selection.panel/Remember.pushbutton' ignored
+shortcut override for unknown tool 'pyNavis.tab/Selection.panel/Remember' ignored
 </pre>
 
 <p><strong>Fix.</strong> <kbd>Alt</kbd>+Click the button to open its folder in Explorer and
-read the path off the address bar, or use the Shortcuts editor, which writes the key for you.
-See <a href="shortcuts.html">Keyboard shortcuts</a>.</p>
+read the path off the address bar, dropping any <code>NN_</code> prefix, or use the Shortcuts
+editor, which writes the key for you. See <a href="shortcuts.html">Keyboard shortcuts</a>.</p>
 
 <h3>The chord runs script.py even though it has Shift in it</h3>
 

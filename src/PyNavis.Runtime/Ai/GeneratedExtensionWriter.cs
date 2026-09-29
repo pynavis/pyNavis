@@ -144,7 +144,7 @@ namespace PyNavis.Runtime.Ai
             }
             var folder = Path.GetFileName(dir);
             folder = folder.Substring(0, folder.Length - ".pushbutton".Length);
-            return Regex.Replace(folder, @"^\d{2,}_", "").Replace('_', ' ');
+            return Bundles.BundleKeys.StripPrefix(folder).Replace('_', ' ');
         }
 
         // ---- pieces --------------------------------------------------------------

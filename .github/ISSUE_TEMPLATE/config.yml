@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Tools guide
+    url: https://tools.pynavis.com
+    about: What every button does, with screenshots.
+  - name: Authoring docs
+    url: https://docs.pynavis.com
+    about: How to write your own bundles, and the troubleshooting page for bundles that do not load.

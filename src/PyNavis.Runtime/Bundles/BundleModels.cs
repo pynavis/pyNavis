@@ -18,6 +18,11 @@ namespace PyNavis.Runtime.Bundles
         /// <summary>Folders the parser skipped and why, one line each (also logged). A
         /// skipped bundle is otherwise invisible: the author just sees no button.</summary>
         public List<string> Problems { get; } = new List<string>();
+
+        /// <summary>Headline for the after-scan toast. "Problems", not "folders skipped":
+        /// a bad layout: entry skips nothing, it is ignored.</summary>
+        public static string ProblemsHeadline(int count) =>
+            count == 1 ? "1 bundle problem found" : count + " bundle problems found";
     }
 
     public class TabModel

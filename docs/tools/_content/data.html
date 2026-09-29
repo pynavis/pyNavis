@@ -3,7 +3,7 @@ clipboard and back, Revit element IDs in both directions, selection sets through
 saved viewpoints out to CSV.</p>
 
 <section id="get-coordinates" title="Get Coordinates" kind="Stacked button"
-         bundle="06_Data.panel/01_Coordinates.stack/01_Get_Coordinates.pushbutton"
+         bundle="Data.panel/Coordinates.stack/Get_Coordinates.pushbutton"
          summary="Click a point in the view and its coordinates land on the clipboard, snapped the way a measurement snaps."
          needs="An open document">
 
@@ -35,7 +35,7 @@ units, which is the shape Go to Coordinates reads back.</p>
 </section>
 
 <section id="go-to-coordinates" title="Go to Coordinates" kind="Stacked button"
-         bundle="06_Data.panel/01_Coordinates.stack/02_Go_to_Coordinates.pushbutton"
+         bundle="Data.panel/Coordinates.stack/Go_to_Coordinates.pushbutton"
          summary="Move the view to a set of coordinates and mark the point with a cross."
          needs="An open document"
          shift="Clears the marker and leaves the view alone">
@@ -76,7 +76,7 @@ OK.</figcaption>
 </section>
 
 <section id="select-by-ids" title="Select by IDs" kind="Stacked button"
-         bundle="06_Data.panel/02_Element_IDs.stack/01_Select_by_IDs.pushbutton"
+         bundle="Data.panel/Element_IDs.stack/Select_by_IDs.pushbutton"
          summary="Paste a column of Revit element IDs and the elements are selected in the federated model, without opening Revit."
          needs="An open document"
          shift="Opens Element ID Settings">
@@ -126,7 +126,7 @@ zoomed after OK.</figcaption>
 </section>
 
 <section id="ids-of-selection" title="IDs of Selection" kind="Stacked button"
-         bundle="06_Data.panel/02_Element_IDs.stack/02_IDs_of_Selection.pushbutton"
+         bundle="Data.panel/Element_IDs.stack/IDs_of_Selection.pushbutton"
          summary="Copy the Revit element IDs of the selected items to the clipboard."
          needs="A selection"
          shift="Opens Element ID Settings">
@@ -159,7 +159,7 @@ own Select by ID, or for a report.</p>
 </section>
 
 <section id="excel-sets" title="Excel Sets" kind="Button"
-         bundle="06_Data.panel/03_Excel_Sets.pushbutton"
+         bundle="Data.panel/Excel_Sets.pushbutton"
          summary="Export every selection set to a workbook, one row per condition, or import a workbook back as new sets."
          needs="An open document">
 
@@ -204,7 +204,7 @@ search condition.</figcaption>
 </section>
 
 <section id="export-viewpoints" title="Export Viewpoints" kind="Button"
-         bundle="06_Data.panel/04_Export_Viewpoints_CSV.pushbutton"
+         bundle="Data.panel/Export_Viewpoints_CSV.pushbutton"
          summary="Every saved viewpoint to a CSV: name, folder, type and camera position."
          needs="Saved viewpoints in the document">
 
@@ -236,7 +236,7 @@ or to diff two issues of the same model.</p>
 </section>
 
 <section id="element-id-settings" title="Element ID Settings" kind="Button in the flyout"
-         bundle="06_Data.panel/99_More.slideout/Element_ID_Settings.pushbutton"
+         bundle="Data.panel/More.slideout/Element_ID_Settings.pushbutton"
          summary="How Select by IDs and IDs of Selection find and copy element IDs. One store, shared by both."
          needs="Nothing">
 

@@ -50,22 +50,22 @@ namespace PyNavis.Tests
             },
             new object[]
             {
-                @"pyNavis.tab\06_Data.panel\02_Element_IDs.stack\01_Select_by_IDs.pushbutton\layout.xaml",
+                @"pyNavis.tab\Data.panel\Element_IDs.stack\Select_by_IDs.pushbutton\layout.xaml",
                 new[] { "IdsBox", "OkButton" }
             },
             new object[]
             {
-                @"pyNavis.tab\04_Viewpoints.panel\05_Viewpoint_Tracker.dockpane\pane.xaml",
+                @"pyNavis.tab\Viewpoints.panel\Viewpoint_Tracker.dockpane\pane.xaml",
                 new[] { "Status", "ViewName" }
             },
             new object[]
             {
-                @"pyNavis.tab\05_AI_(beta).panel\01_Ask_AI.dockpane\pane.xaml",   // script.py adds the C# pane into Host
+                @"pyNavis.tab\AI_(beta).panel\Ask_AI.dockpane\pane.xaml",   // script.py adds the C# pane into Host
                 new[] { "Host" }
             },
             new object[]
             {
-                @"pyNavis.tab\04_Viewpoints.panel\06_Section_Nudge.dockpane\pane.xaml",
+                @"pyNavis.tab\Viewpoints.panel\Section_Nudge.dockpane\pane.xaml",
                 new[] { "Root", "Readout", "SectionOn", "Tabs", "AdjustTab", "MoveTab",
                         "CellTop", "CellTopName", "CellTopAxis", "CellLeft", "CellLeftName", "CellLeftAxis",
                         "CellFront", "CellFrontName", "CellFrontAxis", "CellRight", "CellRightName", "CellRightAxis",
@@ -77,7 +77,7 @@ namespace PyNavis.Tests
             },
             new object[]
             {
-                @"pyNavis.tab\04_Viewpoints.panel\99_More.slideout\Tracker_Window.pushbutton\window.xaml",
+                @"pyNavis.tab\Viewpoints.panel\More.slideout\Tracker_Window.pushbutton\window.xaml",
                 new[] { "Status", "ViewName" }
             },
         };
@@ -126,7 +126,7 @@ namespace PyNavis.Tests
             // unwrapped as a fallback, but it is not the supported form and nothing
             // else would report it.
             var path = Path.Combine(ExtensionDir(),
-                @"pyNavis.tab\04_Viewpoints.panel\05_Viewpoint_Tracker.dockpane\pane.xaml");
+                @"pyNavis.tab\Viewpoints.panel\Viewpoint_Tracker.dockpane\pane.xaml");
 
             OnSta(() =>
             {

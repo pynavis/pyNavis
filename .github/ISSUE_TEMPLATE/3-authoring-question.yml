@@ -1,0 +1,38 @@
+name: Bundle authoring question
+description: Help writing your own pyNavis bundle, hook, or dock pane.
+title: "[Authoring] "
+labels: ["question", "area:authoring"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the troubleshooting page at https://docs.pynavis.com first. It lists every reason a bundle fails to load, with the log line that proves it.
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - Bundle does not appear on the ribbon
+        - Script runs but does the wrong thing
+        - pynavis Python API
+        - Hooks (Navisworks events)
+        - Dock panes (pane.xaml)
+        - Icons, shortcuts, or keytips
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: navis-version
+    attributes:
+      label: Navisworks version
+      options:
+        - "2026"
+        - "2025"
+        - "2024"
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: Include the bundle folder layout, bundle.yaml, and the log lines if the bundle does not load.
+    validations:
+      required: true

@@ -26,11 +26,62 @@ namespace PyNavis.Tests
         [Fact]
         public void ThePanels_ReadAsSixNouns_InThisOrder()
         {
-            // The folder prefixes order the panels: setup first, then the model work
+            // The tab's layout list orders the panels: setup first, then the model work
             // (selection, clash, viewpoints), then the AI panel, and data in and out last.
+            // Name order would put AI first, so this only holds while the list does.
             var tab = Assert.Single(ParseShipped().Tabs);
             Assert.Equal(new[] { "pyNavis", "Selection", "Clash", "Viewpoints", "AI (beta)", "Data" },
                 tab.Panels.Select(p => p.Title).ToArray());
+        }
+
+        [Fact]
+        public void ShippedExtension_ParsesWithoutProblems()
+        {
+            // A layout entry that names no folder, a mistyped suffix, a button without a
+            // script: all land here, and none may ship.
+            Assert.Empty(ParseShipped().Problems);
+        }
+
+        // Folders carry no ordering prefixes any more, so the ribbon order is whatever the
+        // layout lists say. Every container must have one and it must name every child,
+        // or a new tool silently lands at the end of its panel in name order.
+        [Fact]
+        public void EveryShippedContainer_ListsEveryChild_InItsLayout()
+        {
+            var suffixes = new[] { ".tab", ".panel", ".stack", ".pulldown", ".slideout", ".splitbutton", ".splitpushbutton" };
+            var containers = Directory.GetDirectories(ShippedExtensionDir(), "*", SearchOption.AllDirectories)
+                .Where(d => suffixes.Any(s => d.EndsWith(s, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            Assert.NotEmpty(containers);
+
+            foreach (var dir in containers)
+            {
+                var yamlPath = Path.Combine(dir, "bundle.yaml");
+                Assert.True(File.Exists(yamlPath), $"{dir} has no bundle.yaml with a layout");
+                var listed = BundleYaml.ListOf(BundleYaml.Parse(File.ReadAllText(yamlPath)), "layout")
+                    .Select(BareName).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+                var children = Directory.GetDirectories(dir).Select(Path.GetFileName)
+                    .Where(n => n.IndexOf('.') > 0)
+                    .Select(BareName).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+                Assert.True(children.SequenceEqual(listed, StringComparer.OrdinalIgnoreCase),
+                    $"{dir}: layout lists [{string.Join(", ", listed)}] but the folders are [{string.Join(", ", children)}]");
+            }
+        }
+
+        [Fact]
+        public void NoShippedFolder_CarriesAnOrderingPrefix()
+        {
+            var prefixed = Directory.GetDirectories(ShippedExtensionDir(), "*", SearchOption.AllDirectories)
+                .Select(Path.GetFileName)
+                .Where(n => System.Text.RegularExpressions.Regex.IsMatch(n, @"^\d{2,}_"))
+                .ToArray();
+            Assert.Empty(prefixed);
+        }
+
+        private static string BareName(string folderOrEntry)
+        {
+            var dot = folderOrEntry.LastIndexOf('.');
+            return dot > 0 ? folderOrEntry.Substring(0, dot) : folderOrEntry;
         }
 
         [Fact]

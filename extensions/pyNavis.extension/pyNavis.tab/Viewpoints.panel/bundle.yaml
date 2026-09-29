@@ -1,0 +1,14 @@
+layout:
+  - Manage
+  - Section
+  - State
+  - Speeds
+  - Viewpoint_Tracker
+  - Section_Nudge
+  - Nudge_In
+  - Nudge_Out
+  - Nudge_Next_Target
+  - Nudge_Previous_Target
+  - Nudge_Step_Double
+  - Nudge_Step_Halve
+  - More

@@ -1142,7 +1142,7 @@ namespace PyNavis.Tests
             // viewpoint-recalled hook were logged as "[Reload]" because Reload was the
             // last thing clicked.
             var host = Execution.PyNavisHost.Instance;
-            host.SetCommandContext(null, null, "Reload", "pyNavis.tab/01_pyNavis.panel/04_Reload.pushbutton");
+            host.SetCommandContext(null, null, "Reload", "pyNavis.tab/pyNavis.panel/Reload.pushbutton");
             host.LogSource = "hook Smoke:viewpoint-recalled";
             try
             {

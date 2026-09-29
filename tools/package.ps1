@@ -9,6 +9,9 @@
 #   3. ISCC.exe compiles tools\installer\pyNavis.iss to
 #      dist\pyNavis-<version>-setup.exe   (version comes from pynavislib\pynavis\__init__.py)
 #
+# The version is plain MAJOR.MINOR.PATCH and CHANGELOG.md must lead with it (see
+# "Releasing" in README.md); the script stops before building when either is off.
+#
 # The Release build writes to the same bin\<year> folders as a Debug build, so the repo's
 # dev output is replaced. Run tools\deploy-dev.ps1 afterwards to get back to a dev deploy.
 #
@@ -88,7 +91,23 @@ if (Get-Process -Name 'Roamer' -ErrorAction SilentlyContinue) {
     exit 1
 }
 
+function Assert-ReleaseNotes([string]$Version) {
+    if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+        throw "Version '$Version' is not plain MAJOR.MINOR.PATCH (the Autodesk manifest and the installer's version resource take digits and dots only)."
+    }
+    $changelog = Join-Path $repo 'CHANGELOG.md'
+    if (-not (Test-Path $changelog)) { throw "CHANGELOG.md is missing from $repo." }
+    $heading = [System.IO.File]::ReadAllLines($changelog) | Where-Object { $_ -match '^## \[' } | Select-Object -First 1
+    if (-not $heading -or $heading -notmatch '^## \[([^\]]+)\] - \d{4}-\d{2}-\d{2}\s*$') {
+        throw "CHANGELOG.md has no '## [x.y.z] - yyyy-mm-dd' heading."
+    }
+    if ($Matches[1] -ne $Version) {
+        throw "CHANGELOG.md leads with $($Matches[1]) but __version__ is $Version. Add the $Version entry first."
+    }
+}
+
 $version = Get-PyNavisVersion
+Assert-ReleaseNotes $version
 Write-Host "Packaging pyNavis $version" -ForegroundColor Cyan
 
 # --- 1. Release builds, one per year that has an Autodesk reference ---

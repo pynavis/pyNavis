@@ -1,0 +1,46 @@
+name: Feature request
+description: A new tool, or a change to an existing one.
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where would this live?
+      options:
+        - New tool (a new button or panel)
+        - pyNavis panel (Settings, Shortcuts, Console, Reload)
+        - Selection panel
+        - Clash panel
+        - Viewpoints panel
+        - AI (beta) panel
+        - Data panel
+        - Python API or bundle authoring
+        - Installer
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do in Navisworks today that is slow, manual, or impossible?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: Describe the button, panel, or behaviour you have in mind. Sketches and screenshots help.
+    validations:
+      required: true
+  - type: dropdown
+    id: workaround
+    attributes:
+      label: Do you have a workaround today?
+      options:
+        - No, I do it by hand
+        - Yes, a script or another add-in
+        - Yes, but it is painful

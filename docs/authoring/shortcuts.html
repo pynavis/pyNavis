@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.0.0</span>
+    <span>pynavis 1.1.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -69,7 +69,7 @@ them as fast as you iterate on the script.</p>
 tool overrides it in <code>config.json</code>. Neither knows about the other, and the user
 always wins.</p>
 
-<div class="code"><div class="code-head"><span>01_Remember.pushbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Remember
+<div class="code"><div class="code-head"><span>Remember.pushbutton\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Remember
 <span class="tok-k">tooltip</span>: Stores the current selection in the memory register.
 <span class="tok-k">shortcut</span>: Ctrl+Shift+M
 <span class="tok-k">keytip</span>: MM</code></pre></div>
@@ -78,8 +78,8 @@ always wins.</p>
   <span class="tok-f">&quot;shortcuts&quot;</span>: {
     <span class="tok-f">&quot;allowBareKeys&quot;</span>: <span class="tok-k">false</span>,
     <span class="tok-f">&quot;bindings&quot;</span>: {
-      <span class="tok-f">&quot;pyNavis.tab/02_Selection.panel/01_Remember.pushbutton&quot;</span>: <span class="tok-s">&quot;Ctrl+Alt+M&quot;</span>,
-      <span class="tok-f">&quot;pyNavis.tab/02_Selection.panel/02_Recall.pushbutton&quot;</span>: <span class="tok-k">null</span>
+      <span class="tok-f">&quot;pyNavis.tab/Selection.panel/Remember.pushbutton&quot;</span>: <span class="tok-s">&quot;Ctrl+Alt+M&quot;</span>,
+      <span class="tok-f">&quot;pyNavis.tab/Selection.panel/Recall.pushbutton&quot;</span>: <span class="tok-k">null</span>
     }
   }
 }</code></pre></div>
@@ -248,9 +248,9 @@ of a panel in order, with stack and pulldown children flattened in place, and a 
   <path class="sc1-arw" d="M430 187 H 446" marker-end="url(#sc1-a)"/>
 
   <text class="sc1-m" x="8" y="248">Every problem is written to the log with the prefix</text>
-  <text class="sc1-md" x="8" y="266">Shortcut: 'pyNavis.tab/03_Clash.panel/01_Clash_Report.pushbutton'
+  <text class="sc1-md" x="8" y="266">Shortcut: 'pyNavis.tab/Clash.panel/Clash_Report.pushbutton'
     wants Ctrl+Shift+M</text>
-  <text class="sc1-md" x="8" y="284">but 'pyNavis.tab/02_Selection.panel/01_Remember.pushbutton'
+  <text class="sc1-md" x="8" y="284">but 'pyNavis.tab/Selection.panel/Remember.pushbutton'
     already has it - first wins</text>
 </svg>
 </div>
@@ -288,9 +288,9 @@ have; the log shows what it actually has. If a shortcut is not firing, read
 <h2 id="the-bundlekey">The BundleKey<a class="anchor" href="#the-bundlekey" aria-label="Link to this section">#</a></h2>
 
 <p>Overrides are keyed by <code>BundleKey</code>: the bundle's folder path relative to the
-<code>.extension</code> folder that contains it, with forward slashes. Nothing is stripped.
-Folder suffixes stay, and so do the <code>NN_</code> ordering prefixes that the ribbon
-removes from the visible title.</p>
+<code>.extension</code> folder that contains it, with forward slashes. Folder suffixes stay.
+The one thing removed is a legacy <code>NN_</code> ordering prefix, which is dropped from
+every segment, so the key does not change when an author renumbers or drops the prefixes.</p>
 
 <figure>
 <div class="fig-frame">
@@ -316,8 +316,8 @@ removes from the visible title.</p>
   <text class="sc2-dim"  x="16"  y="40">D:\NavisTools\</text>
   <text class="sc2-dim"  x="32"  y="64">pyNavis.extension\</text>
   <text class="sc2-mono" x="52"  y="88">pyNavis.tab\</text>
-  <text class="sc2-mono" x="72"  y="112">02_Selection.panel\</text>
-  <text class="sc2-mono" x="92"  y="136">01_Remember.pushbutton\</text>
+  <text class="sc2-mono" x="72"  y="112">Selection.panel\</text>
+  <text class="sc2-mono" x="92"  y="136">Remember.pushbutton\</text>
 
   <rect x="42" y="74" width="3" height="70" fill="var(--accent)"/>
   <text class="sc2-m" x="16" y="164">The accent bar marks the levels that</text>
@@ -327,13 +327,13 @@ removes from the visible title.</p>
 
   <text class="sc2-lbl" x="376" y="72">The key</text>
   <rect class="sc2-box" x="376" y="82" width="308" height="48" rx="4"/>
-  <text class="sc2-key" x="388" y="112">pyNavis.tab/02_Selection.panel/</text>
-  <text class="sc2-key" x="388" y="128">01_Remember.pushbutton</text>
+  <text class="sc2-key" x="388" y="112">pyNavis.tab/Selection.panel/</text>
+  <text class="sc2-key" x="388" y="128">Remember.pushbutton</text>
 
   <text class="sc2-m" x="376" y="160">Backslashes become forward slashes.</text>
   <text class="sc2-m" x="376" y="178">.tab, .panel and .pushbutton are kept.</text>
-  <text class="sc2-m" x="376" y="196">The 01_ prefix is kept, even though the</text>
-  <text class="sc2-m" x="376" y="214">button is titled just &#8220;Remember&#8221;.</text>
+  <text class="sc2-m" x="376" y="196">A legacy 01_ prefix is dropped, so</text>
+  <text class="sc2-m" x="376" y="214">01_Remember and Remember share this key.</text>
   <text class="sc2-m" x="376" y="232">Lookup is case-insensitive.</text>
 </svg>
 </div>
@@ -343,14 +343,15 @@ moving the extension to another drive but not renaming a folder inside it.</figc
 
 <p>A button nested inside a stack or a pulldown keeps those folders in its key:</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pyNavis.tab/02_Selection.panel/03_Set.stack/01_Add.pushbutton
-pyNavis.tab/02_Selection.panel/05_More.pulldown/03_Purge.pushbutton</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pyNavis.tab/Selection.panel/Set.stack/Add.pushbutton
+pyNavis.tab/Selection.panel/More.pulldown/Purge.pushbutton</code></pre></div>
 
 <div class="note tip">
 <span class="note-t">Do not type these by hand</span>
 <p>Open the <strong>Shortcuts</strong> editor, set the binding there, and let it write the
 key. Renaming a bundle folder invalidates every override that points at it, and the only
-symptom is the <code>unknown tool</code> line in the log.</p>
+symptom is the <code>unknown tool</code> line in the log. Adding or removing a numeric prefix
+is not a rename: keys written with prefixes are normalised when the file is loaded.</p>
 </div>
 
 <h2 id="when-a-chord-fires">When a chord fires<a class="anchor" href="#when-a-chord-fires" aria-label="Link to this section">#</a></h2>
@@ -608,7 +609,8 @@ unknown keys are ignored rather than rewritten away.</p>
     start of the tab wins.</li>
   <li>Declare <code>keytip:</code> only when you are sure it is unique on the tab; otherwise let
     the automatic pass do it.</li>
-  <li>Overrides are keyed by folder path, so renaming a bundle silently orphans them.</li>
+  <li>Overrides are keyed by folder path with any <code>NN_</code> prefix dropped, so renaming
+    a bundle silently orphans them while renumbering does not.</li>
 </ul>
 
 <div class="cards">

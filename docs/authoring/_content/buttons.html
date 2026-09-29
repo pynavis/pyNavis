@@ -16,7 +16,7 @@ runs a child, <code>*.dockpane</code> for a real Navisworks dock panel instead o
 that runs and returns, and <code>*.slideout</code> for the tools that belong in the panel's
 flyout rather than on its face. <a href="#more-button-kinds">More button kinds</a> covers all
 nine; a folder inside a panel whose name has a dot but is not one of these twelve suffixes is
-logged as a typo and counted into the <em>N bundle folders were skipped</em> toast pyNavis
+logged as a typo and counted into the <em>N bundle problems found</em> toast pyNavis
 shows after every scan.</p>
 
 <h2>The three panel items</h2>
@@ -35,8 +35,9 @@ shows after every scan.</p>
     <td>1 or more <code>*.pushbutton</code></td></tr>
 <tr><td><strong>Has its own bundle.yaml</strong></td>
     <td>Yes</td>
-    <td>No, it is never read</td>
-    <td>Yes, but only <code>title</code>, <code>tooltip</code>, <code>keytip</code></td></tr>
+    <td>Only for a <code>layout:</code> list</td>
+    <td>Yes, but only <code>title</code>, <code>tooltip</code>, <code>keytip</code>,
+        <code>layout</code></td></tr>
 <tr><td><strong>Has its own icon</strong></td>
     <td>Yes</td>
     <td>No</td>
@@ -63,9 +64,9 @@ shows after every scan.</p>
 
 <h2>What a panel looks like</h2>
 
-<p>This is the shipped <em>Memory</em> panel: a large button, a three-row stack, a two-row
-stack and a pulldown with its menu open. Drawn roughly to scale, because the relative sizes
-are the whole reason to choose one over another.</p>
+<p>This is the shipped <em>Selection</em> panel, slightly simplified: a large button, a
+three-row stack, a two-row stack and a pulldown with its menu open. Drawn roughly to scale,
+because the relative sizes are the whole reason to choose one over another.</p>
 
 <figure>
 <div class="fig-frame">
@@ -90,7 +91,7 @@ are the whole reason to choose one over another.</p>
 
   <!-- panel frame -->
   <rect class="bt1-pane" x="8" y="26" width="444" height="126" rx="3"/>
-  <text class="bt1-m" x="230" y="170" text-anchor="middle">Memory</text>
+  <text class="bt1-m" x="230" y="170" text-anchor="middle">Selection</text>
 
   <!-- large pushbutton -->
   <rect class="bt1-box"  x="22" y="32" width="76" height="112" rx="3"/>
@@ -121,7 +122,7 @@ are the whole reason to choose one over another.</p>
   <rect class="bt1-box"  x="358" y="32" width="80" height="112" rx="3"/>
   <rect class="bt1-icon" x="382" y="46" width="32" height="32" rx="2"/>
   <circle class="bt1-mark" cx="406" cy="54" r="4"/>
-  <text class="bt1-t" x="398" y="102" text-anchor="middle">Memory</text>
+  <text class="bt1-t" x="398" y="102" text-anchor="middle">More</text>
   <path class="bt1-mark" d="M391 112 L405 112 L398 120 z"/>
 
   <!-- open menu -->
@@ -149,8 +150,8 @@ on top, label underneath, one click runs <code>script.py</code>. It is the defau
 what a tool should be unless you have a reason otherwise.</p>
 
 <pre data-lang="tree">
-02_Selection.panel\
-  01_Remember.pushbutton\
+Selection.panel\
+  Remember.pushbutton\
     script.py              # required
     config.py              # optional, Shift+Click
     bundle.yaml            # title, tooltip, engine, shortcut, keytip
@@ -179,24 +180,26 @@ row is a full button with its own script, icon, tooltip, shortcut and keytip; th
 is only a container.</p>
 
 <pre data-lang="tree">
-02_Selection.panel\
-  03_Set.stack\                    # no script.py, no bundle.yaml, no icon
-    01_Add.pushbutton\
+Selection.panel\
+  Set.stack\                       # no script.py, no icon
+    bundle.yaml                    # layout: Add, Subtract, Intersect - nothing else is read
+    Add.pushbutton\
       script.py
       icon.small.png
-    02_Subtract.pushbutton\
+    Subtract.pushbutton\
       script.py
       icon.small.png
-    03_Intersect.pushbutton\
+    Intersect.pushbutton\
       script.py
       icon.small.png
 </pre>
 
 <div class="note warn">
-<span class="note-t">A stack has no bundle of its own</span>
-<p>The parser never opens <code>bundle.yaml</code> inside a <code>.stack</code> folder and
-never looks for an icon there. The folder name is not shown anywhere either: it exists purely
-to group and to sort. Put your metadata on the children.</p>
+<span class="note-t">A stack's bundle.yaml holds only the order</span>
+<p>The parser opens <code>bundle.yaml</code> inside a <code>.stack</code> folder for one key,
+<code>layout:</code>, and never looks for an icon there. Every other key in that file is
+ignored, and the folder name is not shown anywhere either: the folder exists purely to group.
+Put your metadata on the children.</p>
 </div>
 
 <div class="note tip">
@@ -214,7 +217,7 @@ message.</p>
 render wrong, pyNavis drops the stack at parse time and says so:</p>
 
 <pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
-Stack 'D:\NavisTools\...\03_Set.stack' holds 1 button(s); a stack needs 2 or 3 - skipped.
+Stack 'D:\NavisTools\...\Set.stack' holds 1 button(s); a stack needs 2 or 3 - skipped.
 </pre>
 
 <p>The count is of <em>usable</em> children, so a stack of three where one child lost its
@@ -223,17 +226,17 @@ disappears entirely. That is the usual way a working stack vanishes after an edi
 
 <div class="do-dont">
 <div class="do"><div class="dd-t">Do</div>
-<pre data-bare="true" data-lang="tree">03_Set.stack\
-  01_Add.pushbutton\
-  02_Subtract.pushbutton\
-  03_Intersect.pushbutton\</pre></div>
+<pre data-bare="true" data-lang="tree">Set.stack\
+  Add.pushbutton\
+  Subtract.pushbutton\
+  Intersect.pushbutton\</pre></div>
 <div class="dont"><div class="dd-t">Don't</div>
-<pre data-bare="true" data-lang="tree">03_Set.stack\
-  01_Add.pushbutton\
-  02_Subtract.pushbutton\
-  03_Intersect.pushbutton\
-  04_Invert.pushbutton\    # 4 rows: the whole stack is dropped
-  05_Grow.stack\           # nested stacks are logged and ignored</pre></div>
+<pre data-bare="true" data-lang="tree">Set.stack\
+  Add.pushbutton\
+  Subtract.pushbutton\
+  Intersect.pushbutton\
+  Invert.pushbutton\       # 4 rows: the whole stack is dropped
+  Grow.stack\              # nested stacks are logged and ignored</pre></div>
 </div>
 
 <h3>When to use a stack</h3>
@@ -254,24 +257,28 @@ menu of its children. It is the only item that scales past three tools without c
 width, so it is where the long tail goes.</p>
 
 <pre data-lang="tree">
-02_Selection.panel\
-  05_Memory.pulldown\
-    bundle.yaml                    # title, tooltip, keytip only
+Selection.panel\
+  More.pulldown\
+    bundle.yaml                    # title, tooltip, keytip, layout only
     icon.png                       # 96x96, the face of the button
     icon.dark.png
     icon.small.png                 # 32x32
     icon.small.dark.png
-    01_Show_Contents.pushbutton\
+    Show_Contents.pushbutton\
       script.py
-    02_Save_as_Set.pushbutton\
+    Save_as_Set.pushbutton\
       script.py
-    03_Purge.pushbutton\
+    Purge.pushbutton\
       script.py
 </pre>
 
-<pre data-lang="yaml" data-file="05_Memory.pulldown\bundle.yaml">
-title: Memory
+<pre data-lang="yaml" data-file="More.pulldown\bundle.yaml">
+title: More
 tooltip: Inspect the memory, promote it to a set, or delete stored memory files
+layout:
+  - Show_Contents
+  - Save_as_Set
+  - Purge
 </pre>
 
 <h3>What a pulldown's bundle.yaml can say</h3>
@@ -280,9 +287,10 @@ tooltip: Inspect the memory, promote it to a set, or delete stored memory files
 <table>
 <thead><tr><th>Key</th><th>On a pulldown</th></tr></thead>
 <tbody>
-<tr><td><code>title</code></td><td>Read. Falls back to the folder name with the prefix stripped.</td></tr>
+<tr><td><code>title</code></td><td>Read. Falls back to the folder name, underscores turned into spaces and any legacy prefix stripped.</td></tr>
 <tr><td><code>tooltip</code></td><td>Read. There is no docstring to fall back to, so without this key the button has no tooltip.</td></tr>
 <tr><td><code>keytip</code></td><td>Read. Overrides the assigned Alt-navigation letters.</td></tr>
+<tr><td><code>layout</code></td><td>Read. The order of the menu rows, as a block list of child folder names. Unlisted children follow in name order.</td></tr>
 <tr><td><code>shortcut</code></td><td>Ignored. A pulldown has no action to trigger, so there is nothing for a chord to run.</td></tr>
 <tr><td><code>engine</code></td><td>Ignored. A pulldown runs no code. Put <code>engine:</code> on the children.</td></tr>
 </tbody>
@@ -307,7 +315,7 @@ needs to be reachable from the keyboard, give it a <code>shortcut:</code> instea
 <p>One usable child is enough. Zero is not:</p>
 
 <pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
-Pulldown 'D:\NavisTools\...\05_Memory.pulldown' has no usable pushbuttons - skipped.
+Pulldown 'D:\NavisTools\...\More.pulldown' has no usable pushbuttons - skipped.
 </pre>
 
 <p>A pulldown folder that contains a <code>.stack</code> or another <code>.pulldown</code> and
@@ -318,9 +326,9 @@ nested container is logged as <code>'&lt;dir&gt;' is ignored: a pulldown holds o
 <h2>More button kinds</h2>
 
 <p>Nine more panel-item suffixes, each a narrow variation on a pushbutton, a pulldown or the
-panel itself rather than a new concept. All nine sort into the panel by folder name exactly
-like the three above, and every icon rule from <a href="icons.html">Icons</a> applies unless a
-section below says otherwise.</p>
+panel itself rather than a new concept. All nine take their place on the panel from its
+<code>layout:</code> list exactly like the three above, and every icon rule from
+<a href="icons.html">Icons</a> applies unless a section below says otherwise.</p>
 
 <h3>nobutton: a command with no ribbon presence</h3>
 
@@ -524,7 +532,7 @@ their own <code>bundle.yaml</code> reading <code>title</code>, <code>tooltip</co
 <tbody>
 <tr><td>Clicking the header</td><td>Opens the menu</td>
     <td>Runs the last child that was run, this session</td>
-    <td>Always runs the first child, by folder order</td></tr>
+    <td>Always runs the first child, in layout order</td></tr>
 <tr><td>Menu arrow</td><td>Only way in</td>
     <td>Opens the menu, same as a plain pulldown</td>
     <td>Opens the menu, same as a plain pulldown</td></tr>
@@ -534,19 +542,22 @@ their own <code>bundle.yaml</code> reading <code>title</code>, <code>tooltip</co
 
 <pre data-lang="tree">
 Export.panel\
-  01_Points.splitbutton\
-    bundle.yaml                # title, tooltip, keytip
+  Points.splitbutton\
+    bundle.yaml                # title, tooltip, keytip, layout
     icon.png
-    01_CSV.pushbutton\
+    CSV.pushbutton\
       script.py
-    02_IFC.pushbutton\
+    IFC.pushbutton\
       script.py
 </pre>
 
-<pre data-lang="yaml" data-file="01_Points.splitbutton\bundle.yaml">
+<pre data-lang="yaml" data-file="Points.splitbutton\bundle.yaml">
 title: Export points
 tooltip: Exports the selection. The arrow picks the format.
 keytip: EP
+layout:
+  - CSV
+  - IFC
 </pre>
 
 <p>A splitbutton with nothing run yet this session falls back to the first child, the same as
@@ -667,16 +678,18 @@ same flyout the native Tags panel uses. It costs no ribbon width, which is the p
 
 <pre data-lang="tree">
 Export.panel\
-  01_Points.pushbutton\      # on the face of the panel
-  02_Mesh.pushbutton\
-  99_More.slideout\          # no bundle.yaml, no icon, no script.py
-    01_Settings.pushbutton\
+  bundle.yaml                # layout: Points, Mesh
+  Points.pushbutton\         # on the face of the panel
+  Mesh.pushbutton\
+  Extras.slideout\           # no icon, no script.py; bundle.yaml holds only layout:
+    bundle.yaml              # layout: Settings, Formats, Docs
+    Settings.pushbutton\
       script.py
-    02_Formats.pulldown\
+    Formats.pulldown\
       bundle.yaml
-      01_CSV.pushbutton\
+      CSV.pushbutton\
         script.py
-    03_Docs.urlbutton\
+    Docs.urlbutton\
       bundle.yaml
 </pre>
 
@@ -689,16 +702,18 @@ Export.panel\
         pulldowns, toggles, smartbuttons, split buttons, and url and link buttons all work
         inside one. A <code>*.dockpane</code> is the one exception, see below.</td></tr>
 <tr><td><strong>Its own bundle.yaml</strong></td>
-    <td>No, it is never read. Nor is an icon, nor a <code>script.py</code>.</td></tr>
+    <td>Only for a <code>layout:</code> list ordering the items inside it. No other key is
+        read, and neither is an icon or a <code>script.py</code>.</td></tr>
 <tr><td><strong>Title</strong></td>
     <td>Never shown. The flyout is labelled by the panel, not by the slideout folder.</td></tr>
 <tr><td><strong>Ordering</strong></td>
-    <td>Its children keep folder order inside the flyout. Where the <code>.slideout</code>
-        folder itself sorts among the panel's other folders does not matter, because its
-        contents always render after the break.</td></tr>
+    <td>Its children follow its own <code>layout:</code> list inside the flyout, with
+        unlisted ones after in name order. Where the <code>.slideout</code> folder itself
+        sits in the panel's list does not matter, because its contents always render after
+        the break.</td></tr>
 <tr><td><strong>Several per panel</strong></td>
-    <td>Allowed. Their contents concatenate in folder order into one flyout; a panel has only
-        one break.</td></tr>
+    <td>Allowed. Their contents concatenate into one flyout in the order the panel's
+        <code>layout:</code> list gives the slideouts; a panel has only one break.</td></tr>
 <tr><td><strong>Nesting</strong></td>
     <td>One level. A <code>.slideout</code> inside a <code>.slideout</code> is logged and its
         contents are dropped.</td></tr>
@@ -707,7 +722,7 @@ Export.panel\
 </div>
 
 <pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
-Slideout 'D:\NavisTools\...\99_More.slideout\Extra.slideout' sits inside another slideout - skipped.
+Slideout 'D:\NavisTools\...\Extras.slideout\Inner.slideout' sits inside another slideout - skipped.
 </pre>
 
 <p>Buttons in the flyout are ordinary buttons. They get keytips, they take
@@ -734,14 +749,14 @@ key you will see under <code>panes.assignments</code>.</p>
 
 <h2>Mixing them on one panel</h2>
 
-<p>Panel items are sorted once, by folder name, before anything knows what type they are. The
-three types interleave freely and are never grouped, so the panel order is exactly the order
-you see in Explorer.</p>
+<p>Panel items are placed once, by the panel's <code>layout:</code> list, before anything
+knows what type they are. The three types interleave freely and are never grouped, so the
+panel order is exactly the order of the list.</p>
 
 <figure>
 <div class="fig-frame">
 <svg viewBox="0 0 700 226" width="700" role="img"
-     aria-label="Five folders sorted by name on the left produce five panel items in the same order on the right, mixing buttons, stacks and a pulldown.">
+     aria-label="A five-entry layout list on the left produces five panel items in the same order on the right, mixing buttons, stacks and a pulldown.">
   <style>
     .bt2-mono { font: 11.5px Consolas, monospace; fill: var(--ink); }
     .bt2-m    { font: 11px 'Segoe UI Variable Text','Segoe UI',sans-serif; fill: var(--muted); }
@@ -756,34 +771,35 @@ you see in Explorer.</p>
     .bt2-mark { fill: var(--accent); }
   </style>
 
-  <text class="bt2-lbl" x="0"   y="14">Sorted folder names</text>
+  <text class="bt2-lbl" x="0"   y="14">The panel's layout list</text>
   <text class="bt2-lbl" x="336" y="14">Resulting panel</text>
 
-  <text class="bt2-mono" x="0" y="44">02_Selection.panel</text>
+  <text class="bt2-mono" x="0" y="40">Selection.panel\bundle.yaml</text>
+  <text class="bt2-mono" x="0" y="58">layout:</text>
 
-  <circle class="bt2-badge" cx="10" cy="66"  r="7"/>
-  <text class="bt2-num"  x="10" y="69" text-anchor="middle">1</text>
-  <text class="bt2-mono" x="26" y="70">01_Remember.pushbutton</text>
+  <circle class="bt2-badge" cx="10" cy="80"  r="7"/>
+  <text class="bt2-num"  x="10" y="83" text-anchor="middle">1</text>
+  <text class="bt2-mono" x="26" y="84">- Remember</text>
 
-  <circle class="bt2-badge" cx="10" cy="90"  r="7"/>
-  <text class="bt2-num"  x="10" y="93" text-anchor="middle">2</text>
-  <text class="bt2-mono" x="26" y="94">02_Recall.pushbutton</text>
+  <circle class="bt2-badge" cx="10" cy="104" r="7"/>
+  <text class="bt2-num"  x="10" y="107" text-anchor="middle">2</text>
+  <text class="bt2-mono" x="26" y="108">- Recall</text>
 
-  <circle class="bt2-badge" cx="10" cy="114" r="7"/>
-  <text class="bt2-num"  x="10" y="117" text-anchor="middle">3</text>
-  <text class="bt2-mono" x="26" y="118">03_Set.stack</text>
+  <circle class="bt2-badge" cx="10" cy="128" r="7"/>
+  <text class="bt2-num"  x="10" y="131" text-anchor="middle">3</text>
+  <text class="bt2-mono" x="26" y="132">- Set</text>
 
-  <circle class="bt2-badge" cx="10" cy="138" r="7"/>
-  <text class="bt2-num"  x="10" y="141" text-anchor="middle">4</text>
-  <text class="bt2-mono" x="26" y="142">04_Step.stack</text>
+  <circle class="bt2-badge" cx="10" cy="152" r="7"/>
+  <text class="bt2-num"  x="10" y="155" text-anchor="middle">4</text>
+  <text class="bt2-mono" x="26" y="156">- Step</text>
 
-  <circle class="bt2-badge" cx="10" cy="162" r="7"/>
-  <text class="bt2-num"  x="10" y="165" text-anchor="middle">5</text>
-  <text class="bt2-mono" x="26" y="166">05_Memory.pulldown</text>
+  <circle class="bt2-badge" cx="10" cy="176" r="7"/>
+  <text class="bt2-num"  x="10" y="179" text-anchor="middle">5</text>
+  <text class="bt2-mono" x="26" y="180">- More</text>
 
   <!-- panel -->
   <rect class="bt2-pane" x="336" y="30" width="354" height="142" rx="3"/>
-  <text class="bt2-m" x="513" y="190" text-anchor="middle">Memory</text>
+  <text class="bt2-m" x="513" y="190" text-anchor="middle">Selection</text>
 
   <circle class="bt2-badge" cx="372" cy="22" r="7"/>
   <text class="bt2-num" x="372" y="25" text-anchor="middle">1</text>
@@ -819,20 +835,20 @@ you see in Explorer.</p>
   <text class="bt2-s"    x="566" y="105">Next</text>
   <rect class="bt2-box"  x="540" y="124" width="78" height="40" rx="2"/>
   <rect class="bt2-icon" x="546" y="136" width="14" height="14" rx="2"/>
-  <text class="bt2-s"    x="566" y="148">Clear</text>
+  <text class="bt2-s"    x="566" y="148">Forget</text>
 
   <circle class="bt2-badge" cx="648" cy="22" r="7"/>
   <text class="bt2-num" x="648" y="25" text-anchor="middle">5</text>
   <rect class="bt2-box"  x="622" y="38" width="52" height="126" rx="3"/>
   <rect class="bt2-icon" x="636" y="52" width="24" height="24" rx="2"/>
-  <text class="bt2-s" x="648" y="100" text-anchor="middle">Memory</text>
+  <text class="bt2-s" x="648" y="100" text-anchor="middle">More</text>
   <path class="bt2-mark" d="M642 110 L654 110 L648 117 z"/>
 
-  <text class="bt2-m" x="0" y="214">One sort, over mixed types. Renaming 03_Set.stack to 06_Set.stack moves it to the end of the panel.</text>
+  <text class="bt2-m" x="0" y="214">One list, over mixed types. Moving the Set line below the Step line swaps the two stacks on the panel.</text>
 </svg>
 </div>
-<figcaption>Five folders, five panel items, same order. Because the sort runs before the type
-is known, a stack can sit between two large buttons purely by how you number it.</figcaption>
+<figcaption>Five entries, five panel items, same order. Because the list is applied before the
+type is known, a stack can sit between two large buttons purely by where you list it.</figcaption>
 </figure>
 
 <h2>Icons at each size</h2>
@@ -907,8 +923,8 @@ as a missing tab rather than a doubled one.</p>
 <ul>
   <li><strong>A stack with four children.</strong> Split it into two stacks, or promote it to a
     pulldown.</li>
-  <li><strong><code>bundle.yaml</code> inside a <code>.stack</code> folder.</strong> Never read.
-    Move the keys down onto the children.</li>
+  <li><strong><code>bundle.yaml</code> inside a <code>.stack</code> folder.</strong> Only its
+    <code>layout:</code> list is read. Move every other key down onto the children.</li>
   <li><strong>An icon inside a <code>.stack</code> folder.</strong> Never read either.</li>
   <li><strong><code>shortcut:</code> on a pulldown.</strong> Ignored. Put it on the child you
     actually want the chord to run.</li>

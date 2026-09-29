@@ -49,5 +49,37 @@ namespace PyNavis.Tests
             Assert.Empty(BundleYaml.Parse(""));
             Assert.Empty(BundleYaml.Parse(null));
         }
+
+        // A container's bundle.yaml lists its children under "layout:" as a block list.
+        // The reader stays flat: the items come back as one newline-joined value.
+        [Fact]
+        public void BlockList_ItemsComeBackNewlineJoined()
+        {
+            var d = BundleYaml.Parse("layout:\n  - Remember\n  - Recall.pushbutton\n  - More\ntitle: X");
+            Assert.Equal("Remember\nRecall.pushbutton\nMore", d["layout"]);
+            Assert.Equal("X", d["title"]);
+        }
+
+        [Fact]
+        public void BlockList_ItemsMayBeQuoted_AndCommentsBetweenThemAreSkipped()
+        {
+            var d = BundleYaml.Parse("layout:\n  - \"Set\"\n  # the step tools\n  - 'Step'\n");
+            Assert.Equal("Set\nStep", d["layout"]);
+        }
+
+        [Fact]
+        public void BlockList_KeyWithNoItems_IsEmpty()
+        {
+            var d = BundleYaml.Parse("layout:\ntitle: X");
+            Assert.Equal("", d["layout"]);
+        }
+
+        [Fact]
+        public void BlockList_Items_ReadAsAList()
+        {
+            var d = BundleYaml.Parse("layout:\n  - A\n  - B\n");
+            Assert.Equal(new[] { "A", "B" }, BundleYaml.ListOf(d, "layout"));
+            Assert.Empty(BundleYaml.ListOf(d, "missing"));
+        }
     }
 }

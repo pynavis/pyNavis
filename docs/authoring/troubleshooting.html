@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.0.0</span>
+    <span>pynavis 1.1.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -69,8 +69,8 @@ organised by symptom; each entry ends with the line to search for.</p>
 
 <div class="note tip">
 <span class="note-t">Look at the toast first</span>
-<p>After every boot and every Reload, pyNavis counts the bundle folders it had to drop and
-toasts <em>N bundle folders were skipped</em>, quoting the first one in full and pointing at
+<p>After every boot and every Reload, pyNavis counts the problems it found in the bundle
+folders and toasts <em>N bundle problems found</em>, quoting the first one in full and pointing at
 the log folder for the rest. If you saw that toast, the answer is already on screen and the
 rest of this section is just the detail. If you did not, the problem is more likely a
 misspelled <code>.extension</code>, <code>.tab</code> or <code>.panel</code>, or a root that
@@ -227,7 +227,7 @@ are invisible.</p>
 
 <p><strong>Log.</strong> A folder inside a <code>.panel</code> whose name contains a dot is
 taken to be an attempted bundle, so a bad bundle suffix is reported and counted into the
-<em>N bundle folders were skipped</em> toast after the scan:</p>
+<em>N bundle problems found</em> toast after the scan:</p>
 
 <div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.427 [ERROR] &#x27;D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\Count.pushbuttons&#x27; is not a bundle kind pyNavis knows (check the folder suffix) - skipped.</code></pre></div>
 
@@ -278,7 +278,7 @@ stack of two and still works, and a stack of two where one is broken disappears 
 <p><strong>Fix.</strong> Two or three <code>.pushbutton</code> folders inside the
 <code>.stack</code> folder. For anything else use a <code>.pulldown</code>.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.431 [ERROR] Stack &#x27;D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\01_Pick.stack&#x27; holds 4 button(s); a stack needs 2 or 3 - skipped.</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.431 [ERROR] Stack &#x27;D:\NavisTools\MyTools.extension\MyTools.tab\Selection.panel\Pick.stack&#x27; holds 4 button(s); a stack needs 2 or 3 - skipped.</code></pre></div>
 
 <h3 id="a-pulldown-has-no-usable-pushbuttons">A pulldown has no usable pushbuttons<a class="anchor" href="#a-pulldown-has-no-usable-pushbuttons" aria-label="Link to this section">#</a></h3>
 
@@ -289,7 +289,7 @@ show when opened, so it is skipped. Usually every child is missing its
 <p><strong>Fix.</strong> At least one <code>.pushbutton</code> child with a
 <code>script.py</code>. Unlike stacks there is no upper limit.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.436 [ERROR] Pulldown &#x27;D:\NavisTools\MyTools.extension\MyTools.tab\Tools.panel\05_More.pulldown&#x27; has no usable pushbuttons - skipped.</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.436 [ERROR] Pulldown &#x27;D:\NavisTools\MyTools.extension\MyTools.tab\Tools.panel\More.pulldown&#x27; has no usable pushbuttons - skipped.</code></pre></div>
 
 <h3 id="the-whole-tab-is-missing-not-just-one-button">The whole tab is missing, not just one button<a class="anchor" href="#the-whole-tab-is-missing-not-just-one-button" aria-label="Link to this section">#</a></h3>
 
@@ -337,22 +337,30 @@ without restarting Navisworks and re-activates the tab you were on.</p>
 
 <h2 id="the-buttons-are-in-the-wrong-order">The buttons are in the wrong order<a class="anchor" href="#the-buttons-are-in-the-wrong-order" aria-label="Link to this section">#</a></h2>
 
-<h3 id="10-comes-before-2">10 comes before 2<a class="anchor" href="#10-comes-before-2" aria-label="Link to this section">#</a></h3>
+<h3 id="a-tool-is-in-the-wrong-place">A tool is in the wrong place<a class="anchor" href="#a-tool-is-in-the-wrong-place" aria-label="Link to this section">#</a></h3>
 
-<p><strong>Cause.</strong> Folders are sorted lexicographically, not numerically, so
-<code>10_Export</code> sorts before <code>2_Import</code>. This bites the moment a panel grows
-past nine tools.</p>
+<p><strong>Cause.</strong> Order comes from the <code>layout:</code> list in the container's
+own <code>bundle.yaml</code>, or <code>extension.yaml</code> for tabs. A folder that is not in
+the list, or whose entry does not match the folder name, is not lost: it is appended after
+every listed folder, in name order, which is usually the far end of the panel.</p>
 
-<p><strong>Fix.</strong> Zero-pad every prefix to a fixed width, and pad them all the same:
-<code>02_</code>, <code>10_</code>. Leave gaps if you expect to insert tools later.</p>
+<p><strong>Fix.</strong> Add the folder to the list, spelling the entry the way the folder is
+named. The kind suffix is optional and case does not matter, but the rest of the name has to
+match: <code>Clash_Report</code>, not <code>Clash Report</code>. An entry that matches nothing
+is reported in the log and counted into the same warning toast as a mistyped suffix. With no
+list at all the folders sort by name, which is how an extension that still carries
+<code>NN_</code> prefixes keeps its order.</p>
+
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.433 [ERROR] The layout in &#x27;D:\NavisTools\MyTools.extension\MyTools.tab\Tools.panel&#x27; names &#x27;Clash Report&#x27;, but no such folder is there - ignored.</code></pre></div>
 
 <h3 id="the-number-is-showing-in-the-title">The number is showing in the title<a class="anchor" href="#the-number-is-showing-in-the-title" aria-label="Link to this section">#</a></h3>
 
-<p><strong>Cause.</strong> The ordering prefix is stripped only when it is <em>two or
+<p><strong>Cause.</strong> The legacy ordering prefix is stripped only when it is <em>two or
 more</em> digits followed by an underscore. A single-digit <code>1_Keep</code> keeps its
 prefix, and because underscores render as spaces the button reads &ldquo;1 Keep&rdquo;.</p>
 
-<p><strong>Fix.</strong> Always use two digits. <code>01_Keep</code> shows as
+<p><strong>Fix.</strong> Drop the digit and order the folder with the <code>layout:</code>
+list instead, or, if you keep the prefix, use two digits: <code>01_Keep</code> shows as
 &ldquo;Keep&rdquo;. The rule is deliberate, so that a tool genuinely called
 <code>1_Thing</code> keeps its name, and a <code>title:</code> in <code>bundle.yaml</code>
 overrides all of it anyway.</p>
@@ -611,33 +619,33 @@ first in ribbon order wins and the second is dropped.</p>
 The Shortcuts editor on the pyNavis panel shows conflicts directly, which is faster than
 reading the log.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>&#x27;pyNavis.tab/03_Clash.panel/01_Clash_Report.pushbutton&#x27; wants Ctrl+Shift+R but &#x27;pyNavis.tab/01_pyNavis.panel/04_Reload.pushbutton&#x27; already has it - first wins</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>&#x27;pyNavis.tab/Clash.panel/Clash_Report.pushbutton&#x27; wants Ctrl+Shift+R but &#x27;pyNavis.tab/pyNavis.panel/Reload.pushbutton&#x27; already has it - first wins</code></pre></div>
 
 <h3 id="a-config-json-override-does-nothing">A config.json override does nothing<a class="anchor" href="#a-config-json-override-does-nothing" aria-label="Link to this section">#</a></h3>
 
 <p><strong>Cause.</strong> Overrides are keyed by <strong>BundleKey</strong>: the bundle
 folder path relative to its <code>.extension</code> folder, with forward slashes, with every
-suffix kept and every <code>NN_</code> prefix kept. It is not the title, and it is not the
-stripped name.</p>
+suffix kept and any <code>NN_</code> prefix dropped. It is not the title, and it is not the
+folder name on its own.</p>
 
 <div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
   <span class="tok-f">&quot;shortcuts&quot;</span>: {
     <span class="tok-f">&quot;allowBareKeys&quot;</span>: <span class="tok-k">false</span>,
     <span class="tok-f">&quot;bindings&quot;</span>: {
-      <span class="tok-f">&quot;pyNavis.tab/02_Selection.panel/01_Remember.pushbutton&quot;</span>: <span class="tok-s">&quot;Ctrl+Alt+M&quot;</span>,
-      <span class="tok-f">&quot;pyNavis.tab/02_Selection.panel/02_Recall.pushbutton&quot;</span>: <span class="tok-k">null</span>
+      <span class="tok-f">&quot;pyNavis.tab/Selection.panel/Remember.pushbutton&quot;</span>: <span class="tok-s">&quot;Ctrl+Alt+M&quot;</span>,
+      <span class="tok-f">&quot;pyNavis.tab/Selection.panel/Recall.pushbutton&quot;</span>: <span class="tok-k">null</span>
     }
   }
 }</code></pre></div>
 
 <p><code>null</code> disables a binding the bundle declared. A key that matches no tool is
-ignored and logged.</p>
+ignored and logged; here the <code>.pushbutton</code> suffix was left off.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>shortcut override for unknown tool &#x27;pyNavis.tab/02_Selection.panel/Remember.pushbutton&#x27; ignored</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>shortcut override for unknown tool &#x27;pyNavis.tab/Selection.panel/Remember&#x27; ignored</code></pre></div>
 
 <p><strong>Fix.</strong> <kbd>Alt</kbd>+Click the button to open its folder in Explorer and
-read the path off the address bar, or use the Shortcuts editor, which writes the key for you.
-See <a href="shortcuts.html">Keyboard shortcuts</a>.</p>
+read the path off the address bar, dropping any <code>NN_</code> prefix, or use the Shortcuts
+editor, which writes the key for you. See <a href="shortcuts.html">Keyboard shortcuts</a>.</p>
 
 <h3 id="the-chord-runs-script-py-even-though-it-has-shift-in-it">The chord runs script.py even though it has Shift in it<a class="anchor" href="#the-chord-runs-script-py-even-though-it-has-shift-in-it" aria-label="Link to this section">#</a></h3>
 
@@ -1025,7 +1033,7 @@ last.</p>
 <a href="#an-old-loader-is-still-in-the-navisworks-plugins-folder" class="h3">An old loader is still in the Navisworks Plugins folder</a>
 <a href="#you-did-not-click-reload" class="h3">You did not click Reload</a>
 <a href="#the-buttons-are-in-the-wrong-order">The buttons are in the wrong order</a>
-<a href="#10-comes-before-2" class="h3">10 comes before 2</a>
+<a href="#a-tool-is-in-the-wrong-place" class="h3">A tool is in the wrong place</a>
 <a href="#the-number-is-showing-in-the-title" class="h3">The number is showing in the title</a>
 <a href="#the-title-or-tooltip-is-wrong">The title or tooltip is wrong</a>
 <a href="#my-edit-had-no-effect" class="h3">My edit had no effect</a>

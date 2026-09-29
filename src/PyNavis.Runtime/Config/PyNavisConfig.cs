@@ -361,8 +361,11 @@ namespace PyNavis.Runtime.Config
                     if (shortcuts.TryGetValue("bindings", out var b)
                         && b is Dictionary<string, object> bindings)
                     {
+                        // Keys written before a folder lost its NN_ prefix still name the
+                        // same tool: normalise on the way in, and the next save writes
+                        // the clean form.
                         foreach (var pair in bindings)
-                            config.ShortcutBindings[pair.Key] = pair.Value as string; // null stays null = disabled
+                            config.ShortcutBindings[Bundles.BundleKeys.Normalize(pair.Key)] = pair.Value as string; // null stays null = disabled
                     }
                 }
                 if (data != null && data.TryGetValue("panes", out var panes)
@@ -381,7 +384,7 @@ namespace PyNavis.Runtime.Config
                         {
                             int slot;
                             if (int.TryParse(Convert.ToString(pair.Value), out slot) && slot > 0)
-                                config.PaneAssignments[pair.Key] = slot;
+                                config.PaneAssignments[Bundles.BundleKeys.Normalize(pair.Key)] = slot;
                         }
                     }
                 }

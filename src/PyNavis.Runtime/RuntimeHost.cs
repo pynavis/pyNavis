@@ -146,8 +146,7 @@ namespace PyNavis.Runtime
             if (skipped.Count == 0) return;
             try
             {
-                Forms.Toast.Show("warning",
-                    skipped.Count == 1 ? "1 bundle folder was skipped" : skipped.Count + " bundle folders were skipped",
+                Forms.Toast.Show("warning", ExtensionModel.ProblemsHeadline(skipped.Count),
                     skipped[0] + (skipped.Count > 1 ? " The rest are in " + Log.LogDir : ""));
             }
             catch (Exception ex)

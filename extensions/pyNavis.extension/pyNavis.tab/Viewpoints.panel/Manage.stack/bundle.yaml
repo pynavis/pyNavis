@@ -1,0 +1,4 @@
+layout:
+  - Renamer
+  - Deleter
+  - Manager

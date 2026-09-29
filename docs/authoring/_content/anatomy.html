@@ -25,21 +25,23 @@ is matched literally: nothing else counts.</p>
     <td><code>extension.yaml</code>, <code>lib\</code>, <code>hooks\</code>,
         <code>startup.py</code>, <code>*.tab</code></td></tr>
 <tr><td><code>*.tab</code></td><td><code>*.extension</code></td><td>One ribbon tab</td>
-    <td><code>*.panel</code></td></tr>
+    <td><code>bundle.yaml</code> (a <code>layout:</code> list only), <code>*.panel</code></td></tr>
 <tr><td><code>*.panel</code></td><td><code>*.tab</code></td><td>One panel inside that tab</td>
-    <td><code>*.pushbutton</code>, <code>*.stack</code>, <code>*.pulldown</code>, and nine
-        more panel item suffixes (see below)</td></tr>
+    <td><code>bundle.yaml</code> (a <code>layout:</code> list only), <code>*.pushbutton</code>,
+        <code>*.stack</code>, <code>*.pulldown</code>, and nine more panel item suffixes (see
+        below)</td></tr>
 <tr><td><code>*.pushbutton</code></td><td><code>*.panel</code>, <code>*.stack</code>, <code>*.pulldown</code></td>
     <td>One clickable button</td>
     <td><code>script.py</code> (required), <code>config.py</code>, <code>bundle.yaml</code>, icons</td></tr>
 <tr><td><code>*.stack</code></td><td><code>*.panel</code></td><td>2 or 3 small buttons in one column</td>
-    <td><code>*.pushbutton</code> only</td></tr>
+    <td><code>bundle.yaml</code> (a <code>layout:</code> list only), <code>*.pushbutton</code></td></tr>
 <tr><td><code>*.pulldown</code></td><td><code>*.panel</code></td><td>One large button that opens a menu</td>
     <td><code>bundle.yaml</code>, icons, <code>*.pushbutton</code></td></tr>
 <tr><td><code>*.slideout</code></td><td><code>*.panel</code></td>
     <td>Nothing of its own; its contents render below a panel break, in the flyout the host
         opens from the panel title</td>
-    <td>Any of the other panel item suffixes, one level deep</td></tr>
+    <td><code>bundle.yaml</code> (a <code>layout:</code> list only), any of the other panel
+        item suffixes, one level deep</td></tr>
 </tbody>
 </table>
 </div>
@@ -60,7 +62,7 @@ from pyRevit, note the exact spelling: it is <code>*.nobutton</code>, not
 <p>A folder inside a panel whose name contains a dot is taken to be an attempted bundle, so a
 suffix outside the twelve is logged as <code>'&lt;dir&gt;' is not a bundle kind pyNavis knows
 (check the folder suffix) - skipped.</code> and counted into the warning toast pyNavis shows
-after every scan: <em>N bundle folders were skipped</em>, quoting the first one. A folder with
+after every scan: <em>N bundle problems found</em>, quoting the first one. A folder with
 no dot in its name, such as <code>assets</code> or <code>__pycache__</code>, is an ordinary
 folder and says nothing.</p>
 </div>
@@ -75,7 +77,7 @@ D:\NavisTools\                       # an extension root, listed in config.json
     acme_common\                     # shared python for every extension, every engine
       __init__.py
   Survey.extension\
-    extension.yaml                   # optional: display name and default engine
+    extension.yaml                   # optional: display name, default engine, tab order
     startup.py                       # optional: runs at boot and every Reload
     lib\                             # optional: modules importable from every button IN
       surveyutil\                    # this extension only - different from Shared.lib\ above
@@ -84,8 +86,10 @@ D:\NavisTools\                       # an extension root, listed in config.json
     hooks\                           # optional: event scripts, filename = event name
       doc-opened.py
     Survey.tab\                      # one ribbon tab
-      Export.panel\                  # "Export" sorts before "Review"
-        01_Points.pushbutton\        # large button, titled "Points"
+      bundle.yaml                    # optional: layout: Export, Review
+      Export.panel\
+        bundle.yaml                  # optional: layout: Points, Mesh, Format, More
+        Points.pushbutton\           # large button, titled "Points"
           script.py                  # REQUIRED, or the whole bundle is dropped
           config.py                  # optional: Shift+Click runs this
           bundle.yaml                # optional: title, tooltip, engine, shortcut, keytip
@@ -93,34 +97,35 @@ D:\NavisTools\                       # an extension root, listed in config.json
           icon.dark.png              # 96x96, dark theme
           icon.small.png             # 32x32, stacks and menu rows
           icon.small.dark.png        # 32x32, dark theme
-        02_Mesh.pushbutton\
+        Mesh.pushbutton\
           script.py
-        03_Format.stack\             # 2 or 3 children; no yaml, no icon of its own
-          01_CSV.pushbutton\
+        Format.stack\                # 2 or 3 children; no icon of its own
+          bundle.yaml                # optional: layout: CSV, IFC
+          CSV.pushbutton\
             script.py
             icon.small.png
-          02_IFC.pushbutton\
+          IFC.pushbutton\
             script.py
             icon.small.png
-        04_More.pulldown\            # a menu button; has its own yaml and icon
-          bundle.yaml                # title, tooltip, keytip
+        More.pulldown\               # a menu button; has its own yaml and icon
+          bundle.yaml                # title, tooltip, keytip, layout
           icon.png
-          01_Legacy.pushbutton\
+          Legacy.pushbutton\
             script.py
-          02_Debug.pushbutton\
+          Debug.pushbutton\
             script.py
-        99_More.slideout\            # contents move below the panel break, into the flyout
+        Extras.slideout\             # contents move below the panel break, into the flyout
           Settings.pushbutton\
             script.py
       Review.panel\
-        Compare.pushbutton\          # no NN_ prefix, no yaml: titled "Compare"
+        Compare.pushbutton\          # no yaml: titled "Compare"
           script.py
 </pre>
 
 <p>That tree produces one tab named <em>Survey</em> with two panels. The <em>Export</em> panel
-holds four items in folder order: a large button, a large button, a two-row stack and a
-pulldown, plus one more button hidden in the flyout the panel title opens. The
-<em>Review</em> panel holds one button.</p>
+holds four items in the order its <code>layout:</code> list gives: a large button, a large
+button, a two-row stack and a pulldown, plus one more button hidden in the flyout the panel
+title opens. The <em>Review</em> panel holds one button and needs no list.</p>
 
 <h2>How discovery walks the disk</h2>
 
@@ -244,11 +249,13 @@ results concatenated, so a development extension and an installed one happily co
 
 <h2>extension.yaml</h2>
 
-<p>Optional, and it understands exactly two keys. Anything else in the file is ignored.</p>
+<p>Optional, and it understands exactly three keys. Anything else in the file is ignored.</p>
 
 <pre data-lang="yaml" data-file="Survey.extension\extension.yaml">
 name: Survey Tools
 engine: ironpython
+layout:
+  - Survey
 </pre>
 
 <div class="table-scroll">
@@ -263,12 +270,17 @@ engine: ironpython
     <td>The default engine for every bundle in the extension. A bundle's own
         <code>engine:</code> still wins.</td>
     <td><code>ironpython</code></td></tr>
+<tr><td><code>layout</code></td>
+    <td>The order of the extension's tabs, as a block list of <code>*.tab</code> folder
+        names. See <a href="#ordering-panels-and-buttons">Ordering panels and buttons</a>.</td>
+    <td>Tab folders in name order</td></tr>
 </tbody>
 </table>
 </div>
 
 <p>Setting <code>engine: cpython</code> here is the clean way to write a whole extension
-against CPython without repeating the key in every <code>bundle.yaml</code>.</p>
+against CPython without repeating the key in every <code>bundle.yaml</code>. The
+<code>layout:</code> list only matters once an extension has more than one tab.</p>
 
 <h2>The lib folder (one extension)</h2>
 
@@ -276,7 +288,7 @@ against CPython without repeating the key in every <code>bundle.yaml</code>.</p>
 to the module search path of every button in that extension. It is the place for shared code:
 helpers, vendored pure-Python packages, anything more than one tool imports.</p>
 
-<pre data-lang="python" data-file="Survey.extension\Survey.tab\Export.panel\01_Points.pushbutton\script.py">
+<pre data-lang="python" data-file="Survey.extension\Survey.tab\Export.panel\Points.pushbutton\script.py">
 """Exports survey points."""
 from surveyutil import points            # resolved from Survey.extension\lib
 from pynavis import selection, toast
@@ -397,55 +409,66 @@ boot or Reload.</p>
 
 <h2>Ordering panels and buttons</h2>
 
-<p>At every level, folders are sorted by name using a case-insensitive ordinal comparison.
-That sort is the only thing that decides order: there is no <code>order:</code> key, and the
-order you created the folders in is irrelevant.</p>
+<p>At every level, order comes from a <code>layout:</code> list in the container's own
+configuration file: <code>extension.yaml</code> for the tabs of an extension, and a
+<code>bundle.yaml</code> inside a <code>.tab</code>, a <code>.panel</code>, a
+<code>.stack</code>, a <code>.pulldown</code>, a <code>.splitbutton</code>, a
+<code>.splitpushbutton</code> or a <code>.slideout</code> for the folders inside it. The list
+names the child folders in the order you want them. There is no <code>order:</code> key on
+the children themselves, and the order you created the folders in is irrelevant.</p>
 
-<p>Because folder names double as titles, you rarely want alphabetical order. Prefix the
-folder with two or more digits and an underscore. The prefix sorts the folder and is then
-stripped from the title.</p>
-
-<pre data-lang="tree">
-02_Selection.panel\
-  01_Remember.pushbutton\      # shows as "Remember"
-  02_Recall.pushbutton\        # shows as "Recall"
-  03_Set.stack\
-  04_Step.stack\
-  05_Memory.pulldown\          # shows as "Memory"
+<pre data-lang="yaml" data-file="Selection.panel\bundle.yaml">
+layout:
+  - Remember
+  - Recall
+  - Set
+  - Step
+  - More
 </pre>
 
-<div class="note trap">
-<span class="note-t">10 sorts before 2</span>
-<p>The sort is lexicographic, not numeric. <code>10_Export</code> comes before
-<code>2_Import</code>, and once you have ten tools the panel silently reshuffles. Always
-zero-pad every prefix on a panel to the same width. This is the single most common authoring
-mistake in pyNavis.</p>
-</div>
+<pre data-lang="tree">
+Selection.panel\
+  bundle.yaml
+  Remember.pushbutton\         # first, as the list says
+  Recall.pushbutton\
+  Set.stack\
+  Step.stack\
+  More.pulldown\               # last, as the list says
+</pre>
 
-<div class="do-dont">
-<div class="do"><div class="dd-t">Do</div>
-<pre data-bare="true" data-lang="tree">01_Remember.pushbutton
-02_Recall.pushbutton
-...
-09_Purge.pushbutton
-10_Export.pushbutton</pre></div>
-<div class="dont"><div class="dd-t">Don't</div>
-<pre data-bare="true" data-lang="tree">1_Remember.pushbutton
-2_Recall.pushbutton
-...
-9_Purge.pushbutton
-10_Export.pushbutton    # jumps to the front</pre></div>
-</div>
+<p>The rules are short:</p>
 
-<p>A three-digit scheme works too and is worth using on a panel you expect to grow:
-<code>010_</code>, <code>020_</code>, <code>030_</code> leaves room to insert without renaming
-anything.</p>
+<ul>
+  <li>Listed children come first, in list order.</li>
+  <li>Unlisted children follow, in case-insensitive name order, so a folder you forgot to
+    list is never hidden. It just lands after the ones you did list.</li>
+  <li>An entry may name the folder with or without its kind suffix: <code>Recall</code> and
+    <code>Recall.pushbutton</code> both match. Matching ignores case, and it ignores a legacy
+    <code>NN_</code> prefix on either side.</li>
+  <li>An entry that names no folder in that container is logged, counted into the extension's
+    problem list on the same channel as a mistyped suffix, and skipped:
+    <code>The layout in 'D:\NavisTools\...\Selection.panel' names 'Recal', but no such
+    folder is there - ignored.</code></li>
+</ul>
+
+<p>Inserting a tool in position three is therefore one new line in the list. Nothing gets
+renamed, and nothing else moves.</p>
 
 <div class="note">
-<span class="note-t">Items keep folder order across types</span>
-<p>A panel does not group buttons, stacks and pulldowns. All three sort together by folder
-name, so a stack can sit between two large buttons simply by numbering it that way.
+<span class="note-t">Items keep list order across types</span>
+<p>A panel does not group buttons, stacks and pulldowns. All of them are placed by the same
+list, so a stack can sit between two large buttons simply by listing it there.
 <a href="buttons.html">Buttons, stacks and pulldowns</a> shows this on a real panel.</p>
+</div>
+
+<div class="note">
+<span class="note-t">The older way: a numeric prefix</span>
+<p>Before <code>layout:</code> existed, folders were ordered by name and carried a prefix of
+two or more digits and an underscore, as in <code>01_Remember.pushbutton</code>, which
+sorted the folder and was stripped from the title. That still works, and an extension written
+that way loads unchanged: without a <code>layout:</code> list the folders sort by name,
+prefix included, and the prefix never reaches the title or the bundle key. New extensions
+should use the list. The shipped extension no longer uses prefixes at all.</p>
 </div>
 
 <h2>From folder name to title</h2>
@@ -453,7 +476,8 @@ name, so a stack can sit between two large buttons simply by numbering it that w
 <p>When a bundle has no <code>title:</code> in its <code>bundle.yaml</code> and no
 <code>__title__</code> in its script, the title is derived from the folder name by two rules
 applied in order: strip a leading run of <strong>two or more</strong> digits followed by an
-underscore, then turn every remaining underscore into a space.</p>
+underscore, which is the legacy ordering prefix older extensions still carry, then turn every
+remaining underscore into a space.</p>
 
 <figure>
 <div class="fig-frame">
@@ -490,7 +514,7 @@ underscore, then turn every remaining underscore into a space.</p>
   <line class="an2-cut" x1="0" y1="104" x2="19" y2="104"/>
   <path class="an2-arw" d="M232 104 H 276" marker-end="url(#an2-a)"/>
   <text class="an2-t"   x="290" y="108">Remember</text>
-  <text class="an2-m"   x="470" y="108">Two digits: the prefix is an order hint.</text>
+  <text class="an2-m"   x="470" y="108">Two digits: a legacy ordering prefix.</text>
 
   <!-- row 2 -->
   <text class="an2-mono" x="0" y="140">02_Recall_Now</text>
@@ -519,7 +543,8 @@ underscore, then turn every remaining underscore into a space.</p>
 </div>
 <figcaption>The rule is deliberately two digits or more, so a tool genuinely named
 <code>1_Keep</code> keeps its name. If you want a single digit in the label, set
-<code>title:</code> and stop guessing.</figcaption>
+<code>title:</code> and stop guessing. A new extension has no reason to carry a prefix at all:
+order it with <code>layout:</code> and name the folder what the button should say.</figcaption>
 </figure>
 
 <p>Titles are only derived when nothing better is available. The full precedence, most
@@ -596,12 +621,14 @@ without their costing any ribbon width.</p>
 
 <pre data-lang="tree">
 Export.panel\
-  01_Points.pushbutton\       # always visible
-  02_Mesh.pushbutton\         # always visible
-  99_More.slideout\           # everything below here is in the flyout
-    01_Settings.pushbutton\
+  bundle.yaml                 # layout: Points, Mesh
+  Points.pushbutton\          # always visible
+  Mesh.pushbutton\            # always visible
+  Extras.slideout\            # everything below here is in the flyout
+    bundle.yaml               # layout: Settings, Docs
+    Settings.pushbutton\
       script.py
-    02_Docs.urlbutton\
+    Docs.urlbutton\
       bundle.yaml
 </pre>
 
@@ -609,9 +636,12 @@ Export.panel\
   <li>A slideout may hold <strong>any</strong> of the other panel item kinds, not just
     pushbuttons: stacks, pulldowns, toggles, dockpanes and the rest all work.</li>
   <li>A panel may have more than one <code>.slideout</code>. Their contents are concatenated
-    in folder order into the single flyout; there is only ever one break per panel.</li>
-  <li>The folder name is never shown. Use the <code>NN_</code> prefix to place it, and name it
-    for your own benefit.</li>
+    into the single flyout in the order the panel's <code>layout:</code> list gives them;
+    there is only ever one break per panel.</li>
+  <li>The folder name is never shown, so name it for your own benefit. Its own
+    <code>bundle.yaml</code> holds a <code>layout:</code> list for the items inside it and
+    nothing else; where the slideout itself sits in the panel's list does not matter, because
+    its contents always render after the break.</li>
   <li>One level only. A <code>.slideout</code> inside a <code>.slideout</code> is logged
     (<code>Slideout '&lt;dir&gt;' sits inside another slideout - skipped.</code>) and its
     contents are dropped.</li>
@@ -658,7 +688,7 @@ folder name, replacing every character that is not a letter or digit with an und
   <text class="an3-m"    x="0"   y="74">tab folder</text>
   <line class="an3-tick" x1="196" y1="70" x2="212" y2="70"/>
   <text class="an3-mono" x="222" y="74">Field Work.tab</text>
-  <text class="an3-m"    x="430" y="74">suffix removed, prefix kept</text>
+  <text class="an3-m"    x="430" y="74">suffix removed, a legacy prefix is kept</text>
 
   <text class="an3-m"    x="0"   y="102">joined with _</text>
   <line class="an3-tick" x1="196" y1="98" x2="212" y2="98"/>
@@ -689,22 +719,27 @@ is dropped and logged rather than drawn twice.</p>
 <h3>Bundle key</h3>
 
 <p>Each button also carries a stable key: its path relative to the <code>.extension</code>
-folder, with forward slashes, keeping every suffix and every <code>NN_</code> prefix.</p>
+folder, with forward slashes, keeping every suffix. A legacy <code>NN_</code> prefix is
+dropped from every segment.</p>
 
 <pre data-lang="text">
-pyNavis.tab/02_Selection.panel/01_Remember.pushbutton
-pyNavis.tab/02_Selection.panel/03_Set.stack/01_Add.pushbutton
+pyNavis.tab/Selection.panel/Remember.pushbutton
+pyNavis.tab/Selection.panel/Set.stack/Add.pushbutton
 </pre>
 
 <p>That key is what <code>config.json</code> uses to rebind or disable a tool's keyboard
-shortcut, so renaming a folder or changing its <code>NN_</code> prefix silently orphans a
-user's override. <a href="shortcuts.html">Shortcuts</a> covers the binding file.</p>
+shortcut and to record which slot a <code>*.dockpane</code> claimed, so renaming a folder,
+meaning the name after any prefix, silently orphans a user's override.
+<a href="shortcuts.html">Shortcuts</a> covers the binding file.</p>
 
-<div class="note warn">
-<span class="note-t">Renumbering has a cost</span>
-<p>Reordering a panel by changing prefixes rewrites the bundle keys of everything you touched.
-Users lose their custom shortcuts for those tools. If you plan to reorder often, leave gaps in
-the numbering instead.</p>
+<div class="note">
+<span class="note-t">Renumbering is free</span>
+<p><code>pyNavis.tab/02_Selection.panel/01_Remember.pushbutton</code> and
+<code>pyNavis.tab/Selection.panel/Remember.pushbutton</code> are the same key, and a key
+written into <code>config.json</code> with prefixes is normalised on load. A user's shortcut
+overrides and dock-pane slot claims survive an author adding, changing or removing prefixes.
+Renaming the folder name itself, <code>Remember</code> to <code>Memorize</code>, is still a
+new key.</p>
 </div>
 
 <h2>What to check when you add a bundle</h2>
@@ -715,7 +750,8 @@ the numbering instead.</p>
   <li>Every suffix is spelled correctly and appears exactly once per folder name.</li>
   <li>Every <code>.pushbutton</code> contains a <code>script.py</code>.</li>
   <li>Every <code>.stack</code> contains 2 or 3 of them.</li>
-  <li>Every <code>NN_</code> prefix on a panel is padded to the same width.</li>
+  <li>Every entry in a <code>layout:</code> list names a folder that exists, spelled the way
+    the folder is.</li>
   <li>You clicked <strong>Reload</strong>.</li>
 </ul>
 

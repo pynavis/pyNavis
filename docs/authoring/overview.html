@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.0.0</span>
+    <span>pynavis 1.1.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -97,24 +97,26 @@ name decides what it becomes, and the folder name itself becomes the visible lab
   <text class="dgm-mono" x="0"  y="42">MyTools.extension</text>
   <text class="dgm-mono" x="16" y="66">Survey.tab</text>
   <text class="dgm-mono" x="32" y="90">Export.panel</text>
-  <text class="dgm-mono" x="48" y="114">01_Points.pushbutton</text>
-  <text class="dgm-mono" x="64" y="138">script.py</text>
-  <text class="dgm-mono" x="64" y="162">icon.png</text>
-  <text class="dgm-mono" x="48" y="186">02_Mesh.pushbutton</text>
-  <text class="dgm-mono" x="64" y="210">script.py</text>
-  <text class="dgm-mono" x="64" y="234">icon.png</text>
+  <text class="dgm-mono" x="48" y="114">bundle.yaml</text>
+  <text class="dgm-mono" x="48" y="138">Points.pushbutton</text>
+  <text class="dgm-mono" x="64" y="162">script.py</text>
+  <text class="dgm-mono" x="64" y="186">icon.png</text>
+  <text class="dgm-mono" x="48" y="210">Mesh.pushbutton</text>
+  <text class="dgm-mono" x="64" y="234">script.py</text>
+  <text class="dgm-mono" x="64" y="258">icon.png</text>
 
   <path class="dgm-arw" d="M12 50 V 60" />
   <path class="dgm-arw" d="M28 74 V 84" />
   <path class="dgm-arw" d="M44 98 V 108" />
-  <path class="dgm-arw" d="M44 122 V 180" />
+  <path class="dgm-arw" d="M44 122 V 132" />
+  <path class="dgm-arw" d="M44 146 V 204" />
 
   <path class="dgm-arw" d="M255 60 H 300" marker-end="url(#ov-a)"/>
   <text class="dgm-m" x="258" y="53">tab</text>
   <path class="dgm-arw" d="M255 88 H 300" marker-end="url(#ov-a)"/>
   <text class="dgm-m" x="258" y="81">panel</text>
-  <path class="dgm-arw" d="M255 150 H 300" marker-end="url(#ov-a)"/>
-  <text class="dgm-m" x="258" y="143">buttons</text>
+  <path class="dgm-arw" d="M255 174 H 300" marker-end="url(#ov-a)"/>
+  <text class="dgm-m" x="258" y="167">buttons</text>
 
   <text class="dgm-lbl" x="320" y="12">On the ribbon</text>
 
@@ -145,8 +147,8 @@ name decides what it becomes, and the folder name itself becomes the visible lab
   <path d="M453 108 H483 M468 94 V122" stroke="var(--accent)" stroke-width="1.4"/>
   <text class="dgm-t" x="468" y="140" text-anchor="middle">Mesh</text>
 
-  <text class="dgm-m" x="320" y="252">The folder name becomes the label. The leading</text>
-  <text class="dgm-m" x="320" y="270">&#8220;01_&#8221; orders the buttons and is stripped from the title.</text>
+  <text class="dgm-m" x="320" y="252">The folder name becomes the label. A layout: list in the</text>
+  <text class="dgm-m" x="320" y="270">panel's bundle.yaml puts Points before Mesh.</text>
 </svg>
 </div>
 <figcaption>Four folder levels, four ribbon levels. Nothing else registers a command:
@@ -164,7 +166,7 @@ Pythonic. The library is organised by domain: <code>selection</code>, <code>sets
 <code>output</code> face the user, and <a href="api-reference.html">the API reference</a>
 lists every function in all of them.</p>
 
-<div class="code"><div class="code-head"><span>MyTools.extension/Survey.tab/Export.panel/01_Points.pushbutton/script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports the current selection to CSV.&quot;&quot;&quot;</span>
+<div class="code"><div class="code-head"><span>MyTools.extension/Survey.tab/Export.panel/Points.pushbutton/script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports the current selection to CSV.&quot;&quot;&quot;</span>
 <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, selection, toast
 
 items = selection.get_items()

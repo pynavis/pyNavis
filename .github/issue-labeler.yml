@@ -1,0 +1,57 @@
+# Regexes run against the issue title and body by .github/workflows/label-issues.yml.
+# Form dropdown answers render in the body as "### Area\n\nClash panel", so the first
+# pattern in each group matches the form answer exactly and the rest catch free-text
+# issues that did not come through a form.
+
+"area:installer":
+  - '/### Area\s*\n+\s*Installer/i'
+  - '/\b(installer|install\.ps1|setup\.exe|does not load|not loading|ribbon (is )?missing|tab (is )?missing)\b/i'
+"area:core":
+  - '/### Area\s*\n+\s*pyNavis panel/i'
+  - '/\b(settings|shortcuts? editor|console|reload)\b/i'
+"area:selection":
+  - '/### Area\s*\n+\s*Selection panel/i'
+  - '/\b(selection sets?|remember|recall|select(ion)? (by|step))\b/i'
+"area:clash":
+  - '/### Area\s*\n+\s*Clash panel/i'
+  - '/\b(clash|clash report|clash grouper|true distance|set gap)\b/i'
+"area:viewpoints":
+  - '/### Area\s*\n+\s*Viewpoints panel/i'
+  - '/\b(viewpoints?|section nudge|section plane|camera|speeds?)\b/i'
+"area:ai":
+  - '/### Area\s*\n+\s*AI \(beta\)/i'
+  - '/\b(ask ai|api key|anthropic|claude)\b/i'
+"area:data":
+  - '/### Area\s*\n+\s*Data panel/i'
+  - '/\b(coordinates?|element ids?|excel sets?|export .* csv)\b/i'
+"area:authoring":
+  - '/### Area\s*\n+\s*(Writing my own bundle|Python API)/i'
+  - '/(bundle\.yaml|script\.py|\.pushbutton|\.dockpane|pane\.xaml|\bhooks?\b|pynavis\.(script|toast|ui|doc))/i'
+"area:docs":
+  - '/### Area\s*\n+\s*Documentation/i'
+  - '/\b(docs?\.pynavis|tools\.pynavis|typo|documentation)\b/i'
+"tool:new":
+  - '/### Area\s*\n+\s*New tool/i'
+
+"navis:2026":
+  - '/### Navisworks version\s*\n+\s*2026/i'
+  - '/\bnavisworks (manage |simulate |freedom )?2026\b/i'
+"navis:2025":
+  - '/### Navisworks version\s*\n+\s*2025/i'
+  - '/\bnavisworks (manage |simulate |freedom )?2025\b/i'
+"navis:2024":
+  - '/### Navisworks version\s*\n+\s*2024/i'
+  - '/\bnavisworks (manage |simulate |freedom )?2024\b/i'
+
+"edition:freedom":
+  - '/### Navisworks edition\s*\n+\s*Freedom/i'
+"edition:simulate":
+  - '/### Navisworks edition\s*\n+\s*Simulate/i'
+
+# Free-text issues that skipped the forms still get a type label.
+"bug":
+  - '/\b(crash|exception|does not work|doesn.t work|broken|fails?|stack ?trace)\b/i'
+"enhancement":
+  - '/\b(feature request|would be (nice|great)|could you add|please add|suggestion)\b/i'
+"question":
+  - '/\b(how do i|how to|is it possible|can i)\b/i'
