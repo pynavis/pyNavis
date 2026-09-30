@@ -654,7 +654,101 @@ namespace PyNavis.Tests
                 "assert faces.side_of([(0, 0, 5), (0, 0, 7)], (0, 0, 0), (0, 0, -1)) == (0.0, 0.0, 1.0)\n" +
                 "assert faces.side_of([(0, 0, 5), (0, 0, 7)], (0, 0, 0), (0, 0, 1)) == (0, 0, 1)\n" +
                 "assert faces.tolerance_for([(0, 0, 0)], 0.001) == 0.5\n" +
-                "assert callable(faces.faces_under) and callable(faces.candidates_at)\n");
+                "assert faces.tolerance_for((), 0.001) == 0.5\n" +
+                "assert callable(faces.faces_under) and callable(faces.candidates_at)\n" +
+                "assert callable(faces.surface_under)\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void LengthsModule_ReadsAndWritesLengths_ThroughTheRuntimeReader()
+        {
+            // pynavis.lengths is the script-facing face of PyNavis.Runtime.Units.Lengths:
+            // one reader for every length field, tested case by case in LengthsTests.
+            var r = Run(
+                "from pynavis import lengths\n" +
+                "q = chr(34)\n" +
+                "assert abs(lengths.parse(\"1' 6\" + q, 'Feet') - 1.5) < 1e-12\n" +
+                "assert abs(lengths.parse('25mm', 'Feet') - 25 / 304.8) < 1e-12\n" +
+                "assert abs(lengths.parse('1/2', 'Feet') - 0.5 / 12) < 1e-12\n" +
+                "assert lengths.parse('abc', 'Feet') is None and lengths.parse(None, 'Feet') is None\n" +
+                "assert lengths.format_input(1.5, 'Feet') == \"1' 6\" + q\n" +
+                "assert lengths.format_input(150.0, 'Millimeters') == '150'\n" +
+                "assert abs(lengths.convert(1.0, 'Feet', 'Millimeters') - 304.8) < 1e-9\n" +
+                "assert lengths.is_imperial('Feet') and not lengths.is_imperial('Meters')\n" +
+                "assert lengths.suffix('Feet') == '' and lengths.suffix('Millimeters') == 'mm'\n" +
+                "assert lengths.hint('Feet') == 'like 3' + q + \", 1' 6 1/2\" + q + ' or 25mm', lengths.hint('Feet')\n" +
+                "assert lengths.hint('Millimeters') == 'in millimeters, or with a unit like 2' + q + ' or 0.1m'\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void FormsAskLength_AsksAgainOnWhatItCannotRead_AndReturnsDocumentUnits()
+        {
+            // ask_string is swapped for a script of answers, so the loop runs
+            // without a dialog: a bad entry is quoted back, a good one returned.
+            var r = Run(
+                "from pynavis import forms\n" +
+                "q = chr(34)\n" +
+                "answers = ['abc', \"1' 6\" + q]\n" +
+                "asked = []\n" +
+                "def fake(prompt, default='', title='pyNavis'):\n" +
+                "    asked.append((prompt, default))\n" +
+                "    return answers.pop(0)\n" +
+                "real = forms.ask_string\n" +
+                "forms.ask_string = fake\n" +
+                "try:\n" +
+                "    got = forms.ask_length('Gap:', 'Feet', default=0.25, title='T')\n" +
+                "finally:\n" +
+                "    forms.ask_string = real\n" +
+                "assert abs(got - 1.5) < 1e-12, got\n" +
+                "assert asked[0] == ('Gap:', \"0' 3\" + q), asked\n" +
+                "assert asked[1] == (\"Could not read 'abc' as a length. Gap:\", 'abc'), asked\n" +
+                "forms.ask_string = lambda prompt, default='', title='pyNavis': None\n" +
+                "try:\n" +
+                "    assert forms.ask_length('Gap:', 'Feet') is None\n" +
+                "finally:\n" +
+                "    forms.ask_string = real\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void FormsSelectFromList_TicksTheCheckedValues_ByPosition()
+        {
+            // select_from_list(..., checked=[values]) opens with those rows ticked;
+            // the picker takes row positions, so values are matched to positions,
+            // and a value that is not offered is ignored.
+            var r = Run(
+                "from pynavis import forms\n" +
+                "values = ['home', 'vrex', 'gltf', 'vrex']\n" +
+                "assert forms._indices_of(values, ['gltf', 'vrex', 'gone']) == [1, 2, 3]\n" +
+                "assert forms._indices_of(values, None) == []\n" +
+                "assert forms._indices_of(values, []) == []\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void GeometryFloatNoise_ComesFromTheLocalCoordinates_NotTheTranslation()
+        {
+            // COM vertices are float32 in fragment-local coordinates; the matrix
+            // is double. A model placed a million feet out by its matrix carries
+            // no more noise than one at the origin, while one whose vertices
+            // themselves sit a million feet out carries a lot.
+            var r = Run(
+                "from pynavis import geometry\n" +
+                "eps = 2.0 ** -23\n" +
+                "assert geometry.float_noise(1370200.0, None, 'world') == 1370200.0 * eps\n" +
+                "row = [0.3048, 0, 0, 0,  0, 0.3048, 0, 0,  0, 0, 0.3048, 0,  1e6, 2e5, 800, 1]\n" +
+                "assert abs(geometry.float_noise(100.0, row, 'row') - 100.0 * 0.3048 * eps) < 1e-18\n" +
+                "col = [row[0], row[4], row[8], row[12], row[1], row[5], row[9], row[13],\n" +
+                "       row[2], row[6], row[10], row[14], row[3], row[7], row[11], row[15]]\n" +
+                "assert abs(geometry.float_noise(100.0, col, 'column') - 100.0 * 0.3048 * eps) < 1e-18\n" +
+                "turn = [0.6, 0.8, 0, 0,  -0.8, 0.6, 0, 0,  0, 0, 1, 0,  5e5, 0, 0, 1]\n" +
+                "assert abs(geometry.float_noise(10.0, turn, 'row') - 10.0 * eps) < 1e-18\n");
 
             Assert.True(r.Succeeded, r.ErrorText);
         }

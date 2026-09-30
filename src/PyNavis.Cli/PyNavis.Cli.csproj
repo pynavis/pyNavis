@@ -14,7 +14,14 @@
     <RootNamespace>PyNavis.Cli</RootNamespace>
     <OutputType>Exe</OutputType>
     <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\cli\</OutputPath>
+    <!-- ShippedFiles.cs is shared with the runtime; this picks the CLI's namespace -->
+    <DefineConstants>$(DefineConstants);PYNAVIS_CLI</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Tells users' own work in pyNavis.extension from what a release shipped -->
+    <Compile Include="..\Shared\ShippedFiles.cs" Link="Upgrade\ShippedFiles.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- JavaScriptSerializer for config.json, same zero-NuGet choice as the runtime -->

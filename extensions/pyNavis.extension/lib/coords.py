@@ -52,20 +52,32 @@ MAX_TEXT_CHARS = 100000
 # split so the numbers are all that is left.
 _LABEL = re.compile(r'[XxYyZz]\s*[:=]\s*')
 
-# Commas, semicolons, tabs, newlines and plain spaces all separate.
-_SEPARATORS = re.compile(r'[,;\s]+')
+# Commas, semicolons, tabs and newlines separate; plain spaces separate too,
+# but only when none of those is present, because a length like 1' 6" carries
+# a space of its own.
+_HARD_SEPARATORS = re.compile(r'[,;\t\r\n]+')
 
-# Brackets and quotes, stripped off the whole text and off each number. The
-# decimal point is deliberately NOT in here: stripping it would turn ".5" into
-# "5" and move the camera ten times too far.
-_EDGES = '[](){}<>"\'`'
+# Brackets, stripped off the whole text and off each value. The decimal point
+# is deliberately NOT in here: stripping it would turn ".5" into "5" and move
+# the camera ten times too far.
+_BRACKETS = '[](){}<>`'
+
+# Quotes come off a value only when they wrap all of it ("12", CSV quoting):
+# on one side they are a foot or inch mark (6").
+_QUOTES = '"\''
 
 
-def parse(text):
+def parse(text, units=None):
     """(x, y, z) floats from text a human typed or pasted, or None.
 
+    Plain numbers always read. Given the document's units, a value that is
+    not a plain number reads as a length the way every pyNavis length field
+    does (pynavis.lengths: 1' 6", 1 6, 25mm), with a leading sign allowed,
+    since coordinates go negative; feet and inches then need commas between
+    the three values.
+
     None means "this is not a coordinate": no text, too much text, anything
-    that is not a number, and any count other than exactly three. Two numbers
+    that does not read, and any count other than exactly three. Two values
     is a truncated paste and four is a spreadsheet row, and guessing which
     three were meant would move the view somewhere nobody asked for.
     """
@@ -74,25 +86,50 @@ def parse(text):
     if len(text) > MAX_TEXT_CHARS:
         return None
 
-    cleaned = _LABEL.sub(' ', text.strip().strip(_EDGES))
+    cleaned = _LABEL.sub(' ', text.strip().strip(_BRACKETS))
+    if _HARD_SEPARATORS.search(cleaned):
+        tokens = _HARD_SEPARATORS.split(cleaned)
+    else:
+        tokens = cleaned.split()
     values = []
-    for token in _SEPARATORS.split(cleaned):
-        token = token.strip(_EDGES)
+    for token in tokens:
+        token = _unwrap(token)
         if not token:
             continue
         if len(values) == 3:
             return None
-        try:
-            value = float(token)
-        except ValueError:
-            return None
-        if math.isnan(value) or math.isinf(value):
+        value = _value(token, units)
+        if value is None:
             return None
         values.append(value)
 
     if len(values) != 3:
         return None
     return (values[0], values[1], values[2])
+
+
+def _unwrap(token):
+    """A value with its brackets off, and its quotes when they wrap all of it."""
+    token = token.strip().strip(_BRACKETS).strip()
+    while len(token) >= 2 and token[0] in _QUOTES and token[-1] == token[0]:
+        token = token[1:-1].strip()
+    return token
+
+
+def _value(token, units):
+    """One coordinate: a plain number, or with units a signed length."""
+    try:
+        value = float(token)
+    except ValueError:
+        value = None
+    if value is None and units is not None:
+        sign = -1.0 if token[:1] == '-' else 1.0
+        from pynavis import lengths
+        magnitude = lengths.parse(token[1:] if token[:1] in '+-' else token, units)
+        value = None if magnitude is None else sign * magnitude
+    if value is None or math.isnan(value) or math.isinf(value):
+        return None
+    return value
 
 
 def format_point(point, decimals=3):

@@ -259,18 +259,19 @@ one-button extension removes the tab.</p>
 <p><strong>Fix.</strong> Fix the button. There is no log line for the empty panel or the empty
 tab, but there will be one for whatever emptied them, or the silent cases above.</p>
 
-<h3>Two extensions want the same tab</h3>
+<h3>The same extension is in two roots</h3>
 
-<p><strong>Cause.</strong> A tab's identity is built from the extension name and the tab
-folder name. Two copies of the same extension on two registered roots, which is exactly what
-you get when a development copy and an installed copy are both present, produce the same id.
-The second one loses.</p>
+<p><strong>Cause.</strong> Two copies of the same extension on two registered roots, which is
+exactly what you get when a development copy and an installed copy are both present. The copy
+in the root listed first is loaded; the other is not loaded at all. (Two <em>different</em>
+extensions with a tab of the same name are not a clash: their tabs join. See
+"Adding to someone else's tab or panel" in Extension anatomy.)</p>
 
 <p><strong>Fix.</strong> Unregister one root, or rename one extension's folder or its
 <code>name:</code> in <code>extension.yaml</code>.</p>
 
 <pre data-lang="text">
-2026-09-20 09:14:03.902 [ERROR] Ribbon tab 'PYNAVIS_TAB_MyTools_MyTools' already exists - skipped (duplicate extension?).
+2026-09-20 09:14:03.902 [INFO ] Extension 'MyTools' at 'C:\Users\you\AppData\Roaming\pyNavis\extensions\MyTools.extension' is already loaded from an earlier root - skipped.
 </pre>
 
 <h3>An old loader is still in the Navisworks Plugins folder</h3>

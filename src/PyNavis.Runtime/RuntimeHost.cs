@@ -57,6 +57,17 @@ namespace PyNavis.Runtime
                 RunStartupStages(steps, userConfig);
                 steps.Run("View overlay", () => Overlay.OverlayRegistry.EnsureLoaded());
                 steps.Run("App-init event", () => Events.NavisEvents.RaiseWhenIdle(Events.NavisEvent.AppInit));
+                // What the last update kept of the user's work, and a warning when there
+                // is work in pyNavis.extension, which the next update replaces.
+                steps.Run("Upgrade notices", () =>
+                {
+                    var appData = Path.GetDirectoryName(ConfigPath);
+                    Upgrade.UpgradeNotices.ShowLastUpgradeReport(appData);
+                    Upgrade.UpgradeNotices.WarnAboutWorkInShippedExtension(_extensions, appData);
+                });
+                // Once a day, in the background: is a newer release out? (Settings > Updates)
+                steps.Run("Update check", () =>
+                    Update.UpdateService.Start(userConfig, Path.GetDirectoryName(ConfigPath)));
                 ReportFailures(steps, "pyNavis started with problems");
             });
 

@@ -5,7 +5,11 @@
 #      Autodesk reference cannot be resolved is skipped; any other build error is fatal.
 #   2. dist\stage\bundle\    PackageContents.xml + Contents\<year>\PyNavis.dll
 #      dist\stage\appdata\   <year>\runtime\ (pynavislib inside it, no .pdb),
-#                            extensions\pyNavis.extension\ and cli\pynavis.exe
+#                            extensions\pyNavis.extension\ (with its .pynavis-manifest)
+#                            and cli\pynavis.exe
+#      dist\stage\manifests.txt   every release's manifest, for the installer's upgrade
+#                            guard; this release's is also saved to
+#                            tools\installer\manifests\<version>.txt, to commit
 #   3. ISCC.exe compiles tools\installer\pyNavis.iss to
 #      dist\pyNavis-<version>-setup.exe   (version comes from pynavislib\pynavis\__init__.py)
 #
@@ -180,6 +184,27 @@ $extStage = Join-Path $appDataStage 'extensions\pyNavis.extension'
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $extStage) | Out-Null
 Copy-Item (Join-Path $repo 'extensions\pyNavis.extension') $extStage -Recurse -Force
 Get-ChildItem $extStage -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
+
+# The release's shipped-files manifest, written by the command line so the hashing is
+# the upgrade guard's own (line endings aside, see ShippedFiles.ContentHash). It goes
+# inside the extension, where the runtime's startup check compares against it, and into
+# tools\installer\manifests, so every later installer's guard knows these files too.
+# The installer carries every release's manifest, in one file.
+$cliExe = Join-Path $repo 'bin\cli\PyNavis.Cli.exe'
+$ownManifest = Join-Path $extStage '.pynavis-manifest'
+$result = Invoke-Native $cliExe @('write-manifest', $extStage, $ownManifest, '--version', $version)
+if ($result.ExitCode -ne 0) {
+    Write-Host $result.Output
+    throw 'Could not write the shipped-files manifest.'
+}
+$history = Join-Path $PSScriptRoot 'installer\manifests'
+New-Item -ItemType Directory -Force -Path $history | Out-Null
+Copy-Item $ownManifest (Join-Path $history "$version.txt") -Force
+$allManifests = Get-ChildItem $history -Filter '*.txt' | Sort-Object Name |
+    ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }
+[System.IO.File]::WriteAllText((Join-Path $stage 'manifests.txt'), ($allManifests -join "`n"),
+    (New-Object System.Text.UTF8Encoding($false)))
+Write-Host ("  Shipped-files manifest: {0} release(s) known to the upgrade guard" -f @($allManifests).Count) -ForegroundColor Green
 
 $blocks = ($built | ForEach-Object { New-ComponentsBlock $_ $version }) -join "`r`n"
 $manifest = @"

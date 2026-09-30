@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.1.0</span>
+    <span>pynavis 1.2.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -313,6 +313,11 @@ rendered control.</p>
     <td>Oldest Navisworks release this button supports, as a year. See below.</td></tr>
 <tr><td><code>max_host_version</code></td><td>nothing; absent means no ceiling</td>
     <td>Newest Navisworks release this button supports, as a year. See below.</td></tr>
+<tr><td><code>title_on</code>, <code>tooltip_on</code></td>
+    <td>nothing; absent means one caption and tooltip for both states</td>
+    <td><code>*.toggle</code> only: the caption and tooltip while the toggle is on, so a
+        button named for an action can name the other one once pressed. See
+        <a href="buttons.html">Buttons</a>.</td></tr>
 </tbody>
 </table>
 </div>

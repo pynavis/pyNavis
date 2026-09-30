@@ -368,73 +368,13 @@ def _feet_inches(total_inches, denominator=16):
     return text + '"'
 
 
-def _number(token):
-    """A token as a float: a decimal or a fraction like 1/8, else None."""
-    if '/' in token:
-        top, _, bottom = token.partition('/')
-        try:
-            top, bottom = float(top), float(bottom)
-        except ValueError:
-            return None
-        return top / bottom if bottom else None
-    try:
-        return float(token)
-    except ValueError:
-        return None
-
-
 def parse_length(text, units):
     """A typed length in document units, or None when it does not read as
-    one. Metric documents take a plain number. Imperial documents take the
-    forms Revit does: 0.5 (feet, or inches on an inch document), 0 6 (feet
-    then inches), 0 0 1/8 (feet, inches, fraction), 1' 6", 6 1/2", 18",
-    1-6, and a bare fraction like 1/8 is inches."""
-    text = (text or '').strip()
-    if not text:
-        return None
-    per_unit = _INCHES_PER_UNIT.get(units)
-    if per_unit is None:
-        value = _number(text)
-        return value if value is not None else None
-
-    cleaned = (text.lower().replace("'", ' ft ').replace('"', ' in ')
-               .replace('ft.', ' ft ').replace('in.', ' in ')
-               .replace(',', ' ').replace('-', ' '))
-    for word in ('feet', 'foot', 'inches', 'inch'):
-        cleaned = cleaned.replace(word, ' ft ' if word.startswith('f') else ' in ')
-    tokens = cleaned.split()
-
-    # Group each number, and the fraction that may follow it, with the unit
-    # tag that may follow that: [(value, 'ft' | 'in' | None, is_bare_fraction)].
-    groups = []
-    for token in tokens:
-        if token in ('ft', 'in'):
-            if not groups or groups[-1][1] is not None:
-                return None
-            groups[-1][1] = token
-            continue
-        value = _number(token)
-        if value is None:
-            return None
-        if '/' in token and groups and groups[-1][1] is None and not groups[-1][2]:
-            groups[-1][0] += value
-        else:
-            groups.append([value, None, '/' in token])
-    if not groups:
-        return None
-
-    default = 'ft' if per_unit == 12.0 else 'in'
-    total_inches = 0.0
-    untagged = 0
-    for value, tag, bare_fraction in groups:
-        if tag is None:
-            if bare_fraction:
-                tag = 'in'
-            else:
-                tag = default if untagged == 0 else 'in'
-                untagged += 1
-        total_inches += value * (12.0 if tag == 'ft' else 1.0)
-    return total_inches / per_unit
+    one: the shared reader (pynavis.lengths), so the step box reads 1' 6",
+    0 0 1/8, 1-6, a bare fraction as inches, and 25mm in any document, the
+    same as every other pyNavis length field."""
+    from pynavis import lengths
+    return lengths.parse(text, units)
 
 
 def _gcd(a, b):

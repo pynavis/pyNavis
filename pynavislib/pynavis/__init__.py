@@ -5,4 +5,4 @@ package imports (and unit-tests) outside Navisworks. API-bound helpers live in t
 submodules (pynavis.app, pynavis.doc, ...) which import the API when first used.
 """
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'

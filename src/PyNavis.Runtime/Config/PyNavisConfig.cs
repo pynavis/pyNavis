@@ -73,6 +73,17 @@ namespace PyNavis.Runtime.Config
         /// The key is not here; SecretStore keeps it.</summary>
         public AiSettings Ai { get; private set; } = new AiSettings();
 
+        /// <summary>"updates.check": ask GitHub once a day whether a newer release is out.
+        /// Default true; one anonymous request, nothing about the user is sent.</summary>
+        public bool UpdatesCheck { get; private set; } = true;
+
+        /// <summary>"updates.installOnClose": download a newer release in the background
+        /// and install it when Navisworks closes. Default true.</summary>
+        public bool UpdatesInstallOnClose { get; private set; } = true;
+
+        /// <summary>"updates.skip": the release the user chose to skip; null for none.</summary>
+        public string UpdatesSkip { get; private set; }
+
         /// <summary>"layout.&lt;dialog&gt;.&lt;part&gt;": remembered pane widths, keyed
         /// "dialog/part" (e.g. "viewpoints/tree"). Only positive finite numbers load.</summary>
         public Dictionary<string, double> Layout { get; } =
@@ -172,6 +183,9 @@ namespace PyNavis.Runtime.Config
             public string PyNavisLibPath;
             public string CPythonPath;
             public AiSettings Ai = new AiSettings();
+            public bool UpdatesCheck = true;
+            public bool UpdatesInstallOnClose = true;
+            public string UpdatesSkip;
         }
 
         /// <summary>The current file as a UserSettings, for a window to edit and hand back.</summary>
@@ -187,6 +201,9 @@ namespace PyNavis.Runtime.Config
             PyNavisLibPath = PyNavisLibPath,
             CPythonPath = CPythonPath,
             Ai = Ai.Clone(),
+            UpdatesCheck = UpdatesCheck,
+            UpdatesInstallOnClose = UpdatesInstallOnClose,
+            UpdatesSkip = UpdatesSkip,
         };
 
         /// <summary>
@@ -251,7 +268,42 @@ namespace PyNavis.Runtime.Config
             if (ai.Count == 0) root.Remove("ai");
             else root["ai"] = ai;
 
+            // Written only where they differ from the defaults, like the ribbon hints.
+            var updates = UpdatesSection(root);
+            if (settings.UpdatesCheck) updates.Remove("check");
+            else updates["check"] = false;
+            if (settings.UpdatesInstallOnClose) updates.Remove("installOnClose");
+            else updates["installOnClose"] = false;
+            if (string.IsNullOrWhiteSpace(settings.UpdatesSkip)) updates.Remove("skip");
+            else updates["skip"] = settings.UpdatesSkip.Trim();
+            PutUpdatesSection(root, updates);
+
             WriteRoot(path, root);
+        }
+
+        /// <summary>
+        /// Rewrites ONLY updates.skip: the "Skip this version" button acts at once, like
+        /// the toast it answers, rather than waiting for the Settings window's Save. Same
+        /// failure contract as SaveShortcutBindings. Null or empty clears it.
+        /// </summary>
+        public static void SaveUpdateSkip(string path, string version)
+        {
+            var root = ReadRootForUpdate(path);
+            var updates = UpdatesSection(root);
+            if (string.IsNullOrWhiteSpace(version)) updates.Remove("skip");
+            else updates["skip"] = version.Trim();
+            PutUpdatesSection(root, updates);
+            WriteRoot(path, root);
+        }
+
+        private static Dictionary<string, object> UpdatesSection(Dictionary<string, object> root) =>
+            root.TryGetValue("updates", out var existing) && existing is Dictionary<string, object> section
+                ? section : new Dictionary<string, object>();
+
+        private static void PutUpdatesSection(Dictionary<string, object> root, Dictionary<string, object> updates)
+        {
+            if (updates.Count == 0) root.Remove("updates");
+            else root["updates"] = updates;
         }
 
         private static void SetOrRemove(Dictionary<string, object> root, string key, string value)
@@ -411,6 +463,17 @@ namespace PyNavis.Runtime.Config
                     && aiSection is Dictionary<string, object> aiMap)
                 {
                     config.Ai = AiSettings.FromSection(aiMap);
+                }
+                if (data != null && data.TryGetValue("updates", out var up)
+                    && up is Dictionary<string, object> updates)
+                {
+                    if (updates.TryGetValue("check", out var check) && check is bool checkOn)
+                        config.UpdatesCheck = checkOn;
+                    if (updates.TryGetValue("installOnClose", out var onClose) && onClose is bool installOn)
+                        config.UpdatesInstallOnClose = installOn;
+                    if (updates.TryGetValue("skip", out var skip) && skip is string skipped
+                        && !string.IsNullOrWhiteSpace(skipped))
+                        config.UpdatesSkip = skipped.Trim();
                 }
                 if (data != null && data.TryGetValue("layout", out var layout)
                     && layout is Dictionary<string, object> layoutSection)

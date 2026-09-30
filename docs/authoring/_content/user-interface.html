@@ -324,9 +324,11 @@ forms.pick_folder(title='Select folder', initial=None)      # -> str or None
 
 forms.ask_number(prompt, default=None, min_value=None,
                  max_value=None, title='pyNavis')           # -> float or None
+forms.ask_length(prompt, units, default=None,
+                 title='pyNavis')                           # -> length in doc units or None
 forms.ask_options(prompt, options, title='pyNavis')         # -> an option or None
-forms.select_from_list(items, title='Select',
-                       multiselect=False, prompt=None)      # -> value, list, or None
+forms.select_from_list(items, title='Select', multiselect=False,
+                       prompt=None, checked=None)           # -> value, list, or None
 </pre>
 
 <p>These touch no Navisworks API at all, so they work even while a model is still loading.

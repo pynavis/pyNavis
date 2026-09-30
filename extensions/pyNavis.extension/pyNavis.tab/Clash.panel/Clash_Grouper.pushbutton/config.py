@@ -2,7 +2,9 @@
 
 Presets what the grouper dialog opens with: mode, custom rule chain, cluster
 distance, and whether existing groups are kept. Every run can still change
-them in the dialog itself.
+them in the dialog itself. The distance is shown and typed in the document's
+units, the way any pyNavis length is (pynavis.lengths: 6' 6", 2m), and kept
+in metres.
 """
 import clr
 
@@ -20,7 +22,7 @@ from System.Windows.Controls import (Border, CheckBox, ComboBox, Grid,
 from System.Windows.Media import FontFamily
 from PyNavis.Runtime.Forms import DesignSystem, FluentChrome
 
-from pynavis import clashgroup, settings, toast
+from pynavis import clashgroup, lengths, settings, toast
 
 TOOL = 'smart_clash_grouper'
 DEFAULTS = {'smart': True, 'rules': [], 'tolerance_m': 2.0, 'keep_existing': True}
@@ -30,6 +32,13 @@ RULE_IDS = [rule_id for rule_id, _ in clashgroup.RULES]
 RULE_LABELS = [label for _, label in clashgroup.RULES]
 
 values = settings.load(TOOL, DEFAULTS)
+
+units = 'Meters'                              # no document open: the stored unit
+try:
+    from pynavis import app
+    units = str(app.get_doc().Units)
+except Exception:
+    pass
 
 window = Window()
 window.Title = 'Grouper Defaults'
@@ -176,12 +185,15 @@ body.Children.Add(add_btn)
 
 section('Cluster distance')
 tolerance_box = TextBox()
-tolerance_box.Text = '%g' % float(values['tolerance_m'])
-tolerance_box.Width = 80
-field = DesignSystem.InputField(T, tolerance_box, 'm')
+tolerance_box.Text = lengths.format_input(
+    lengths.convert(float(values['tolerance_m']), 'Meters', units), units)
+tolerance_box.Width = 110
+field = DesignSystem.InputField(T, tolerance_box, lengths.suffix(units) or None)
 field.HorizontalAlignment = HorizontalAlignment.Left
 body.Children.Add(field)
-tolerance_error = DesignSystem.Text('Enter a distance greater than 0.', 12, T.Error)
+tolerance_error = DesignSystem.Text(
+    'Enter a distance greater than 0, %s.' % lengths.hint(units), 12, T.Error)
+tolerance_error.TextWrapping = TextWrapping.Wrap
 tolerance_error.Margin = Thickness(0, 4, 0, 0)
 tolerance_error.Visibility = Visibility.Collapsed
 body.Children.Add(tolerance_error)
@@ -199,10 +211,9 @@ body.Children.Add(keep_caption)
 
 
 def tolerance_value():
-    try:
-        return float(tolerance_box.Text)
-    except ValueError:
-        return 0.0
+    """The typed distance in metres; 0 when it does not read."""
+    typed = lengths.parse(tolerance_box.Text, units)
+    return 0.0 if typed is None else lengths.convert(typed, units, 'Meters')
 
 
 def validate(*args):

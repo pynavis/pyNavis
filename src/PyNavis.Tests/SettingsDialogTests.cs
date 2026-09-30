@@ -102,6 +102,71 @@ namespace PyNavis.Tests
             Assert.True(PyNavisConfig.Load(_path).ShowConfigMarker);
         }
 
+        // ---- updates -----------------------------------------------------------
+
+        [Fact]
+        public void Updates_AreOnByDefault_AndAFileThatNeverTouchedThemStaysClean()
+        {
+            Given("{}");
+            var config = PyNavisConfig.Load(_path);
+            Assert.True(config.UpdatesCheck);
+            Assert.True(config.UpdatesInstallOnClose);
+            Assert.Null(config.UpdatesSkip);
+
+            PyNavisConfig.SaveUserSettings(_path, Defaults());
+            Assert.DoesNotContain("updates", Written());
+        }
+
+        [Fact]
+        public void Updates_RoundTrip_ThroughTheFile()
+        {
+            Given("{}");
+            var settings = Defaults();
+            settings.UpdatesCheck = false;
+            settings.UpdatesInstallOnClose = false;
+            settings.UpdatesSkip = "1.2.1";
+
+            PyNavisConfig.SaveUserSettings(_path, settings);
+            var back = PyNavisConfig.Load(_path);
+
+            Assert.False(back.UpdatesCheck);
+            Assert.False(back.UpdatesInstallOnClose);
+            Assert.Equal("1.2.1", back.UpdatesSkip);
+        }
+
+        [Fact]
+        public void SkipThisVersion_IsWrittenAtOnce_WithoutTouchingAnythingElse()
+        {
+            // The button acts straight away, like the toast it answers; it is not
+            // held back for the window's Save.
+            Given("{\"theme\": \"dark\", \"updates\": {\"installOnClose\": false}}");
+
+            PyNavisConfig.SaveUpdateSkip(_path, "1.2.1");
+
+            var after = PyNavisConfig.Load(_path);
+            Assert.Equal("1.2.1", after.UpdatesSkip);
+            Assert.False(after.UpdatesInstallOnClose);
+            Assert.Equal("dark", after.Theme);
+        }
+
+        [Fact]
+        public void TheWindow_ShowsAndCollectsTheUpdateSwitches()
+        {
+            var settings = Defaults();
+            settings.UpdatesInstallOnClose = false;
+            OnSta(() =>
+            {
+                var window = SettingsDialog.Build(settings);
+                var back = SettingsDialog.CollectForTest(window);
+                Assert.True(back.UpdatesCheck);
+                Assert.False(back.UpdatesInstallOnClose);
+
+                SettingsDialog.SetUpdatesCheckForTest(window, false);
+                Assert.False(SettingsDialog.CollectForTest(window).UpdatesCheck);
+                window.Close();
+            });
+        }
+
         // ---- non-defaults are written ----------------------------------------
 
         [Fact]

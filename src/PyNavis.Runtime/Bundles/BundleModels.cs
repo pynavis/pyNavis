@@ -168,6 +168,28 @@ namespace PyNavis.Runtime.Bundles
         public string OnDarkIconPath { get; set; }
         public string OffIconPath { get; set; }
         public string OffDarkIconPath { get; set; }
+
+        private string _titleOn;
+
+        /// <summary>*.toggle only, bundle.yaml "title_on:": the caption while the toggle is
+        /// on, flat like <see cref="CaptionedPanelItem.Title"/>. A caption that names an
+        /// action ("Hide Tabs") reads wrong once pressed; this names the action a click
+        /// takes then. Null = one caption for both states.</summary>
+        public string TitleOn
+        {
+            get => _titleOn;
+            set
+            {
+                _titleOn = value == null ? null : BundleTitles.Flatten(value);
+                RibbonTitleOn = value == null ? null : BundleTitles.ForRibbon(value);
+            }
+        }
+
+        /// <summary><see cref="TitleOn"/> as the ribbon draws it, breaks expanded.</summary>
+        public string RibbonTitleOn { get; private set; }
+
+        /// <summary>*.toggle only, bundle.yaml "tooltip_on:": the tooltip while on; null = one tooltip.</summary>
+        public string TooltipOn { get; set; }
     }
 
     /// <summary>*.urlbutton: a ribbon button that opens a URL (docs, intranet).</summary>

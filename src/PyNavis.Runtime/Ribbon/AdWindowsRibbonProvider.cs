@@ -52,6 +52,16 @@ namespace PyNavis.Runtime.Ribbon
             var path = on ? (dark ? model.OnDarkIconPath : model.OnIconPath)
                           : (dark ? model.OffDarkIconPath : model.OffIconPath);
             ApplyIcons(item, path, path);
+            if (model.TitleOn != null || model.TooltipOn != null)
+                ApplyCaption(item, model, item.Size != RibbonItemSize.Large, on);
+        }
+
+        /// <summary>Caption and tooltip for the state, markers and resolved chord included.</summary>
+        private static void ApplyCaption(RibbonItem item, PushButtonModel model, bool small, bool on)
+        {
+            var binding = Input.ShortcutManager.BindingFor(model);
+            item.Text = ButtonCaption.Text(model, small, on, binding != null);
+            item.ToolTip = ButtonCaption.Tooltip(model, on, binding?.ToString());
         }
 
         private readonly List<RibbonTab> _createdTabs = new List<RibbonTab>();
@@ -73,107 +83,107 @@ namespace PyNavis.Runtime.Ribbon
             // One bundle AdWindows rejects (or one tab) must cost only itself: the rest of
             // the ribbon still builds, and the user is told which ones are missing.
             var steps = new StepRunner();
-            foreach (var ext in extensions)
+            // Tabs and panels with the same name in two extensions are one (RibbonMerge),
+            // which is how a user's own extension adds to the pyNavis tab.
+            var mergedTabs = RibbonMerge.Tabs(extensions, note => Log.Info(note));
+            steps.Each(mergedTabs, t => "Tab '" + t.Title + "'", tabModel =>
             {
-                steps.Each(ext.Tabs, t => "Tab '" + t.Title + "'", tabModel =>
+                if (ribbon.FindTab(tabModel.Id) != null)
                 {
-                    if (ribbon.FindTab(tabModel.Id) != null)
+                    Log.Error($"Ribbon tab '{tabModel.Id}' already exists - skipped (duplicate extension?).");
+                    return;
+                }
+
+                var tab = new RibbonTab { Title = tabModel.Title, Id = tabModel.Id, KeyTip = "PY" };
+                var tipTargets = new List<(string id, string title, string tip, RibbonItem item)>();
+                foreach (var panelModel in tabModel.Panels)
+                {
+                    var source = new RibbonPanelSource { Title = panelModel.Title };
+                    void Emit(IEnumerable<PanelItem> panelItems)
                     {
-                        Log.Error($"Ribbon tab '{tabModel.Id}' already exists - skipped (duplicate extension?).");
-                        return;
+                    steps.Each(panelItems, DescribeItem, item =>
+                    {
+                        if (item is PushButtonModel buttonModel)
+                        {
+                            if (buttonModel.NoUi) return;
+                            var ribbonButton = CreateButton(buttonModel);
+                            source.Items.Add(ribbonButton);
+                            if (buttonModel.IsSmart) SmartButtonInit.Run(buttonModel, ribbonButton);
+                            tipTargets.Add((buttonModel.BundleKey ?? buttonModel.ScriptPath,
+                                buttonModel.Title, buttonModel.KeyTipOverride, ribbonButton));
+                            buttons++;
+                        }
+                        else if (item is StackModel stackModel)
+                        {
+                            source.Items.Add(CreateStack(stackModel, tipTargets));
+                            buttons += stackModel.Buttons.Count;
+                        }
+                        else if (item is PulldownModel pulldownModel)
+                        {
+                            var ribbonPulldown = CreatePulldown(pulldownModel);
+                            source.Items.Add(ribbonPulldown);
+                            tipTargets.Add((pulldownModel.Directory,
+                                pulldownModel.Title, pulldownModel.KeyTipOverride, ribbonPulldown));
+                            buttons += pulldownModel.Buttons.Count;
+                        }
+                        else if (item is UrlButtonModel urlModel)
+                        {
+                            var urlButton = CreateSimpleButton(urlModel.Directory, urlModel.RibbonTitle, urlModel.Tooltip,
+                                urlModel.IconPath, urlModel.DarkIconPath, urlModel.SmallIconPath, urlModel.SmallDarkIconPath,
+                                () => OpenUrl(urlModel));
+                            source.Items.Add(urlButton);
+                            tipTargets.Add((urlModel.Directory, urlModel.Title, urlModel.KeyTipOverride, urlButton));
+                            buttons++;
+                        }
+                        else if (item is LinkButtonModel linkModel)
+                        {
+                            var linkButton = CreateSimpleButton(linkModel.Directory, linkModel.RibbonTitle, linkModel.Tooltip,
+                                linkModel.IconPath, linkModel.DarkIconPath, linkModel.SmallIconPath, linkModel.SmallDarkIconPath,
+                                () => RunPlugin(linkModel));
+                            source.Items.Add(linkButton);
+                            tipTargets.Add((linkModel.Directory, linkModel.Title, linkModel.KeyTipOverride, linkButton));
+                            buttons++;
+                        }
+                        else if (item is DockPaneModel paneModel)
+                        {
+                            var paneButton = CreateDockPaneButton(paneModel);
+                            source.Items.Add(paneButton);
+                            tipTargets.Add((paneModel.BundleKey, paneModel.Title,
+                                paneModel.KeyTipOverride, paneButton));
+                            buttons++;
+                        }
+                    });
                     }
 
-                    var tab = new RibbonTab { Title = tabModel.Title, Id = tabModel.Id, KeyTip = "PY" };
-                    var tipTargets = new List<(string id, string title, string tip, RibbonItem item)>();
-                    foreach (var panelModel in tabModel.Panels)
+                    Emit(panelModel.Items);
+                    if (panelModel.Slideout.Count > 0)
                     {
-                        var source = new RibbonPanelSource { Title = panelModel.Title };
-                        void Emit(IEnumerable<PanelItem> panelItems)
-                        {
-                        steps.Each(panelItems, DescribeItem, item =>
-                        {
-                            if (item is PushButtonModel buttonModel)
-                            {
-                                if (buttonModel.NoUi) return;
-                                var ribbonButton = CreateButton(buttonModel);
-                                source.Items.Add(ribbonButton);
-                                if (buttonModel.IsSmart) SmartButtonInit.Run(buttonModel, ribbonButton);
-                                tipTargets.Add((buttonModel.BundleKey ?? buttonModel.ScriptPath,
-                                    buttonModel.Title, buttonModel.KeyTipOverride, ribbonButton));
-                                buttons++;
-                            }
-                            else if (item is StackModel stackModel)
-                            {
-                                source.Items.Add(CreateStack(stackModel, tipTargets));
-                                buttons += stackModel.Buttons.Count;
-                            }
-                            else if (item is PulldownModel pulldownModel)
-                            {
-                                var ribbonPulldown = CreatePulldown(pulldownModel);
-                                source.Items.Add(ribbonPulldown);
-                                tipTargets.Add((pulldownModel.Directory,
-                                    pulldownModel.Title, pulldownModel.KeyTipOverride, ribbonPulldown));
-                                buttons += pulldownModel.Buttons.Count;
-                            }
-                            else if (item is UrlButtonModel urlModel)
-                            {
-                                var urlButton = CreateSimpleButton(urlModel.Directory, urlModel.RibbonTitle, urlModel.Tooltip,
-                                    urlModel.IconPath, urlModel.DarkIconPath, urlModel.SmallIconPath, urlModel.SmallDarkIconPath,
-                                    () => OpenUrl(urlModel));
-                                source.Items.Add(urlButton);
-                                tipTargets.Add((urlModel.Directory, urlModel.Title, urlModel.KeyTipOverride, urlButton));
-                                buttons++;
-                            }
-                            else if (item is LinkButtonModel linkModel)
-                            {
-                                var linkButton = CreateSimpleButton(linkModel.Directory, linkModel.RibbonTitle, linkModel.Tooltip,
-                                    linkModel.IconPath, linkModel.DarkIconPath, linkModel.SmallIconPath, linkModel.SmallDarkIconPath,
-                                    () => RunPlugin(linkModel));
-                                source.Items.Add(linkButton);
-                                tipTargets.Add((linkModel.Directory, linkModel.Title, linkModel.KeyTipOverride, linkButton));
-                                buttons++;
-                            }
-                            else if (item is DockPaneModel paneModel)
-                            {
-                                var paneButton = CreateDockPaneButton(paneModel);
-                                source.Items.Add(paneButton);
-                                tipTargets.Add((paneModel.BundleKey, paneModel.Title,
-                                    paneModel.KeyTipOverride, paneButton));
-                                buttons++;
-                            }
-                        });
-                        }
-
-                        Emit(panelModel.Items);
-                        if (panelModel.Slideout.Count > 0)
-                        {
-                            // Everything after the break lives in the flyout the host
-                            // opens from the panel title ("Title v"), like the native
-                            // Tags panel.
-                            source.Items.Add(new RibbonPanelBreak());
-                            Emit(panelModel.Slideout);
-                        }
-                        if (source.Items.Count > 0)
-                            tab.Panels.Add(new RibbonPanel { Source = source });
+                        // Everything after the break lives in the flyout the host
+                        // opens from the panel title ("Title v"), like the native
+                        // Tags panel.
+                        source.Items.Add(new RibbonPanelBreak());
+                        Emit(panelModel.Slideout);
                     }
+                    if (source.Items.Count > 0)
+                        tab.Panels.Add(new RibbonPanel { Source = source });
+                }
 
-                    if (tab.Panels.Count == 0) return;
+                if (tab.Panels.Count == 0) return;
 
-                    // Alt-navigation: deterministic keytips per tab (menus arrow-navigate,
-                    // so pulldown children get none).
-                    var tips = Input.KeyTips.Assign(
-                        tipTargets.Select(t => (t.id, t.title, t.tip)).ToList());
-                    foreach (var target in tipTargets)
-                        if (tips.TryGetValue(target.id, out var keyTip))
-                            target.item.KeyTip = keyTip;
+                // Alt-navigation: deterministic keytips per tab (menus arrow-navigate,
+                // so pulldown children get none).
+                var tips = Input.KeyTips.Assign(
+                    tipTargets.Select(t => (t.id, t.title, t.tip)).ToList());
+                foreach (var target in tipTargets)
+                    if (tips.TryGetValue(target.id, out var keyTip))
+                        target.item.KeyTip = keyTip;
 
-                    // Tracked BEFORE it is added: if Add throws partway, Teardown still
-                    // removes whatever made it onto the ribbon, so the next Reload is not
-                    // refused by the duplicate-tab check above.
-                    _createdTabs.Add(tab);
-                    ribbon.Tabs.Add(tab);
-                });
-            }
+                // Tracked BEFORE it is added: if Add throws partway, Teardown still
+                // removes whatever made it onto the ribbon, so the next Reload is not
+                // refused by the duplicate-tab check above.
+                _createdTabs.Add(tab);
+                ribbon.Tabs.Add(tab);
+            });
             Log.Info($"Ribbon built: {_createdTabs.Count} tab(s), {buttons} button(s).");
 
             var problems = steps.Summary();
@@ -288,9 +298,6 @@ namespace PyNavis.Runtime.Ribbon
             var button = new RibbonButton
             {
                 Id = "PYNAVIS_BTN_" + Math.Abs(model.ScriptPath.ToLowerInvariant().GetHashCode()),
-                // Only the large vertical slot has a second line to wrap into;
-                // a stacked or menu row draws left to right, so it stays flat.
-                Text = small ? model.Title : model.RibbonTitle,
                 ShowText = true,
                 Size = small ? RibbonItemSize.Standard : RibbonItemSize.Large,
                 Orientation = small
@@ -298,26 +305,20 @@ namespace PyNavis.Runtime.Ribbon
                     : System.Windows.Controls.Orientation.Vertical,
                 CommandHandler = new RelayCommand(_ => Dispatch(model)),
             };
-            // Tooltip carries the RESOLVED chord, so a rebound tool shows the user's key.
-            var binding = Input.ShortcutManager.BindingFor(model);
-            var tooltip = model.Tooltip;
-            if (binding != null)
-                tooltip = string.IsNullOrEmpty(tooltip) ? $"({binding})" : $"{tooltip} ({binding})";
-            if (!string.IsNullOrEmpty(tooltip))
-                button.ToolTip = tooltip;
-            // A bundle with a config.py has a Shift+Click action, which nothing on the
-            // button would otherwise reveal; the caption says so, then says a chord
-            // exists, and the tooltip above says which one.
-            if (model.ConfigScriptPath != null)
-                button.Text = RibbonMarkers.WithConfigMarker(button.Text);
-            if (binding != null)
-                button.Text = RibbonMarkers.WithShortcutMarker(button.Text);
+            // Only the large vertical slot has a second line to wrap into; a stacked or
+            // menu row draws left to right, so it stays flat. A bundle with a config.py
+            // has a Shift+Click action, which nothing on the button would otherwise
+            // reveal: the caption says so, then says a chord exists, and the tooltip
+            // says which one. A toggle that is on keeps its on-state wording (title_on)
+            // across a Reload. ButtonCaption holds the rules.
+            var on = model.IsToggle && ToggleStateStore.Get(model.BundleKey);
+            ApplyCaption(button, model, small, on);
 
             var dark = Output.PyNavisTheme.IsDark;
             ApplyIcons(button,
                 dark ? model.DarkIconPath : model.IconPath,
                 dark ? model.SmallDarkIconPath : model.SmallIconPath);
-            if (model.IsToggle && ToggleStateStore.Get(model.BundleKey))
+            if (on)
             {
                 var onPath = dark ? model.OnDarkIconPath : model.OnIconPath;
                 ApplyIcons(button, onPath, onPath);

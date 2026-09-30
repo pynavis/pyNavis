@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.1.0</span>
+    <span>pynavis 1.2.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -746,10 +746,32 @@ folder name, replacing every character that is not a letter or digit with an und
 punctuation.</figcaption>
 </figure>
 
-<p>The practical rule: give your extension a name nobody else will use, and do not ship two
-extensions that both contain a tab called <code>Tools.tab</code> under the same extension name.
-If a colleague installs a second copy of your extension in a different root, the duplicate tab
-is dropped and logged rather than drawn twice.</p>
+<p>The practical rule: give your extension a name nobody else will use. If a colleague
+installs a second copy of your extension in a different root, the second copy is not loaded
+at all and the log says so, rather than every button being drawn twice.</p>
+
+<h3 id="adding-to-someone-else-s-tab-or-panel">Adding to someone else's tab or panel<a class="anchor" href="#adding-to-someone-else-s-tab-or-panel" aria-label="Link to this section">#</a></h3>
+
+<p>Tabs, and panels inside them, join by name across extensions: a <code>pyNavis.tab</code>
+in your extension adds to the pyNavis tab instead of drawing a second one, and a
+<code>Clash.panel</code> inside it adds your buttons to the end of the Clash panel. The
+matching ignores case. A shared tab stays where the first extension in load order puts it,
+the shipped pyNavis extension's panels and buttons come first in anything it shares, and
+other extensions follow in load order. The tab keeps the first contributor's id.</p>
+
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>%APPDATA%\pyNavis\extensions\
+  pyNavis.extension\                  # the installer&#x27;s; every update replaces it
+  My pyNavis.extension\               # yours; updates never touch it
+    pyNavis.tab\
+      Clash.panel\
+        Tag Clashes.pushbutton\       # lands at the end of the pyNavis Clash panel
+      Team.panel\
+        Publish.pushbutton\           # a new panel on the pyNavis tab</code></pre></div>
+
+<p>This is why nothing of yours belongs inside <code>pyNavis.extension</code>: the installer
+replaces that folder on every update. It backs up what it finds there and moves the buttons
+and panels you added into <code>My pyNavis.extension</code> first, but a file added inside
+one of pyNavis's own buttons, or an edit to one of its files, can only go to the backup.</p>
 
 <h3 id="bundle-key">Bundle key<a class="anchor" href="#bundle-key" aria-label="Link to this section">#</a></h3>
 
@@ -816,6 +838,7 @@ new key.</p>
 <a href="#slideouts">Slideouts</a>
 <a href="#names-and-identity">Names and identity</a>
 <a href="#tab-id" class="h3">Tab id</a>
+<a href="#adding-to-someone-else-s-tab-or-panel" class="h3">Adding to someone else&#x27;s tab or panel</a>
 <a href="#bundle-key" class="h3">Bundle key</a>
 <a href="#what-to-check-when-you-add-a-bundle">What to check when you add a bundle</a>
 </aside>

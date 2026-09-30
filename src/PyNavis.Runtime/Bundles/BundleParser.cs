@@ -342,6 +342,12 @@ namespace PyNavis.Runtime.Bundles
                 button.OnDarkIconPath = Find("icon.on.dark.png") ?? button.OnIconPath;
                 button.IconPath = button.OffIconPath;      // initial render: off
                 button.DarkIconPath = button.OffDarkIconPath;
+                if (yaml.TryGetValue("title_on", out var titleOn)) button.TitleOn = titleOn;
+                if (yaml.TryGetValue("tooltip_on", out var tooltipOn)) button.TooltipOn = tooltipOn;
+            }
+            else if (yaml.ContainsKey("title_on") || yaml.ContainsKey("tooltip_on"))
+            {
+                Log.Error($"Bundle '{buttonDir}': title_on and tooltip_on are for *.toggle bundles only - ignored.");
             }
 
             return button;

@@ -1,0 +1,4 @@
+title: Hide\nTabs
+title_on: Show\nTabs
+tooltip: Takes the tabs you choose off the ribbon for a clean screen, a recording or a demo, and puts them back when you click again. Add-in tabs too, which the ribbon's own Show Tabs cannot keep hidden. Everything comes back when Navisworks closes. Shift+Click to choose the tabs.
+tooltip_on: Puts the tabs you hid back on the ribbon, each where it was. Shift+Click to change which tabs are hidden.

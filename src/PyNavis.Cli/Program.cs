@@ -34,6 +34,9 @@ namespace PyNavis.Cli
                         return cli.ExtensionsList();
                     case "extensions" when args.Length >= 3 && args[1] == "add":
                         return cli.ExtensionsAdd(args[2]);
+                    case "protect-extension":
+                    case "write-manifest":
+                        return Upgrade.ExtensionGuard.Command(args, DateTime.Now, Console.Out);
                     default:
                         Console.WriteLine("pynavis - pyNavis command line");
                         Console.WriteLine();
@@ -42,6 +45,8 @@ namespace PyNavis.Cli
                         Console.WriteLine("  pynavis detach <year>           remove the loader from the bundle");
                         Console.WriteLine("  pynavis extensions list         show configured extension roots");
                         Console.WriteLine("  pynavis extensions add <dir>    add an extension root to config.json");
+                        Console.WriteLine("  pynavis protect-extension ...   (the installer's) back up and move your own work");
+                        Console.WriteLine("                                  out of pyNavis.extension before an update");
                         return 2;
                 }
             }

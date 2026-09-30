@@ -39,6 +39,12 @@ Save and Cancel at the bottom.</figcaption>
     Ask AI panel uses, with a Test button. The key is stored encrypted in
     <code>secrets.json</code>, not in <code>config.json</code>. The AI Settings button on the
     AI panel opens the window scrolled to this section.</li>
+  <li><strong>Updates.</strong> Where this pyNavis stands against the latest release, with
+    <strong>Check now</strong>, the release page, and <strong>Skip this version</strong>,
+    which takes effect at once. Two switches: check once a day (one anonymous request to
+    GitHub; nothing about you is sent), and download a newer release and install it when
+    Navisworks closes. A download only runs when its SHA-256 matches the release's. Both
+    are on by default.</li>
   <li>Click <strong>Save</strong>. If an engine path changed, pyNavis says Navisworks needs a
     restart. Otherwise it offers to reload the ribbon there and then.</li>
 </ol>
@@ -62,6 +68,13 @@ Save and Cancel at the bottom.</figcaption>
 </ul>
 
 <h2>Good to know</h2>
+<p>An update replaces <code>pyNavis.extension</code> whole, and keeps everything else: your
+<code>config.json</code>, your other extensions, the AI's tools. Anything you had added to or
+edited in <code>pyNavis.extension</code> is copied to <code>%APPDATA%\pyNavis\backups</code>
+first, and the buttons and panels you had added move to <code>My pyNavis.extension</code>,
+where they stay on the pyNavis tab: tabs and panels with the same names join on the ribbon.
+Keep your own tools there from the start.</p>
+
 <p>Cancel says nothing and changes nothing. Every key the window writes is described in the
 authoring guide's <a href="https://docs.pynavis.com/settings.html">config.json reference</a>,
 which is where to look if you would rather edit the file directly.</p>
@@ -127,6 +140,43 @@ flagged on another.</figcaption>
 <h2>Good to know</h2>
 <p>Bindings are keyed by the tool's folder path, so a tool that moves to another panel loses
 its override and goes back to its default. The shipped tools do not move between releases.</p>
+</section>
+
+<section id="hide-tabs" title="Hide Tabs" kind="Toggle"
+         bundle="pyNavis.panel/Hide_Tabs.toggle"
+         summary="Take the tabs you choose off the ribbon for a clean screen, a recording or a demo, and put them back with the next click."
+         needs="Nothing"
+         shift="Which tabs to take off">
+
+<h2>What it does</h2>
+<p>A ribbon collects a tab for every add-in ever installed, and a screen recording or a demo
+does not need them. Navisworks can untick a tab from the ribbon's right-click Show Tabs, but
+an add-in's tab comes straight back: Navisworks re-shows every add-in tab each time it is
+idle. This takes the tabs out of the ribbon altogether, so they stay gone, and puts each one
+back where it was.</p>
+
+<h2>How to use it</h2>
+<ol class="steps">
+  <li><kbd>Shift</kbd>+Click <strong>Hide Tabs</strong> and tick the tabs to take off. The
+    list opens with your last choice already ticked.</li>
+  <li>Click <strong>Hide Tabs</strong>. The tabs leave the ribbon, the button is pressed and
+    now reads Show Tabs, and a toast names what went.</li>
+  <li>Click <strong>Show Tabs</strong> to bring them back, each in its old place.</li>
+</ol>
+
+<h2>Limitations</h2>
+<ul>
+  <li>The tabs Navisworks opens on its own, Item Tools, Sectioning Tools and Recording, are
+    not offered: taking one out would stop it opening when it is needed. Neither are the
+    pyNavis tabs, since one of them holds this button.</li>
+  <li>Hiding lasts for the session. Navisworks starts with every tab, and the tabs go back
+    just before Navisworks closes, so its own saved ribbon layout never loses them.</li>
+</ul>
+
+<h2>Good to know</h2>
+<p>The choice is stored in <code>hide_tabs.json</code> by tab id. A tab whose add-in is no
+longer loaded is skipped rather than forgotten, so it is hidden again once the add-in is
+back. Reload does not bring hidden tabs back; the button does.</p>
 </section>
 
 <section id="console" title="Console" kind="Button"

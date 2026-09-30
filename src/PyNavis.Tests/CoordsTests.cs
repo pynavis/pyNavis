@@ -121,6 +121,27 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void Parse_GivenTheDocumentsUnits_ReadsLengthsTheWayEveryLengthFieldDoes()
+        {
+            // Feet and inches carry spaces, so they are separated by commas; each
+            // value reads through pynavis.lengths, sign and all, while plain
+            // numbers keep reading exactly as before.
+            Run("q = chr(34)\n" +
+                "p = coords.parse(\"1' 6\" + q + \", 2' 0\" + q + \", -3' 3\" + q, 'Feet')\n" +
+                "assert p == (1.5, 2.0, -3.25), p\n" +
+                "p = coords.parse('1 6, 2, 25mm', 'Feet')\n" +
+                "assert abs(p[0] - 1.5) < 1e-12 and p[1] == 2.0 and abs(p[2] - 25 / 304.8) < 1e-12, p\n" +
+                "assert coords.parse('1500mm, 2m, -3', 'Millimeters') == (1500.0, 2000.0, -3.0)\n" +
+                "assert coords.parse('1e3, -2.5E-2, .5', 'Feet') == (1000.0, -0.025, 0.5)\n" +
+                // quotes that wrap a whole value are CSV quoting, not an inch mark
+                "assert coords.parse(q + '1' + q + ', ' + q + '2' + q + ', ' + q + '3' + q, 'Feet') == (1.0, 2.0, 3.0)\n" +
+                // without commas, feet and inches split into too many values
+                "assert coords.parse(\"1' 6\" + q + \" 2' 0\" + q + \" 3'\", 'Feet') is None\n" +
+                // without units, only plain numbers read, as before
+                "assert coords.parse(\"1' 6\" + q + ', 2, 3') is None");
+        }
+
+        [Fact]
         public void Parse_TextLongerThanTheCap_IsRefusedUnread()
         {
             // The clipboard is read on every run, and a copied spreadsheet

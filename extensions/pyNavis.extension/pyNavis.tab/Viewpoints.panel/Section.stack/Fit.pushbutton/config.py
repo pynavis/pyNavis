@@ -1,9 +1,11 @@
 """Defaults for Section Fit (the Shift+Click settings).
 
 Padding is how far each of the six planes stands off the objects, so faces do
-not graze the geometry. Snap angle is how close to square counts as square:
-below it the box stops turning, because a two-degree tilt costs you every
-plane's alignment and buys nothing.
+not graze the geometry. It is shown and typed in the document's units, the
+way any pyNavis length is (pynavis.lengths: 6", 1' 6 1/2", 150mm), and kept
+in millimetres. Snap angle is how close to square counts as square: below it
+the box stops turning, because a two-degree tilt costs you every plane's
+alignment and buys nothing.
 """
 import clr
 
@@ -19,10 +21,17 @@ from System.Windows.Controls import Orientation, StackPanel, TextBox
 from System.Windows.Media import FontFamily
 from PyNavis.Runtime.Forms import DesignSystem, FluentChrome
 
-from pynavis import section, settings, toast
+from pynavis import lengths, section, settings, toast
 
 T = DesignSystem.Tokens.Current
 values = settings.load(section.TOOL, section.DEFAULTS)
+
+units = 'Millimeters'                         # no document open: the stored unit
+try:
+    from pynavis import app
+    units = str(app.get_doc().Units)
+except Exception:
+    pass
 
 window = Window()
 window.Title = 'Section Defaults'
@@ -54,16 +63,18 @@ def section_label(label):
 
 section_label('Padding')
 padding_box = TextBox()
-padding_box.Text = '%g' % float(values['padding_mm'])
-padding_box.Width = 80
-padding_field = DesignSystem.InputField(T, padding_box, 'mm')
+padding_box.Text = lengths.format_input(
+    lengths.convert(float(values['padding_mm']), 'Millimeters', units), units)
+padding_box.Width = 110
+padding_field = DesignSystem.InputField(T, padding_box, lengths.suffix(units) or None)
 padding_field.HorizontalAlignment = HorizontalAlignment.Left
 body.Children.Add(padding_field)
 padding_caption = DesignSystem.Text(
     'How far each plane stands off the objects.', 12, T.Muted)
 padding_caption.Margin = Thickness(0, 4, 0, 0)
 body.Children.Add(padding_caption)
-padding_error = DesignSystem.Text('Enter 0 or more.', 12, T.Error)
+padding_error = DesignSystem.Text('Enter a length, %s.' % lengths.hint(units), 12, T.Error)
+padding_error.TextWrapping = TextWrapping.Wrap
 padding_error.Margin = Thickness(0, 4, 0, 0)
 padding_error.Visibility = Visibility.Collapsed
 body.Children.Add(padding_error)
@@ -93,9 +104,15 @@ def number(box):
         return None
 
 
+def padding_mm():
+    """The typed padding in millimetres, or None when it does not read."""
+    typed = lengths.parse(padding_box.Text, units)
+    return None if typed is None else lengths.convert(typed, units, 'Millimeters')
+
+
 def validate(*args):
     """Live, so the error appears as you type and clears the same way."""
-    padding = number(padding_box)
+    padding = padding_mm()
     snap = number(snap_box)
     padding_bad = padding is None or padding < 0
     snap_bad = snap is None or snap < 0 or snap > 45
@@ -113,7 +130,7 @@ def validate(*args):
 def save():
     if not validate():
         return
-    settings.save(section.TOOL, {'padding_mm': number(padding_box),
+    settings.save(section.TOOL, {'padding_mm': padding_mm(),
                                  'snap_degrees': number(snap_box)})
     toast.success('Section defaults saved.')
     window.Close()

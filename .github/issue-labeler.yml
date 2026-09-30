@@ -14,7 +14,7 @@
   - '/\b(selection sets?|remember|recall|select(ion)? (by|step))\b/i'
 "area:clash":
   - '/### Area\s*\n+\s*Clash panel/i'
-  - '/\b(clash|clash report|clash grouper|true distance|set gap)\b/i'
+  - '/\b(clash|clash report|clash grouper|clear clash|true distance)\b/i'
 "area:viewpoints":
   - '/### Area\s*\n+\s*Viewpoints panel/i'
   - '/\b(viewpoints?|section nudge|section plane|camera|speeds?)\b/i'

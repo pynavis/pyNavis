@@ -10,6 +10,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using PyNavis.Runtime.Output;
+using PyNavis.Runtime.Units;
 using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
 
 namespace PyNavis.Runtime.Forms
@@ -52,6 +53,9 @@ namespace PyNavis.Runtime.Forms
             public bool Smart { get; set; } = true;
             public List<string> RuleIds { get; set; } = new List<string>();
             public double ToleranceMeters { get; set; } = 2.0;
+            /// <summary>The document's unit name: the cluster distance is shown and typed
+            /// in it (Units.Lengths), and still handed back as ToleranceMeters.</summary>
+            public string Units { get; set; } = "Meters";
             public bool KeepExisting { get; set; } = true;
             /// <summary>"apply", "ungroup", or "" when cancelled.</summary>
             public string Action { get; set; } = "";
@@ -1188,11 +1192,13 @@ namespace PyNavis.Runtime.Forms
             label.Margin = new Thickness(0, 0, 10, 0);
             input.Children.Add(label);
 
+            // Shown and typed in the document's units, the way every pyNavis length
+            // field reads (Lengths); ConfigFrom hands it back in metres.
+            var units = UnitsOf(parts);
+            var meters = parts.Defaults != null ? parts.Defaults.ToleranceMeters : 2.0;
             parts.Tolerance = new TextBox
             {
-                Text = parts.Defaults != null
-                    ? parts.Defaults.ToleranceMeters.ToString("0.###", CultureInfo.InvariantCulture)
-                    : "2.0",
+                Text = Lengths.FormatInput(Lengths.Convert(meters, "Meters", units), units),
                 FontSize = 13,
                 TextAlignment = TextAlignment.Right,
                 VerticalContentAlignment = VerticalAlignment.Center,
@@ -1203,12 +1209,18 @@ namespace PyNavis.Runtime.Forms
                 FocusVisualStyle = parts.FocusRing,
             };
             parts.Tolerance.TextChanged += (s, e) => Refresh(window);
-            var unit = Text(parts, "m", 12, parts.T.Muted);
-            unit.VerticalAlignment = VerticalAlignment.Center;
-            unit.Margin = new Thickness(0, 0, 8, 0);
-            var fieldRow = new DockPanel { Width = 96, Height = 30 };
-            DockPanel.SetDock(unit, Dock.Right);
-            fieldRow.Children.Add(unit);
+            // Feet-and-inches text carries its own marks, so it has no unit label
+            // and needs the room instead.
+            var suffix = Lengths.Suffix(units);
+            var fieldRow = new DockPanel { Width = suffix.Length == 0 ? 120 : 96, Height = 30 };
+            if (suffix.Length > 0)
+            {
+                var unit = Text(parts, suffix, 12, parts.T.Muted);
+                unit.VerticalAlignment = VerticalAlignment.Center;
+                unit.Margin = new Thickness(0, 0, 8, 0);
+                DockPanel.SetDock(unit, Dock.Right);
+                fieldRow.Children.Add(unit);
+            }
             fieldRow.Children.Add(parts.Tolerance);
             parts.ToleranceShell = new Border
             {
@@ -1396,18 +1408,30 @@ namespace PyNavis.Runtime.Forms
             {
                 Smart = parts.Smart,
                 KeepExisting = parts.KeepExisting,
+                Units = UnitsOf(parts),
             };
             foreach (var row in parts.TestRows)
                 if (row.Checked)
                     config.TestIndexes.Add(row.Index);
             foreach (UIElement row in parts.RuleRows.Children)
                 config.RuleIds.Add(DropdownOf(row).SelectedId);
-            if (parts.Tolerance != null
-                && double.TryParse(parts.Tolerance.Text, NumberStyles.Float,
-                    CultureInfo.InvariantCulture, out var tolerance)
-                && tolerance > 0)
-                config.ToleranceMeters = tolerance;
+            var tolerance = ToleranceMetersOf(parts);
+            if (tolerance.HasValue)
+                config.ToleranceMeters = tolerance.Value;
             return config;
+        }
+
+        private static string UnitsOf(Parts parts) => parts.Defaults?.Units ?? "Meters";
+
+        /// <summary>The typed cluster distance in metres, or null when it does not read
+        /// as a length greater than zero.</summary>
+        private static double? ToleranceMetersOf(Parts parts)
+        {
+            if (parts.Tolerance == null) return null;
+            var units = UnitsOf(parts);
+            var typed = Lengths.Parse(parts.Tolerance.Text, units);
+            if (!typed.HasValue || typed.Value <= 0) return null;
+            return Lengths.Convert(typed.Value, units, "Meters");
         }
 
         private static void Refresh(Window window)
@@ -1474,8 +1498,7 @@ namespace PyNavis.Runtime.Forms
                 target?.Children.Add(parts.TolerancePanel);
             }
 
-            var valid = double.TryParse(parts.Tolerance.Text, NumberStyles.Float,
-                CultureInfo.InvariantCulture, out var tolerance) && tolerance > 0;
+            var valid = ToleranceMetersOf(parts).HasValue;
             parts.ToleranceWarn.Visibility = valid ? Visibility.Collapsed : Visibility.Visible;
             parts.ToleranceShell.BorderBrush =
                 valid ? Brush(parts.T.LineStrong) : Brush(parts.T.Error);
@@ -1602,6 +1625,8 @@ namespace PyNavis.Runtime.Forms
         /// is the path a real keystroke takes.</summary>
         public static void SetToleranceForTest(Window window, string text) =>
             PartsOf(window).Tolerance.Text = text;
+
+        public static string ToleranceTextOf(Window window) => PartsOf(window).Tolerance.Text;
 
         public static void AddRuleRowForTest(Window window)
         {

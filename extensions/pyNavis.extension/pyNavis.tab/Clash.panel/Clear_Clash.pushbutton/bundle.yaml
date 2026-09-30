@@ -1,3 +1,3 @@
 title: Clear\nClash
-tooltip: Two clicks. Select the object that should move and click, then select what it must clear and click again. The object slides the shortest axis-aligned distance that clears it and the toast says how far, ready to type into the authoring tool. Ctrl+Z puts it back. Shift+Click for direction and clearance.
+tooltip: Two clicks and Enter. Select the object that should move and click, then click the face of it that is in the way and the face it must clear. A prompt shows the gap as it is now and asks for the gap to leave, opening on the one you used last; type it the way you would in Revit, like 3", 1' 6 1/2" or 25mm. The object slides the exact difference, tighter or apart, clash or no clash, pipes and conduits measured to their real surface, and a dialog says how far, ready to type into the authoring tool. Ctrl+Z puts it back.
 context: doc

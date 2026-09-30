@@ -440,6 +440,17 @@ script.set_toggle_state(on)
 toast.info('Snap ' + ('on' if on else 'off'))
 ```
 
+A toggle whose caption names an action ("Hide Tabs") should name the other action while on:
+`title_on:` and `tooltip_on:` in its bundle.yaml swap with the icon and survive Reload. Only
+`*.toggle` reads them.
+
+```yaml
+title: Hide\nTabs
+title_on: Show\nTabs
+tooltip: Takes the tabs you choose off the ribbon.
+tooltip_on: Puts the tabs you hid back on the ribbon.
+```
+
 ### \*.dockpane bundle
 
 A dock panel, not a script that runs and returns. `pane.xaml` is required and its root is a
@@ -696,6 +707,7 @@ literally.
 | `toast` | Corner status toasts | `PyNavis.Runtime` only |
 | `banner` | One result on a full-width bar along the bottom of the window (same calls as toast, plus `prompt()` that stays and `clear()`); for the one value a tool exists to produce or the instruction a pick is waiting on, never routine status | `PyNavis.Runtime` only |
 | `faces` | Faces under a measured point from the item's own triangles, the parallel pair two points share, `side_of` for which way is into a body; vector helpers on 3-tuples | `PyNavis.Runtime` only; `faces_under` needs Navisworks |
+| `lengths` | Lengths as people type them: Revit feet-and-inches, bare numbers in document units, values with units; `parse`, `format_input`, `convert`, `suffix`, `hint`. Every length field uses it | `PyNavis.Runtime` only |
 | `app` | Application, documents, GUI, API version | **Live Navisworks** |
 | `clash` | Clash Detective tests, results, grouping writes | **Live Navisworks** |
 | `doc` | Active-document metadata, saved viewpoints, properties | **Live Navisworks** |
@@ -1078,8 +1090,9 @@ forms.save_file(filter='CSV files (*.csv)|*.csv|All files (*.*)|*.*',
 forms.open_file(filter='All files (*.*)|*.*',
                 title='Open file')                        # -> str path, or NONE on cancel
 
-forms.select_from_list(items, title='Select', multiselect=False, prompt=None)
+forms.select_from_list(items, title='Select', multiselect=False, prompt=None, checked=None)
     # items: strings, or (label, value) pairs. Searchable list.
+    # checked: values to open with ticked/picked (a saved choice); unknown values ignored.
     # -> picked value, or [values] with multiselect=True, or NONE on cancel
     #    (a cancelled multiselect is None, never an empty list).
 
@@ -1091,6 +1104,11 @@ forms.ask_options(prompt, options, title='pyNavis')
 forms.ask_number(prompt, default=None, min_value=None, max_value=None, title='pyNavis')
     # -> float, or NONE on cancel. The dialog itself refuses OK outside
     #    [min_value, max_value], so the script never sees an out-of-range answer.
+forms.ask_length(prompt, units, default=None, title='pyNavis')
+    # -> length in document units, or NONE on cancel. USE THIS, not ask_number, for any
+    #    distance: reads 1' 6 1/2", 3/4", 1 6, 25mm like every pyNavis length field
+    #    (pynavis.lengths), pre-fills default the way a user types it, re-asks on junk.
+    #    units = str(doc.Units); lengths.hint(units) ends a prompt with what may be typed.
 
 forms.pick_folder(title='Select folder', initial=None)
     # -> str path, or NONE on cancel. Standard Windows folder browser.
@@ -1579,19 +1597,26 @@ callback) and hands back plain tuples so callers stay pure. True Distance is the
 reference user: it asks which faces a measured point sits on.
 
 ```python
-geometry.world_triangles(item, budget=200000, note=None)
+geometry.world_triangles(item, budget=200000, note=None, stats=None)
                                    # -> [((x,y,z), (x,y,z), (x,y,z)), ...] in world
                                    #    coordinates, for the item and its geometry
                                    #    descendants. [] when the item declares more than
                                    #    budget primitives, the walk yields nothing, or no
                                    #    matrix layout fits; note(text) says which.
+                                   #    stats (a dict) gets 'noise': how far off these
+                                   #    coordinates can be from float32 storage.
+geometry.float_noise(local_max, matrix, layout)   # pure: that noise for one fragment
 ```
 
 An empty list means "unknown", never "no faces": check the note before concluding
-anything. COM vertices are float32, so a point on a face far from the origin carries
-real noise; size any on-surface tolerance from the coordinate magnitude
-(`faces.tolerance_for`). To ask which faces a measured point sits on, use
-`faces.faces_under(view, point3d, tol, log)` rather than walking triangles yourself.
+anything. COM vertices are float32 in fragment-local coordinates and the matrix is
+double, so the noise depends on how far out the VERTICES sit, not the model:
+`faces.tolerance_for` is the worst case from world coordinates, and
+`faces.tolerance_for((), units_to_meters)` the half-millimetre floor. To ask which faces
+a measured point sits on, use `faces.faces_under(view, point3d, tol, log, floor=floor)`
+rather than walking triangles yourself: with a floor, each item is tried at its own
+measured precision first. `faces.surface_under(...)` is the same walk returning a dict
+of `faces`, `item`, `triangles` and `tol`, for tools that go on to measure the shape.
 
 ```python
 geometry.translate(items, vector, doc=None, name='Move items')

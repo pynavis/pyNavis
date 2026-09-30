@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.1.0</span>
+    <span>pynavis 1.2.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -300,17 +300,18 @@ one-button extension removes the tab.</p>
 <p><strong>Fix.</strong> Fix the button. There is no log line for the empty panel or the empty
 tab, but there will be one for whatever emptied them, or the silent cases above.</p>
 
-<h3 id="two-extensions-want-the-same-tab">Two extensions want the same tab<a class="anchor" href="#two-extensions-want-the-same-tab" aria-label="Link to this section">#</a></h3>
+<h3 id="the-same-extension-is-in-two-roots">The same extension is in two roots<a class="anchor" href="#the-same-extension-is-in-two-roots" aria-label="Link to this section">#</a></h3>
 
-<p><strong>Cause.</strong> A tab's identity is built from the extension name and the tab
-folder name. Two copies of the same extension on two registered roots, which is exactly what
-you get when a development copy and an installed copy are both present, produce the same id.
-The second one loses.</p>
+<p><strong>Cause.</strong> Two copies of the same extension on two registered roots, which is
+exactly what you get when a development copy and an installed copy are both present. The copy
+in the root listed first is loaded; the other is not loaded at all. (Two <em>different</em>
+extensions with a tab of the same name are not a clash: their tabs join. See
+"Adding to someone else's tab or panel" in Extension anatomy.)</p>
 
 <p><strong>Fix.</strong> Unregister one root, or rename one extension's folder or its
 <code>name:</code> in <code>extension.yaml</code>.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:03.902 [ERROR] Ribbon tab &#x27;PYNAVIS_TAB_MyTools_MyTools&#x27; already exists - skipped (duplicate extension?).</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:03.902 [INFO ] Extension &#x27;MyTools&#x27; at &#x27;C:\Users\you\AppData\Roaming\pyNavis\extensions\MyTools.extension&#x27; is already loaded from an earlier root - skipped.</code></pre></div>
 
 <h3 id="an-old-loader-is-still-in-the-navisworks-plugins-folder">An old loader is still in the Navisworks Plugins folder<a class="anchor" href="#an-old-loader-is-still-in-the-navisworks-plugins-folder" aria-label="Link to this section">#</a></h3>
 
@@ -1029,7 +1030,7 @@ last.</p>
 <a href="#a-stack-has-the-wrong-number-of-buttons" class="h3">A stack has the wrong number of buttons</a>
 <a href="#a-pulldown-has-no-usable-pushbuttons" class="h3">A pulldown has no usable pushbuttons</a>
 <a href="#the-whole-tab-is-missing-not-just-one-button" class="h3">The whole tab is missing, not just one button</a>
-<a href="#two-extensions-want-the-same-tab" class="h3">Two extensions want the same tab</a>
+<a href="#the-same-extension-is-in-two-roots" class="h3">The same extension is in two roots</a>
 <a href="#an-old-loader-is-still-in-the-navisworks-plugins-folder" class="h3">An old loader is still in the Navisworks Plugins folder</a>
 <a href="#you-did-not-click-reload" class="h3">You did not click Reload</a>
 <a href="#the-buttons-are-in-the-wrong-order">The buttons are in the wrong order</a>

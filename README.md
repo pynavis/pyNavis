@@ -48,6 +48,7 @@ needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](htt
 
 - **Settings**: theme, ribbon hints, extension folders and engine paths
 - **Shortcuts**: view and rebind every keyboard chord
+- **Hide Tabs**: take the tabs you choose off the ribbon, add-in tabs included, and put them back with the next click
 - **Console**: an interactive Python console inside Navisworks
 - **Reload**: rescan the extension folders and rebuild the ribbon, no restart
 - **Panel slots** (flyout): generate dock panel slots beyond the five that ship
@@ -69,18 +70,16 @@ needs and what Shift+Click does, with screenshots, is at [tools.pynavis.com](htt
 
 - **Clash Report**: result counts by status for every clash test, with CSV export
 - **Clash Grouper**: group clash results into issues, with a live preview
-- **Clear Clash**: point at two faces and slide the object until they clear, reporting how far, ready for the authoring tool
-- **Set Gap**: point at two faces and type the gap you want; the object slides the exact difference, tighter or apart, clash or no clash
+- **Clear Clash**: point at two faces and type the gap to leave; the object slides the exact difference, tighter or apart, clash or no clash, and reports how far, ready for the authoring tool
 - **True Distance**: true perpendicular distance between the two measured faces, on a bar across the bottom of the window
 
 **Viewpoints**
 
 - **Rename**: batch rename saved viewpoints with a live preview
-- **Delete**: bulk delete viewpoints, empty folders and animations
+- **Delete**: find viewpoints by search, type, duplicate name or comments, and delete them together
 - **Manage**: sort, move, create folders and purge empty ones
 - **Section Fit**: fit the six section planes to the selection, square to the objects
 - **Section Plan**: fit the planes, then look straight down at them
-- **Section Clear**: switch sectioning off without moving the camera
 - **Copy State**: copy section state, hidden items or appearance overrides
 - **Paste State**: paste back what was copied for this document
 - **Apply Speeds**: push your walk speed, turn speed and field of view at the view
@@ -135,6 +134,21 @@ load, so one bundle serves every release you have installed.
 
 Start Navisworks and look for the **pyNavis** tab.
 
+### Updating
+
+From 1.2.0 on, pyNavis checks GitHub for a newer release once a day, in the background and
+with one anonymous request. It downloads the setup program, keeps it only when its SHA-256
+matches the release's, and installs it quietly when you close Navisworks. **Settings >
+Updates** has Check now, Skip this version and switches for both, and running a newer setup
+program yourself works the same way.
+
+An update keeps your `config.json`, your logs and every extension of your own. It replaces
+`pyNavis.extension` whole, so keep your own tools out of it: put them in
+`%APPDATA%\pyNavis\extensions\My pyNavis.extension`, where a `pyNavis.tab` or a
+`Clash.panel` of the same name joins the pyNavis one on the ribbon. If you did change
+`pyNavis.extension`, setup copies your changes to `%APPDATA%\pyNavis\backups` first and moves
+the buttons and panels you added into `My pyNavis.extension`.
+
 pyNavis is provided as is, under the [Apache License 2.0](LICENSE), with no warranty. Setup shows the licence before it installs; if you build and install from source instead, the same terms apply.
 
 ## Build from source
@@ -172,11 +186,15 @@ name, the Autodesk manifest, the Settings window and the docs. To cut a release:
 
 1. Set `__version__` and add the `## [x.y.z] - yyyy-mm-dd` entry at the top of
    [CHANGELOG.md](CHANGELOG.md). The tests and `tools\package.ps1` refuse a mismatch.
-2. Rebuild the generated docs: `python toolsuild_docs.py` and `python toolsuild_tools_site.py`.
+2. Rebuild the generated docs: `python tools\build_docs.py` and `python tools\build_tools_site.py`.
 3. `dotnet test`, then `powershell -ExecutionPolicy Bypass -File tools\package.ps1` with
-   Navisworks closed. It writes `dist\pyNavis-x.y.z-setup.exe`.
+   Navisworks closed. It writes
+   `dist\pyNavis-x.y.z-setup.exe`, and `tools\installer\manifests\x.y.z.txt`, the list of
+   files this release ships, which every later installer needs to tell users' own work from
+   pyNavis's: commit it with the release.
 4. Commit as `Release x.y.z`, tag it `vx.y.z`, push, and publish a GitHub release with the
-   setup program attached and the changelog entry as its notes.
+   setup program attached and the changelog entry as its notes. The update check reads the
+   latest release and verifies the download against the SHA-256 GitHub records for it.
 
 ## Write your first button
 

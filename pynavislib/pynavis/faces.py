@@ -11,7 +11,7 @@ Which face a point sits on comes from the item's own triangles
 a pick at a measured point on an edge returns whichever of the meeting
 faces is in front, and that gave 3in 3/16 where the gap was 4in.
 
-True Distance, Clear Clash and Set Gap are the users.
+True Distance and Clear Clash are the users.
 """
 
 import math
@@ -73,7 +73,9 @@ def tolerance_for(points, units_to_meters):
     """Distance within which a point counts as ON a triangle: half a
     millimetre in model units, widened for float32 coordinates far from the
     origin (COM vertices are singles, so a point 100,000 units out carries
-    a hundredth of a unit of noise before any maths)."""
+    a hundredth of a unit of noise before any maths). That is the worst case,
+    judged from world coordinates alone; with no points it is the half
+    millimetre, the floor surface_under measures each item's own from."""
     biggest = 0.0
     for p in points:
         for c in p:
@@ -191,22 +193,56 @@ def candidates_at(view, point, log, label='point'):
     return items[:CANDIDATE_LIMIT]
 
 
-def faces_under(view, point, tol, log, label='point'):
+def faces_under(view, point, tol, log, label='point', floor=None):
     """Candidate face normals for a measured point (an API Point3D): the
     first item whose triangles contain the point supplies them. Every item
     tried is logged. Returns (faces, item), item being the one that
-    supplied the faces or None."""
+    supplied the faces or None. floor as for surface_under."""
+    found = surface_under(view, point, tol, log, label, floor)
+    return found['faces'], found['item']
+
+
+def surface_under(view, point, tol, log, label='point', floor=None):
+    """faces_under with what the curved-surface maths needs as well: a dict
+    of faces, item, triangles (that item's world triangles) and tol (the
+    tolerance its faces were found with).
+
+    tol is the estimate from world coordinates alone (tolerance_for), which
+    far from the origin can be several inches. Given floor, the smallest
+    tolerance worth using (tolerance_for with no points), each item is first
+    tried at its own precision instead: floor, or four float32 steps of the
+    coordinates its vertices actually carry (geometry.float_noise) when that
+    is more, never more than tol. Only when no item has a face that close is
+    each tried again at tol, so nothing found before goes missing.
+    """
     from pynavis import geometry
     p = _as_tuple(point)
+    tried = []
     for item in candidates_at(view, point, log, label):
         notes = []
-        triangles = geometry.world_triangles(item, note=notes.append)
-        faces = faces_at(p, triangles, tol) if triangles else []
-        log.info('%s item "%s" (%s): %d triangle(s), %d face(s) under the point%s'
+        stats = {}
+        triangles = geometry.world_triangles(item, note=notes.append, stats=stats)
+        item_tol = tol if floor is None else min(tol, max(floor, 4 * stats.get('noise', 0.0)))
+        faces = faces_at(p, triangles, item_tol) if triangles else []
+        log.info('%s item "%s" (%s): %d triangle(s), %d face(s) under the point '
+                 'within %.3g (float noise %.3g)%s'
                  % (label, item.DisplayName, item.ClassDisplayName, len(triangles),
-                    len(faces), ('; ' + notes[0]) if notes else ''))
+                    len(faces), item_tol, stats.get('noise', 0.0),
+                    ('; ' + notes[0]) if notes else ''))
         if faces:
-            for n in faces:
-                log.info('%s face normal (%.4f, %.4f, %.4f)' % (label, n[0], n[1], n[2]))
-            return faces, item
-    return [], None
+            return _surface(faces, item, triangles, item_tol, log, label)
+        tried.append((item, triangles))
+    if floor is not None:
+        for item, triangles in tried:
+            faces = faces_at(p, triangles, tol) if triangles else []
+            if faces:
+                log.info('%s item "%s": %d face(s) only within the wider %.3g'
+                         % (label, item.DisplayName, len(faces), tol))
+                return _surface(faces, item, triangles, tol, log, label)
+    return {'faces': [], 'item': None, 'triangles': [], 'tol': tol}
+
+
+def _surface(faces, item, triangles, tol, log, label):
+    for n in faces:
+        log.info('%s face normal (%.4f, %.4f, %.4f)' % (label, n[0], n[1], n[2]))
+    return {'faces': faces, 'item': item, 'triangles': triangles, 'tol': tol}

@@ -50,6 +50,9 @@ namespace PyNavis.Runtime.Forms
             public Grid AiFrame;
             public System.Text.StringBuilder AiText = new System.Text.StringBuilder();
             public TextBlock VersionLine;
+            public CheckBox UpdatesCheck;
+            public CheckBox UpdatesInstallOnClose;
+            public TextBlock UpdateStatus;
             public bool Saved;
         }
 
@@ -151,6 +154,7 @@ namespace PyNavis.Runtime.Forms
             page.Children.Add(Roots(parts));
             page.Children.Add(Engines(parts));
             page.Children.Add(Assistant(parts, hasKey));
+            page.Children.Add(Updates(parts));
             page.Children.Add(Actions(parts));
             page.Children.Add(About(parts));
 
@@ -444,6 +448,102 @@ namespace PyNavis.Runtime.Forms
             return t.Length <= max ? t : t.Substring(0, max) + "...";
         }
 
+        /// <summary>
+        /// Where the running version stands against GitHub's latest release, a check on
+        /// demand, the release page, skipping a version (written at once, like the toast
+        /// it answers), and the two switches. Nothing here touches the network until
+        /// Check now is pressed.
+        /// </summary>
+        private static UIElement Updates(Parts parts)
+        {
+            var t = parts.T;
+            var body = new StackPanel();
+
+            parts.UpdateStatus = Hint(t, StatusOrNothing(parts.Values.UpdatesSkip), new Thickness(0, 0, 0, 8));
+            parts.UpdateStatus.Foreground = DesignSystem.Brush(t.Ink);
+            body.Children.Add(parts.UpdateStatus);
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            var check = DesignSystem.Secondary(t, "Check now", null);
+            var page = DesignSystem.Quiet(t, "Release page", () =>
+            {
+                try { System.Diagnostics.Process.Start(Update.UpdateService.ReleasePage()); }
+                catch (Exception ex) { Log.Error("Could not open the release page", ex); }
+            });
+            page.Margin = new Thickness(8, 0, 0, 0);
+            Button skip = null;
+            skip = DesignSystem.Quiet(t, "Skip this version", () =>
+            {
+                var version = NewerOrNothing();
+                if (version == null) return;
+                try
+                {
+                    PyNavisConfig.SaveUpdateSkip(RuntimeHost.UserConfigPath, version);
+                    parts.Values.UpdatesSkip = version;
+                }
+                catch (Exception ex) { Log.Error("Could not save the skipped version", ex); }
+                parts.UpdateStatus.Text = StatusOrNothing(parts.Values.UpdatesSkip);
+                skip.IsEnabled = false;
+            });
+            skip.Margin = new Thickness(8, 0, 0, 0);
+            skip.IsEnabled = NewerOrNothing() != null
+                && NewerOrNothing() != parts.Values.UpdatesSkip;
+            check.Click += async (s, e) =>
+            {
+                check.IsEnabled = false;
+                parts.UpdateStatus.Text = "Checking...";
+                try { parts.UpdateStatus.Text = await Update.UpdateService.CheckNowAsync(); }
+                catch (Exception ex)
+                {
+                    Log.Error("Update check from Settings failed", ex);
+                    parts.UpdateStatus.Text = "The check failed; details are in the log.";
+                }
+                check.IsEnabled = true;
+                skip.IsEnabled = NewerOrNothing() != null && NewerOrNothing() != parts.Values.UpdatesSkip;
+            };
+            row.Children.Add(check);
+            row.Children.Add(page);
+            row.Children.Add(skip);
+            body.Children.Add(row);
+
+            parts.UpdatesCheck = new CheckBox
+            {
+                Content = "Check for a new release once a day",
+                IsChecked = parts.Values.UpdatesCheck,
+                Foreground = DesignSystem.Brush(t.Ink),
+            };
+            body.Children.Add(parts.UpdatesCheck);
+            parts.UpdatesInstallOnClose = new CheckBox
+            {
+                Content = "Download it, and install it when Navisworks closes",
+                IsChecked = parts.Values.UpdatesInstallOnClose,
+                Foreground = DesignSystem.Brush(t.Ink),
+                Margin = new Thickness(0, 6, 0, 0),
+            };
+            body.Children.Add(parts.UpdatesInstallOnClose);
+            body.Children.Add(Hint(t,
+                "One anonymous request to GitHub a day; nothing about you is sent. A download runs only "
+                + "when its SHA-256 matches the release's, and your own extensions and settings are kept.",
+                new Thickness(24, 4, 0, 0)));
+            return DesignSystem.GroupFrame(t, "Updates", body);
+        }
+
+        private static string StatusOrNothing(string skipped)
+        {
+            try { return Update.UpdateService.Status(skipped); }
+            catch (Exception ex)
+            {
+                Log.Error("Could not read the update state", ex);
+                return "Not checked yet.";
+            }
+        }
+
+        private static string NewerOrNothing()
+        {
+            try { return Update.UpdateService.NewerVersion(); }
+            catch (Exception) { return null; }
+        }
+
         private static UIElement Actions(Parts parts)
         {
             var row = new StackPanel
@@ -504,11 +604,18 @@ namespace PyNavis.Runtime.Forms
                 PyNavisLibPath = parts.Lib.Text,
                 CPythonPath = parts.CPython.Text,
                 Ai = CollectAi(parts),
+                UpdatesCheck = parts.UpdatesCheck.IsChecked == true,
+                UpdatesInstallOnClose = parts.UpdatesInstallOnClose.IsChecked == true,
+                // Skip this version saved itself at once; the window only carries it on.
+                UpdatesSkip = parts.Values.UpdatesSkip,
             };
 
         // ---- test seams --------------------------------------------------------
 
         public static PyNavisConfig.UserSettings CollectForTest(Window window) => Collect(PartsOf(window));
+
+        public static void SetUpdatesCheckForTest(Window window, bool on) =>
+            PartsOf(window).UpdatesCheck.IsChecked = on;
 
         public static void SetThemeForTest(Window window, string label) =>
             PartsOf(window).Theme.SelectedItem = label;

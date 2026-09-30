@@ -77,7 +77,9 @@ WelcomeLabel2=This will install pyNavis {#AppVersion} for the current user only.
 [InstallDelete]
 ; Before copying, the previous version's shipped extension and runtimes go, so a bundle
 ; folder that was renamed between releases cannot survive beside its replacement and
-; put every tool on it on the ribbon twice. Only what this installer owns is listed:
+; put every tool on it on the ribbon twice. PrepareToInstall has already backed up any
+; work of the user's in that extension, and moved what it could to My pyNavis.extension
+; (see [Code]). Only what this installer owns is listed:
 ; config.json, secrets.json, the logs, the AI.extension the assistant writes and any
 ; other extension the user added are untouched. The loader bundle is not wiped either,
 ; because the runtime-generated PyNavisPanes.dll (extra panel slots) lives there; the
@@ -97,6 +99,11 @@ Source: "{#StageDir}\bundle\*"; DestDir: "{#BundleDir}"; Flags: ignoreversion re
 ; The runtime (one folder per year, pynavislib inside it), the shipped extension and
 ; cli\pynavis.exe.
 Source: "{#StageDir}\appdata\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; The upgrade guard, unpacked to {tmp} only: this release's command line and every
+; release's shipped-files manifest in one file. PrepareToInstall runs it before
+; [InstallDelete] replaces pyNavis.extension.
+Source: "{#StageDir}\appdata\cli\pynavis.exe"; Flags: dontcopy
+Source: "{#StageDir}\manifests.txt"; Flags: dontcopy
 
 [Run]
 Filename: "https://tools.pynavis.com"; Description: "Open the tools guide at tools.pynavis.com"; Flags: postinstall shellexec nowait skipifsilent unchecked
@@ -169,11 +176,84 @@ begin
            mbInformation, MB_OK);
 end;
 
+function ProcessRunning(Pid: Integer): Boolean;
+var
+  Locator, Services, Processes: Variant;
+begin
+  Result := False;
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Services := Locator.ConnectServer('localhost', 'root\CIMV2');
+    Processes := Services.ExecQuery('SELECT ProcessId FROM Win32_Process WHERE ProcessId = ' + IntToStr(Pid));
+    Result := Processes.Count > 0;
+  except
+    Result := False;
+  end;
+end;
+
+{ An update pyNavis downloaded starts itself as Navisworks closes, passing
+  /WAITPID=<that Navisworks>: its loader DLL cannot be replaced while that process
+  holds it, so wait, up to five minutes, for the process to be gone. }
+procedure WaitForLauncher();
+var
+  Pid, Waited: Integer;
+begin
+  Pid := StrToIntDef(ExpandConstant('{param:WAITPID|0}'), 0);
+  if Pid <= 0 then Exit;
+  Log('Waiting for Navisworks (process ' + IntToStr(Pid) + ') to exit');
+  Waited := 0;
+  while ProcessRunning(Pid) and (Waited < 300000) do
+  begin
+    Sleep(500);
+    Waited := Waited + 500;
+  end;
+end;
+
 function InitializeSetup(): Boolean;
 begin
+  WaitForLauncher();
   Result := CheckNavisworksClosed();
   if Result then
     WarnAboutLegacyInstall();
+end;
+
+{ Before a single file is deleted: what the user added to or edited in
+  pyNavis.extension is backed up to the backups folder, and the buttons and panels they
+  added move to My pyNavis.extension, where they stay on the ribbon because tabs and
+  panels merge by name (pynavis protect-extension, from this release's command line).
+  When even that cannot be done, stop here, before anything changes, rather than
+  lose their work. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Ext, Params: String;
+  ResultCode: Integer;
+begin
+  Result := '';
+  Ext := ExpandConstant('{app}\extensions\pyNavis.extension');
+  if not DirExists(Ext) then Exit;
+  ExtractTemporaryFile('pynavis.exe');
+  ExtractTemporaryFile('manifests.txt');
+  Params := 'protect-extension' +
+    ' --extension "' + Ext + '"' +
+    ' --manifests "' + ExpandConstant('{tmp}\manifests.txt') + '"' +
+    ' --backup-root "' + ExpandConstant('{app}\backups') + '"' +
+    ' --user-extension "' + ExpandConstant('{app}\extensions\My pyNavis.extension') + '"' +
+    ' --version {#AppVersion}' +
+    ' --report "' + ExpandConstant('{app}\last-upgrade.json') + '"';
+  if not Exec(ExpandConstant('{tmp}\pynavis.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    ResultCode := -1;
+  Log('protect-extension exited with ' + IntToStr(ResultCode));
+  if ResultCode <> 0 then
+    Result := 'pyNavis could not back up what you added to pyNavis.extension, so nothing has been ' +
+              'changed. Copy ' + Ext + ' somewhere safe, then run setup again.';
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if (CurPageID = wpFinished) and FileExists(ExpandConstant('{app}\last-upgrade.json')) then
+    WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10#13#10 +
+      'Your own work in pyNavis.extension was kept: buttons and panels you had added are now in ' +
+      'My pyNavis.extension, and a copy of everything is in ' + ExpandConstant('{app}\backups') + '.';
 end;
 
 function InitializeUninstall(): Boolean;

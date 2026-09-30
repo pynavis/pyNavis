@@ -31,6 +31,25 @@ def ask_string(prompt, default='', title='pyNavis'):
     return Dialogs.AskString(str(prompt), default, title)
 
 
+def ask_length(prompt, units, default=None, title='pyNavis'):
+    """Length prompt that reads what people type (pynavis.lengths): Revit's
+    feet-and-inches forms, a bare number in the document's unit, or a value
+    with its unit. default, in document units, pre-fills it the way a user
+    would type it. Anything it cannot read, it asks for again, quoting it.
+    Returns the length in document units, or None on cancel."""
+    from pynavis import lengths
+    text = lengths.format_input(default, units) if default is not None else ''
+    message = prompt
+    while True:
+        text = ask_string(message, text, title)
+        if text is None:
+            return None
+        value = lengths.parse(text, units)
+        if value is not None:
+            return value
+        message = "Could not read '%s' as a length. %s" % (text, prompt)
+
+
 def save_file(filter='CSV files (*.csv)|*.csv|All files (*.*)|*.*',
               default_name='', title='Save file'):
     """Save dialog; returns the chosen path, or None on cancel."""
@@ -42,11 +61,13 @@ def open_file(filter='All files (*.*)|*.*', title='Open file'):
     return Dialogs.OpenFile(filter, title)
 
 
-def select_from_list(items, title='Select', multiselect=False, prompt=None):
+def select_from_list(items, title='Select', multiselect=False, prompt=None, checked=None):
     """List picker with search. Items are strings or (label, value) pairs.
+    checked: values to open with ticked (or picked, single-select), such as a
+    saved choice; values not among the items are ignored.
     Returns the picked value (or list of values when multiselect), None on cancel."""
     from System.Collections.Generic import List
-    from System import String
+    from System import Int32, String
     labels, values = [], []
     for item in items:
         if isinstance(item, tuple):
@@ -56,11 +77,27 @@ def select_from_list(items, title='Select', multiselect=False, prompt=None):
     boxed = List[String]()
     for label in labels:
         boxed.Add(label)
-    picked = Pickers.SelectFromList(title, boxed, bool(multiselect), prompt)
+    ticked = List[Int32]()
+    for index in _indices_of(values, checked):
+        ticked.Add(index)
+    # Only a call that ticks something needs the preChecked argument, so every
+    # other picker still works against a runtime older than it.
+    if ticked.Count:
+        picked = Pickers.SelectFromList(title, boxed, bool(multiselect), prompt, ticked)
+    else:
+        picked = Pickers.SelectFromList(title, boxed, bool(multiselect), prompt)
     if picked is None:
         return None
     result = [values[i] for i in picked]
     return result if multiselect else (result[0] if result else None)
+
+
+def _indices_of(values, checked):
+    """Positions of the values that are in checked, in order; pure."""
+    if not checked:
+        return []
+    wanted = list(checked)
+    return [i for i, value in enumerate(values) if value in wanted]
 
 
 def ask_options(prompt, options, title='pyNavis'):

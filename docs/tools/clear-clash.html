@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Clear Clash - pyNavis tools</title>
-<meta name="description" content="Point at two faces and slide the selected object until it clears, then read off exactly how far it moved.">
+<meta name="description" content="Point at two faces and type the gap to leave; the selected object slides the exact difference, clash or no clash, and you read off how far it moved.">
 <link rel="stylesheet" href="_assets/site.css">
 <link rel="stylesheet" href="_assets/tools.css">
 </head>
@@ -27,6 +27,7 @@
 <div class="grp">pyNavis</div>
 <a href="settings.html"><img class="nav-icon" src="_assets/icons/settings.png" alt="">Settings</a>
 <a href="shortcuts.html"><img class="nav-icon" src="_assets/icons/shortcuts.png" alt="">Shortcuts</a>
+<a href="hide-tabs.html"><img class="nav-icon" src="_assets/icons/hide-tabs.png" alt="">Hide Tabs</a>
 <a href="console.html"><img class="nav-icon" src="_assets/icons/console.png" alt="">Console</a>
 <a href="reload.html"><img class="nav-icon" src="_assets/icons/reload.png" alt="">Reload</a>
 <a href="panel-slots.html"><img class="nav-icon" src="_assets/icons/panel-slots.png" alt="">Panel slots</a>
@@ -43,7 +44,6 @@
 <a href="clash-report.html"><img class="nav-icon" src="_assets/icons/clash-report.png" alt="">Clash Report</a>
 <a href="clash-grouper.html"><img class="nav-icon" src="_assets/icons/clash-grouper.png" alt="">Clash Grouper</a>
 <a href="clear-clash.html" class="active"><img class="nav-icon" src="_assets/icons/clear-clash.png" alt="">Clear Clash</a>
-<a href="set-gap.html"><img class="nav-icon" src="_assets/icons/set-gap.png" alt="">Set Gap</a>
 <a href="true-distance.html"><img class="nav-icon" src="_assets/icons/true-distance.png" alt="">True Distance</a>
 <div class="grp">Viewpoints</div>
 <a href="rename.html"><img class="nav-icon" src="_assets/icons/rename.png" alt="">Rename</a>
@@ -51,7 +51,6 @@
 <a href="manage.html"><img class="nav-icon" src="_assets/icons/manage.png" alt="">Manage</a>
 <a href="section-fit.html"><img class="nav-icon" src="_assets/icons/section-fit.png" alt="">Section Fit</a>
 <a href="section-plan.html"><img class="nav-icon" src="_assets/icons/section-plan.png" alt="">Section Plan</a>
-<a href="section-clear.html"><img class="nav-icon" src="_assets/icons/section-clear.png" alt="">Section Clear</a>
 <a href="copy-state.html"><img class="nav-icon" src="_assets/icons/copy-state.png" alt="">Copy State</a>
 <a href="paste-state.html"><img class="nav-icon" src="_assets/icons/paste-state.png" alt="">Paste State</a>
 <a href="apply-speeds.html"><img class="nav-icon" src="_assets/icons/apply-speeds.png" alt="">Apply Speeds</a>
@@ -73,7 +72,7 @@
 <a href="element-id-settings.html"><img class="nav-icon" src="_assets/icons/element-id-settings.png" alt="">Element ID Settings</a>
 </nav>
   <div class="side-foot">
-    <span>pyNavis 1.1.0</span>
+    <span>pyNavis 1.2.0</span>
     <a class="side-link" href="https://docs.pynavis.com/">Authoring guide</a>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
@@ -81,13 +80,18 @@
 </div>
 <main class="main">
 <article>
-  <div class="hero"><img class="hero-icon" src="_assets/icons/clear-clash.png" alt=""><div><p class="eyebrow">Clash panel</p><h1>Clear Clash</h1><p class="lead">Point at two faces and slide the selected object until it clears, then read off exactly how far it moved.</p></div></div><div class="facts"><div class="fact"><span class="fact-k">On the ribbon</span><span class="fact-v">Button, Clash panel</span></div><div class="fact"><span class="fact-k">Needs</span><span class="fact-v">A selection, the object that should move</span></div><div class="fact"><span class="fact-k">Shift+Click</span><span class="fact-v">The clearance to leave between the two faces, in the document's units</span></div></div>
+  <div class="hero"><img class="hero-icon" src="_assets/icons/clear-clash.png" alt=""><div><p class="eyebrow">Clash panel</p><h1>Clear Clash</h1><p class="lead">Point at two faces and type the gap to leave; the selected object slides the exact difference, clash or no clash, and you read off how far it moved.</p></div></div><div class="facts"><div class="fact"><span class="fact-k">On the ribbon</span><span class="fact-v">Button, Clash panel</span></div><div class="fact"><span class="fact-k">Needs</span><span class="fact-v">A selection, the object that should move</span></div></div>
   <h2 id="what-it-does">What it does<a class="anchor" href="#what-it-does" aria-label="Link to this section">#</a></h2>
 <p>Objects clash, and the usual next step is to drag one with Item Tools until it clears,
 read the offset and type it into the authoring tool. This does the dragging. Select the
 object that should move, point at the face of it that is in the way and the face it must
-clear, and it slides exactly far enough along those faces' normal, then tells you how far,
+clear, and a prompt shows the gap as it is now and asks for the gap to leave. The object
+slides along those faces' normal by exactly the difference, then a dialog tells you how far,
 ready to type into Revit.</p>
+
+<p>The same button handles the cases that are not clashes: a run of services that should sit
+tighter to free a corridor, or a tray that needs another 100 mm of air for a duct to pass.
+It moves the object towards the other face or away from it, whichever the gap needs.</p>
 
 
 
@@ -97,45 +101,76 @@ ready to type into Revit.</p>
   <li>Click <strong>Clear Clash</strong>. The native Point to Point measure opens and the
     banner along the bottom of the window asks for the face of the pipe that must move.</li>
   <li>Click the underside of the pipe. The banner now asks for the face it must clear.</li>
-  <li>Click the top of the beam. The pipe slides up until its underside is past the beam's
-    top plus the clearance, and a dialog reads "Moved Pipe 1234 by 152 mm".</li>
+  <li>Click the top of the beam. A prompt reads "Pipe 1234 is 152.4 mm into Beam 7. Gap to
+    leave between the two faces, in millimeters, or with a unit like 2" or 0.1m:", opening on
+    the gap you used last time.</li>
+  <li>Press Enter to keep that gap, or type another. The pipe slides up and a dialog reads
+    "Moved Pipe 1234 by 152.4 mm".</li>
   <li>Click <strong>Copy</strong> in the dialog and paste the bare distance into the
     authoring tool. <kbd>Ctrl</kbd>+<kbd>Z</kbd> puts the pipe back in Navisworks.</li>
 </ol>
 
+<p>A clash review stays at two clicks and Enter: set the gap once, and every later clash
+opens on it.</p>
 
+
+
+
+
+<h2 id="pipes-and-conduits">Pipes and conduits<a class="anchor" href="#pipes-and-conduits" aria-label="Link to this section">#</a></h2>
+<p>Navisworks draws a pipe as a ring of narrow flat strips, and none of them is parallel to
+anything, so a round object is measured differently. Against a flat face, such as a wall, a
+beam or the underside of a duct, the flat face sets the direction and the pipe is measured to
+its real surface, only where it is in front of that face. It does not matter where on the
+pipe you click, and a sloped pipe under a beam clears at the crossing, not at its high end.
+Two straight pipes or conduits are measured axis to axis, less both radii, and the mover
+slides along the line where they come closest: straight down for two level pipes that
+cross. The gap between two parallel pipes on a rack is the air between them.</p>
 
 <h2 id="limitations">Limitations<a class="anchor" href="#limitations" aria-label="Link to this section">#</a></h2>
 <ul>
   <li>Only the two faces are considered. A part of the object that sticks out past the face
-    you clicked is not checked against the obstacle.</li>
-  <li>The two faces must be parallel. A vertical face against a beam top is refused on the
-    banner, and nothing moves.</li>
+    you clicked is not checked against the obstacle, and pulling an object tighter can push
+    another part of it into something else.</li>
+  <li>Two flat faces must be parallel. Skewed faces are refused on the banner before the
+    prompt opens, so you never type a number that cannot be used.</li>
+  <li>Two round objects work only as straight runs. An elbow, a tee or a rounded fixture
+    against another round object is refused; click a flat face on one of them instead.</li>
+  <li>The gap cannot be negative. To bury one object in another on purpose, use Item Tools.</li>
   <li>The move is a Navisworks transform, the same one Item Tools makes. It changes the
     review model only, never the source file; the number is what goes back to the author.</li>
-  <li>Faces already clear are reported with their gap and left alone; set a clearance to push
-    them apart anyway.</li>
 </ul>
 
 <h2 id="other-uses">Other uses<a class="anchor" href="#other-uses" aria-label="Link to this section">#</a></h2>
 <ul>
   <li>A quick "what if": move the pipe, see whether it now hits the ceiling, undo.</li>
+  <li>Checking whether a tighter arrangement fits: set the gap, look, undo.</li>
   <li>Sloping soffits and rotated walls work as well as floors, because the faces come from
     the objects' own triangles rather than the world axes.</li>
 </ul>
 
 <h2 id="good-to-know">Good to know<a class="anchor" href="#good-to-know" aria-label="Link to this section">#</a></h2>
-<p>Esc, a right-click or choosing another tool cancels quietly. The clearance is stored with
-its unit in <code>resolve_clash.json</code>, so 25 mm stays 25 mm in a feet-and-inches
-document.</p>
+<p>The prompt reads a length the way Revit does. In a feet-and-inches document that means
+<code>1' 6"</code>, <code>1'-6 1/2"</code>, <code>6 1/2"</code>, <code>3/4"</code>,
+<code>1.5'</code>, <code>18in</code> or the space form <code>1 6</code> (feet, then inches);
+a bare number is in the document's own unit, and a metric value with its unit, such as
+<code>25mm</code>, works in any document. Anything it cannot read, it asks for again, saying
+what it could not read.</p>
+
+<p>Esc, a right-click, choosing another tool or cancelling the prompt leaves everything as it
+was, quietly. The last gap you gave is stored with its unit in <code>resolve_clash.json</code>,
+so 25 mm stays 25 mm in a feet-and-inches document and the next prompt opens on it. If you
+set a clearance with Shift+Click in an earlier version, the first prompt opens on that. There
+is no Shift+Click: the prompt is where the gap is set.</p>
   <div class="pagenav">
 <a href="clash-grouper.html"><span class="dir">Previous</span><span class="ttl">Clash Grouper</span></a>
-<a class="next" href="set-gap.html"><span class="dir">Next</span><span class="ttl">Set Gap</span></a>
+<a class="next" href="true-distance.html"><span class="dir">Next</span><span class="ttl">True Distance</span></a>
 </div>
 </article>
 <aside class="toc"><div class="toc-head">On this page</div>
 <a href="#what-it-does">What it does</a>
 <a href="#how-to-use-it">How to use it</a>
+<a href="#pipes-and-conduits">Pipes and conduits</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>

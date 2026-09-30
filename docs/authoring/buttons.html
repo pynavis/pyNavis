@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.1.0</span>
+    <span>pynavis 1.2.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -477,6 +477,18 @@ toast.info(<span class="tok-s">&#x27;Snap &#x27;</span> + (<span class="tok-s">&
 
 <p>Every toggle starts off. <code>script.get_toggle_state()</code> reads the current state;
 <code>script.set_toggle_state(on)</code> sets it and repaints the icon immediately.</p>
+
+<p>A caption that names an action reads wrong once the toggle is pressed: "Hide Tabs" on a
+button whose next click shows them. Give the on state its own words with
+<code>title_on</code> and <code>tooltip_on</code> in <code>bundle.yaml</code>, and the button
+swaps caption and tooltip along with the icon, keeps them across a Reload, and still carries
+the Shift+Click and shortcut markers. Leave them out and one caption serves both states.
+Only a <code>*.toggle</code> reads them; anywhere else they are logged and ignored.</p>
+
+<div class="code"><div class="code-head"><span>Hide_Tabs.toggle\bundle.yaml</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Hide\nTabs
+<span class="tok-k">title_on</span>: Show\nTabs
+<span class="tok-k">tooltip</span>: Takes the tabs you choose off the ribbon.
+<span class="tok-k">tooltip_on</span>: Puts the tabs you hid back on the ribbon.</code></pre></div>
 
 <div class="note warn">
 <span class="note-t">Session-scoped, not saved, and not settable from outside the toggle</span>

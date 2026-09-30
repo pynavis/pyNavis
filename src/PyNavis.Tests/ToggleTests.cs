@@ -75,5 +75,91 @@ namespace PyNavis.Tests
             Assert.EndsWith("icon.png", button.OnIconPath);
             Assert.EndsWith("icon.png", button.OffIconPath);
         }
+
+        private PushButtonModel Parse(string folder, string yaml)
+        {
+            var dir = Path.Combine(_root, "E.extension", "T.tab", "P.panel", folder);
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "script.py"), "pass\n");
+            File.WriteAllText(Path.Combine(dir, "bundle.yaml"), yaml);
+            var ext = BundleParser.ParseExtension(Path.Combine(_root, "E.extension"));
+            return (PushButtonModel)ext.Tabs[0].Panels[0].Items[0];
+        }
+
+        [Fact]
+        public void Toggle_Reads_Its_On_State_Title_And_Tooltip()
+        {
+            // A toggle whose caption names the action ("Hide Tabs") reads wrong
+            // once pressed; title_on names the action a click takes then.
+            var button = Parse("B.toggle",
+                "title: Hide\\nTabs\ntitle_on: Show\\nTabs\ntooltip: Takes them off\ntooltip_on: Puts them back\n");
+            Assert.Equal("Show Tabs", button.TitleOn);
+            Assert.Equal("Show\nTabs", button.RibbonTitleOn);
+            Assert.Equal("Puts them back", button.TooltipOn);
+        }
+
+        [Fact]
+        public void Toggle_Without_On_State_Keys_Keeps_One_Title_And_A_Pushbutton_Ignores_Them()
+        {
+            Assert.Null(Parse("B.toggle", "title: Hide\n").TitleOn);
+            var plain = Parse("C.pushbutton", "title: Hide\ntitle_on: Show\ntooltip_on: Back\n");
+            Assert.Null(plain.TitleOn);
+            Assert.Null(plain.TooltipOn);
+        }
+    }
+
+    /// <summary>
+    /// What a pyNavis button's caption and tooltip say, in either toggle state:
+    /// the one place the ribbon build and a toggle's state change both read, so
+    /// a Reload never draws a pressed toggle under its resting name.
+    /// </summary>
+    public class ButtonCaptionTests : System.IDisposable
+    {
+        public ButtonCaptionTests() => RibbonMarkers.ResetForTests();
+
+        public void Dispose() => RibbonMarkers.ResetForTests();
+
+        private static PushButtonModel Toggle(bool withOnKeys = true, bool withConfig = false) =>
+            new PushButtonModel
+            {
+                Title = @"Hide\nTabs",
+                Tooltip = "Takes them off",
+                IsToggle = true,
+                TitleOn = withOnKeys ? @"Show\nTabs" : null,
+                TooltipOn = withOnKeys ? "Puts them back" : null,
+                ConfigScriptPath = withConfig ? "config.py" : null,
+            };
+
+        [Fact]
+        public void Text_Follows_The_State_Large_And_Small()
+        {
+            var t = Toggle();
+            Assert.Equal("Hide\nTabs", ButtonCaption.Text(t, small: false, on: false, hasChord: false));
+            Assert.Equal("Show\nTabs", ButtonCaption.Text(t, small: false, on: true, hasChord: false));
+            Assert.Equal("Show Tabs", ButtonCaption.Text(t, small: true, on: true, hasChord: false));
+            // no title_on: one caption for both states, as before
+            Assert.Equal("Hide\nTabs", ButtonCaption.Text(Toggle(withOnKeys: false), false, true, false));
+        }
+
+        [Fact]
+        public void Text_Carries_The_Markers_In_Either_State()
+        {
+            var t = Toggle(withConfig: true);
+            Assert.Equal(RibbonMarkers.WithShortcutMarker(RibbonMarkers.WithConfigMarker("Show\nTabs")),
+                ButtonCaption.Text(t, small: false, on: true, hasChord: true));
+            Assert.Equal(RibbonMarkers.WithConfigMarker("Hide\nTabs"),
+                ButtonCaption.Text(t, small: false, on: false, hasChord: false));
+        }
+
+        [Fact]
+        public void Tooltip_Follows_The_State_And_Names_The_Chord()
+        {
+            var t = Toggle();
+            Assert.Equal("Takes them off", ButtonCaption.Tooltip(t, on: false, chord: null));
+            Assert.Equal("Puts them back (Ctrl+H)", ButtonCaption.Tooltip(t, on: true, chord: "Ctrl+H"));
+            Assert.Equal("Takes them off", ButtonCaption.Tooltip(Toggle(withOnKeys: false), on: true, chord: null));
+            Assert.Equal("(Ctrl+H)", ButtonCaption.Tooltip(new PushButtonModel { Title = "X" }, false, "Ctrl+H"));
+            Assert.Null(ButtonCaption.Tooltip(new PushButtonModel { Title = "X" }, false, null));
+        }
     }
 }

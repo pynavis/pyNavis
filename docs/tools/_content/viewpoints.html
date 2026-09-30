@@ -41,12 +41,14 @@ and new name of every ticked view in the preview.</figcaption>
 
 <section id="delete" title="Delete" kind="Stacked button"
          bundle="Viewpoints.panel/Manage.stack/Deleter.pushbutton"
-         summary="Bulk delete saved viewpoints, empty folders and animations, which the tree does one at a time."
+         summary="Find saved viewpoints by search, type, duplicate name or comments, and delete them together."
          needs="Saved viewpoints in the document">
 
 <h2>What it does</h2>
-<p>Search and tick, or pick out views by type, by being duplicates, or by having comments,
-then delete them as one operation.</p>
+<p>Navisworks deletes several viewpoints at once too: Ctrl or Shift click them in the Saved
+Viewpoints window and press Delete. This is for when finding them is the work. Search by
+name, or tick every animation, every view that shares its name with another, or every view
+carrying comments, check the count, and delete them as one operation.</p>
 
 <h2>How to use it</h2>
 <ol class="steps">
@@ -129,7 +131,9 @@ Fit on the right, square to the pipes.</figcaption>
 </ul>
 
 <h2>Good to know</h2>
-<p>The padding starts at 150 mm. Both settings are shared with Section Plan in
+<p>The padding starts at 150 mm and is shown and typed in the document's units, like any
+pyNavis length: <code>6"</code> in a feet-and-inches document, or a value with its unit such
+as <code>150mm</code> anywhere. Both settings are shared with Section Plan in
 <code>section_planes.json</code>.</p>
 </section>
 
@@ -150,16 +154,6 @@ skewed across it.</p>
 
 <h2>Good to know</h2>
 <p>Plan has no Shift+Click of its own; change the padding and snap angle from Section Fit.</p>
-</section>
-
-<section id="section-clear" title="Section Clear" kind="Stacked button"
-         bundle="Viewpoints.panel/Section.stack/Clear.pushbutton"
-         summary="Switch sectioning off without moving the camera."
-         needs="Nothing">
-
-<h2>What it does</h2>
-<p>Turns the section planes off and leaves the view exactly where it is, so you keep the
-angle you worked to get and only lose the clipping.</p>
 </section>
 
 <section id="copy-state" title="Copy State" kind="Stacked button"

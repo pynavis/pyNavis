@@ -4,7 +4,7 @@ status), with a live preview before anything is written."""
 
 import clr
 
-from pynavis import clashgroup, forms, output, settings
+from pynavis import app, clashgroup, forms, output, settings
 from pynavis._markdown import escape as _escape
 
 try:
@@ -41,6 +41,11 @@ def saved_defaults():
     defaults = GrouperConfig()
     defaults.Smart = bool(prefs['smart'])
     defaults.KeepExisting = bool(prefs['keep_existing'])
+    # The cluster distance is shown and typed in the document's units.
+    try:
+        defaults.Units = str(app.get_doc().Units)
+    except Exception:
+        pass
     try:
         tolerance = float(prefs['tolerance_m'])
         if tolerance > 0:

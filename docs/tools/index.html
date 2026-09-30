@@ -27,6 +27,7 @@
 <div class="grp">pyNavis</div>
 <a href="settings.html"><img class="nav-icon" src="_assets/icons/settings.png" alt="">Settings</a>
 <a href="shortcuts.html"><img class="nav-icon" src="_assets/icons/shortcuts.png" alt="">Shortcuts</a>
+<a href="hide-tabs.html"><img class="nav-icon" src="_assets/icons/hide-tabs.png" alt="">Hide Tabs</a>
 <a href="console.html"><img class="nav-icon" src="_assets/icons/console.png" alt="">Console</a>
 <a href="reload.html"><img class="nav-icon" src="_assets/icons/reload.png" alt="">Reload</a>
 <a href="panel-slots.html"><img class="nav-icon" src="_assets/icons/panel-slots.png" alt="">Panel slots</a>
@@ -43,7 +44,6 @@
 <a href="clash-report.html"><img class="nav-icon" src="_assets/icons/clash-report.png" alt="">Clash Report</a>
 <a href="clash-grouper.html"><img class="nav-icon" src="_assets/icons/clash-grouper.png" alt="">Clash Grouper</a>
 <a href="clear-clash.html"><img class="nav-icon" src="_assets/icons/clear-clash.png" alt="">Clear Clash</a>
-<a href="set-gap.html"><img class="nav-icon" src="_assets/icons/set-gap.png" alt="">Set Gap</a>
 <a href="true-distance.html"><img class="nav-icon" src="_assets/icons/true-distance.png" alt="">True Distance</a>
 <div class="grp">Viewpoints</div>
 <a href="rename.html"><img class="nav-icon" src="_assets/icons/rename.png" alt="">Rename</a>
@@ -51,7 +51,6 @@
 <a href="manage.html"><img class="nav-icon" src="_assets/icons/manage.png" alt="">Manage</a>
 <a href="section-fit.html"><img class="nav-icon" src="_assets/icons/section-fit.png" alt="">Section Fit</a>
 <a href="section-plan.html"><img class="nav-icon" src="_assets/icons/section-plan.png" alt="">Section Plan</a>
-<a href="section-clear.html"><img class="nav-icon" src="_assets/icons/section-clear.png" alt="">Section Clear</a>
 <a href="copy-state.html"><img class="nav-icon" src="_assets/icons/copy-state.png" alt="">Copy State</a>
 <a href="paste-state.html"><img class="nav-icon" src="_assets/icons/paste-state.png" alt="">Paste State</a>
 <a href="apply-speeds.html"><img class="nav-icon" src="_assets/icons/apply-speeds.png" alt="">Apply Speeds</a>
@@ -73,7 +72,7 @@
 <a href="element-id-settings.html"><img class="nav-icon" src="_assets/icons/element-id-settings.png" alt="">Element ID Settings</a>
 </nav>
   <div class="side-foot">
-    <span>pyNavis 1.1.0</span>
+    <span>pyNavis 1.2.0</span>
     <a class="side-link" href="https://docs.pynavis.com/">Authoring guide</a>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
@@ -97,6 +96,7 @@ read and copy.</p>
 that stay useful long after setup. Nothing here touches a model.</p>
 <div class="tool-cards"><a class="tool-card" href="settings.html"><img src="_assets/icons/settings.png" alt=""><span class="c-t">Settings</span><span class="c-d">One window over the parts of pyNavis you are meant to change: theme, ribbon hints, where extensions load from, and the engine paths.</span></a>
 <a class="tool-card" href="shortcuts.html"><img src="_assets/icons/shortcuts.png" alt=""><span class="c-t">Shortcuts</span><span class="c-d">The keyboard shortcut editor: every tool that can carry a chord, the chord it has now, and a field to press a new one into.</span></a>
+<a class="tool-card" href="hide-tabs.html"><img src="_assets/icons/hide-tabs.png" alt=""><span class="c-t">Hide Tabs</span><span class="c-d">Take the tabs you choose off the ribbon for a clean screen, a recording or a demo, and put them back with the next click.</span></a>
 <a class="tool-card" href="console.html"><img src="_assets/icons/console.png" alt=""><span class="c-t">Console</span><span class="c-d">An interactive Python console running inside Navisworks, with the same API and helpers your scripts get.</span></a>
 <a class="tool-card" href="reload.html"><img src="_assets/icons/reload.png" alt=""><span class="c-t">Reload</span><span class="c-d">Rescan every extension folder and rebuild the ribbon, without restarting Navisworks.</span></a>
 <a class="tool-card" href="panel-slots.html"><img src="_assets/icons/panel-slots.png" alt=""><span class="c-t">Panel slots</span><span class="c-d">Make more dock panel slots when the five that ship are all claimed.</span></a></div>
@@ -128,25 +128,23 @@ reported in a toast.</p>
 <a class="tool-card" href="forget.html"><img src="_assets/icons/forget.png" alt=""><span class="c-t">Forget</span><span class="c-d">Empty the memory for this document.</span></a>
 <a class="tool-card" href="more-menu.html"><img src="_assets/icons/more-menu.png" alt=""><span class="c-t">More menu</span><span class="c-d">Show what is in memory, promote it to a selection set, or delete the stored memory files.</span></a></div>
 <h2 id="clash">Clash<a class="anchor" href="#clash">#</a></h2>
-<p class="panel-lead">Report, group and clear clashes, set the gap between systems, and measure the real gap.</p>
+<p class="panel-lead">Report and group clashes, clear them to the gap you want, and measure the real gap.</p>
 <p>The Clash panel is the coordination meeting's toolkit, in the order a meeting uses it:
 get the numbers, group the noise into issues, fix what can be fixed on the spot, and measure
 the real gap where the argument is about millimetres.</p>
 <div class="tool-cards"><a class="tool-card" href="clash-report.html"><img src="_assets/icons/clash-report.png" alt=""><span class="c-t">Clash Report</span><span class="c-d">A one-screen count of every clash test by status, with a CSV export for the report.</span></a>
 <a class="tool-card" href="clash-grouper.html"><img src="_assets/icons/clash-grouper.png" alt=""><span class="c-t">Clash Grouper</span><span class="c-d">Turn a test&#x27;s results into reviewable issues, grouping by root cause, element, level, grid or proximity, with a live preview.</span></a>
-<a class="tool-card" href="clear-clash.html"><img src="_assets/icons/clear-clash.png" alt=""><span class="c-t">Clear Clash</span><span class="c-d">Point at two faces and slide the selected object until it clears, then read off exactly how far it moved.</span></a>
-<a class="tool-card" href="set-gap.html"><img src="_assets/icons/set-gap.png" alt=""><span class="c-t">Set Gap</span><span class="c-d">Point at two faces and type the gap you want between them; the selected object slides the exact difference, tighter or apart, clash or no clash.</span></a>
+<a class="tool-card" href="clear-clash.html"><img src="_assets/icons/clear-clash.png" alt=""><span class="c-t">Clear Clash</span><span class="c-d">Point at two faces and type the gap to leave; the selected object slides the exact difference, clash or no clash, and you read off how far it moved.</span></a>
 <a class="tool-card" href="true-distance.html"><img src="_assets/icons/true-distance.png" alt=""><span class="c-t">True Distance</span><span class="c-d">The real perpendicular distance between two measured faces, unaffected by project rotation or an off-square click.</span></a></div>
 <h2 id="viewpoints">Viewpoints<a class="anchor" href="#viewpoints">#</a></h2>
 <p class="panel-lead">Saved views, the section box, view state and navigation speeds.</p>
 <p>The Viewpoints panel looks after saved views, the section box, view state and navigation
 speeds: the things that decide whether a review model is pleasant to walk or a chore.</p>
 <div class="tool-cards"><a class="tool-card" href="rename.html"><img src="_assets/icons/rename.png" alt=""><span class="c-t">Rename</span><span class="c-d">Batch rename saved viewpoints with find and replace, numbering, prefixes and case cleanup, with a live preview.</span></a>
-<a class="tool-card" href="delete.html"><img src="_assets/icons/delete.png" alt=""><span class="c-t">Delete</span><span class="c-d">Bulk delete saved viewpoints, empty folders and animations, which the tree does one at a time.</span></a>
+<a class="tool-card" href="delete.html"><img src="_assets/icons/delete.png" alt=""><span class="c-t">Delete</span><span class="c-d">Find saved viewpoints by search, type, duplicate name or comments, and delete them together.</span></a>
 <a class="tool-card" href="manage.html"><img src="_assets/icons/manage.png" alt=""><span class="c-t">Manage</span><span class="c-d">Sort, move, create folders and purge empty ones in the saved viewpoint tree.</span></a>
 <a class="tool-card" href="section-fit.html"><img src="_assets/icons/section-fit.png" alt=""><span class="c-t">Section Fit</span><span class="c-d">Fit the six section planes to the selection, turned to the objects rather than the world.</span></a>
 <a class="tool-card" href="section-plan.html"><img src="_assets/icons/section-plan.png" alt=""><span class="c-t">Section Plan</span><span class="c-d">Section Fit, then an orthographic plan view of the box, square on.</span></a>
-<a class="tool-card" href="section-clear.html"><img src="_assets/icons/section-clear.png" alt=""><span class="c-t">Section Clear</span><span class="c-d">Switch sectioning off without moving the camera.</span></a>
 <a class="tool-card" href="copy-state.html"><img src="_assets/icons/copy-state.png" alt=""><span class="c-t">Copy State</span><span class="c-d">Copy the section planes, the hidden items or the appearance overrides to disk, to put back later.</span></a>
 <a class="tool-card" href="paste-state.html"><img src="_assets/icons/paste-state.png" alt=""><span class="c-t">Paste State</span><span class="c-d">Put back a kind of state copied earlier with Copy State.</span></a>
 <a class="tool-card" href="apply-speeds.html"><img src="_assets/icons/apply-speeds.png" alt=""><span class="c-t">Apply Speeds</span><span class="c-d">Push your walk speed, turn speed and field of view at the current view, in one keystroke.</span></a>

@@ -38,7 +38,7 @@ EXTENSION = os.path.join(ROOT, 'extensions', 'pyNavis.extension', 'pyNavis.tab')
 PANELS = [
     ('pynavis.html',    'pyNavis',    'The tool itself: settings, shortcuts, the console, Reload.'),
     ('selection.html',  'Selection',  'Undo for selections: remember a selection, get it back, build on it.'),
-    ('clash.html',      'Clash',      'Report, group and clear clashes, set the gap between systems, and measure the real gap.'),
+    ('clash.html',      'Clash',      'Report and group clashes, clear them to the gap you want, and measure the real gap.'),
     ('viewpoints.html', 'Viewpoints', 'Saved views, the section box, view state and navigation speeds.'),
     ('ai.html',         'AI (beta)',  'A chat that writes pyNavis tools for you, and the setup behind it.'),
     ('data.html',       'Data',       'Coordinates, Revit element IDs, selection sets and viewpoints, in and out.'),
@@ -94,6 +94,9 @@ def copy_icon(tool):
     folder = os.path.join(EXTENSION, tool.bundle.replace('/', os.sep))
     for name in ('icon.png', 'icon.dark.png'):
         src = os.path.join(folder, name)
+        if not os.path.isfile(src):
+            # A *.toggle draws its art per state instead; the resting one stands for it.
+            src = os.path.join(folder, name.replace('icon', 'icon.off', 1))
         if not os.path.isfile(src):
             continue
         dst = os.path.join(ICONS, tool.slug + ('.dark' if 'dark' in name else '') + '.png')

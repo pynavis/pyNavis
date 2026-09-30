@@ -29,13 +29,9 @@ flat list of hundreds.
 
 - [ ] `clear-clash-before-after.png`: A pipe through a beam before, and sitting on the beam after, with the dialog
 reporting the distance moved.
+- [ ] `clear-clash-prompt.png`: The prompt, showing the gap as it is now and asking for the gap to leave.
 - [ ] `clear-clash-dialog.png`: The result dialog, with the distance and a Copy button that puts just the number
 on the clipboard.
-## Set Gap (Clash)
-
-- [ ] `set-gap-before-after.png`: A tray 350 mm below a duct before, and 100 mm below it after, with the dialog
-reporting the distance moved.
-- [ ] `set-gap-prompt.png`: The prompt, showing the gap as it is now and asking for the gap to leave.
 ## True Distance (Clash)
 
 - [ ] `true-distance-banner.png`: Two faces measured off-square: the native readout says 4in 3/16, the green

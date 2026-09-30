@@ -40,6 +40,36 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void PreChecked_Rows_Open_Ticked_And_Stay_The_Result_Until_Changed()
+        {
+            // A picker for a saved choice (Hide Tabs' Shift+Click) must open with
+            // that choice ticked, or every visit starts from nothing.
+            OnSta(() =>
+            {
+                var window = Pickers.BuildSelectFromList("T", Animals, multiselect: true, prompt: null,
+                                                         preChecked: new[] { 0, 2 });
+                Assert.Equal(new[] { 0, 2 }, Pickers.ResultOf(window).ToArray());
+                Pickers.SetCheckedForTest(window, 0, false);
+                Assert.Equal(new[] { 2 }, Pickers.ResultOf(window).ToArray());
+
+                // indices that name no row are ignored, not thrown
+                var odd = Pickers.BuildSelectFromList("T", Animals, true, null, new[] { 9, -1, 3 });
+                Assert.Equal(new[] { 3 }, Pickers.ResultOf(odd).ToArray());
+            });
+        }
+
+        [Fact]
+        public void PreChecked_Row_Is_The_Pick_In_A_SingleSelect_List()
+        {
+            OnSta(() =>
+            {
+                var window = Pickers.BuildSelectFromList("T", Animals, multiselect: false, prompt: null,
+                                                         preChecked: new[] { 1 });
+                Assert.Equal(new[] { 1 }, Pickers.ResultOf(window).ToArray());
+            });
+        }
+
+        [Fact]
         public void Search_Does_Not_Change_Result_Indices()
         {
             OnSta(() =>

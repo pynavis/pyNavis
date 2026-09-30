@@ -223,6 +223,35 @@ def ic_panel_slots(c):
         plus(c, 87, 48, 5, 7)
 
 
+def _ribbon_strip(c, tabs, body=None):
+    """A ribbon seen head on: the panel body with tab headers standing on its
+    top edge. tabs picks which of the header slots are drawn."""
+    if c.small:
+        c.rrect(6, 48, 90, 88, rad=10, color=body, w=13)
+        slots = ((10, 42), (54, 86))
+        top, base = 18, 48
+    else:
+        c.rrect(10, 46, 86, 82, rad=8, color=body)
+        slots = ((14, 34), (38, 58), (62, 82))
+        top, base = 26, 46
+    for i, (x0, x1) in enumerate(slots):
+        if i in tabs:
+            c.line([(x0, base), (x0, top), (x1, top), (x1, base)])
+
+
+def ic_hide_tabs_off(c):
+    """Every tab header on the ribbon: the toggle at rest. The small file is
+    this art too, with two headers so they survive 16px."""
+    _ribbon_strip(c, (0, 1, 2))
+
+
+def ic_hide_tabs_on(c):
+    """One header left and the accent arrow lifting the rest off: tabs are
+    off the ribbon. Large only, like every toggle's pressed art."""
+    _ribbon_strip(c, (0,), body=c.t['accent'])
+    c.arrow_v(60, 40, 8, w=8, head=16)
+
+
 def ic_shortcuts(c):
     """Keycaps; the accent cap is the one being bound."""
     if c.small:
@@ -326,21 +355,6 @@ def ic_resolve_clash(c):
         c.arrow_v(48, 30, 4, w=7, head=16)
 
 
-def ic_set_gap(c):
-    """A box floating above a beam with air between them; the double-headed
-    accent arrow in the gap is the number the tool sets, tighter or apart."""
-    if c.small:
-        c.rrect(8, 70, 88, 90, rad=4, w=12)          # the other object
-        c.rrect(22, 6, 74, 28, rad=4, w=12)          # the mover, clear of it
-        c.arrow_v(48, 49, 30, w=12, head=20)
-        c.arrow_v(48, 49, 68, w=12, head=20)
-    else:
-        c.rrect(8, 72, 88, 88, rad=5, w=7)
-        c.rrect(24, 8, 72, 28, rad=5, w=7)
-        c.arrow_v(48, 50, 30, w=7, head=14)
-        c.arrow_v(48, 50, 70, w=7, head=14)
-
-
 def _perp_arrow(c, cx, cy, lean, w, head, span):
     """Double-headed accent arrow through (cx, cy), perpendicular to faces
     that lean 'lean' units across 80 units of height."""
@@ -437,19 +451,6 @@ def ic_section_plan(c):
     else:
         tilted_box(c, half_x=30, half_y=18, w=8, cy=64)
         c.arrow_v(48, 6, 34, w=9, head=16)
-
-
-def ic_section_clear(c):
-    """The fitted box with the accent X: sectioning off (alert red stays
-    Purge's, and the X is the mark Memory Clear and Deleter already use)."""
-    if c.small:
-        tilted_box(c, half_x=36, half_y=24, w=13)
-        c.line([(30, 30), (66, 66)], color=c.t['accent'], w=14)
-        c.line([(66, 30), (30, 66)], color=c.t['accent'], w=14)
-    else:
-        tilted_box(c, half_x=32, half_y=22, w=8)
-        c.line([(33, 33), (63, 63)], color=c.t['accent'], w=9)
-        c.line([(63, 33), (33, 63)], color=c.t['accent'], w=9)
 
 
 # --- Viewpoints panel: state tools -------------------------------------------
@@ -1052,7 +1053,6 @@ ICONS = {
     'Data.panel/Export_Viewpoints_CSV.pushbutton': ic_export_csv,
     'Clash.panel/True_Distance.pushbutton': ic_true_distance,
     'Clash.panel/Clear_Clash.pushbutton': ic_resolve_clash,
-    'Clash.panel/Set_Gap.pushbutton': ic_set_gap,
     'Data.panel/Excel_Sets.pushbutton': ic_sets_from_excel,
     'Clash.panel/Clash_Grouper.pushbutton': ic_grouper,
     'Viewpoints.panel/Manage.stack/Renamer.pushbutton': ic_vp_renamer,
@@ -1060,7 +1060,6 @@ ICONS = {
     'Viewpoints.panel/Manage.stack/Manager.pushbutton': ic_vp_manager,
     'Viewpoints.panel/Section.stack/Fit.pushbutton': ic_section_fit,
     'Viewpoints.panel/Section.stack/Plan.pushbutton': ic_section_plan,
-    'Viewpoints.panel/Section.stack/Clear.pushbutton': ic_section_clear,
     'Viewpoints.panel/State.stack/Copy_State.pushbutton': ic_state_copy,
     'Viewpoints.panel/State.stack/Paste_State.pushbutton': ic_state_paste,
     'Viewpoints.panel/Speeds.stack/Apply_Speeds.pushbutton': ic_reset_speeds,
@@ -1107,6 +1106,7 @@ SMOKE_ICONS = {
 TOGGLES = {
     (SMOKE_TAB, 'Buttons.panel/01_Toggle_Demo.toggle'):
         (ic_smoke_toggle_off, ic_smoke_toggle_on),
+    (TAB, 'pyNavis.panel/Hide_Tabs.toggle'): (ic_hide_tabs_off, ic_hide_tabs_on),
 }
 
 # (tab root, bundle) -> on drawing. A *.dockpane keeps its ordinary icon.png as the

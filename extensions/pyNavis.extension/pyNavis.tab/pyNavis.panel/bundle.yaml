@@ -1,6 +1,7 @@
 layout:
   - Settings
   - Shortcuts
+  - Hide_Tabs
   - Console
   - Reload
   - More

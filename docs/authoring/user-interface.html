@@ -47,7 +47,7 @@
 <a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
-    <span>pynavis 1.1.0</span>
+    <span>pynavis 1.2.0</span>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
@@ -372,9 +372,11 @@ forms.pick_folder(title=<span class="tok-s">&#x27;Select folder&#x27;</span>, in
 
 forms.ask_number(prompt, default=<span class="tok-k">None</span>, min_value=<span class="tok-k">None</span>,
                  max_value=<span class="tok-k">None</span>, title=<span class="tok-s">&#x27;pyNavis&#x27;</span>)           <span class="tok-c"># -&gt; float or None</span>
+forms.ask_length(prompt, units, default=<span class="tok-k">None</span>,
+                 title=<span class="tok-s">&#x27;pyNavis&#x27;</span>)                           <span class="tok-c"># -&gt; length in doc units or None</span>
 forms.ask_options(prompt, options, title=<span class="tok-s">&#x27;pyNavis&#x27;</span>)         <span class="tok-c"># -&gt; an option or None</span>
-forms.select_from_list(items, title=<span class="tok-s">&#x27;Select&#x27;</span>,
-                       multiselect=<span class="tok-k">False</span>, prompt=<span class="tok-k">None</span>)      <span class="tok-c"># -&gt; value, list, or None</span></code></pre></div>
+forms.select_from_list(items, title=<span class="tok-s">&#x27;Select&#x27;</span>, multiselect=<span class="tok-k">False</span>,
+                       prompt=<span class="tok-k">None</span>, checked=<span class="tok-k">None</span>)           <span class="tok-c"># -&gt; value, list, or None</span></code></pre></div>
 
 <p>These touch no Navisworks API at all, so they work even while a model is still loading.
 <code>confirm</code> shows Yes then No, in that order, and closing the window counts as No.</p>

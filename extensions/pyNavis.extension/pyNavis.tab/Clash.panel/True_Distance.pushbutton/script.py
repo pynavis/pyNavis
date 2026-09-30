@@ -43,11 +43,13 @@ def run():
     first, end = Api.Point3D(p1[0], p1[1], p1[2]), Api.Point3D(p2[0], p2[1], p2[2])
     log.info('measurement %s -> %s, units %s' % (p1, p2, doc.Units))
 
-    tol = truedistance.tolerance_for((p1, p2), units_to_meters(doc))
+    meters = units_to_meters(doc)
+    tol = truedistance.tolerance_for((p1, p2), meters)
+    floor = truedistance.tolerance_for((), meters)
     result = truedistance.resolve(
         p1, p2,
-        faces.faces_under(view, first, tol, log, 'first')[0],
-        faces.faces_under(view, end, tol, log, 'end')[0],
+        faces.faces_under(view, first, tol, log, 'first', floor=floor)[0],
+        faces.faces_under(view, end, tol, log, 'end', floor=floor)[0],
         parallel_degrees=float(values['parallel_degrees']))
     log.info('result %s' % result)
 

@@ -451,6 +451,20 @@ toast.info('Snap ' + ('on' if on else 'off'))
 <p>Every toggle starts off. <code>script.get_toggle_state()</code> reads the current state;
 <code>script.set_toggle_state(on)</code> sets it and repaints the icon immediately.</p>
 
+<p>A caption that names an action reads wrong once the toggle is pressed: "Hide Tabs" on a
+button whose next click shows them. Give the on state its own words with
+<code>title_on</code> and <code>tooltip_on</code> in <code>bundle.yaml</code>, and the button
+swaps caption and tooltip along with the icon, keeps them across a Reload, and still carries
+the Shift+Click and shortcut markers. Leave them out and one caption serves both states.
+Only a <code>*.toggle</code> reads them; anywhere else they are logged and ignored.</p>
+
+<pre data-lang="yaml" data-file="Hide_Tabs.toggle\bundle.yaml">
+title: Hide\nTabs
+title_on: Show\nTabs
+tooltip: Takes the tabs you choose off the ribbon.
+tooltip_on: Puts the tabs you hid back on the ribbon.
+</pre>
+
 <div class="note warn">
 <span class="note-t">Session-scoped, not saved, and not settable from outside the toggle</span>
 <p>Toggle state lives in memory for the running session, keyed by the bundle's own path. It

@@ -77,9 +77,10 @@ namespace PyNavis.Runtime.Forms
 
         // ---- script-facing API -------------------------------------------------
 
-        public static IList<int> SelectFromList(string title, IList<string> items, bool multiselect, string prompt)
+        public static IList<int> SelectFromList(string title, IList<string> items, bool multiselect, string prompt,
+            IList<int> preChecked = null)
         {
-            var window = BuildSelectFromList(title, items, multiselect, prompt);
+            var window = BuildSelectFromList(title, items, multiselect, prompt, preChecked);
             FluentChrome.Apply(window);
             window.ShowDialog();
             var parts = PartsOf(window);
@@ -111,7 +112,11 @@ namespace PyNavis.Runtime.Forms
 
         // ---- construction (test seam) ------------------------------------------
 
-        public static Window BuildSelectFromList(string title, IList<string> items, bool multiselect, string prompt)
+        /// <summary>preChecked: original indices to open with ticked (multiselect) or
+        /// picked (single-select), so a picker for a saved choice shows that choice.
+        /// Indices that name no row are ignored.</summary>
+        public static Window BuildSelectFromList(string title, IList<string> items, bool multiselect, string prompt,
+            IList<int> preChecked = null)
         {
             var t = Tokens.Current;
             var accent = DesignSystem.Accent;
@@ -123,7 +128,12 @@ namespace PyNavis.Runtime.Forms
                 Visible = new ObservableCollection<Row>(),
             };
             for (var i = 0; i < items.Count; i++)
-                parts.All.Add(new Row { Index = i, Label = items[i] ?? "", Checked = false });
+                parts.All.Add(new Row
+                {
+                    Index = i,
+                    Label = items[i] ?? "",
+                    Checked = multiselect && IsPreChecked(preChecked, i, items.Count),
+                });
 
             var window = new Window
             {
@@ -176,8 +186,21 @@ namespace PyNavis.Runtime.Forms
             window.Content = root;
 
             Recompute(parts);
+            // Single-select: the pre-checked row is the pick, as if it had been clicked.
+            if (!multiselect)
+            {
+                var pick = parts.All.FirstOrDefault(r => IsPreChecked(preChecked, r.Index, items.Count));
+                if (pick != null)
+                {
+                    parts.List.SelectedItem = pick;
+                    UpdateFooter(parts);
+                }
+            }
             return window;
         }
+
+        private static bool IsPreChecked(IList<int> preChecked, int index, int count) =>
+            preChecked != null && index >= 0 && index < count && preChecked.Contains(index);
 
         private static FrameworkElement BuildSearchField(Parts parts, Tokens t)
         {

@@ -16,15 +16,15 @@ lib/coords.py for the parsing and the arithmetic.
 
 import coords
 
-from pynavis import app, forms, overlay, script, toast
+from pynavis import app, forms, lengths, overlay, script, toast
 from pynavis.clash import units_to_meters
 
 
-def prefill():
+def prefill(units):
     """The default for the box: the clipboard when it already holds three
-    numbers, which is the round trip straight out of Get Coordinates, and an
-    empty box when it holds anything else."""
-    pasted = coords.parse(script.clipboard_text())
+    coordinates, which is the round trip straight out of Get Coordinates, and
+    an empty box when it holds anything else."""
+    pasted = coords.parse(script.clipboard_text(), units)
     if pasted is None:
         return ''
     return coords.format_point(pasted)
@@ -96,15 +96,18 @@ def run():
     doc = app.get_doc()
     log = script.get_logger()
 
-    answer = forms.ask_string('Coordinates to move to (X, Y, Z):',
-                              default=prefill(), title='Go to Coordinates')
+    units = str(doc.Units)
+    ask = 'Coordinates to move to (X, Y, Z):'
+    if lengths.is_imperial(units):
+        ask = 'Coordinates to move to (X, Y, Z), with commas between them for feet and inches:'
+    answer = forms.ask_string(ask, default=prefill(units), title='Go to Coordinates')
     if answer is None:                         # None means cancelled: say nothing
         return
 
-    target = coords.parse(answer)
+    target = coords.parse(answer, units)
     if target is None:
         toast.error('Could not read coordinates',
-                    'Expected three numbers, like 12.5, -3, 40.')
+                    "Expected three values, like 12.5, -3, 40 or 1' 6\", -3' 3\", 40'.")
         return
 
     distance = viewing_distance(doc)

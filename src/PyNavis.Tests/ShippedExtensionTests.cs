@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using PyNavis.Runtime.Bundles;
@@ -107,17 +108,36 @@ namespace PyNavis.Tests
         }
 
         [Fact]
-        public void PyNavisPanel_Ships_Settings_Shortcuts_Console_Reload_AndPanelSlots()
+        public void PyNavisPanel_Ships_Settings_Shortcuts_HideTabs_Console_Reload_AndPanelSlots()
         {
             var tab = Assert.Single(ParseShipped().Tabs);
             var general = tab.Panels.Single(p => p.Title == "pyNavis");
 
             // Settings first, the developer tools last: a coordinator should not
             // meet "Console" before anything else.
-            Assert.Equal(new[] { "Settings", "Shortcuts", "Console", "Reload" },
+            Assert.Equal(new[] { "Settings", "Shortcuts", "Hide Tabs", "Console", "Reload" },
                 general.Items.OfType<PushButtonModel>().Select(b => b.Title).ToArray());
-            Assert.Equal(new[] { "Console", "Panel slots", "Reload", "Settings", "Shortcuts" },
+            Assert.Equal(new[] { "Console", "Hide Tabs", "Panel slots", "Reload", "Settings", "Shortcuts" },
                 general.Buttons.Select(b => b.Title).OrderBy(t => t).ToArray());
+
+            // A toggle, with Shift+Click to choose the tabs, that says what a click
+            // does in each state rather than "Hide Tabs" on both.
+            var hide = general.Items.OfType<PushButtonModel>().Single(b => b.Title == "Hide Tabs");
+            Assert.True(hide.IsToggle);
+            Assert.NotNull(hide.ConfigScriptPath);
+            Assert.Equal("Show Tabs", hide.TitleOn);
+            Assert.False(string.IsNullOrWhiteSpace(hide.Tooltip));
+            Assert.False(string.IsNullOrWhiteSpace(hide.TooltipOn));
+        }
+
+        [Fact]
+        public void ShippedExtension_PutsHiddenTabsBack_BeforeNavisworksCloses()
+        {
+            // Hide Tabs takes tabs off the ribbon for the session; the app-closing
+            // hook puts them back so Navisworks never saves a ribbon without them.
+            var hook = Assert.Single(ParseShipped().Hooks);
+            Assert.Equal("app-closing", hook.EventName);
+            Assert.Contains("tabhider.show()", File.ReadAllText(hook.ScriptPath));
         }
 
         [Fact]
@@ -125,14 +145,14 @@ namespace PyNavis.Tests
         {
             // Panel slots is a once-per-install tool: it generates a satellite DLL and
             // then needs a restart. It does not deserve a permanent slot beside the
-            // four things people press, so it lives behind the panel title.
+            // five things people press, so it lives behind the panel title.
             var general = ParseShipped().Tabs.Single().Panels.Single(p => p.Title == "pyNavis");
 
             Assert.Collection(general.Slideout,
                 i => Assert.Equal("Panel slots", Assert.IsType<PushButtonModel>(i).Title));
             Assert.DoesNotContain(general.Items.OfType<PushButtonModel>(),
                 b => b.Title == "Panel slots");
-            Assert.Equal(new[] { "Console", "Reload", "Settings", "Shortcuts" },
+            Assert.Equal(new[] { "Console", "Hide Tabs", "Reload", "Settings", "Shortcuts" },
                 general.Items.OfType<PushButtonModel>().Select(b => b.Title).OrderBy(t => t).ToArray());
         }
 
@@ -185,17 +205,28 @@ namespace PyNavis.Tests
                                 : new[] { ((PushButtonModel)i).Directory })
                 .ToList();
 
-            Assert.Equal(45, bundles.Count);
+            Assert.Equal(44, bundles.Count);
 
             var expected = new[]
             {
                 ("icon.png", 96), ("icon.dark.png", 96),
                 ("icon.small.png", 32), ("icon.small.dark.png", 32),
             };
+            // A toggle draws its large art per state instead of one icon.png.
+            var toggle = new[]
+            {
+                ("icon.off.png", 96), ("icon.off.dark.png", 96),
+                ("icon.on.png", 96), ("icon.on.dark.png", 96),
+                ("icon.small.png", 32), ("icon.small.dark.png", 32),
+            };
+            var toggles = new HashSet<string>(ParseShipped().Tabs
+                .SelectMany(t => t.Panels).SelectMany(p => p.Buttons)
+                .Where(b => b.IsToggle).Select(b => b.Directory));
+            Assert.NotEmpty(toggles);
 
             foreach (var dir in bundles)
             {
-                foreach (var (name, size) in expected)
+                foreach (var (name, size) in toggles.Contains(dir) ? toggle : expected)
                 {
                     var path = Path.Combine(dir, name);
                     Assert.True(File.Exists(path), $"missing {name} in {dir}");
@@ -304,14 +335,14 @@ namespace PyNavis.Tests
                 manage.Buttons.Select(b => b.Title).ToArray());
 
             var section = Assert.IsType<StackModel>(viewpoints.Items[1]);
-            Assert.Equal(new[] { "Section Fit", "Section Plan", "Section Clear" },
+            // No Section Clear: Navisworks' own Enable Sectioning toggle does exactly that.
+            Assert.Equal(new[] { "Section Fit", "Section Plan" },
                 section.Buttons.Select(b => b.Title).ToArray());
             Assert.All(section.Buttons, b => Assert.False(string.IsNullOrWhiteSpace(b.Tooltip)));
 
-            // Fit carries the Shift+Click settings dialog; the other two do not.
+            // Fit carries the Shift+Click settings dialog; Plan does not.
             Assert.NotNull(section.Buttons.Single(b => b.Title == "Section Fit").ConfigScriptPath);
             Assert.Null(section.Buttons.Single(b => b.Title == "Section Plan").ConfigScriptPath);
-            Assert.Null(section.Buttons.Single(b => b.Title == "Section Clear").ConfigScriptPath);
 
             var state = Assert.IsType<StackModel>(viewpoints.Items[2]);
             Assert.Equal(new[] { "Copy State", "Paste State" },
@@ -388,7 +419,7 @@ namespace PyNavis.Tests
         }
 
         [Fact]
-        public void ClashPanel_Ships_TheFiveClashTools_InWorkflowOrder()
+        public void ClashPanel_Ships_TheFourClashTools_InWorkflowOrder()
         {
             var tab = Assert.Single(ParseShipped().Tabs);
             var clash = tab.Panels.Single(p => p.Title == "Clash");
@@ -397,9 +428,14 @@ namespace PyNavis.Tests
                 i => Assert.Equal("Clash Report", Assert.IsType<PushButtonModel>(i).Title),
                 i => Assert.Equal("Clash Grouper", Assert.IsType<PushButtonModel>(i).Title),
                 i => Assert.Equal("Clear Clash", Assert.IsType<PushButtonModel>(i).Title),
-                i => Assert.Equal("Set Gap", Assert.IsType<PushButtonModel>(i).Title),
                 i => Assert.Equal("True Distance", Assert.IsType<PushButtonModel>(i).Title));
             Assert.Empty(clash.Slideout);
+
+            // Clear Clash asks for the gap on every run, pre-filled with the last
+            // one, so a Shift+Click default would only be a second place to set it.
+            // Set Gap was folded into it and must not come back.
+            Assert.Null(clash.Buttons.Single(b => b.Title == "Clear Clash").ConfigScriptPath);
+            Assert.DoesNotContain(clash.Buttons, b => b.Title == "Set Gap");
         }
 
         [Fact]
@@ -441,7 +477,7 @@ namespace PyNavis.Tests
             var panels = ParseShipped().Tabs.Single().Panels.Where(p => p.Title == "Clash" || p.Title == "Data");
 
             Assert.Equal(
-                new[] { "Clash\nGrouper", "Clash\nReport", "Clear\nClash", "Excel\nSets", "Export\nViewpoints", "Set\nGap", "True\nDistance" },
+                new[] { "Clash\nGrouper", "Clash\nReport", "Clear\nClash", "Excel\nSets", "Export\nViewpoints", "True\nDistance" },
                 panels.SelectMany(p => p.Items.OfType<PushButtonModel>())
                       .Select(b => b.RibbonTitle).OrderBy(t => t).ToArray());
         }

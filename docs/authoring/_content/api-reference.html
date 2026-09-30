@@ -1010,11 +1010,13 @@ elif forms.confirm('Export %d item(s) to CSV?' % len(items), 'Export'):
 
 <h3 id="forms-select-from-list">forms.select_from_list</h3>
 
-<div class="sig"><span class="mod">forms.</span><span class="fn">select_from_list</span>(items, title='Select', multiselect=False, prompt=None)</div>
+<div class="sig"><span class="mod">forms.</span><span class="fn">select_from_list</span>(items, title='Select', multiselect=False, prompt=None, checked=None)</div>
 
 <p>A searchable list picker. <code>items</code> is a list of strings, or of
 <code>(label, value)</code> pairs when the value you want back is not the label shown. Typing
-in the search box filters the list live.</p>
+in the search box filters the list live. <code>checked</code> is a list of values to open
+with ticked (or picked, single-select), which is how a picker for a saved choice shows that
+choice; values that are not among the items are ignored.</p>
 
 <p>Returns the picked value, or a list of values with <code>multiselect=True</code>, or
 <code>None</code> on cancel. A cancelled multiselect still comes back as <code>None</code>,
@@ -1030,7 +1032,8 @@ if picked is not None:
     ...
 
 names = ['structure.rvt', 'architecture.rvt', 'mep.rvt']
-chosen = forms.select_from_list(names, title='Models to export', multiselect=True)
+chosen = forms.select_from_list(names, title='Models to export', multiselect=True,
+                                checked=['mep.rvt'])         # opens with mep.rvt ticked
 if chosen is not None:                      # None means cancelled
     for name in chosen:
         ...
@@ -1067,6 +1070,25 @@ state = forms.ask_options(None, ['Section State', 'Hidden Items'])   # chromeles
 
 <pre data-lang="python" data-bare="true">tolerance = forms.ask_number('Proximity tolerance (m):', default=6.0, min_value=0.0)
 if tolerance is not None:
+    ...</pre>
+
+<h3 id="forms-ask-length">forms.ask_length</h3>
+
+<div class="sig"><span class="mod">forms.</span><span class="fn">ask_length</span>(prompt, units, default=None, title='pyNavis')</div>
+
+<p>The prompt for a length, which is what to use instead of <code>ask_number</code> whenever
+the number is a distance. It reads what people type, the same way every pyNavis length field
+does (<a href="#lengths"><code>lengths</code></a>): Revit's feet and inches in a
+feet-and-inches document, a bare number in the document's unit, or a value with its unit.
+<code>default</code>, in document units, pre-fills it the way a user would type it. Anything
+it cannot read, it asks for again, quoting it. Returns the length in document units, or
+<code>None</code> on cancel.</p>
+
+<pre data-lang="python" data-bare="true">from pynavis import app, forms, lengths
+
+units = str(app.get_doc().Units)
+gap = forms.ask_length('Gap to leave, %s:' % lengths.hint(units), units, default=0.25)
+if gap is not None:
     ...</pre>
 
 <h3 id="forms-pick-folder">forms.pick_folder</h3>
@@ -1178,6 +1200,36 @@ in any WPF code-behind. <code>WPFWindow</code> only solves loading the file and 
 runtime's dialog chrome onto it; it is not a data-binding layer.</p>
 </div>
 
+<h2 id="lengths">lengths: lengths as people type them</h2>
+
+<p><span class="pill pure">Pure</span> No Navisworks API, only the pyNavis runtime. One reader
+for every length a person types, so a length that works in one tool works in all of them:
+Clear Clash, Section Fit, Section Nudge, the Clash Grouper and Go to Coordinates all use
+it, and so can your scripts. Units are Navisworks unit names, <code>str(doc.Units)</code>.</p>
+
+<p>In a feet-and-inches document a length reads the way Revit reads it:
+<code>1' 6"</code>, <code>1'-6 1/2"</code>, <code>6 1/2"</code>, <code>3/4"</code>,
+<code>1.5'</code>, <code>18in</code>, <code>1ft 6in</code>, the space form <code>1 6</code>
+and the hyphen form <code>1-6</code> (feet, then inches), and a bare fraction as inches. In
+any document a bare number is in the document's own unit, and a value with its unit
+(<code>25mm</code>, <code>0.1m</code>, <code>6"</code>) is converted. Curly quotes and primes
+pasted from a document read as the marks they stand for.</p>
+
+<div class="sig"><span class="mod">lengths.</span><span class="fn">parse</span>(text, units)</div>
+<div class="sig"><span class="mod">lengths.</span><span class="fn">format_input</span>(value, units, denominator=16)</div>
+<div class="sig"><span class="mod">lengths.</span><span class="fn">convert</span>(value, from_units, to_units)</div>
+<div class="sig"><span class="mod">lengths.</span><span class="fn">is_imperial</span>(units)</div>
+<div class="sig"><span class="mod">lengths.</span><span class="fn">suffix</span>(units)</div>
+<div class="sig"><span class="mod">lengths.</span><span class="fn">hint</span>(units)</div>
+
+<p><code>parse</code> returns the length in document units, or <code>None</code> when the text
+does not read as one; negative lengths are refused. <code>format_input</code> writes a length
+the way a user would type it back (<code>1' 6 1/2"</code>, or a plain decimal), which is the
+right pre-fill for an input box, and <code>parse</code> reads it back. <code>suffix</code> is
+what the box shows after the number: nothing in a feet-and-inches document, whose text carries
+its own marks, <code>mm</code> or <code>m</code> otherwise. <code>hint</code> is the end of a
+prompt naming what may be typed.</p>
+
 <h2 id="faces">faces: the faces under a measured point</h2>
 
 <p><span class="pill pure">Pure</span> at import; only <code>faces_under</code> and
@@ -1187,7 +1239,7 @@ of them, so a point yields a list of candidate normals and <code>choose</code> p
 point. The faces come from the item's own triangles
 (<a href="#geometry-world-triangles"><code>geometry.world_triangles</code></a>), never from a
 screen pick: a pick at a point on an edge returns whichever meeting face is in front, which
-read 3in 3/16 where the gap was 4in. True Distance, Clear Clash and Set Gap are the users.</p>
+read 3in 3/16 where the gap was 4in. True Distance and Clear Clash are the users.</p>
 
 <h3 id="faces-faces-at">faces.faces_at</h3>
 
@@ -1203,7 +1255,10 @@ none.</p>
 <div class="sig"><span class="mod">faces.</span><span class="fn">tolerance_for</span>(points, units_to_meters)</div>
 
 <p>The <code>tol</code> to use: half a millimetre in model units, widened for float32
-coordinates far from the origin, since COM vertices are singles.</p>
+coordinates far from the origin, since COM vertices are singles. That widening is the worst
+case, judged from world coordinates alone; with no points you get the half millimetre, which
+is the <code>floor</code> <code>surface_under</code> measures each item's own precision
+from.</p>
 
 <h3 id="faces-choose">faces.choose</h3>
 
@@ -1225,16 +1280,27 @@ towards where most of <code>vertices</code> lie: the inward direction of a face 
 Normals from <code>faces_at</code> carry no reliable sign, and this is how Clear Clash knows
 which way is away from the face that was clicked.</p>
 
-<h3 id="faces-faces-under">faces.faces_under and faces.candidates_at</h3>
+<h3 id="faces-faces-under">faces.faces_under, faces.surface_under and faces.candidates_at</h3>
 
-<div class="sig"><span class="mod">faces.</span><span class="fn">faces_under</span>(view, point, tol, log, label='point')</div>
+<div class="sig"><span class="mod">faces.</span><span class="fn">faces_under</span>(view, point, tol, log, label='point', floor=None)</div>
+<div class="sig"><span class="mod">faces.</span><span class="fn">surface_under</span>(view, point, tol, log, label='point', floor=None)</div>
 <div class="sig"><span class="mod">faces.</span><span class="fn">candidates_at</span>(view, point, log, label='point')</div>
 
 <p><span class="pill needs-nw">Needs Navisworks</span> <code>candidates_at</code> lists the
 items under the pixel an API <code>Point3D</code> projects to, front-most first, at most
 <code>CANDIDATE_LIMIT</code> of them. <code>faces_under</code> walks them and returns
 <code>(faces, item)</code> from the first whose triangles contain the point, or
-<code>([], None)</code>; every item tried is logged under <code>label</code>.</p>
+<code>([], None)</code>; every item tried is logged under <code>label</code>.
+<code>surface_under</code> is the same walk returning a dict of <code>faces</code>,
+<code>item</code>, <code>triangles</code> (that item's world triangles, for measuring its
+shape) and <code>tol</code> (the tolerance its faces were found with).</p>
+
+<p>Pass <code>floor=faces.tolerance_for((), units_to_meters)</code> to have each item tried
+first at its own precision: the floor, or four float32 steps of the coordinates its vertices
+actually carry, whichever is more, never more than <code>tol</code>. Far from the origin that
+turns a tolerance of several inches back into fractions of a millimetre when the geometry
+allows it. Only when no item has a face that close is each tried again at <code>tol</code>, so
+nothing that was found without a floor goes missing with one.</p>
 
 <p>The vector helpers <code>sub</code>, <code>add</code>, <code>scale</code>,
 <code>dot</code>, <code>cross</code>, <code>length</code>, <code>normalize</code> and
@@ -1251,7 +1317,7 @@ with it afterwards is pure Python.</p>
 
 <h3 id="geometry-world-triangles">geometry.world_triangles</h3>
 
-<div class="sig"><span class="mod">geometry.</span><span class="fn">world_triangles</span>(item, budget=200000, note=None)</div>
+<div class="sig"><span class="mod">geometry.</span><span class="fn">world_triangles</span>(item, budget=200000, note=None, stats=None)</div>
 
 <p><span class="pill needs-nw">Needs Navisworks</span> Every triangle of <code>item</code> and
 its geometry-carrying descendants, in <strong>world</strong> coordinates, as
@@ -1260,7 +1326,19 @@ its geometry-carrying descendants, in <strong>world</strong> coordinates, as
 <p><code>budget</code> is a ceiling on declared primitives: an item that declares more than
 that comes back as <code>[]</code> rather than spending the time. Pass a callable as
 <code>note</code> to receive one string per reason the walk gave up, which is the only way to
-tell the three empty cases apart.</p>
+tell the three empty cases apart. Pass a dict as <code>stats</code> and it gets
+<code>'noise'</code>: how far off these coordinates can be from float32 storage alone, in
+world units (see <code>float_noise</code> below).</p>
+
+<h3 id="geometry-float-noise">geometry.float_noise</h3>
+
+<div class="sig"><span class="mod">geometry.</span><span class="fn">float_noise</span>(local_max, matrix, layout)</div>
+
+<p><span class="pill pure">Pure</span> One float32 step at the largest fragment-local
+coordinate, scaled by the fragment matrix's linear part. COM vertices are singles but the
+matrix is double, so a model placed far from the origin by its matrix stays precise, while
+one whose vertices themselves sit far out does not. <code>layout</code> is
+<code>'row'</code>, <code>'column'</code> or <code>'world'</code>, as the walk detected it.</p>
 
 <div class="note trap">
 <span class="note-t">An empty list means unknown, never "no faces"</span>

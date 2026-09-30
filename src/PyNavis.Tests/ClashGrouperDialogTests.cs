@@ -164,10 +164,35 @@ namespace PyNavis.Tests
 
                 Assert.True(ClashGrouperDialog.IsSmartOf(window));
                 Assert.Equal(1, ClashGrouperDialog.RuleRowCountOf(window));
+                Assert.Equal("2", ClashGrouperDialog.ToleranceTextOf(window));   // metres
 
                 var config = ClashGrouperDialog.ConfigOf(window);
                 Assert.Equal(2.0, config.ToleranceMeters, 3);
                 Assert.True(config.KeepExisting);
+            });
+        }
+
+        [Fact]
+        public void ClusterDistance_IsShownAndTyped_InTheDocumentsUnits_AndKeptInMetres()
+        {
+            // The distance reads like every pyNavis length field (Lengths): Revit's
+            // feet and inches in a feet document, a value with its unit anywhere.
+            OnSta(() =>
+            {
+                var defaults = new Config { Smart = false, ToleranceMeters = 0.6096, Units = "Feet" };
+                defaults.RuleIds.Add("proximity");
+                var window = ClashGrouperDialog.Build(
+                    Tests(("A vs B", 10, true)), Rules(), Static(10, 2), defaults: defaults);
+
+                Assert.Equal("2' 0\"", ClashGrouperDialog.ToleranceTextOf(window));
+                Assert.Equal(0.6096, ClashGrouperDialog.ConfigOf(window).ToleranceMeters, 6);
+
+                ClashGrouperDialog.SetToleranceForTest(window, "1' 6\"");
+                Assert.Equal(0.4572, ClashGrouperDialog.ConfigOf(window).ToleranceMeters, 6);
+                Assert.Equal("Feet", ClashGrouperDialog.ConfigOf(window).Units);
+
+                ClashGrouperDialog.SetToleranceForTest(window, "500mm");
+                Assert.Equal(0.5, ClashGrouperDialog.ConfigOf(window).ToleranceMeters, 6);
             });
         }
 
