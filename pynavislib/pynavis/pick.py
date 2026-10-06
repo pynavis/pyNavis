@@ -1,21 +1,28 @@
 """Ask the user to click a point in the 3D view.
 
-The pick runs on the pyNavis pick tool, a Navisworks ToolPlugin that borrows
-the document's tool for the length of one click and hands it straight back.
-It feels like the native Measure tool on purpose: the same vertex and edge
-snapping, the same measure cursors, a marker under the pointer showing what
-would be picked, and the view still zooms and pans while you line the shot up.
+Two routes. Use the first unless you need what only the second knows.
 
-    from pynavis import pick
+measure_point() and measure_points() ask through the host's own Measure tool:
+the snapping, the cursors and the marker under the pointer are Navisworks'
+own, so the point that comes back is the one the user saw highlighted. Every
+shipped tool that picks does it this way.
 
-    hit = pick.point('Click a point to copy its coordinates')
+    from pynavis import banner, pick
+
+    hit = pick.measure_point('Click a point to copy its coordinates',
+                             notify=banner.prompt)
+    banner.clear()
     if hit is None:
         return                      # Esc, right-click, or another tool chosen
-    x, y, z = hit.point             # floats, model units
-    hit.normal                      # (x, y, z) or None
-    hit.item                        # the ModelItem, or None
-    hit.snap                        # 'vertex', 'edge', 'line-vertex',
-                                    # 'line-middle', 'arc-center', or None
+    x, y, z = hit.point             # floats, model units; nothing else is known
+
+point() and point_then() run on the pyNavis pick tool instead, a Navisworks
+ToolPlugin that borrows the document's tool for the length of one click. A
+hit there also carries hit.normal, hit.item and hit.snap ('vertex', 'edge',
+'line-vertex', 'line-middle', 'arc-center' or None). It is not field-proven:
+the marker it draws under the pointer has been seen mirrored about the middle
+of the view while the point returned was correct, so a tool built on it can
+look as if it picked the wrong place. No shipped tool uses it.
 
 point() blocks the script until the click, by pumping a nested WPF dispatcher
 frame; point_then() returns at once and calls back later. Blocking is the
@@ -26,10 +33,9 @@ exercised under IronPython, the default engine. Nothing here is engine
 specific, so CPython should behave the same; point_then() is the fallback if a
 nested loop ever proves unsafe there.
 
-measure_point() asks the same question through the host's own Measure tool
-instead: nothing to deploy and the native snapping exactly, at the price of
-knowing only the point (no normal, item or snap kind). measure_points() asks
-for a whole point-to-point line the same way and leaves it on screen.
+measure_point() needs nothing deployed and knows only the point (no normal,
+item or snap kind). measure_points() asks for a whole point-to-point line the
+same way and, by default, leaves it on screen.
 
 Cancelling is never an error: point() returns None and point_then() calls back
 with None. The one thing that does raise is Unavailable, which means the

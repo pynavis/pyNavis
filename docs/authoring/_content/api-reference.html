@@ -327,11 +327,10 @@ different callers. Know which one you are in.</p>
     returns <code>None</code> or <code>False</code> rather than raising. The one twist is
     <code>forms.progress</code>, which is modal for the user but not for your script: your
     loop keeps running inside the <code>with</code> block while the window is up.</li>
-  <li><strong><code>pick.point</code> and <code>pick.measure_point</code> also block</strong>,
-    without a window: your script stops until the user clicks in the 3D view or cancels. The
-    view itself stays live, so they can orbit and zoom while they aim.
-    <code>pick.point_then</code> is the non-blocking form, and the one to use from a panel or a
-    modeless window.</li>
+  <li><strong><code>pick.measure_point</code>, <code>pick.measure_points</code> and
+    <code>pick.point</code> also block</strong>, without a window: your script stops until the
+    user clicks in the 3D view or cancels. The view itself stays live, so they can orbit and
+    zoom while they aim. <code>pick.point_then</code> is the one non-blocking form.</li>
   <li><strong><code>toast.*</code> and <code>banner.*</code> never block and never take
     focus.</strong> A toast
     appears in the corner and dismisses itself, which is why it is the right surface for a
@@ -1896,15 +1895,38 @@ is written beside the loader inside your own profile, and registered in the bund
 <h2 id="pick">pick: ask the user to click a point</h2>
 
 <p><span class="pill pure">Pure</span> at import; it needs the <code>PyNavis.Runtime</code>
-assembly and WPF, never the Navisworks API. The pick runs on the pyNavis pick tool, a
-Navisworks tool plugin that borrows the document's tool for the length of one click and hands
-it straight back. It is meant to feel like the native Measure tool: the same vertex and edge
-snapping, the same measure cursors, a marker under the pointer showing what would be picked,
-and the view still orbits and pans while the user lines the shot up.</p>
+assembly and WPF, never the Navisworks API. There are two ways to ask for a click, and they
+are not equals.</p>
+
+<p><strong>Use the Measure route:</strong>
+<a href="#pick-measure-point"><code>measure_point</code></a> for one point and
+<a href="#pick-measure-points"><code>measure_points</code></a> for two. They put the document
+into Navisworks' own Measure, Point to Point tool, so the snapping, the cursors and the marker
+under the pointer are the host's, and the point that comes back is the one the user saw
+highlighted. Every shipped tool that picks does it this way: Get Coordinates, True Distance and
+Clear Clash. Show the prompt on the bar along the bottom of the window by passing
+<a href="#banner-prompt"><code>banner.prompt</code></a> as <code>notify</code>.</p>
+
+<p><a href="#pick-point"><code>point</code></a> and
+<a href="#pick-point-then"><code>point_then</code></a> are the other route: pyNavis' own pick
+tool, a Navisworks tool plugin that borrows the document's tool for one click. It also reports
+what was snapped to, the surface normal and the item, which a measurement cannot. Read the
+warning below before you build on it.</p>
+
+<div class="note trap">
+<span class="note-t">The pick tool's marker can disagree with the point it returns</span>
+<p>With <code>point</code> and <code>point_then</code> the marker drawn under the pointer is
+pyNavis' own drawing, and on some machines it sits mirrored about the middle of the view while
+the point returned is the correct one. A user who trusts the marker thinks the tool picked the
+wrong place. No shipped tool uses this route. Use it only when you need
+<code>hit.snap</code> or <code>hit.normal</code>, and say so in the tool's notes. When all you
+need beyond the point is the item, measure the point and ask
+<a href="#faces-faces-under"><code>faces.candidates_at</code></a> what lies under it.</p>
+</div>
 
 <p>Cancelling is never an error. Esc, a right-click, or the user choosing another tool ends
 the pick, and you get <code>None</code>. The one thing that raises is
-<a href="#pick-unavailable"><code>Unavailable</code></a>.</p>
+<a href="#pick-unavailable"><code>Unavailable</code></a>, and only on the pick tool route.</p>
 
 <div class="note warn">
 <span class="note-t">Navisworks 2023 and 2024 pick the surface only</span>
@@ -1950,9 +1972,11 @@ direction, derive it from two picked points rather than trusting one normal.</p>
 <div class="sig"><span class="mod">pick.</span><span class="fn">point</span>(prompt=DEFAULT_PROMPT)</div>
 
 <p><span class="pill blocks">Blocks</span> <span class="pill needs-nw">Needs Navisworks</span>
-Blocks until the user clicks, then returns a <a href="#pick-hit"><code>Hit</code></a>, or
-<code>None</code> on cancel. The prompt is shown as an info toast alongside
-<code>CANCEL_HINT</code>, so the way out is never a guess.</p>
+The pick tool route: see the warning at the top of this section, and prefer
+<a href="#pick-measure-point"><code>measure_point</code></a> unless you need the snap kind or
+the normal. Blocks until the user clicks, then returns a
+<a href="#pick-hit"><code>Hit</code></a>, or <code>None</code> on cancel. The prompt is shown
+as an info toast alongside <code>CANCEL_HINT</code>, so the way out is never a guess.</p>
 
 <p>It blocks by pumping a nested WPF dispatcher frame, which is the Python half only: the
 runtime underneath is event-based. If a nested message loop ever misbehaves in a Navisworks
@@ -1960,15 +1984,17 @@ release, <a href="#pick-point-then"><code>point_then</code></a> is the fallback 
 is a library edit and a Reload, not a rebuild.</p>
 
 <pre data-lang="python">
-"""Copies the coordinates of a picked point to the clipboard."""
-from pynavis import pick, script, toast
+"""Says what kind of geometry the user clicked: only the pick tool knows the snap."""
+from pynavis import pick, toast
 
-hit = pick.point('Click a point to copy its coordinates')
+try:
+    hit = pick.point('Click a vertex or an edge')
+except pick.Unavailable as reason:
+    toast.error('Pick tool not available', str(reason))
+    hit = None
 if hit is not None:                            # None means cancelled: say nothing
-    x, y, z = hit.point
-    text = '%.3f, %.3f, %.3f' % (x, y, z)
-    script.clipboard_copy(text)
-    toast.success('Point copied', text)
+    toast.success('Snapped to %s' % (hit.snap or 'a face'),
+                  '%.3f, %.3f, %.3f' % hit.point)
 </pre>
 
 <h3 id="pick-point-then">pick.point_then and pick.cancel</h3>
@@ -1991,15 +2017,35 @@ second pick cancels the first the same way.</p>
 <div class="sig"><span class="mod">pick.</span><span class="fn">measure_point</span>(prompt=DEFAULT_PROMPT, notify=None)</div>
 
 <p><span class="pill blocks">Blocks</span> <span class="pill needs-nw">Needs Navisworks</span>
-The same question asked through the host's own Measure tool instead. The document is put into
+The way to ask for one point, and the one Get Coordinates uses. The document is put into
 Measure, Point to Point, so the snapping, the cursors and the marker are Navisworks' own rather
 than an imitation of them, and nothing depends on the pick plugin being loaded at all. The
 click is read back off the current measurement, the measurement is reset so the next click
 starts a new one, and the tool the user had is restored.</p>
 
-<p>The price is that only <code>hit.point</code> is known: a measurement carries no normal,
-item or snap kind, so those three are always <code>None</code>. Reach for this when the pick
-plugin may not be deployed, or when a point is genuinely all you need.</p>
+<p><code>notify(message, detail)</code> is how the prompt is shown; <code>None</code> means a
+toast. Pass <a href="#banner-prompt"><code>banner.prompt</code></a> to ask on the bar along the
+bottom of the window, and call <code>banner.clear()</code> when the pick returns, whatever it
+returns.</p>
+
+<p>Only <code>hit.point</code> is known: a measurement carries no normal, item or snap kind,
+so those three are always <code>None</code>. For the item under the point, hand the point to
+<a href="#faces-faces-under"><code>faces.candidates_at</code></a>, as True Distance does.</p>
+
+<pre data-lang="python">
+"""Copies the coordinates of a clicked point to the clipboard."""
+from pynavis import banner, pick, script, toast
+
+banner.clear()
+try:
+    hit = pick.measure_point('Click a point to copy its coordinates', notify=banner.prompt)
+finally:
+    banner.clear()
+if hit is not None:                            # None means cancelled: say nothing
+    text = '%.3f, %.3f, %.3f' % hit.point
+    script.clipboard_copy(text)
+    toast.success('Point copied', text)
+</pre>
 
 <h3 id="pick-measure-points">pick.measure_points</h3>
 
@@ -2058,13 +2104,13 @@ never raise it, because they use no plugin.</p>
 change event to subscribe to.</p>
 
 <pre data-lang="python">
-"""Picks a point, falling back to the native Measure tool when the plugin is missing."""
+"""Uses the pick tool for its snap kind, and the Measure tool when the plugin is missing."""
 from pynavis import pick, toast
 
 try:
     hit = pick.point('Click the point to measure from')
 except pick.Unavailable:
-    hit = pick.measure_point('Click the point to measure from')
+    hit = pick.measure_point('Click the point to measure from')   # snap and normal are None
 
 if hit is not None:
     toast.success('Picked', '%.3f, %.3f, %.3f' % hit.point)

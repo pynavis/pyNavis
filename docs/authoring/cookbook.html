@@ -652,50 +652,50 @@ thread.</p>
 
 <h3 id="ask-the-user-to-click-a-point">Ask the user to click a point<a class="anchor" href="#ask-the-user-to-click-a-point" aria-label="Link to this section">#</a></h3>
 
-<p><code>pynavis.pick</code> borrows the document's tool for the length of one click and hands
-it straight back. It feels like the native Measure tool on purpose: the same vertex and edge
-snapping, the same cursors, a marker under the pointer, and the view still orbits and pans
-while the user lines the shot up.</p>
+<p>Ask through Navisworks' own Measure tool. <code>pick.measure_point</code> asks for one
+point and <code>pick.measure_points</code> for two; both put the document into Measure, Point
+to Point, so the snapping, the cursors and the marker under the pointer are the host's own and
+the point that comes back is the one the user saw highlighted. The view still orbits and pans
+while they line the shot up, and the tool they had comes back afterwards. Get Coordinates, True
+Distance and Clear Clash all pick this way.</p>
 
-<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Measures the straight-line distance between two picked points.&quot;&quot;&quot;</span>
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Measures the straight-line distance between two clicked points.&quot;&quot;&quot;</span>
 <span class="tok-k">import</span> math
 
-<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> pick, toast
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> banner, pick, toast
 
-first = pick.point(<span class="tok-s">&#x27;Click the first point&#x27;</span>)
-<span class="tok-k">if</span> first <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                          <span class="tok-c"># None means cancelled: say nothing</span>
-    second = pick.point(<span class="tok-s">&#x27;Click the second point&#x27;</span>)
-    <span class="tok-k">if</span> second <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
-        distance = math.sqrt(sum((a - b) ** <span class="tok-n">2</span> <span class="tok-k">for</span> a, b <span class="tok-k">in</span> zip(first.point, second.point)))
-        toast.success(<span class="tok-s">&#x27;%.3f in model units&#x27;</span> % distance,
-                      <span class="tok-s">&#x27;Snapped to %s and %s.&#x27;</span> % (first.snap <span class="tok-k">or</span> <span class="tok-s">&#x27;a face&#x27;</span>,
-                                                 second.snap <span class="tok-k">or</span> <span class="tok-s">&#x27;a face&#x27;</span>))</code></pre></div>
+banner.clear()
+<span class="tok-k">try</span>:
+    line = pick.measure_points(<span class="tok-s">&#x27;Click the first point&#x27;</span>, <span class="tok-s">&#x27;Now click the second point&#x27;</span>,
+                               notify=banner.prompt, keep=<span class="tok-k">False</span>)
+<span class="tok-k">finally</span>:
+    banner.clear()
+<span class="tok-k">if</span> line <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                           <span class="tok-c"># None means cancelled: say nothing</span>
+    first, second = line
+    distance = math.sqrt(sum((a - b) ** <span class="tok-n">2</span> <span class="tok-k">for</span> a, b <span class="tok-k">in</span> zip(first, second)))
+    toast.success(<span class="tok-s">&#x27;%.3f in model units&#x27;</span> % distance)</code></pre></div>
 
-<p>A <code>Hit</code> always has <code>.point</code>, an <code>(x, y, z)</code> tuple of floats.
-<code>.normal</code>, <code>.item</code> and <code>.snap</code> may each be <code>None</code>,
-so guard them the way the toast above does. Cancelling with Esc, a right-click or by choosing
-another tool gives <code>None</code>, and that branch should say nothing at all.</p>
+<p><code>notify=banner.prompt</code> puts each prompt on the bar along the bottom of the window,
+where it stays while the user aims; without it the prompt is a toast that fades. Clear the
+banner when the pick returns, whatever it returns. <code>keep=False</code> drops the native
+measurement the moment it is complete, so nothing is left on screen. Cancelling with Esc, a
+right-click or by choosing another tool gives <code>None</code>, and that branch should say
+nothing at all.</p>
+
+<p><code>measure_point</code> returns a <code>Hit</code> whose <code>.point</code> is an
+<code>(x, y, z)</code> tuple of floats; <code>measure_points</code> returns the two tuples. A
+measurement knows only where, not what: for the item under a point, hand the point to
+<code>pynavis.faces.candidates_at</code>, as True Distance does.</p>
 
 <div class="note trap">
-<span class="note-t">pick.point raises when the plugin is not loaded</span>
-<p>Navisworks scans for plugins only at startup, so a loader updated in place has no pick tool
-in it until the next restart. <code>pick.point</code> and <code>pick.point_then</code> raise
-<code>pick.Unavailable</code> in that state, and the exception's own message is the remedy, so
-it is safe to toast as it stands. <code>pick.measure_point</code> asks the same question
-through the host's own Measure tool and needs no plugin, at the price of knowing only the
-point: no normal, no item, no snap kind.</p>
+<span class="note-t">Do not build on pick.point unless you need the snap kind</span>
+<p><code>pick.point</code> and <code>pick.point_then</code> run on pyNavis' own pick tool
+instead. They also report what was snapped to and the surface normal, but the marker they draw
+under the pointer can sit mirrored about the middle of the view on some machines while the
+point returned is correct, so the tool looks as if it picked the wrong place. No shipped tool
+uses them. They also raise <code>pick.Unavailable</code> when Navisworks has not been restarted
+since pyNavis was updated, which the Measure route never does.</p>
 </div>
-
-<pre><span class="tok-k">try</span>:
-    hit = pick.point(<span class="tok-s">&#x27;Click a point&#x27;</span>)
-<span class="tok-k">except</span> pick.Unavailable <span class="tok-k">as</span> reason:
-    toast.warning(<span class="tok-s">&#x27;Using the Measure tool instead&#x27;</span>, str(reason))
-    hit = pick.measure_point(<span class="tok-s">&#x27;Click a point&#x27;</span>)</pre>
-
-<p>From a dock panel or a modeless window, blocking the UI thread is not an option, so use
-<code>pick.point_then(callback)</code> instead. It starts the pick, returns at once, and calls
-<code>callback(hit_or_None)</code> when the pick ends. <code>pick.cancel()</code> ends a
-running pick from elsewhere; the callback still fires, with <code>None</code>.</p>
 
 <h3 id="draw-the-answer-into-the-view">Draw the answer into the view<a class="anchor" href="#draw-the-answer-into-the-view" aria-label="Link to this section">#</a></h3>
 
@@ -706,26 +706,30 @@ plugin redraws every frame, so they follow orbit and zoom instead of sitting on 
 <div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Picks two points and draws a labelled dimension between them.&quot;&quot;&quot;</span>
 <span class="tok-k">import</span> math
 
-<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> overlay, pick, toast
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> banner, overlay, pick, toast
 
 TAG = <span class="tok-s">&#x27;quick-dimension&#x27;</span>
 
-first = pick.point(<span class="tok-s">&#x27;Click the first point&#x27;</span>)
-<span class="tok-k">if</span> first <span class="tok-k">is</span> <span class="tok-k">None</span>:
+banner.clear()
+<span class="tok-k">try</span>:
+    line = pick.measure_points(<span class="tok-s">&#x27;Click the first point&#x27;</span>, <span class="tok-s">&#x27;Now click the second point&#x27;</span>,
+                               notify=banner.prompt, keep=<span class="tok-k">False</span>)
+<span class="tok-k">finally</span>:
+    banner.clear()
+<span class="tok-k">if</span> line <span class="tok-k">is</span> <span class="tok-k">None</span>:
     overlay.clear(TAG)                         <span class="tok-c"># cancelled: take the last one down</span>
     overlay.redraw()
 <span class="tok-k">else</span>:
-    second = pick.point(<span class="tok-s">&#x27;Click the second point&#x27;</span>)
-    <span class="tok-k">if</span> second <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
-        distance = math.sqrt(sum((a - b) ** <span class="tok-n">2</span> <span class="tok-k">for</span> a, b <span class="tok-k">in</span> zip(first.point, second.point)))
-        label = <span class="tok-s">&#x27;%.3f&#x27;</span> % distance
-        drawn = overlay.dimension(TAG, first.point, second.point, label)
-        overlay.redraw()
-        <span class="tok-k">if</span> drawn:
-            toast.success(<span class="tok-s">&#x27;Dimension drawn&#x27;</span>, label)
-        <span class="tok-k">else</span>:
-            toast.success(<span class="tok-s">&#x27;Distance is %s&#x27;</span> % label,
-                          <span class="tok-s">&#x27;Restart Navisworks to finish updating pyNavis.&#x27;</span>)</code></pre></div>
+    first, second = line
+    distance = math.sqrt(sum((a - b) ** <span class="tok-n">2</span> <span class="tok-k">for</span> a, b <span class="tok-k">in</span> zip(first, second)))
+    label = <span class="tok-s">&#x27;%.3f&#x27;</span> % distance
+    drawn = overlay.dimension(TAG, first, second, label)
+    overlay.redraw()
+    <span class="tok-k">if</span> drawn:
+        toast.success(<span class="tok-s">&#x27;Dimension drawn&#x27;</span>, label)
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Distance is %s&#x27;</span> % label,
+                      <span class="tok-s">&#x27;Restart Navisworks to finish updating pyNavis.&#x27;</span>)</code></pre></div>
 
 <p>The tag is the whole identity model: drawing again under the same tag replaces what was
 there, and <code>overlay.clear(tag)</code> takes it down. <code>overlay.clear()</code> with no

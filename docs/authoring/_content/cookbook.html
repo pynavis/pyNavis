@@ -624,52 +624,52 @@ thread.</p>
 
 <h3>Ask the user to click a point</h3>
 
-<p><code>pynavis.pick</code> borrows the document's tool for the length of one click and hands
-it straight back. It feels like the native Measure tool on purpose: the same vertex and edge
-snapping, the same cursors, a marker under the pointer, and the view still orbits and pans
-while the user lines the shot up.</p>
+<p>Ask through Navisworks' own Measure tool. <code>pick.measure_point</code> asks for one
+point and <code>pick.measure_points</code> for two; both put the document into Measure, Point
+to Point, so the snapping, the cursors and the marker under the pointer are the host's own and
+the point that comes back is the one the user saw highlighted. The view still orbits and pans
+while they line the shot up, and the tool they had comes back afterwards. Get Coordinates, True
+Distance and Clear Clash all pick this way.</p>
 
 <pre data-lang="python" data-file="script.py">
-"""Measures the straight-line distance between two picked points."""
+"""Measures the straight-line distance between two clicked points."""
 import math
 
-from pynavis import pick, toast
+from pynavis import banner, pick, toast
 
-first = pick.point('Click the first point')
-if first is not None:                          # None means cancelled: say nothing
-    second = pick.point('Click the second point')
-    if second is not None:
-        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first.point, second.point)))
-        toast.success('%.3f in model units' % distance,
-                      'Snapped to %s and %s.' % (first.snap or 'a face',
-                                                 second.snap or 'a face'))
+banner.clear()
+try:
+    line = pick.measure_points('Click the first point', 'Now click the second point',
+                               notify=banner.prompt, keep=False)
+finally:
+    banner.clear()
+if line is not None:                           # None means cancelled: say nothing
+    first, second = line
+    distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first, second)))
+    toast.success('%.3f in model units' % distance)
 </pre>
 
-<p>A <code>Hit</code> always has <code>.point</code>, an <code>(x, y, z)</code> tuple of floats.
-<code>.normal</code>, <code>.item</code> and <code>.snap</code> may each be <code>None</code>,
-so guard them the way the toast above does. Cancelling with Esc, a right-click or by choosing
-another tool gives <code>None</code>, and that branch should say nothing at all.</p>
+<p><code>notify=banner.prompt</code> puts each prompt on the bar along the bottom of the window,
+where it stays while the user aims; without it the prompt is a toast that fades. Clear the
+banner when the pick returns, whatever it returns. <code>keep=False</code> drops the native
+measurement the moment it is complete, so nothing is left on screen. Cancelling with Esc, a
+right-click or by choosing another tool gives <code>None</code>, and that branch should say
+nothing at all.</p>
+
+<p><code>measure_point</code> returns a <code>Hit</code> whose <code>.point</code> is an
+<code>(x, y, z)</code> tuple of floats; <code>measure_points</code> returns the two tuples. A
+measurement knows only where, not what: for the item under a point, hand the point to
+<code>pynavis.faces.candidates_at</code>, as True Distance does.</p>
 
 <div class="note trap">
-<span class="note-t">pick.point raises when the plugin is not loaded</span>
-<p>Navisworks scans for plugins only at startup, so a loader updated in place has no pick tool
-in it until the next restart. <code>pick.point</code> and <code>pick.point_then</code> raise
-<code>pick.Unavailable</code> in that state, and the exception's own message is the remedy, so
-it is safe to toast as it stands. <code>pick.measure_point</code> asks the same question
-through the host's own Measure tool and needs no plugin, at the price of knowing only the
-point: no normal, no item, no snap kind.</p>
+<span class="note-t">Do not build on pick.point unless you need the snap kind</span>
+<p><code>pick.point</code> and <code>pick.point_then</code> run on pyNavis' own pick tool
+instead. They also report what was snapped to and the surface normal, but the marker they draw
+under the pointer can sit mirrored about the middle of the view on some machines while the
+point returned is correct, so the tool looks as if it picked the wrong place. No shipped tool
+uses them. They also raise <code>pick.Unavailable</code> when Navisworks has not been restarted
+since pyNavis was updated, which the Measure route never does.</p>
 </div>
-
-<pre data-lang="python" data-bare="true">try:
-    hit = pick.point('Click a point')
-except pick.Unavailable as reason:
-    toast.warning('Using the Measure tool instead', str(reason))
-    hit = pick.measure_point('Click a point')</pre>
-
-<p>From a dock panel or a modeless window, blocking the UI thread is not an option, so use
-<code>pick.point_then(callback)</code> instead. It starts the pick, returns at once, and calls
-<code>callback(hit_or_None)</code> when the pick ends. <code>pick.cancel()</code> ends a
-running pick from elsewhere; the callback still fires, with <code>None</code>.</p>
 
 <h3>Draw the answer into the view</h3>
 
@@ -681,26 +681,30 @@ plugin redraws every frame, so they follow orbit and zoom instead of sitting on 
 """Picks two points and draws a labelled dimension between them."""
 import math
 
-from pynavis import overlay, pick, toast
+from pynavis import banner, overlay, pick, toast
 
 TAG = 'quick-dimension'
 
-first = pick.point('Click the first point')
-if first is None:
+banner.clear()
+try:
+    line = pick.measure_points('Click the first point', 'Now click the second point',
+                               notify=banner.prompt, keep=False)
+finally:
+    banner.clear()
+if line is None:
     overlay.clear(TAG)                         # cancelled: take the last one down
     overlay.redraw()
 else:
-    second = pick.point('Click the second point')
-    if second is not None:
-        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first.point, second.point)))
-        label = '%.3f' % distance
-        drawn = overlay.dimension(TAG, first.point, second.point, label)
-        overlay.redraw()
-        if drawn:
-            toast.success('Dimension drawn', label)
-        else:
-            toast.success('Distance is %s' % label,
-                          'Restart Navisworks to finish updating pyNavis.')
+    first, second = line
+    distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first, second)))
+    label = '%.3f' % distance
+    drawn = overlay.dimension(TAG, first, second, label)
+    overlay.redraw()
+    if drawn:
+        toast.success('Dimension drawn', label)
+    else:
+        toast.success('Distance is %s' % label,
+                      'Restart Navisworks to finish updating pyNavis.')
 </pre>
 
 <p>The tag is the whole identity model: drawing again under the same tag replaces what was

@@ -1398,20 +1398,32 @@ no event wiring in the script. Items without an anchor stay until `clear()`.
 
 ### pick
 
-An interactive point pick that feels like the native Measure tool: the same vertex and edge
-snapping, the same measure cursors, a marker under the pointer showing what would be picked,
-and the view still zooms and pans while the user lines the click up. It runs on the loader's
-`PyNavis.Pick` ToolPlugin, which borrows the document's tool for one click and puts the
-previous tool back afterwards. Get Coordinates is the reference user.
+Two ways to ask the user for a click, and they are not equals.
+
+**Use the Measure route: `measure_point` (one point) and `measure_points` (two).** They drive
+Navisworks' own Measure > Point to Point tool, so the snapping, the cursors and the marker
+under the pointer are the host's and the point returned is the one the user saw highlighted.
+Every shipped tool that picks does it this way (Get Coordinates, True Distance, Clear Clash),
+with the prompt on the banner: `notify=banner.prompt`, then `banner.clear()` when it returns.
+A measurement carries only the point; for the item under it use
+`faces.candidates_at(view, Api.Point3D(x, y, z), log)`, as True Distance does.
+
+**`point` / `point_then` are the pick tool route and are NOT field-proven.** They run on the
+loader's `PyNavis.Pick` ToolPlugin and also report the snap kind, normal and item, but the
+hover marker they draw can sit mirrored about the middle of the view while the point returned
+is correct (field-measured 2026-10-05: a tool built on `pick.point` looked as if it picked the
+wrong place on its first click). No shipped tool uses them. Use them only when `hit.snap` or
+`hit.normal` is needed, and say so in the tool's notes.
 
 ```python
+pick.measure_point(prompt, notify=None)
+    # -> Hit (point only) or None. BLOCKS. Native Measure tool, no plugin; the measurement
+    #    is reset and the previous tool restored. notify as for measure_points.
 pick.point(prompt='Click a point in the view')
-    # -> Hit or None. BLOCKS until the user clicks, Escapes or right-clicks.
+    # -> Hit or None. BLOCKS until the user clicks, Escapes or right-clicks. Pick tool route.
 pick.point_then(callback, prompt='Click a point in the view')
-    # -> the session. Returns at once; calls callback(hit_or_None) later.
+    # -> the session. Returns at once; calls callback(hit_or_None) later. Pick tool route.
 pick.cancel()                      # Ends the running pick; its callback still fires, None.
-pick.measure_point(prompt)         # -> Hit (point only) or None. Native Measure tool, no plugin;
-                                   #    the measurement is reset and the previous tool restored.
 pick.measure_points(prompt, second_prompt='Now click the second point', notify=None, keep=True)
     # -> ((x, y, z), (x, y, z)) or None. notify(message, detail) shows each prompt (None:
     #    a toast; banner.prompt: the bar along the bottom, which the caller must then
@@ -1430,24 +1442,28 @@ hit.item     # the ModelItem, or None.
 hit.snap     # 'vertex' | 'edge' | 'line-vertex' | 'line-middle' | 'arc-center' | None.
 ```
 
+`normal`, `item` and `snap` are always `None` on a `measure_point` hit.
+
 Cancelling is never an error: Escape, a right-click and the user choosing another tool all
-return `None`. The only exception is `pick.Unavailable` (a `RuntimeError`), which means the
-deployed loader has no pick plugin: Navisworks scans for plugins once at startup, so the
-remedy is always a restart, and the message says so. Handle it:
+return `None`. The canonical pick:
 
 ```python
+banner.clear()
 try:
-    hit = pick.point('Click a point to copy its coordinates')
-except pick.Unavailable:
-    toast.error('Pick tool not available', 'Restart Navisworks to finish updating pyNavis.')
-    return
+    hit = pick.measure_point('Click a point to copy its coordinates', notify=banner.prompt)
+finally:
+    banner.clear()
 if hit is None:
     return
 ```
 
-The prompt is shown as an info toast with "Esc or right-click to cancel." under it. It
-dismisses itself after a few seconds, which is right: it is an instruction, not a mode
-indicator, and the cursor and marker say the pick is still running.
+The only exception anywhere in the module is `pick.Unavailable` (a `RuntimeError`), raised by
+`point` and `point_then` alone when the deployed loader has no pick plugin: Navisworks scans
+for plugins once at startup, so the remedy is always a restart, and the message says so. The
+Measure route never raises it.
+
+On the pick tool route the prompt is an info toast with "Esc or right-click to cancel." under
+it. It dismisses itself after a few seconds: it is an instruction, not a mode indicator.
 
 **Two picks cannot run at once.** The document has one tool, so a second `point()` cancels
 the first, whose call returns `None`. That is what makes a blocking pick safe to click twice.
