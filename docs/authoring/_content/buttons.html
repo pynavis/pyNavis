@@ -515,8 +515,8 @@ else:
 the example does, or a click-time run raises <code>NameError</code>.</p>
 
 <p>The build-time run's scope is smaller than a click's in the other direction too: it gets
-only <code>__file__</code>, <code>__selfinit__</code>, <code>__button__</code> and
-<code>__pynavis__</code>, so <code>__commandpath__</code> and <code>__title__</code> do not
+only <code>__file__</code>, <code>__selfinit__</code>, <code>__button__</code>,
+<code>__runner__</code> (<code>False</code>) and <code>__pynavis__</code>, so <code>__commandpath__</code> and <code>__title__</code> do not
 exist there. A script that touches either outside the click branch works on every click and
 then fails its selfinit run. Derive the bundle folder from <code>__file__</code> in the
 selfinit branch instead; <code>pynavis.script.get_command_path()</code> is no substitute,
@@ -603,7 +603,7 @@ keytip: LV
 </pre>
 
 <p>If <code>script.py</code> exists it runs once, when the panel's content is built, with the
-same five globals as any other bundle plus a sixth, <code>__pane__</code>:</p>
+same six globals as any other bundle plus a seventh, <code>__pane__</code>:</p>
 
 <div class="table-scroll">
 <table>

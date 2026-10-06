@@ -84,6 +84,7 @@ namespace PyNavis.Runtime.Panes
             request.Globals["__title__"] = model.Title;
             request.Globals["__selfinit__"] = false;
             request.Globals["__pynavis__"] = PyNavisHost.Instance;
+            request.Globals["__runner__"] = false;   // only pynavis run sets it True
             request.Globals["__pane__"] = new PaneProxy(model, content);
             PyNavisHost.Instance.SetCommandContext(
                 model.ScriptPath, model.Directory, model.Title, model.BundleKey);

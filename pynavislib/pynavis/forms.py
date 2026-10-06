@@ -10,6 +10,7 @@ import clr
 clr.AddReference('PyNavis.Runtime')
 
 from PyNavis.Runtime.Forms import Dialogs, Pickers
+from PyNavis.Runtime.Execution.Runner import RunnerContext
 
 
 def alert(message, title='pyNavis', copy=None):
@@ -210,7 +211,11 @@ class WPFWindow(object):
         return element
 
     def show_dialog(self):
-        """Shows modal (owned by Navisworks, themed chrome); returns DialogResult."""
+        """Shows modal (owned by Navisworks, themed chrome); returns DialogResult.
+
+        Raises under pynavis run, where no one could close the window.
+        """
+        RunnerContext.ThrowIfActive()
         from PyNavis.Runtime.Forms import FluentChrome
         FluentChrome.Apply(self.window)
         return self.window.ShowDialog()

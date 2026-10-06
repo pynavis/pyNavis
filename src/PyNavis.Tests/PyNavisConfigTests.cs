@@ -144,6 +144,17 @@ namespace PyNavis.Tests
             Assert.Equal("dark", c.Theme);
         }
 
+        [Theory]
+        [InlineData("{ \"automatedBoot\": \"full\" }", true)]
+        [InlineData("{ \"automatedBoot\": \"Full\" }", true)]
+        [InlineData("{ \"automatedBoot\": \"skip\" }", false)]
+        [InlineData("{ }", false)]
+        public void Reads_AutomatedBootKey(string json, bool expected)
+        {
+            var c = PyNavisConfig.Load(WriteConfig(json));
+            Assert.Equal(expected, c.AutomatedBootFull);
+        }
+
         [Fact]
         public void MissingThemeKey_YieldsNull()
         {

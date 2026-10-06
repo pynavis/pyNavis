@@ -215,7 +215,9 @@ the runtime and your extensions sit. An ordinary install is what the setup progr
 <p>The runtime scans every folder listed under <code>"extensions"</code> in
 <code>config.json</code>, plus two defaults: <code>%APPDATA%\pyNavis\extensions</code>, where
 the shipped extension lives, and <code>%PROGRAMDATA%\pyNavis\extensions</code> if that folder
-exists, which is how an IT department deploys extensions to a whole machine. All of them are
+exists, which is how an IT department deploys extensions to a whole machine. That folder counts
+only when no one but administrators can write to it (read-only for Users); otherwise it is
+skipped with a log line. All of them are
 scanned, so a development extension and an installed one can coexist.</p>
 
 <div class="note">
@@ -227,8 +229,9 @@ loader then hands over to is resolved in order: the <code>PYNAVIS_RUNTIME</code>
 variable, the
 <code>runtime&lt;year&gt;</code> key in <code>config.json</code>,
 <code>%APPDATA%\pyNavis\&lt;year&gt;\runtime</code>, then
-<code>%PROGRAMDATA%\pyNavis\&lt;year&gt;\runtime</code>. The first one that exists wins, and
-the log names the winner near the top.</p>
+<code>%PROGRAMDATA%\pyNavis\&lt;year&gt;\runtime</code>, which counts only when no one but
+administrators can write to it. The first one that exists wins, and the log names the winner
+near the top.</p>
 </div>
 
 <h2>The development loop</h2>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
@@ -149,6 +150,23 @@ namespace PyNavis.Runtime.Update
         /// <summary>A downloaded installer is kept only while it is newer than what runs.</summary>
         public static bool ShouldDiscard(string installed, string installerVersion) =>
             installerVersion == null || CompareVersions(installerVersion, installed) <= 0;
+
+        public const int MaxInstallAttempts = 3;
+
+        /// <summary>Setup reports nothing back when it fails on close, so after this many
+        /// launches of the same installer pyNavis stops and says so once.</summary>
+        public static bool ShouldLaunchInstaller(int attemptsSoFar) => attemptsSoFar < MaxInstallAttempts;
+
+        /// <summary>Whether a Navisworks other than <paramref name="selfPid"/> runs in this
+        /// Windows session: setup cannot replace the loader while any of them holds it, so
+        /// the install waits for the last window. Other users' sessions do not count.</summary>
+        public static bool OtherNavisworksInSession(int selfPid, int selfSession,
+            IEnumerable<(int pid, int session)> roamers) =>
+            roamers.Any(r => r.pid != selfPid && r.session == selfSession);
+
+        public static (string title, string detail) GaveUpMessage(string version) =>
+            ($"pyNavis {version} could not install itself",
+             "Settings > Updates opens the release page, where you can run the setup yourself.");
 
         /// <summary>Quiet, no questions, and only once the Navisworks that launched it has
         /// exited (the installer waits on /WAITPID), with a log to diagnose from.</summary>

@@ -161,5 +161,92 @@ namespace PyNavis.Tests
 
             Assert.Equal(new[] { "first", "second" }, collected);
         }
+
+        // ---- CaptureGlobals (pynavis run reads __result__ back as JSON) ------------
+
+        /// <summary>Re-serialises JSON text with object keys sorted, so key order and
+        /// spacing do not matter (IronPython's dicts do not keep insertion order).</summary>
+        internal static string NormaliseJson(string json)
+        {
+            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            return serializer.Serialize(SortKeys(serializer.DeserializeObject(json)));
+        }
+
+        private static object SortKeys(object value)
+        {
+            if (value is System.Collections.Generic.IDictionary<string, object> map)
+            {
+                var sorted = new System.Collections.Generic.SortedDictionary<string, object>(StringComparer.Ordinal);
+                foreach (var kv in map) sorted[kv.Key] = SortKeys(kv.Value);
+                return sorted;
+            }
+            if (value is object[] items)
+                return Array.ConvertAll(items, SortKeys);
+            return value;
+        }
+
+        private ExecResult RunCapturing(string code)
+        {
+            var request = new ScriptRequest { Code = code };
+            request.CaptureGlobals.Add("__result__");
+            return _engine.Execute(request);
+        }
+
+        [Fact]
+        public void CaptureGlobals_ReturnsTheGlobalAsJson()
+        {
+            var r = RunCapturing("__result__ = {'count': 3, 'names': ['a']}");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Equal(NormaliseJson("{\"count\": 3, \"names\": [\"a\"]}"),
+                         NormaliseJson(r.Captured["__result__"]));
+        }
+
+        [Fact]
+        public void CaptureGlobals_LeavesOutAGlobalTheScriptNeverSet()
+        {
+            var r = RunCapturing("x = 1");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.False(r.Captured.ContainsKey("__result__"));
+        }
+
+        [Fact]
+        public void CaptureGlobals_LeavesOutAnUnserialisableValue_AndTheRunStillSucceeds()
+        {
+            var r = RunCapturing("__result__ = object()");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.False(r.Captured.ContainsKey("__result__"));
+        }
+
+        // A clean sys.exit() is a success, so a result set before it still comes back.
+        [Fact]
+        public void CaptureGlobals_CapturesTheResult_WhenTheScriptEndsWithACleanSysExit()
+        {
+            var r = RunCapturing("import sys\n__result__ = 0\nsys.exit()");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Equal("0", r.Captured["__result__"]);
+        }
+
+        // NaN is not JSON: plain json.dumps writes it anyway and the CLI could not read it back.
+        [Fact]
+        public void CaptureGlobals_LeavesOutNaN()
+        {
+            var r = RunCapturing("__result__ = float('nan')");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.False(r.Captured.ContainsKey("__result__"));
+        }
+
+        [Fact]
+        public void CaptureGlobals_CapturesNothing_WhenTheScriptFails()
+        {
+            var r = RunCapturing("__result__ = 1\nraise ValueError('late')");
+
+            Assert.False(r.Succeeded);
+            Assert.Empty(r.Captured);
+        }
     }
 }

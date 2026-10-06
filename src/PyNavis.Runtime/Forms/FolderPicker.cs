@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using PyNavis.Runtime.Execution.Runner;
 
 namespace PyNavis.Runtime.Forms
 {
@@ -8,6 +9,8 @@ namespace PyNavis.Runtime.Forms
     {
         public static string Pick(string title, string initialDir)
         {
+            // Before the try: its catch turns every failure into "cancelled".
+            RunnerContext.ThrowIfActive();
             var dialog = (IFileOpenDialog)new FileOpenDialogRcw();
             try
             {

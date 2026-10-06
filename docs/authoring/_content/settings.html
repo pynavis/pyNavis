@@ -257,8 +257,9 @@ know about survives every save another one makes.</p>
 <tr><td><code>extensions</code></td><td>array of strings</td><td><code>[]</code></td>
     <td>The folders scanned for <code>*.extension</code> and <code>*.lib</code> folders.
         <code>%APPDATA%\pyNavis\extensions</code>, the root the install writes into, and
-        <code>%PROGRAMDATA%\pyNavis\extensions</code> when that folder exists are appended
-        automatically if they are not already listed. Blank entries are dropped.</td></tr>
+        <code>%PROGRAMDATA%\pyNavis\extensions</code> when that folder exists and only
+        administrators can write to it are appended automatically if they are not already
+        listed. Listing a folder here loads it whoever can write to it. Blank entries are dropped.</td></tr>
 <tr><td><code>pynavislib</code></td><td>string</td><td>absent</td>
     <td>The folder holding the <code>pynavis</code> package. Absent, or set to a folder that
         does not exist, falls back to <code>&lt;runtime&gt;\pynavislib</code>; if that is
@@ -304,6 +305,11 @@ know about survives every save another one makes.</p>
 <tr><td><code>ai.maxTokens</code></td><td>integer above zero</td><td><code>8192</code></td>
     <td>The longest reply the panel asks for. The API key is not in this file at all: it is
         in <code>secrets.json</code> beside it, encrypted for the Windows user.</td></tr>
+<tr><td><code>automatedBoot</code></td><td>string</td><td>absent</td>
+    <td><code>"full"</code> makes a Navisworks that <code>pynavis run</code> started boot the
+        ribbon, hooks, dock panels, shortcuts, upgrade notices and update check as a normal
+        session does. Absent, or any other value, skips them. See
+        <a href="command-line.html#limits">Running without the ribbon</a>.</td></tr>
 <tr><td><code>ribbon.showShortcutMarker</code></td><td>boolean</td><td><code>true</code></td>
     <td>Whether a button a chord resolves to carries a marker after its name. The
         Settings window's first checkbox.</td></tr>
@@ -325,7 +331,8 @@ know about survives every save another one makes.</p>
         real parser exists. It is the second of four candidates the loader tries, after the
         <code>PYNAVIS_RUNTIME</code> environment variable and before
         <code>%APPDATA%\pyNavis\&lt;year&gt;\runtime</code> and
-        <code>%PROGRAMDATA%\pyNavis\&lt;year&gt;\runtime</code>. A normal install leaves it
+        <code>%PROGRAMDATA%\pyNavis\&lt;year&gt;\runtime</code> (only when administrators
+        alone can write to it). A normal install leaves it
         absent and relies on the third; <code>tools/deploy-dev.ps1</code> writes it to point
         at a repository build. Never delete it by hand when it is there.</td></tr>
 </tbody>

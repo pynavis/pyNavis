@@ -23,6 +23,7 @@ namespace PyNavis.Runtime
         public static int HostYear => PyNavisVersion.HostYear;
 
         private static bool _booted;
+        private static bool _startupScriptsRan;
         private static List<ExtensionModel> _extensions = new List<ExtensionModel>();
         private static List<string> _libraries = new List<string>();
 
@@ -44,6 +45,7 @@ namespace PyNavis.Runtime
             Log.Info("==== pyNavis runtime booting ====");
             Log.Info(PyNavisVersion.Summary());
             Log.Info($"Navisworks API assembly: {ApiVersion}");
+            var automated = Execution.Runner.AutomatedSession.Detect();
 
             var userConfig = PyNavisConfig.Load(ConfigPath);
             var runtimeDir = Path.GetDirectoryName(typeof(RuntimeHost).Assembly.Location);
@@ -51,7 +53,15 @@ namespace PyNavis.Runtime
             EngineManager.Configure(EngineConfigBuilder.Build(runtimeDir, userConfig, _libraries));
             _extensions = LoadExtensions(userConfig);
 
-            RibbonBootstrap.WhenRibbonReady(() =>
+            if (automated && userConfig.AutomatedBootFull)
+            {
+                Log.Info("automatedBoot is \"full\" in config.json: booting the interactive stages in this automated session.");
+                automated = false;
+            }
+
+            // A hidden pynavis run session builds none of it: no one is there to use a
+            // ribbon or read a notice, and startup.py is the runner's to start.
+            Execution.Runner.AutomatedSession.QueueInteractiveStages(automated, RibbonBootstrap.WhenRibbonReady, () =>
             {
                 var steps = new StepRunner();
                 RunStartupStages(steps, userConfig);
@@ -72,6 +82,19 @@ namespace PyNavis.Runtime
             });
 
             Log.Info("Boot sequence complete (ribbon build may be deferred until ribbon exists).");
+        }
+
+        /// <summary>
+        /// Runs every extension's startup.py unless Boot, Reload or an earlier call already
+        /// has since the last Reload. Boot queues startup scripts behind the ribbon, and in
+        /// the hidden Navisworks that pynavis run drives the ribbon may never be ready, so the
+        /// runner calls this before each script.
+        /// </summary>
+        public static void EnsureStartupScriptsRan()
+        {
+            if (_startupScriptsRan) return;
+            Execution.StartupRunner.RunAll(_extensions);
+            _startupScriptsRan = true;
         }
 
         /// <summary>Rescans extension folders and rebuilds the ribbon. No restart needed.</summary>
@@ -98,6 +121,7 @@ namespace PyNavis.Runtime
                 // Idempotent no-ops when Boot already wired them; they are what makes
                 // Reload able to heal a Boot stage that failed.
                 var steps = new StepRunner();
+                _startupScriptsRan = false;   // every Reload re-runs startup.py
                 RunStartupStages(steps, userConfig);
                 steps.Run("App-init event", () => Events.NavisEvents.RaiseWhenIdle(Events.NavisEvent.AppInit));
 
@@ -129,7 +153,9 @@ namespace PyNavis.Runtime
             steps.Run("Event wiring", Events.NavisEvents.Wire);
             // Configure before Build so button tooltips can show resolved chords.
             steps.Run("Shortcuts", () => Input.ShortcutManager.Configure(_extensions, userConfig));
-            steps.Run("Startup scripts", () => Execution.StartupRunner.RunAll(_extensions));
+            // Through EnsureStartupScriptsRan so Boot's deferred step is a no-op when
+            // pynavis run already ran them; Reload clears the flag to run them again.
+            steps.Run("Startup scripts", EnsureStartupScriptsRan);
             steps.Run("Dock panels", () => Panes.PaneRegistry.Configure(_extensions, userConfig, ConfigPath));
             // Before Build, like Shortcuts above: the markers are read while captions and
             // icons are being made, so a config.json edit lands on the next Reload.
@@ -211,7 +237,18 @@ MessageBox.Show(
         private static List<string> ExtensionRoots(PyNavisConfig userConfig)
         {
             return InstallPaths.ExtensionRoots(
-                userConfig.ExtensionPaths, InstallPaths.DefaultExtensionRoots(), Directory.Exists);
+                userConfig.ExtensionPaths, InstallPaths.DefaultExtensionRoots(),
+                root => InstallPaths.UsableDefaultRoot(root, InstallPaths.MachineExtensionRoot,
+                    Directory.Exists, AdminOnlyOrWarn));
+        }
+
+        private static bool AdminOnlyOrWarn(string root)
+        {
+            if (MachineFolderTrust.IsAdminOnly(root)) return true;
+            Log.Error($"Extension root '{root}' skipped: users other than administrators can write to it, "
+                     + "so code in it could come from anyone on this PC. Restrict it to administrators "
+                     + "(read-only for Users), or list it under extensions in config.json to load it anyway.");
+            return false;
         }
 
         private static List<ExtensionModel> LoadExtensions(PyNavisConfig userConfig)

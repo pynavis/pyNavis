@@ -69,5 +69,8 @@ namespace PyNavis.Runtime.Events
         /// otherwise. Captured when the event is raised rather than read back by the hook,
         /// which would see whatever is current by the time the script runs.</summary>
         public string ViewpointName { get; set; }
+
+        /// <summary>A debounced event a running hook caused (HookLoopGuard); hooks skip it.</summary>
+        public bool FromHook { get; set; }
     }
 }

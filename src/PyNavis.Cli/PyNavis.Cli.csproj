@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    The pynavis command line: env / attach / detach / extensions. Standalone on
+    The pynavis command line: env / attach / detach / extensions / run. Standalone on
     purpose (no Runtime reference) so the exe has zero deploy footprint beyond itself.
     Version-independent -> its own bin\cli\ output, not bin\<year>\.
   -->
@@ -21,6 +21,8 @@
   <ItemGroup>
     <!-- Tells users' own work in pyNavis.extension from what a release shipped -->
     <Compile Include="..\Shared\ShippedFiles.cs" Link="Upgrade\ShippedFiles.cs" />
+    <!-- The request and response files pynavis run trades with the runner add-in -->
+    <Compile Include="..\Shared\RunContract.cs" Link="Run\RunContract.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -227,8 +227,11 @@ pattern is not an error, it is simply not part of the walk.</figcaption>
 roots are the strings in the <code>"extensions"</code> array of
 <code>%APPDATA%\pyNavis\config.json</code>, plus two defaults added when they are not already
 in the array: <code>%APPDATA%\pyNavis\extensions</code>, which is where the install puts the
-shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> if that folder exists,
-which is how extensions are deployed to a whole machine. All roots are scanned and their
+shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> if that folder exists
+and only administrators can write to it, which is how extensions are deployed to a whole
+machine. Any user can create folders under <code>%PROGRAMDATA%</code>, so a machine-wide root
+others could write to is skipped with a log line: its hooks and <code>startup.py</code> would
+otherwise run for everyone on the PC. All roots are scanned and their
 results concatenated, so a development extension and an installed one happily coexist.</p>
 
 <div class="do-dont">
@@ -371,8 +374,10 @@ except ImportError:
     toast.warning('surveyutil not found', 'Check Survey.extension\\lib\\surveyutil.')
 </pre>
 
-<p><code>startup.py</code> runs on the extension's default engine with the same
-<code>__file__</code> and <code>__pynavis__</code> globals a hook gets, and the same search
+<p><code>startup.py</code> runs on the extension's default engine with the globals a hook
+gets, minus <code>__event__</code>: <code>__file__</code>, <code>__pynavis__</code> and
+<code>__runner__</code>, which is <code>True</code> only when
+<a href="command-line.html"><code>pynavis run</code></a> starts it. It gets the same search
 paths: the extension folder itself, then its <code>lib\</code> if it has one, plus the global
 <code>*.lib</code> folders every script gets. Output is routed to the pyNavis log rather than
 a window, because there is no button behind it to title one after, and every line is labelled

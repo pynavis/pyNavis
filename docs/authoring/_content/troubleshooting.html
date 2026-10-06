@@ -137,7 +137,8 @@ missing button is always one of these, in this order.</figcaption>
 <p><strong>Cause.</strong> The runtime scans only the folders listed under
 <code>"extensions"</code> in <code>%APPDATA%\pyNavis\config.json</code>, plus the two defaults,
 <code>%APPDATA%\pyNavis\extensions</code> and <code>%PROGRAMDATA%\pyNavis\extensions</code>
-if that folder exists. A perfectly formed extension anywhere else is never seen.</p>
+if that folder exists and only administrators can write to it (the log says when it is skipped
+for that reason). A perfectly formed extension anywhere else is never seen.</p>
 
 <p><strong>Fix.</strong> Register the folder that <em>contains</em> your
 <code>.extension</code> folder, not the <code>.extension</code> folder itself.</p>

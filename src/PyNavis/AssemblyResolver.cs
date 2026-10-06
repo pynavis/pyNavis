@@ -140,20 +140,31 @@ namespace PyNavis
             return FirstExistingRuntimeDir(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                LoaderInfo.NavisVersion, Directory.Exists);
+                LoaderInfo.NavisVersion, Directory.Exists, dir =>
+                {
+                    if (Loader.MachineFolderTrust.IsAdminOnly(dir)) return true;
+                    LoaderLog.Error($"Machine-wide runtime '{dir}' skipped: users other than administrators can write to it.");
+                    return false;
+                });
         }
 
         /// <summary>Pure: the per-user install wins over a machine-wide one, and a
         /// missing folder is skipped rather than reported, so an installer that only
-        /// wrote one of the two never leaves a dead path in the log.</summary>
+        /// wrote one of the two never leaves a dead path in the log. The machine-wide one
+        /// also has to pass <paramref name="machineWideTrusted"/> (MachineFolderTrust).</summary>
         internal static string FirstExistingRuntimeDir(
-            string appData, string programData, string navisVersion, Func<string, bool> exists)
+            string appData, string programData, string navisVersion, Func<string, bool> exists,
+            Func<string, bool> machineWideTrusted)
         {
-            foreach (var root in new[] { appData, programData })
+            if (!string.IsNullOrEmpty(appData))
             {
-                if (string.IsNullOrEmpty(root)) continue;
-                var candidate = Path.Combine(root, "pyNavis", navisVersion, "runtime");
+                var candidate = Path.Combine(appData, "pyNavis", navisVersion, "runtime");
                 if (exists(candidate)) return candidate;
+            }
+            if (!string.IsNullOrEmpty(programData))
+            {
+                var candidate = Path.Combine(programData, "pyNavis", navisVersion, "runtime");
+                if (exists(candidate) && machineWideTrusted(candidate)) return candidate;
             }
             return null;
         }

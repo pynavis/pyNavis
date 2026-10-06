@@ -105,7 +105,8 @@ Save and Cancel at the bottom.</figcaption></figure>
   <li><strong>Where extensions are loaded from.</strong> Add or remove the folders pyNavis
     scans for <code>*.extension</code> folders. Two locations are always scanned whether
     listed or not: <code>%APPDATA%\pyNavis\extensions</code>, where the installer puts the
-    shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> when it exists.</li>
+    shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> when it exists and
+    only administrators can write to it.</li>
   <li><strong>Engines.</strong> The <code>pynavislib</code> folder and a CPython executable.
     Leave both empty unless you know why you are changing them; CPython is only used by
     bundles that declare <code>engine: cpython</code>.</li>

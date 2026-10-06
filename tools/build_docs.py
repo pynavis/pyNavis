@@ -42,6 +42,7 @@ PAGES = [
     ('script-environment.html', 'Scripts'),
     ('user-interface.html',  'Scripts'),
     ('settings.html',        'Scripts'),
+    ('command-line.html',    'Scripts'),
     ('api-reference.html',   'Reference'),
     ('cookbook.html',        'Practice'),
     ('ai-assistant.html',    'Practice'),
@@ -212,12 +213,15 @@ def build_code_blocks(body):
     """Turn <pre data-lang="python" data-file="script.py"> into a copyable code card."""
     def repl(match):
         attrs = dict(ATTR_RE.findall(match.group('attrs')))
+        # Fragments write < > & inside <pre> as entities, so the tag check and the
+        # example check can parse them; decode them once here, because highlight()
+        # escapes the code itself.
+        code = html.unescape(_dedent(match.group('code')))
         # <pre> inside a do/dont panel stays bare - it is a fragment, not a file.
         if attrs.get('data-bare') == 'true':
-            return '<pre>%s</pre>' % highlight(_dedent(match.group('code')), attrs.get('data-lang', ''))
+            return '<pre>%s</pre>' % highlight(code, attrs.get('data-lang', ''))
         lang = attrs.get('data-lang', 'text')
         label = attrs.get('data-file') or LANG_LABEL.get(lang, lang)
-        code = _dedent(match.group('code'))
         return (
             '<div class="code">'
             '<div class="code-head"><span>%s</span>'

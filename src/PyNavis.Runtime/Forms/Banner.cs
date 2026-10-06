@@ -140,6 +140,13 @@ namespace PyNavis.Runtime.Forms
         /// </summary>
         public static void Show(string level, string message, string detail, double seconds)
         {
+            // Under pynavis run there is no window to put it on: the transcript gets it, as a toast's.
+            if (Execution.Runner.RunnerContext.IsActive)
+            {
+                Execution.Runner.RunnerContext.Note("[banner] " + message + (detail == null ? "" : ": " + detail));
+                return;
+            }
+
             try
             {
                 var parsed = Toast.ParseLevel(level);

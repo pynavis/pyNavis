@@ -38,13 +38,14 @@
 <a href="script-environment.html"><span class="num">10</span>The script environment</a>
 <a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
 <a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
+<a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html"><span class="num">13</span>Python API reference</a>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
-<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="ai-assistant.html"><span class="num">16</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">17</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">18</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.2.0</span>
@@ -280,8 +281,11 @@ pattern is not an error, it is simply not part of the walk.</figcaption>
 roots are the strings in the <code>"extensions"</code> array of
 <code>%APPDATA%\pyNavis\config.json</code>, plus two defaults added when they are not already
 in the array: <code>%APPDATA%\pyNavis\extensions</code>, which is where the install puts the
-shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> if that folder exists,
-which is how extensions are deployed to a whole machine. All roots are scanned and their
+shipped extension, and <code>%PROGRAMDATA%\pyNavis\extensions</code> if that folder exists
+and only administrators can write to it, which is how extensions are deployed to a whole
+machine. Any user can create folders under <code>%PROGRAMDATA%</code>, so a machine-wide root
+others could write to is skipped with a log line: its hooks and <code>startup.py</code> would
+otherwise run for everyone on the PC. All roots are scanned and their
 results concatenated, so a development extension and an installed one happily coexist.</p>
 
 <div class="do-dont">
@@ -414,8 +418,10 @@ ribbon is built.</p>
 <span class="tok-k">except</span> ImportError:
     toast.warning(<span class="tok-s">&#x27;surveyutil not found&#x27;</span>, <span class="tok-s">&#x27;Check Survey.extension\\lib\\surveyutil.&#x27;</span>)</code></pre></div>
 
-<p><code>startup.py</code> runs on the extension's default engine with the same
-<code>__file__</code> and <code>__pynavis__</code> globals a hook gets, and the same search
+<p><code>startup.py</code> runs on the extension's default engine with the globals a hook
+gets, minus <code>__event__</code>: <code>__file__</code>, <code>__pynavis__</code> and
+<code>__runner__</code>, which is <code>True</code> only when
+<a href="command-line.html"><code>pynavis run</code></a> starts it. It gets the same search
 paths: the extension folder itself, then its <code>lib\</code> if it has one, plus the global
 <code>*.lib</code> folders every script gets. Output is routed to the pyNavis log rather than
 a window, because there is no button behind it to title one after, and every line is labelled

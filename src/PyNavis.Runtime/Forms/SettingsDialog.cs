@@ -45,6 +45,7 @@ namespace PyNavis.Runtime.Forms
             public ComboBox AiModel;
             public PasswordBox AiKey;
             public bool AiKeyTouched;
+            public bool AiKeyRemove;
             public TextBox AiMaxTokens;
             public TextBlock AiStatus;
             public Grid AiFrame;
@@ -89,7 +90,8 @@ namespace PyNavis.Runtime.Forms
             var current = PyNavisConfig.Load(path).ToUserSettings();
             var secrets = SecretStore.Default;
 
-            var window = Build(current, secrets.Has(SecretStore.AiKeyName));
+            ApiKeys.AdoptLegacy(secrets, current.Ai ?? new AiSettings());
+            var window = Build(current, secrets.Has(SecretStore.AiKeyName), ApiKeys.SavedFor(secrets));
             if (section == "ai")
                 window.Loaded += (s, e) => PartsOf(window).AiFrame?.BringIntoView();
             window.ShowDialog();
@@ -97,8 +99,7 @@ namespace PyNavis.Runtime.Forms
             Live.Remove(window);
             if (!parts.Saved) return Outcome.Cancelled;
             var edited = Collect(parts);
-            var enteredKey = EnteredKey(parts);
-            if (enteredKey != null) secrets.Set(SecretStore.AiKeyName, enteredKey);
+            ApiKeys.Apply(secrets, EnteredKey(parts), parts.AiKeyRemove, edited.Ai ?? new AiSettings());
 
             // Compared before the write, because afterwards there is nothing left to
             // compare against and the restart notice would be a guess.
@@ -128,8 +129,9 @@ namespace PyNavis.Runtime.Forms
         public static Window Build(PyNavisConfig.UserSettings current) => Build(current, false);
 
         /// <summary><paramref name="hasKey"/>: whether a key is already stored, so the
-        /// key box can say "saved" instead of looking empty.</summary>
-        public static Window Build(PyNavisConfig.UserSettings current, bool hasKey)
+        /// key box can say "saved" instead of looking empty; <paramref name="keySavedFor"/>:
+        /// the endpoint it belongs to (ApiKeys.SavedFor), named in the hint.</summary>
+        public static Window Build(PyNavisConfig.UserSettings current, bool hasKey, string keySavedFor = null)
         {
             var t = Tokens.Current;
             var values = current ?? new PyNavisConfig.UserSettings();
@@ -153,7 +155,7 @@ namespace PyNavis.Runtime.Forms
             page.Children.Add(Shortcuts(parts));
             page.Children.Add(Roots(parts));
             page.Children.Add(Engines(parts));
-            page.Children.Add(Assistant(parts, hasKey));
+            page.Children.Add(Assistant(parts, hasKey, keySavedFor));
             page.Children.Add(Updates(parts));
             page.Children.Add(Actions(parts));
             page.Children.Add(About(parts));
@@ -303,7 +305,7 @@ namespace PyNavis.Runtime.Forms
             return DesignSystem.GroupFrame(t, "Engines", body);
         }
 
-        private static UIElement Assistant(Parts parts, bool hasKey)
+        private static UIElement Assistant(Parts parts, bool hasKey, string keySavedFor)
         {
             var t = parts.T;
             var ai = parts.Values.Ai ?? new AiSettings();
@@ -342,14 +344,24 @@ namespace PyNavis.Runtime.Forms
             var keyRow = new Grid();
             keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             keyRow.Children.Add(parts.AiKey);
             var test = DesignSystem.Quiet(t, "Test", () => TestConnection(parts));
             test.Margin = new Thickness(8, 0, 0, 0);
             Grid.SetColumn(test, 1);
             keyRow.Children.Add(test);
+            if (hasKey)
+            {
+                var remove = DesignSystem.Quiet(t, "Remove", () => RemoveKey(parts));
+                remove.Margin = new Thickness(4, 0, 0, 0);
+                Grid.SetColumn(remove, 2);
+                keyRow.Children.Add(remove);
+            }
             body.Children.Add(keyRow);
             body.Children.Add(AiHint(parts, hasKey
-                ? "A key is saved. Leave the box empty to keep it, or type a new one to replace it."
+                ? (keySavedFor != null ? "A key is saved for " + keySavedFor + ". " : "A key is saved. ")
+                  + "It is only sent there, and only over https or to this computer. Leave the box empty "
+                  + "to keep it, type a new one to replace it, or press Remove."
                 : "Stored encrypted for your Windows account in secrets.json, never in config.json. "
                   + "A local server needs no key."));
             parts.AiStatus = Hint(t, "", new Thickness(0, 6, 0, 0));
@@ -389,6 +401,17 @@ namespace PyNavis.Runtime.Forms
             return text;
         }
 
+        /// <summary>Marks the saved key for removal on Save, and empties the box so no typed
+        /// key replaces it.</summary>
+        private static void RemoveKey(Parts parts)
+        {
+            parts.AiKeyRemove = true;
+            parts.AiKey.Password = "";
+            parts.AiKeyTouched = false;
+            parts.AiStatus.Text = "The saved key will be removed when you save.";
+            parts.AiStatus.Foreground = DesignSystem.Brush(parts.T.Muted);
+        }
+
         private static string EnteredKey(Parts parts)
         {
             if (parts.AiKey == null || !parts.AiKeyTouched) return null;
@@ -416,7 +439,19 @@ namespace PyNavis.Runtime.Forms
         private static async void TestConnection(Parts parts)
         {
             var settings = CollectAi(parts);
-            var key = EnteredKey(parts) ?? SecretStore.Default.Get(SecretStore.AiKeyName) ?? "";
+            string key;
+            try
+            {
+                key = parts.AiKeyRemove && EnteredKey(parts) == null
+                    ? ""
+                    : ApiKeys.ForConnectionTest(SecretStore.Default, EnteredKey(parts), settings) ?? "";
+            }
+            catch (InvalidOperationException ex)
+            {
+                parts.AiStatus.Text = ex.Message;
+                parts.AiStatus.Foreground = DesignSystem.Brush(parts.T.Error);
+                return;
+            }
             parts.AiStatus.Text = "Testing " + settings.EffectiveModel + " at " + settings.EffectiveBaseUrl + "...";
             parts.AiStatus.Foreground = DesignSystem.Brush(parts.T.Muted);
             try
@@ -641,6 +676,10 @@ namespace PyNavis.Runtime.Forms
             PartsOf(window).AiKey.Password = key;
 
         public static string EnteredKeyForTest(Window window) => EnteredKey(PartsOf(window));
+
+        public static void PressRemoveKeyForTest(Window window) => RemoveKey(PartsOf(window));
+
+        public static bool KeyRemoveRequestedForTest(Window window) => PartsOf(window).AiKeyRemove;
 
         public static void SetAiMaxTokensForTest(Window window, string text) =>
             PartsOf(window).AiMaxTokens.Text = text;

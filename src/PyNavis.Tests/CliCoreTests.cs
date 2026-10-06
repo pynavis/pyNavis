@@ -163,5 +163,43 @@ namespace PyNavis.Tests
             Assert.Contains("2026", text);
             Assert.Contains("attached", text, StringComparison.OrdinalIgnoreCase);
         }
+
+        [Fact]
+        public void NewestAttachedYear_PicksTheHighestAttachedYear()
+        {
+            foreach (var year in new[] { "2025", "2026" })
+            {
+                var dir = Path.Combine(_bundleRoot, "Contents", year);
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "PyNavis.dll"), "fake loader");
+            }
+            Directory.CreateDirectory(Path.Combine(_bundleRoot, "Contents", "2027")); // no loader inside
+
+            Assert.Equal("2026", _cli.NewestAttachedYear());
+            Assert.True(_cli.IsAttached("2025"));
+            Assert.False(_cli.IsAttached("2027"));
+        }
+
+        [Fact]
+        public void NewestAttachedYear_SkipsAYearWhoseNavisworksIsNotInstalled()
+        {
+            // A loader left in the bundle for a year with no Navisworks on this PC (an
+            // API-only reference drop) must not become the default pynavis run picks.
+            foreach (var year in new[] { "2026", "2027" })
+            {
+                var dir = Path.Combine(_bundleRoot, "Contents", year);
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "PyNavis.dll"), "fake loader");
+            }
+
+            Assert.Equal("2026", _cli.NewestAttachedYear()); // the resolver knows only 2026
+        }
+
+        [Fact]
+        public void NewestAttachedYear_IsNull_WhenNothingIsAttached()
+        {
+            Assert.Null(_cli.NewestAttachedYear());
+            Assert.False(_cli.IsAttached("2026"));
+        }
     }
 }

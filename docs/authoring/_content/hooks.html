@@ -124,6 +124,11 @@ absent. There is no per-hook <code>engine:</code> override.</p>
     <code>after-command</code> runs no hooks while a pyNavis command is running, so a script
     that pumps the message loop cannot have its own run re-entered; each skip is logged, and
     events that arrive after the command ends behave normally again.</td></tr>
+<tr><td>Events a hook causes</td><td>Run no hooks. An event raised while a hook runs (the hook
+    renamed a viewpoint, or appended a model) is skipped and logged, and a debounced event the
+    hook set off (it changed the selection or moved the camera) fires without running hooks.
+    So a hook cannot trigger itself, or another hook, in a loop. The rest of pyNavis, such as
+    <code>context:</code> greying, still sees every event.</td></tr>
 <tr><td>Engine</td><td>The extension's default engine. See above.</td></tr>
 <tr><td>Module search paths</td><td>The <code>hooks\</code> folder, then the extension's
     <code>lib\</code> if it has one. A bundle's own folder is not on a hook's path and a
@@ -140,7 +145,7 @@ absent. There is no per-hook <code>engine:</code> override.</p>
 
 <h3>The injected globals</h3>
 
-<p>Three names, not the usual five: a hook has no bundle folder, no resolved title and no
+<p>Four names, not the usual six: a hook has no bundle folder, no resolved title and no
 build-time run, so <code>__commandpath__</code>, <code>__title__</code> and
 <code>__selfinit__</code> do not exist.</p>
 
@@ -149,6 +154,10 @@ build-time run, so <code>__commandpath__</code>, <code>__title__</code> and
 <thead><tr><th>Global</th><th>Type</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td><code>__file__</code></td><td>str</td><td>Full path of the hook script.</td></tr>
+<tr><td><code>__runner__</code></td><td>bool</td><td>The live runner flag: <code>True</code>
+    only if the hook fires while a <a href="command-line.html"><code>pynavis run</code></a>
+    script is running, where dialogs raise. In practice it is <code>False</code>: a
+    Navisworks started by <code>pynavis run</code> wires no hooks.</td></tr>
 <tr><td><code>__pynavis__</code></td><td>host object</td>
     <td>The runtime host singleton, same object <code>pynavis.script.get_host()</code>
         returns.</td></tr>
@@ -309,5 +318,5 @@ itself did not fire.</p>
   <a href="bundle-yaml.html"><span class="c-t">bundle.yaml</span>
     <span class="c-d">context: gates a button on the same document state a hook can react to.</span></a>
   <a href="script-environment.html"><span class="c-t">The script environment</span>
-    <span class="c-d">The five globals an ordinary button script gets, for comparison.</span></a>
+    <span class="c-d">The six globals an ordinary button script gets, for comparison.</span></a>
 </div>

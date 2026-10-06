@@ -9,6 +9,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using PyNavis.Runtime.Execution.Runner;
 using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
 
 namespace PyNavis.Runtime.Forms
@@ -80,6 +81,7 @@ namespace PyNavis.Runtime.Forms
         public static IList<int> SelectFromList(string title, IList<string> items, bool multiselect, string prompt,
             IList<int> preChecked = null)
         {
+            RunnerContext.ThrowIfActive();
             var window = BuildSelectFromList(title, items, multiselect, prompt, preChecked);
             FluentChrome.Apply(window);
             window.ShowDialog();
@@ -92,6 +94,7 @@ namespace PyNavis.Runtime.Forms
         /// the user cancelled (Esc or the titlebar close button).</summary>
         public static int CommandSwitch(string title, string prompt, IList<string> options)
         {
+            RunnerContext.ThrowIfActive();
             var window = BuildCommandSwitch(title, prompt, options);
             FluentChrome.Apply(window);
             window.ShowDialog();
@@ -104,6 +107,7 @@ namespace PyNavis.Runtime.Forms
         public static double? AskNumber(
             string prompt, double? min = null, double? max = null, double? initial = null, string title = "pyNavis")
         {
+            RunnerContext.ThrowIfActive();
             var window = BuildAskNumber(prompt, min, max, initial, title);
             FluentChrome.Apply(window);
             if (window.ShowDialog() != true) return null;

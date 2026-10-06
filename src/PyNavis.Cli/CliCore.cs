@@ -70,6 +70,31 @@ namespace PyNavis.Cli
             return 0;
         }
 
+        /// <summary>True when the bundle holds a loader for <paramref name="year"/>.</summary>
+        public bool IsAttached(string year) => File.Exists(Path.Combine(ContentsDir(year), "PyNavis.dll"));
+
+        /// <summary>True when Navisworks Manage <paramref name="year"/> is installed here
+        /// with a Roamer.exe to start (a reference drop of the API does not count).</summary>
+        public bool IsInstalled(string year)
+        {
+            var navisDir = _resolveNavisDir(year);
+            return navisDir != null && File.Exists(Path.Combine(navisDir, "Roamer.exe"));
+        }
+
+        /// <summary>The highest year the bundle holds a loader for AND Navisworks is
+        /// installed, or null when none. A loader attached for an API-only year must not
+        /// become the year pynavis run starts by default.</summary>
+        public string NewestAttachedYear()
+        {
+            var contents = Path.Combine(_bundleRoot, "Contents");
+            if (!Directory.Exists(contents)) return null;
+            return Directory.GetDirectories(contents)
+                .Select(Path.GetFileName)
+                .Where(name => name.Length == 4 && name.All(char.IsDigit) && IsAttached(name) && IsInstalled(name))
+                .OrderByDescending(name => name, StringComparer.Ordinal)
+                .FirstOrDefault();
+        }
+
         public int Detach(string year)
         {
             var dir = ContentsDir(year);
@@ -186,7 +211,7 @@ namespace PyNavis.Cli
                     state = "not installed";
                 else if (!File.Exists(Path.Combine(navisDir, "Roamer.exe")))
                     state = "reference drop (no Roamer.exe)";
-                else if (File.Exists(Path.Combine(ContentsDir(year), "PyNavis.dll")))
+                else if (IsAttached(year))
                     state = Directory.Exists(LegacyPluginDir(navisDir))
                         ? "installed, pyNavis ATTACHED (and a legacy Plugins\\PyNavis copy: delete it)"
                         : "installed, pyNavis ATTACHED";

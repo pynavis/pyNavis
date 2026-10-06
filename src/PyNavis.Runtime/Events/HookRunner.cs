@@ -18,6 +18,9 @@ namespace PyNavis.Runtime.Events
         public const int SoftBudgetMs = 500;
 
         private static readonly HookHealth Health = new HookHealth();
+
+        /// <summary>Stops a hook from running itself (see HookLoopGuard). NavisEvents arms it.</summary>
+        internal static readonly HookLoopGuard Loop = new HookLoopGuard();
         private static List<HookModel> _hooks = new List<HookModel>();
         private static bool _subscribed;
 
@@ -44,6 +47,13 @@ namespace PyNavis.Runtime.Events
             var duringCommand = args.Event == NavisEvent.BeforeCommand
                              || args.Event == NavisEvent.AfterCommand;
 
+            if (args.FromHook) return;
+            if (Loop.Running)
+            {
+                Log.Info($"Event '{args.Name}' raised by a running hook: its hooks are skipped.");
+                return;
+            }
+
             foreach (var hook in _hooks)
             {
                 if (!string.Equals(hook.EventName, args.Name, StringComparison.OrdinalIgnoreCase)) continue;
@@ -58,6 +68,13 @@ namespace PyNavis.Runtime.Events
         }
 
         private static void Run(HookModel hook, NavisEventArgs args)
+        {
+            if (!Loop.TryEnter()) return;
+            try { RunGuarded(hook, args); }
+            finally { Loop.Exit(); }
+        }
+
+        private static void RunGuarded(HookModel hook, NavisEventArgs args)
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
             var source = "hook " + hook.Id;
@@ -82,6 +99,8 @@ namespace PyNavis.Runtime.Events
                     ["viewpoint"] = args.ViewpointName,
                 };
                 request.Globals["__pynavis__"] = Execution.PyNavisHost.Instance;
+                // True when the hook fires during pynavis run (its dialogs throw there too).
+                request.Globals["__runner__"] = Execution.Runner.RunnerContext.IsActive;
 
                 var result = EngineManager.GetEngine(hook.EngineId).Execute(request);
                 if (result.Succeeded) Health.RecordSuccess(hook.Id);

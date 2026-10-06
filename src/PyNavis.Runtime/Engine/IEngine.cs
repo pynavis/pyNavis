@@ -55,6 +55,12 @@ namespace PyNavis.Runtime.Engine
 
         public TextWriter Output { get; set; }
         public TextWriter ErrorOutput { get; set; }
+
+        /// <summary>
+        /// Script globals to read back after a successful run, as JSON
+        /// (<see cref="ExecResult.Captured"/>). pynavis run asks for __result__.
+        /// </summary>
+        public IList<string> CaptureGlobals { get; } = new List<string>();
     }
 
     public class ExecResult
@@ -62,5 +68,12 @@ namespace PyNavis.Runtime.Engine
         public bool Succeeded { get; set; }
         /// <summary>Engine-formatted traceback / error text when <see cref="Succeeded"/> is false.</summary>
         public string ErrorText { get; set; }
+
+        /// <summary>
+        /// Each requested <see cref="ScriptRequest.CaptureGlobals"/> name mapped to its value
+        /// as JSON text. A name is present only when the run succeeded, the script set it and
+        /// json.dumps accepted the value.
+        /// </summary>
+        public IDictionary<string, string> Captured { get; } = new Dictionary<string, string>();
     }
 }

@@ -55,7 +55,7 @@ deterministic.</p>
   <path class="se1-arw" d="M131 136 V 146" marker-end="url(#se1-a)"/>
 
   <rect class="se1-hot" x="0" y="148" width="262" height="30" rx="4"/>
-  <text class="se1-t" x="14" y="167">Fresh scope, five globals set</text>
+  <text class="se1-t" x="14" y="167">Fresh scope, six globals set</text>
   <text class="se1-mono" x="292" y="167">__file__ __commandpath__ __title__</text>
   <path class="se1-arw" d="M131 178 V 188" marker-end="url(#se1-a)"/>
 
@@ -80,16 +80,16 @@ deterministic.</p>
 is formatted and written to the output window; the teardown still happens.</figcaption>
 </figure>
 
-<h2>The five injected globals</h2>
+<h2>The six injected globals</h2>
 
-<p>The runtime sets exactly five names in your scope before executing your file. This is the
+<p>The runtime sets exactly six names in your scope before executing your file. This is the
 complete list for a <code>*.pushbutton</code> and every kind built on one. Everything else you
 see is either something you defined or something Python itself provides.</p>
 
 <div class="note">
-<span class="note-t">A dockpane's script.py gets a sixth: __pane__</span>
+<span class="note-t">A dockpane's script.py gets a seventh: __pane__</span>
 <p>A <code>*.dockpane</code>'s <code>script.py</code> runs once, when the panel's content is
-built, with these same five plus <code>__pane__</code>, a proxy over the panel itself
+built, with these same six plus <code>__pane__</code>, a proxy over the panel itself
 (<code>Find</code>, <code>Content</code>, <code>Title</code>, <code>BundleKey</code>,
 <code>Visible</code>). See <a href="buttons.html#dockpane-a-real-navisworks-dock-panel">Buttons,
 stacks and pulldowns</a> and <a href="api-reference.html#panes"><code>pynavis.panes</code></a>.</p>
@@ -117,13 +117,35 @@ stacks and pulldowns</a> and <a href="api-reference.html#panes"><code>pynavis.pa
         there. See
         <a href="buttons.html#smartbutton-sets-its-own-title-tooltip-and-icon-at-build-time">Buttons,
         stacks and pulldowns</a>.</td></tr>
+<tr><td><code>__runner__</code></td><td>bool</td>
+    <td><code>False</code> on the ribbon, in hooks and in panels. Only
+        <a href="command-line.html"><code>pynavis run</code></a> sets it to
+        <code>True</code>, so check it before any prompt in a script that may run
+        there.</td></tr>
 <tr><td><code>__pynavis__</code></td><td>host object</td>
     <td>The runtime host singleton, your door back into the C# side.</td></tr>
 </tbody>
 </table>
 </div>
 
-<p>You can see all five at once. This is one of the few scripts where <code>print</code> is
+<div class="note">
+<span class="note-t">A script under pynavis run gets four more</span>
+<p>When <a href="command-line.html"><code>pynavis run</code></a> runs a script from the
+command line, it sets <code>__runner__</code> to <code>True</code> and adds four more:</p>
+<ul>
+<li><code>__model__</code> is the full path of the open model, or <code>None</code> when the
+    run has no model.</li>
+<li><code>__models__</code> is every model path in the run, as a .NET string array.</li>
+<li><code>__args__</code> is the words after <code>--</code> on the command line, also a
+    .NET string array.</li>
+<li><code>__run_dir__</code> is the run folder, the natural place for exported files.</li>
+</ul>
+<p>A runner script may also set <code>__result__</code> to a JSON-friendly value, which lands
+in the run's <code>results.json</code>. See <a href="command-line.html">Running without the
+ribbon</a>.</p>
+</div>
+
+<p>You can see all six at once. This is one of the few scripts where <code>print</code> is
 the right call, because opening the output window is the entire point of it:</p>
 
 <pre data-lang="python" data-file="Probe.pushbutton\script.py">
@@ -132,6 +154,7 @@ print('__file__        %s' % __file__)
 print('__commandpath__ %s' % __commandpath__)
 print('__title__       %s' % __title__)
 print('__selfinit__    %s' % __selfinit__)
+print('__runner__      %s' % __runner__)
 print('__pynavis__     %s' % __pynavis__)
 print('version         %s' % __pynavis__.Version)
 print('dark theme      %s' % __pynavis__.IsDarkTheme)
@@ -196,6 +219,7 @@ script.get_command_path()  # str, the bundle folder
 script.get_title()         # str, the resolved title
 script.get_host_version()  # str, runtime assembly version
 script.is_dark_theme()     # bool
+script.is_runner()         # bool, True under pynavis run
 script.reload_pynavis()    # rescan and rebuild the ribbon, no restart
 </pre>
 
@@ -228,7 +252,7 @@ if __name__ == '__main__':      # true on IronPython and on CPython
 </pre>
 
 <p>That is the only name Python itself would have given you. Everything else in the scope is
-either one of the five injected globals or something you defined.</p>
+either one of the six injected globals or something you defined.</p>
 
 <div class="note">
 <span class="note-t">The guard is not a way to make a file importable</span>

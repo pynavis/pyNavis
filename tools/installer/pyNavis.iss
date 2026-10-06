@@ -117,18 +117,30 @@ begin
   Result := ExpandConstant('{userappdata}') + BundleRelPath;
 end;
 
+function GetCurrentProcessId(): Cardinal;
+  external 'GetCurrentProcessId@kernel32.dll stdcall';
+function ProcessIdToSessionId(ProcessId: Cardinal; var SessionId: Cardinal): Boolean;
+  external 'ProcessIdToSessionId@kernel32.dll stdcall';
+
 { Navisworks memory-maps the loader DLL, so neither install nor uninstall can replace
   or delete it while the host is running. There is no AppMutex to wait on because the
-  host is not ours, so the process list is the only signal. }
+  host is not ours, so the process list is the only signal. Only this Windows session
+  counts: the install is per user, and on a shared or remote-desktop machine another
+  user's Navisworks holds their own copy, not this one. }
 function IsNavisworksRunning(): Boolean;
 var
   Locator, Services, Processes: Variant;
+  Query: String;
+  Session: Cardinal;
 begin
   Result := False;
   try
+    Query := 'SELECT Name FROM Win32_Process WHERE Name = "Roamer.exe"';
+    if ProcessIdToSessionId(GetCurrentProcessId(), Session) then
+      Query := Query + ' AND SessionId = ' + IntToStr(Session);
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Services := Locator.ConnectServer('localhost', 'root\CIMV2');
-    Processes := Services.ExecQuery('SELECT Name FROM Win32_Process WHERE Name = "Roamer.exe"');
+    Processes := Services.ExecQuery(Query);
     Result := Processes.Count > 0;
   except
     { If WMI is unavailable, do not block the user over it. }
@@ -141,8 +153,10 @@ begin
   Result := True;
   if IsNavisworksRunning() then
   begin
-    MsgBox('Navisworks is running.' + #13#10#13#10 +
-           'Close every Navisworks window and try again.', mbError, MB_OK);
+    { Suppressible: an update started on close runs /SUPPRESSMSGBOXES, and must stop
+      quietly here rather than pop an error at someone who just closed a window. }
+    SuppressibleMsgBox('Navisworks is running.' + #13#10#13#10 +
+           'Close every Navisworks window and try again.', mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
@@ -161,7 +175,7 @@ begin
   Roots[0] := 'C:\Program Files\Autodesk\Navisworks Manage ';
   Roots[1] := 'D:\Program Files\Autodesk\Navisworks Manage ';
   Found := '';
-  for I := 0 to 3 do
+  for I := 0 to 4 do
     for J := 0 to 1 do
     begin
       Candidate := Roots[J] + Years[I] + '\Plugins\PyNavis';
@@ -169,11 +183,11 @@ begin
         Found := Found + Candidate + #13#10;
     end;
   if Found <> '' then
-    MsgBox('An older pyNavis is still installed in the Navisworks program folder:' + #13#10#13#10 +
+    SuppressibleMsgBox('An older pyNavis is still installed in the Navisworks program folder:' + #13#10#13#10 +
            Found + #13#10 +
            'Both copies would load and the pyNavis ribbon tab would be built twice. ' +
            'Delete the folder listed above (that needs administrator rights) before you start Navisworks.',
-           mbInformation, MB_OK);
+           mbInformation, MB_OK, IDOK);
 end;
 
 function ProcessRunning(Pid: Integer): Boolean;
@@ -256,9 +270,53 @@ begin
       'My pyNavis.extension, and a copy of everything is in ' + ExpandConstant('{app}\backups') + '.';
 end;
 
+{ Uninstall deletes pyNavis.extension too, so first do what an upgrade does: back up
+  what the user added to or edited there, and copy the buttons and panels they added to
+  My pyNavis.extension, which uninstall leaves alone. Runs before any file is removed,
+  with the command line this release installed and the extension's own manifest. }
+function ProtectBeforeUninstall(): Boolean;
+var
+  Ext, Cli, Manifest, Report, Params: String;
+  ResultCode: Integer;
+begin
+  Result := True;
+  Ext := ExpandConstant('{app}\extensions\pyNavis.extension');
+  Cli := ExpandConstant('{app}\cli\pynavis.exe');
+  Manifest := Ext + '\.pynavis-manifest';
+  Report := ExpandConstant('{app}\last-uninstall.json');
+  if not DirExists(Ext) then Exit;
+  if not (FileExists(Cli) and FileExists(Manifest)) then
+  begin
+    Log('No command line or manifest to protect pyNavis.extension with; skipped.');
+    Exit;
+  end;
+  DeleteFile(Report);
+  Params := 'protect-extension' +
+    ' --extension "' + Ext + '"' +
+    ' --manifests "' + Manifest + '"' +
+    ' --backup-root "' + ExpandConstant('{app}ackups') + '"' +
+    ' --user-extension "' + ExpandConstant('{app}\extensions\My pyNavis.extension') + '"' +
+    ' --version uninstall' +
+    ' --report "' + Report + '"';
+  if not Exec(Cli, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    ResultCode := -1;
+  Log('protect-extension (uninstall) exited with ' + IntToStr(ResultCode));
+  if ResultCode <> 0 then
+    Result := SuppressibleMsgBox('pyNavis could not back up what you added to pyNavis.extension.' + #13#10#13#10 +
+      'Uninstall anyway and delete it? Choose No, copy ' + Ext + ' somewhere safe, then uninstall again.',
+      mbError, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES
+  else if FileExists(Report) then
+    SuppressibleMsgBox('Your own work in pyNavis.extension was kept: buttons and panels you had added are ' +
+      'now in My pyNavis.extension, and a copy of everything is in ' + ExpandConstant('{app}ackups') + '.',
+      mbInformation, MB_OK, IDOK);
+  DeleteFile(Report);
+end;
+
 function InitializeUninstall(): Boolean;
 begin
   Result := CheckNavisworksClosed();
+  if Result then
+    Result := ProtectBeforeUninstall();
 end;
 
 function LooksLikeYear(const Name: String): Boolean;

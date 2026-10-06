@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using PyNavis.Runtime.Execution.Runner;
 
 namespace PyNavis.Runtime.Forms
 {
@@ -184,6 +185,13 @@ namespace PyNavis.Runtime.Forms
         /// <summary>Script-facing entry: level is "success", "error", "info" or "warning".</summary>
         public static void Show(string level, string message, string detail)
         {
+            // Under pynavis run there is no screen to show it on and no one to read it.
+            if (RunnerContext.IsActive)
+            {
+                RunnerContext.Note($"[{level}] {message}" + (detail == null ? "" : ": " + detail));
+                return;
+            }
+
             try
             {
                 var parsed = ParseLevel(level);

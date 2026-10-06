@@ -131,5 +131,33 @@ namespace PyNavis.Tests
             Assert.Equal("/SILENT /SUPPRESSMSGBOXES /NORESTART /WAITPID=4242 /LOG=\"C:\\x\\install.log\"",
                 UpdateCheck.InstallerArguments(4242, @"C:\x\install.log"));
         }
+            /// <summary>Setup can fail on close (a locked file, a refused backup) and nothing
+        /// reports it back, so without a cap it would run again on every close forever.</summary>
+        [Fact]
+        public void TheInstaller_IsLaunchedAtMostThreeTimes()
+        {
+            Assert.True(UpdateCheck.ShouldLaunchInstaller(0));
+            Assert.True(UpdateCheck.ShouldLaunchInstaller(2));
+            Assert.False(UpdateCheck.ShouldLaunchInstaller(3));
+        }
+
+        /// <summary>Closing one of two Navisworks windows must not start setup: it would
+        /// find the other still running and give up, spending an attempt.</summary>
+        [Fact]
+        public void AnotherNavisworksInThisSession_HoldsTheInstallBack()
+        {
+            Assert.False(UpdateCheck.OtherNavisworksInSession(10, 1, new[] { (10, 1) }));
+            Assert.True(UpdateCheck.OtherNavisworksInSession(10, 1, new[] { (10, 1), (11, 1) }));
+            Assert.False(UpdateCheck.OtherNavisworksInSession(10, 1, new[] { (10, 1), (12, 2) }));
+        }
+
+        [Fact]
+        public void GivingUp_SaysToInstallFromTheReleasePage()
+        {
+            var (title, detail) = UpdateCheck.GaveUpMessage("1.2.1");
+
+            Assert.Contains("1.2.1", title);
+            Assert.Contains("release page", detail);
+        }
     }
 }

@@ -35,6 +35,8 @@ namespace PyNavis.Runtime.Execution
                     if (ext.LibDirectory != null) request.SearchPaths.Add(ext.LibDirectory);
                     request.Globals["__file__"] = ext.StartupScriptPath;
                     request.Globals["__pynavis__"] = PyNavisHost.Instance;
+                    // True when pynavis run starts startup.py (it enters a runner context first).
+                    request.Globals["__runner__"] = Runner.RunnerContext.IsActive;
 
                     var result = EngineManager.GetEngine(ext.DefaultEngineId).Execute(request);
                     if (!result.Succeeded)

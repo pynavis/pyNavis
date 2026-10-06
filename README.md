@@ -229,6 +229,33 @@ The full authoring guide is at [docs.pynavis.com](https://docs.pynavis.com). Sta
 then Anatomy of an extension and the API reference. The same pages live in `docs/authoring`
 and work straight from disk: open `index.html` in a browser.
 
+## Run scripts from the command line
+
+```powershell
+pynavis run script.py model.nwd
+```
+
+`pynavis.exe` is installed with pyNavis, in `%APPDATA%\pyNavis\cli`. That folder is not on
+your `PATH`, so call the exe by its full path or add the folder yourself. The command starts a hidden Navisworks,
+runs the script once per model you list and writes a transcript per model and a
+`results.json` summary to a folder under `%APPDATA%\pyNavis\runs`. `--models <list.txt>`
+adds one model path per line, `--version <year>` picks the Navisworks year, `--save` saves
+each `.nwd` or `.nwf` model back, `--show` shows the window, `--timeout <seconds>` gives up on a stuck model
+and `--results <file.json>` copies the summary. Words after `--` go to the script, which sees
+`__runner__` (True), `__model__`, `__models__`, `__args__` and `__run_dir__` and may set
+`__result__` for `results.json`. Dialogs raise under the runner, so guard every prompt:
+
+```python
+from pynavis import forms
+if __runner__:
+    names = __args__
+else:
+    names = [forms.ask_string('Which systems?', '', 'Systems')]
+```
+
+Each run uses a Navisworks Manage licence seat, and a fresh Navisworks install needs one
+normal start first. See [Running without the ribbon](https://docs.pynavis.com/command-line.html).
+
 ## Repository layout
 
 | Path | What it is |

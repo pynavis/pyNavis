@@ -66,7 +66,10 @@ These are project rules, not preferences. Violating them produces tools that loo
   or the module's own batching. Thousands of undo entries is a bug.
 - **No threads touching the model.** The Navisworks API is not thread-safe and your script
   runs on the UI thread.
-- **Never launch Navisworks yourself.** Ask the user to click. Verify from the log instead.
+- **Never launch Navisworks yourself, and that includes `pynavis run`.** Ask the user to
+  click. Verify from the log instead.
+- **A script that may run under `pynavis run` checks `__runner__` before any prompt or
+  dialog;** under the runner dialogs raise and toasts go to the transcript.
 - **No em dashes** in any user-facing string, and none in these docs either.
 
 ### Splitting pure logic from API calls
@@ -380,9 +383,10 @@ except ImportError:
 Filename minus `.py` must be one of the fourteen exact event names (see
 the sections below), and note the three viewpoint ones are easy to confuse:
 `viewpoints-changed` (tree edited), `viewpoint-recalled` (saved view activated),
-`camera-moved` (view moved, debounced). Three globals, not four: no `__commandpath__`, no
-`__title__`. Output goes to the log, never a window, so use `toast` for anything the user
-should see.
+`camera-moved` (view moved, debounced). Four globals: `__file__`, `__runner__`, `__pynavis__`
+and `__event__`; no `__commandpath__`, no `__title__`, no `__selfinit__`. `__runner__` is the
+live runner flag, in practice False (a `pynavis run` Navisworks wires no hooks). Output goes
+to the log, never a window, so use `toast` for anything the user should see.
 
 ```python
 from pynavis import doc, toast
@@ -396,7 +400,8 @@ runs are logged, not killed), and 3 consecutive failures disable the hook until 
 ### startup.py
 
 One per extension, at the extension root, beside `extension.yaml`. Runs at boot and every
-Reload, before that extension's ribbon builds. Same two globals as a hook minus `__event__`.
+Reload, before that extension's ribbon builds. Same globals as a hook minus `__event__`:
+`__file__`, `__runner__` (True only when `pynavis run` starts it) and `__pynavis__`.
 A raised exception is logged and toasted, but the extension's buttons still load.
 
 ```python

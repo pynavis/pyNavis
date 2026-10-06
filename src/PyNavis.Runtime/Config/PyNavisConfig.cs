@@ -26,6 +26,11 @@ namespace PyNavis.Runtime.Config
         /// <summary>UI theme override ("theme" key: "dark"/"light"); null = detect from the host.</summary>
         public string Theme { get; private set; }
 
+        /// <summary>"automatedBoot": "full" makes a Navisworks that pynavis run started boot the
+        /// interactive stages (ribbon, hooks, notices, update check) as a normal session does.
+        /// Default false: those stages are skipped in an automated session.</summary>
+        public bool AutomatedBootFull { get; private set; }
+
         /// <summary>"shortcuts.allowBareKeys": permit bindings without Ctrl/Alt. Default false.</summary>
         public bool ShortcutsAllowBareKeys { get; private set; }
 
@@ -403,6 +408,11 @@ namespace PyNavis.Runtime.Config
                     && theme is string themeName && !string.IsNullOrWhiteSpace(themeName))
                 {
                     config.Theme = themeName;
+                }
+                if (data != null && data.TryGetValue("automatedBoot", out var autoBoot)
+                    && autoBoot is string autoBootMode)
+                {
+                    config.AutomatedBootFull = string.Equals(autoBootMode.Trim(), "full", StringComparison.OrdinalIgnoreCase);
                 }
                 if (data != null && data.TryGetValue("shortcuts", out var sc)
                     && sc is Dictionary<string, object> shortcuts)

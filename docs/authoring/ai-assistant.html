@@ -38,13 +38,14 @@
 <a href="script-environment.html"><span class="num">10</span>The script environment</a>
 <a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
 <a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
+<a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html"><span class="num">13</span>Python API reference</a>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="ai-assistant.html" class="active"><span class="num">15</span>Writing tools with an AI assistant</a>
-<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="ai-assistant.html" class="active"><span class="num">16</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">17</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">18</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.2.0</span>
@@ -166,7 +167,10 @@ answer usually runs first time.</p>
 <code>config.json</code>, edited from <strong>AI Settings</strong> or the AI section of the
 Settings window. The API key is not there: it is in <code>secrets.json</code> beside it,
 encrypted with Windows DPAPI for the current user, so a shared or screenshotted
-<code>config.json</code> never carries a key. Two providers are supported, Anthropic and any
+<code>config.json</code> never carries a key. The key is saved for the endpoint it was
+entered with and is only ever sent back there, over https or to a server on this computer, so
+switching provider or pointing the panel at another server never hands it to a different host;
+Remove in Settings deletes it. Two providers are supported, Anthropic and any
 OpenAI-compatible endpoint, which also covers a local server with no key at all. Requests go
 from Navisworks straight to that endpoint; pyNavis runs no service in between and keeps no
 copy of the conversation.</p>

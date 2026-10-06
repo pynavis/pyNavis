@@ -38,13 +38,14 @@
 <a href="script-environment.html"><span class="num">10</span>The script environment</a>
 <a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
 <a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
+<a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html"><span class="num">13</span>Python API reference</a>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
-<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="ai-assistant.html"><span class="num">16</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">17</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">18</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.2.0</span>
@@ -538,8 +539,8 @@ which run it is in.</p>
 the example does, or a click-time run raises <code>NameError</code>.</p>
 
 <p>The build-time run's scope is smaller than a click's in the other direction too: it gets
-only <code>__file__</code>, <code>__selfinit__</code>, <code>__button__</code> and
-<code>__pynavis__</code>, so <code>__commandpath__</code> and <code>__title__</code> do not
+only <code>__file__</code>, <code>__selfinit__</code>, <code>__button__</code>,
+<code>__runner__</code> (<code>False</code>) and <code>__pynavis__</code>, so <code>__commandpath__</code> and <code>__title__</code> do not
 exist there. A script that touches either outside the click branch works on every click and
 then fails its selfinit run. Derive the bundle folder from <code>__file__</code> in the
 selfinit branch instead; <code>pynavis.script.get_command_path()</code> is no substitute,
@@ -606,7 +607,7 @@ workspace change) releases the toggle, and a Reload that rebuilds the ribbon whi
 stays open seeds the new button already pressed.</p>
 
 <div class="code"><div class="code-head"><span>folders</span><button class="copy-btn" type="button">Copy</button></div><pre><code>Live_View.dockpane\
-  pane.xaml     <span class="tok-c"># required - a plain element, not a &amp;lt;Window&amp;gt;</span>
+  pane.xaml     <span class="tok-c"># required - a plain element, not a &lt;Window&gt;</span>
   <span class="tok-k">script.py</span>     <span class="tok-c"># optional, runs once when the panel&#x27;s content is built</span>
   <span class="tok-k">bundle.yaml</span>   <span class="tok-c"># optional</span>
   <span class="tok-k">icon.png</span>, <span class="tok-k">icon.dark.png</span>, <span class="tok-k">icon.small.png</span>, <span class="tok-k">icon.small.dark.png</span>
@@ -618,7 +619,7 @@ stays open seeds the new button already pressed.</p>
 <span class="tok-k">keytip</span>: LV</code></pre></div>
 
 <p>If <code>script.py</code> exists it runs once, when the panel's content is built, with the
-same five globals as any other bundle plus a sixth, <code>__pane__</code>:</p>
+same six globals as any other bundle plus a seventh, <code>__pane__</code>:</p>
 
 <div class="table-scroll">
 <table>

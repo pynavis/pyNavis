@@ -7,6 +7,40 @@ a `bundle.yaml` or `config.json` key, a `pynavis` function, a Navisworks year), 
 something existing changes meaning or goes away. The number in each heading is the one that
 `pynavis.__version__`, the Settings window and the installer file name show.
 
+## [Unreleased]
+
+### Added
+
+- `pynavis run`: runs a script in a hidden Navisworks from the command line, once per model
+  you list, and writes a results summary. `pynavis run script.py model.nwd` is the whole
+  command; `--save` writes each `.nwd` or `.nwf` model back, `--show` shows the window, `--timeout` guards
+  against a stuck dialog, `--results` copies the summary. Scripts see `__runner__`,
+  `__model__`, `__models__`, `__args__` and `__run_dir__`, may set `__result__` to report a
+  value, and under the runner toasts and output go to a transcript file while dialogs
+  raise instead of waiting for a click nobody can give. A Navisworks the runner starts skips
+  the ribbon, hooks, notices and update check; `"automatedBoot": "full"` in `config.json`
+  boots it like a normal session instead.
+
+### Fixed
+
+- The Ask AI key is only sent to the endpoint it was saved for, and only over https or to a
+  server on this computer. Before, switching provider or pointing the panel at a local model
+  server on another machine sent the saved key there, in clear text over http. A key saved
+  by 1.2.0 is kept for the endpoint your settings already use. Settings has a new Remove
+  button that deletes the key.
+- `%PROGRAMDATA%\pyNavis\extensions` and a machine-wide runtime in `%PROGRAMDATA%` load only
+  when no one but administrators can write to them. Any user can create folders there, so on
+  a shared PC one user could otherwise make code run in everyone's Navisworks.
+- An update no longer fails, with an error box, when you close one of two Navisworks
+  windows: it waits for the last one, only counts Navisworks in your own Windows session,
+  and stops after three failed attempts with a toast pointing at the release page.
+- A hook that causes its own event (a `viewpoints-changed` hook renaming a viewpoint, a
+  `camera-moved` hook setting the view) no longer runs itself again. Events a hook causes
+  run no hooks, so it cannot loop or overflow the stack and take Navisworks down.
+- Uninstalling backs up your own work in `pyNavis.extension` first, as an update does, and
+  copies the buttons and panels you added to `My pyNavis.extension`, which uninstall keeps.
+- The installer's check for an old copy in the Navisworks program folder now covers 2027.
+
 ## [1.2.0] - 2026-09-29
 
 ### Added

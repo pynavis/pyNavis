@@ -38,13 +38,14 @@
 <a href="script-environment.html"><span class="num">10</span>The script environment</a>
 <a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
 <a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
+<a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html"><span class="num">13</span>Python API reference</a>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html" class="active"><span class="num">14</span>Cookbook</a>
-<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
-<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+<a href="cookbook.html" class="active"><span class="num">15</span>Cookbook</a>
+<a href="ai-assistant.html"><span class="num">16</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">17</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">18</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.2.0</span>
@@ -573,9 +574,9 @@ markup and hand to <code>output.print_html</code>.</p>
 
 
 <span class="tok-k">def</span> escape(text):
-    <span class="tok-k">return</span> (str(text).replace(<span class="tok-s">&#x27;&amp;amp;&#x27;</span>, <span class="tok-s">&#x27;&amp;amp;amp;&#x27;</span>)
-                     .replace(<span class="tok-s">&#x27;&amp;lt;&#x27;</span>, <span class="tok-s">&#x27;&amp;amp;lt;&#x27;</span>)
-                     .replace(<span class="tok-s">&#x27;&amp;gt;&#x27;</span>, <span class="tok-s">&#x27;&amp;amp;gt;&#x27;</span>))
+    <span class="tok-k">return</span> (str(text).replace(<span class="tok-s">&#x27;&amp;&#x27;</span>, <span class="tok-s">&#x27;&amp;amp;&#x27;</span>)
+                     .replace(<span class="tok-s">&#x27;&lt;&#x27;</span>, <span class="tok-s">&#x27;&amp;lt;&#x27;</span>)
+                     .replace(<span class="tok-s">&#x27;&gt;&#x27;</span>, <span class="tok-s">&#x27;&amp;gt;&#x27;</span>))
 
 
 items = selection.get_items()
@@ -584,14 +585,14 @@ items = selection.get_items()
     toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>)
 <span class="tok-k">else</span>:
     cells = <span class="tok-s">&#x27;&#x27;</span>.join(
-        <span class="tok-s">&#x27;&amp;lt;tr&amp;gt;&amp;lt;td&amp;gt;%s&amp;lt;/td&amp;gt;&amp;lt;td&amp;gt;%s&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;&#x27;</span>
+        <span class="tok-s">&#x27;&lt;tr&gt;&lt;td&gt;%s&lt;/td&gt;&lt;td&gt;%s&lt;/td&gt;&lt;/tr&gt;&#x27;</span>
         % (escape(item.DisplayName), output.element_link(item, <span class="tok-s">&#x27;Show&#x27;</span>))
         <span class="tok-k">for</span> item <span class="tok-k">in</span> items[:<span class="tok-n">200</span>])
     output.print_html(
-        <span class="tok-s">&#x27;&amp;lt;table class=&quot;pynavis&quot;&amp;gt;&amp;lt;thead&amp;gt;&amp;lt;tr&amp;gt;&#x27;</span>
-        <span class="tok-s">&#x27;&amp;lt;th&amp;gt;Object&amp;lt;/th&amp;gt;&amp;lt;th&amp;gt;&amp;lt;/th&amp;gt;&amp;lt;/tr&amp;gt;&amp;lt;/thead&amp;gt;&#x27;</span>
-        <span class="tok-s">&#x27;&amp;lt;tbody&amp;gt;%s&amp;lt;/tbody&amp;gt;&amp;lt;/table&amp;gt;&#x27;</span> % cells)
-    <span class="tok-k">if</span> len(items) &amp;gt; <span class="tok-n">200</span>:
+        <span class="tok-s">&#x27;&lt;table class=&quot;pynavis&quot;&gt;&lt;thead&gt;&lt;tr&gt;&#x27;</span>
+        <span class="tok-s">&#x27;&lt;th&gt;Object&lt;/th&gt;&lt;th&gt;&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&#x27;</span>
+        <span class="tok-s">&#x27;&lt;tbody&gt;%s&lt;/tbody&gt;&lt;/table&gt;&#x27;</span> % cells)
+    <span class="tok-k">if</span> len(items) &gt; <span class="tok-n">200</span>:
         output.print_md(<span class="tok-s">&#x27;... and %d more.&#x27;</span> % (len(items) - <span class="tok-n">200</span>))</code></pre></div>
 
 <div class="note warn">
@@ -894,7 +895,7 @@ limit = <span class="tok-k">None</span>
         <span class="tok-k">break</span>                                  <span class="tok-c"># cancelled: change nothing, say nothing</span>
     <span class="tok-k">try</span>:
         limit = float(answer)
-        <span class="tok-k">if</span> limit &amp;lt;= <span class="tok-n">0</span>:
+        <span class="tok-k">if</span> limit &lt;= <span class="tok-n">0</span>:
             <span class="tok-k">raise</span> ValueError()
     <span class="tok-k">except</span> ValueError:
         limit = <span class="tok-k">None</span>
@@ -907,7 +908,7 @@ limit = <span class="tok-k">None</span>
         <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">None</span>:
             <span class="tok-k">continue</span>
         <span class="tok-k">try</span>:
-            <span class="tok-k">if</span> float(value.ToDisplayString()) &amp;gt;= limit:
+            <span class="tok-k">if</span> float(value.ToDisplayString()) &gt;= limit:
                 kept.append(item)
         <span class="tok-k">except</span> ValueError:
             <span class="tok-k">pass</span>
@@ -1108,7 +1109,7 @@ checked = [row[<span class="tok-s">&#x27;key&#x27;</span>] <span class="tok-k">f
                             <span class="tok-s">&#x27;Deleting %d of %d&#x27;</span> % (done, count))
 
         removed, errors = viewpoints.apply_deletes(
-            plan[<span class="tok-s">&#x27;guids&#x27;</span>], progress=tick <span class="tok-k">if</span> plan[<span class="tok-s">&#x27;count&#x27;</span>] &amp;gt; <span class="tok-n">500</span> <span class="tok-k">else</span> <span class="tok-k">None</span>)
+            plan[<span class="tok-s">&#x27;guids&#x27;</span>], progress=tick <span class="tok-k">if</span> plan[<span class="tok-s">&#x27;count&#x27;</span>] &gt; <span class="tok-n">500</span> <span class="tok-k">else</span> <span class="tok-k">None</span>)
         output.progress(<span class="tok-n">1.0</span>)
         <span class="tok-k">if</span> errors:
             toast.warning(<span class="tok-s">&#x27;Deleted %d item(s), %d failed.&#x27;</span>
@@ -1414,7 +1415,7 @@ script; the API half is the script.</p>
     <span class="tok-k">for</span> name, length <span class="tok-k">in</span> rows:
         <span class="tok-k">if</span> length <span class="tok-k">is</span> <span class="tok-k">None</span>:
             unknown.append(name)
-        <span class="tok-k">elif</span> length &amp;gt; limit:
+        <span class="tok-k">elif</span> length &gt; limit:
             over.append((name, length))
     over.sort(key=<span class="tok-k">lambda</span> pair: -pair[<span class="tok-n">1</span>])
     <span class="tok-k">return</span> {<span class="tok-s">&#x27;over&#x27;</span>: over, <span class="tok-s">&#x27;unknown&#x27;</span>: unknown, <span class="tok-s">&#x27;checked&#x27;</span>: len(rows)}

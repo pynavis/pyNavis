@@ -21,7 +21,7 @@ namespace PyNavis.Tests
             };
 
             var picked = AssemblyResolver.FirstExistingRuntimeDir(
-                @"C:\Users\u\AppData\Roaming", @"C:\ProgramData", "2026", existing.Contains);
+                @"C:\Users\u\AppData\Roaming", @"C:\ProgramData", "2026", existing.Contains, _ => true);
 
             Assert.Equal(@"C:\Users\u\AppData\Roaming\pyNavis\2026\runtime", picked);
         }
@@ -34,10 +34,36 @@ namespace PyNavis.Tests
                 @"C:\ProgramData\pyNavis\2026\runtime",
             };
             Assert.Equal(@"C:\ProgramData\pyNavis\2026\runtime",
-                AssemblyResolver.FirstExistingRuntimeDir(@"C:\Users\u\AppData\Roaming", @"C:\ProgramData", "2026", onlyMachineWide.Contains));
+                AssemblyResolver.FirstExistingRuntimeDir(@"C:\Users\u\AppData\Roaming", @"C:\ProgramData", "2026", onlyMachineWide.Contains, _ => true));
 
-            Assert.Null(AssemblyResolver.FirstExistingRuntimeDir(@"C:\Users\u\AppData\Roaming", @"C:\ProgramData", "2025", onlyMachineWide.Contains));
-            Assert.Null(AssemblyResolver.FirstExistingRuntimeDir(null, null, "2026", _ => true));
+            Assert.Null(AssemblyResolver.FirstExistingRuntimeDir(@"C:\Users\u\AppData\Roaming", @"C:\ProgramData", "2025", onlyMachineWide.Contains, _ => true));
+            Assert.Null(AssemblyResolver.FirstExistingRuntimeDir(null, null, "2026", _ => true, _ => true));
+        }
+
+        /// <summary>Any user can create folders under C:\ProgramData, so a machine-wide
+        /// runtime someone other than an administrator could have written is never loaded.</summary>
+        [Fact]
+        public void Loader_Skips_A_ProgramData_Runtime_That_Is_Not_Admin_Only()
+        {
+            var onlyMachineWide = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                @"C:\ProgramData\pyNavis\2026\runtime",
+            };
+
+            Assert.Null(AssemblyResolver.FirstExistingRuntimeDir(
+                @"C:\Users\u\AppData\Roaming", @"C:\ProgramData", "2026", onlyMachineWide.Contains, _ => false));
+        }
+
+        [Fact]
+        public void A_Machine_Wide_Extension_Root_Counts_Only_When_Admin_Only()
+        {
+            var machine = @"C:\ProgramData\pyNavis\extensions";
+            var user = @"C:\Users\u\AppData\Roaming\pyNavis\extensions";
+
+            Assert.True(InstallPaths.UsableDefaultRoot(user, machine, _ => true, _ => false));
+            Assert.False(InstallPaths.UsableDefaultRoot(machine, machine, _ => true, _ => false));
+            Assert.True(InstallPaths.UsableDefaultRoot(machine, machine, _ => true, _ => true));
+            Assert.False(InstallPaths.UsableDefaultRoot(user, machine, _ => false, _ => true));
         }
 
         [Fact]

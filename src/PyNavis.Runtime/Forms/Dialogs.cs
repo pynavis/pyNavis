@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using PyNavis.Runtime.Execution.Runner;
 using PyNavis.Runtime.Output;
 
 namespace PyNavis.Runtime.Forms
@@ -23,12 +24,19 @@ namespace PyNavis.Runtime.Forms
         /// the clipboard without closing the dialog; null or empty means no button.</summary>
         public static void Alert(string message, string title, string copyText)
         {
+            // An alert waits for nothing, so under pynavis run it is just a line.
+            if (RunnerContext.IsActive)
+            {
+                RunnerContext.Note("[alert] " + title + ": " + message);
+                return;
+            }
             var window = BuildAlert(message, title, copyText);
             window.ShowDialog();
         }
 
         public static bool Confirm(string message, string title)
         {
+            RunnerContext.ThrowIfActive();
             var window = BuildConfirm(message, title);
             return window.ShowDialog() == true;
         }
@@ -36,12 +44,14 @@ namespace PyNavis.Runtime.Forms
         /// <summary>Entered string, or null on cancel.</summary>
         public static string AskString(string prompt, string defaultValue, string title)
         {
+            RunnerContext.ThrowIfActive();
             var window = BuildAskString(prompt, defaultValue, title);
             return window.ShowDialog() == true ? PartsOf(window).Input.Text : null;
         }
 
         public static string SaveFile(string filter, string defaultName, string title)
         {
+            RunnerContext.ThrowIfActive();
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
                 Filter = filter, FileName = defaultName, Title = title,
@@ -51,6 +61,7 @@ namespace PyNavis.Runtime.Forms
 
         public static string OpenFile(string filter, string title)
         {
+            RunnerContext.ThrowIfActive();
             var dialog = new Microsoft.Win32.OpenFileDialog { Filter = filter, Title = title };
             return dialog.ShowDialog() == true ? dialog.FileName : null;
         }

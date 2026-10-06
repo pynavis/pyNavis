@@ -1,0 +1,334 @@
+<!-- title: Running without the ribbon -->
+<!-- eyebrow: Scripts -->
+<!-- lead: pynavis run starts a hidden Navisworks, runs one script once per model, and writes down what happened. -->
+
+<p>Some jobs are the same script over a list of models: export the clash counts of every
+model in a folder, check each one for a property, save each one after a fix. Clicking a
+button in every model is the slow way to do that. <code>pynavis run</code> does it from a
+command prompt instead.</p>
+
+<p>The script is an ordinary pyNavis script. It imports <code>pynavis</code>, reads the open
+document and calls the Navisworks API the way a button's <code>script.py</code> does. A few
+things are different under the runner, and this page covers all of them.</p>
+
+<h2>The command</h2>
+
+<pre data-lang="powershell">
+pynavis run script.py model.nwd
+</pre>
+
+<p><code>pynavis.exe</code> is installed with pyNavis, in
+<code>%APPDATA%\pyNavis\cli</code>. That folder is not on your <code>PATH</code>, so call the
+exe by its full path or add the folder yourself. <code>pynavis run --help</code> prints the
+usage:</p>
+
+<pre data-lang="text">
+pynavis run &lt;script.py&gt; [model ...] [options] [-- script args]
+
+  --models &lt;list.txt&gt;    one model path per line, added to the positional ones
+  --version &lt;year&gt;       Navisworks year; default is the newest attached one
+  --save                 save each .nwd or .nwf model back to its own path after the script
+  --show                 show the Navisworks window while each script runs
+  --timeout &lt;seconds&gt;    give up on a model after this long; default none
+  --results &lt;file.json&gt;  copy the run summary here as well
+</pre>
+
+<p>The first plain word is the script and every later plain word is a model. Everything
+after <code>--</code> goes to the script untouched. A <code>--models</code> list file holds
+one model path per line; relative paths in it resolve against the list file's own folder,
+and blank lines and lines starting with <code>#</code> are skipped. With no model at all
+the script runs once, with no document open.</p>
+
+<pre data-lang="powershell">
+pynavis run export_counts.py --models models.txt --timeout 600 -- Ducts Pipes
+</pre>
+
+<p>Here is what happens. The command starts a hidden Navisworks of the chosen year through
+Autodesk's Automation API. It opens each model in turn in that one instance, runs the script
+once per model, and closes Navisworks at the end. <code>--save</code> saves each model back
+to its own path, only after the script succeeded on it, and only when it is a
+<code>.nwd</code> or <code>.nwf</code> file. Any other model (an <code>.nwc</code>, an
+<code>.ifc</code>, a native CAD file) is not saved: its status is <code>save-skipped</code>,
+the console says <code>save skipped: Only .nwd and .nwf files are saved back.</code>, and it
+does not fail the run.</p>
+
+<p>With <code>--show</code> the window appears once a model is open and stays up while the
+script runs, then hides again before the next model opens. The order is deliberate: opening a
+model into a Navisworks window that is already on screen ends the Navisworks process, measured
+on Navisworks 2026, so every model opens hidden.</p>
+
+<div class="note warn">
+<span class="note-t">A fresh Navisworks install needs one normal start first</span>
+<p>Navisworks shows first-run dialogs the first time it starts. A hidden Navisworks cannot
+show them to you, so start it once from the Start menu and close those dialogs before your
+first run.</p>
+</div>
+
+<h2>What the script sees</h2>
+
+<p>The runner sets these names in the script's scope, on top of the usual
+<code>__file__</code>, <code>__commandpath__</code> (the script's folder),
+<code>__title__</code> (the script's file name without its extension),
+<code>__pynavis__</code> and <code>__selfinit__</code>, which is <code>False</code>:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><td><code>__runner__</code></td><td>bool</td>
+    <td><code>True</code> under the runner and <code>False</code> on the ribbon, in hooks
+        and in panels. <code>startup.py</code> sees <code>True</code> only when the runner
+        starts it.</td></tr>
+<tr><td><code>__model__</code></td><td>str or None</td>
+    <td>The full path of the model open for this run, or <code>None</code> when the run has
+        no model.</td></tr>
+<tr><td><code>__models__</code></td><td>sequence of str</td>
+    <td>Every model path in the run, in order. It is a .NET string array: iterate it, or
+        wrap it in <code>list()</code>.</td></tr>
+<tr><td><code>__args__</code></td><td>sequence of str</td>
+    <td>The words after <code>--</code> on the command line, also a .NET string
+        array.</td></tr>
+<tr><td><code>__run_dir__</code></td><td>str</td>
+    <td>The run folder. It is the natural place for files the script exports.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>A script may set <code>__result__</code> to any JSON-friendly value: a dict, a list, a
+string, a number or a bool. The runner reads it after the script finishes and writes it into
+<code>results.json</code> beside that model's status. It is read only when the script
+succeeded or ended with a clean <code>sys.exit</code>. A value that <code>json</code> cannot
+serialise is dropped, with a line in the pyNavis log.</p>
+
+<pre data-lang="python" data-file="export_counts.py">
+"""Writes the number of items in each clash test to the run folder."""
+import json
+import os
+
+from pynavis import clash
+
+counts = {}
+for test in clash.walk_tests():
+    total, _grouped = clash.count_results(test)
+    counts[test.DisplayName] = total
+
+name = os.path.splitext(os.path.basename(__model__))[0] + '.json'
+with open(os.path.join(__run_dir__, name), 'w') as fh:
+    json.dump(counts, fh)
+
+__result__ = counts
+</pre>
+
+<p>Library code that has no access to the script's globals asks
+<code>pynavis.script.is_runner()</code>, which returns the same flag.</p>
+
+<h2>Output and dialogs under the runner</h2>
+
+<p>Nobody is watching a hidden Navisworks, so the runner writes what a script would show to
+a transcript file, and refuses what would wait for an answer:</p>
+
+<ul>
+<li><code>pynavis.toast</code> lines, <code>pynavis.banner</code> messages and
+    <code>pynavis.forms.alert</code> messages are written to the transcript.</li>
+<li><code>pynavis.output</code> and <code>print</code> write to the transcript instead of
+    opening an output window. HTML lands as its source, an element link becomes its label,
+    errors start with <code>ERROR: </code>, and progress writes nothing.</li>
+<li>The <code>pynavis.forms</code> prompts and pickers raise instead of waiting for an
+    answer: <code>forms.confirm</code>, <code>ask_string</code>, <code>ask_length</code>,
+    <code>select_from_list</code>, <code>ask_options</code>, <code>ask_number</code>,
+    <code>pick_folder</code>, <code>save_file</code> and <code>open_file</code>. So does
+    <code>forms.WPFWindow.show_dialog()</code>.</li>
+</ul>
+
+<p>The error those dialogs raise is an <code>InvalidOperationException</code> that reads
+&ldquo;Dialogs are not available under pynavis run. Check __runner__ and skip the
+prompt.&rdquo; That is the fix: a script that runs both from the ribbon and from the runner
+takes its answers from <code>__args__</code> under the runner and asks only on the
+ribbon.</p>
+
+<pre data-lang="python">
+from pynavis import forms
+if __runner__:
+    names = __args__
+else:
+    names = [forms.ask_string('Which systems?', '', 'Systems')]
+</pre>
+
+<div class="note warn">
+<span class="note-t">The shipped tools' own windows are not guarded</span>
+<p>The Clash Grouper, the viewpoint tools and Settings open windows of their own, and those
+do not raise under the runner. A hidden run that reaches one blocks on it. These tools are
+made for the ribbon: guard any call into them with <code>__runner__</code>, and use
+<code>--timeout</code> so a run that blocks anyway ends.</p>
+</div>
+
+<h2>Results</h2>
+
+<p>Each run gets a folder of its own, named after the time it started:</p>
+
+<pre data-lang="tree">
+%APPDATA%\pyNavis\runs\&lt;yyyyMMdd-HHmmss&gt;\
+  .owner              # claims the folder, so two runs in the same second never share one
+  request-1.json      # what the runner asked for, numbered per model
+  response-1.json     # what the add-in answered
+  transcript-1.txt    # everything the script wrote
+  results.json        # the summary of the whole run
+</pre>
+
+<p>A second run that starts in the same second gets the folder name with <code>-2</code>,
+<code>-3</code> and so on after it.</p>
+
+<p><code>results.json</code> holds the script, the Navisworks year, the start and end time,
+and one entry per model: the model path, its status, how long the script took, the last line
+of the error, and the script's <code>__result__</code>. The status is one of these:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Status</th><th>Means</th></tr></thead>
+<tbody>
+<tr><td><code>ok</code></td><td>The script succeeded, and the save too when
+    <code>--save</code> was given.</td></tr>
+<tr><td><code>failed</code></td><td>The script raised, or the add-in gave no answer.</td></tr>
+<tr><td><code>open-failed</code></td><td>Navisworks could not open the model.</td></tr>
+<tr><td><code>save-failed</code></td><td>The script succeeded but the save did not, or Ctrl+C
+    ended a save that had not finished.</td></tr>
+<tr><td><code>save-skipped</code></td><td>The script succeeded, and <code>--save</code> left the
+    model alone because it is not a <code>.nwd</code> or <code>.nwf</code> file. It does not
+    fail the run.</td></tr>
+<tr><td><code>timed-out</code></td><td>A step took longer than <code>--timeout</code>.</td></tr>
+<tr><td><code>cancelled</code></td><td>Ctrl+C landed before or while the model was opening
+    or its script was running. Its error reads &ldquo;Cancelled while the script was
+    running.&rdquo;, &ldquo;Cancelled while the model was opening.&rdquo;, &ldquo;Cancelled
+    before the script ran.&rdquo; or &ldquo;Cancelled before the model opened.&rdquo;</td></tr>
+<tr><td><code>not-run</code></td><td>The run ended (a timeout or Ctrl+C) before it reached
+    this model. Its error reads &ldquo;Not run: the run ended after an earlier
+    model.&rdquo;</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><code>--results</code> copies the same file to a path you choose.</p>
+
+<pre data-lang="json">
+{
+  "script": "C:\\Jobs\\export_counts.py",
+  "year": "2026",
+  "startedAt": "2026-10-04T09:30:00+01:00",
+  "finishedAt": "2026-10-04T09:31:10+01:00",
+  "models": [
+    {
+      "model": "C:\\Jobs\\Level 1.nwd",
+      "status": "ok",
+      "durationMs": 41200,
+      "error": null,
+      "result": { "Ducts vs Pipes": 12 }
+    }
+  ]
+}
+</pre>
+
+<p>The console shows the same story as it happens. Each model starts with an
+<code>Opening</code> line; a run with no model has none. Then comes one line per model:
+<code>ok</code> with the time in seconds, <code>FAILED:</code> or <code>could not open:</code>
+with the last line of the error, or <code>Timed out after N s.</code> with a hint. That
+model's transcript follows, indented two spaces. With <code>--save</code> a
+<code>could not save:</code>, <code>save skipped:</code> or <code>not saved: cancelled</code>
+line can come after it. The last
+line is <code>Summary:</code> and the path of <code>results.json</code>. Just before it can
+come <code>Cancelled.</code>, and the lines about closing Navisworks described under
+<a href="#failures-and-timeouts">Failures and timeouts</a>.</p>
+
+<h2>Failures and timeouts</h2>
+
+<p>The exit code tells a batch file or a scheduled task how the run went:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Code</th><th>Means</th></tr></thead>
+<tbody>
+<tr><td><code>0</code></td><td>Every model was <code>ok</code> (or
+    <code>save-skipped</code>).</td></tr>
+<tr><td><code>1</code></td><td>A script failed, a model failed to open, a save failed, a
+    model timed out, or the run was cancelled with Ctrl+C.</td></tr>
+<tr><td><code>2</code></td><td>A usage error: a missing script, an unknown option, an option
+    without its value.</td></tr>
+<tr><td><code>3</code></td><td>Navisworks of that year is not installed, pyNavis is not
+    attached to it (the message says to run <code>pynavis attach &lt;year&gt;</code>), or
+    Navisworks failed to start.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>A script that fails on one model does not stop the run: the next model opens and the
+failure is recorded in <code>results.json</code>.</p>
+
+<p>A timeout is different. <code>--timeout</code> applies on its own to each step of a
+model: opening it, running the script and saving it. When one step takes longer, the runner
+closes the hidden Navisworks and ends the run there. The message names the two usual causes:
+a dialog the script did not guard with <code>__runner__</code>, or a first-run dialog on a
+fresh install. Run again with <code>--show</code> to see which one it is. Without
+<code>--timeout</code> the runner waits as long as the script takes. The models after the
+one that timed out are listed in <code>results.json</code> as <code>not-run</code>.</p>
+
+<p>Ctrl+C closes the hidden Navisworks, ends the run with exit code 1 and still writes
+<code>results.json</code>, which still lists every model: the one whose script was running
+is <code>cancelled</code>, and the models after it are <code>not-run</code>. A save is
+different, because a save cut off
+halfway can leave a broken file: the runner says it is waiting for the save, then waits up
+to <code>--timeout</code> seconds for it, or 60 seconds without <code>--timeout</code>. A save
+that finishes keeps its status. One that does not is <code>save-failed</code>, with the error
+&ldquo;Cancelled during the save; the file may be incomplete.&rdquo;, and only then does
+Navisworks close. A Ctrl+C that lands after the script succeeded but before its save began
+never starts the save: the model keeps <code>ok</code>, its error reads &ldquo;Cancelled
+before the save; the model was not saved.&rdquo;, and the console says <code>not saved:
+cancelled</code>. A second Ctrl+C ends the command at once.</p>
+
+<p>When the run closes Navisworks and that Navisworks is still running a few seconds later
+(or closing it hangs or fails), the runner ends the <code>Roamer.exe</code> process it
+started and says so: <code>Closed Navisworks (process N) that did not exit on its
+own.</code> It only ever ends a process that started with the run, never a Navisworks that
+was already open. Once the runner add-in has answered, the runner knows that process by its
+id and ends no other. A close that fails outright first prints <code>Closing Navisworks
+failed:</code> and the reason. When the runner cannot end the process, it prints
+&ldquo;Navisworks did not close. Close it from Task Manager (Roamer.exe).&rdquo;
+instead.</p>
+
+<h2>Limits</h2>
+
+<ul>
+<li>Each run uses a Navisworks Manage licence seat while it runs.</li>
+<li><code>startup.py</code> of every extension runs once, inside the runner, before the
+    first script, and sees <code>__runner__</code> as <code>True</code>. Its output and
+    toasts go to the pyNavis log, and its dialogs raise.</li>
+<li>By default, a Navisworks started by <code>pynavis run</code> builds no pyNavis ribbon, with or
+    without <code>--show</code>, so hooks and the before and after command events never run
+    under <code>pynavis run</code>. Dock panels, keyboard shortcuts, upgrade notices and the
+    update check are left out too.</li>
+<li>Only one script runs at a time, as on the ribbon: the usual run gate applies.</li>
+<li>The script is a bare <code>.py</code> file, so <code>bundle.yaml</code> keys, including
+    <code>engine:</code>, do not apply. It runs on the default engine, IronPython.</li>
+</ul>
+
+<p>To boot those stages anyway, set <code>automatedBoot</code> to <code>"full"</code> in
+<code>%APPDATA%\pyNavis\config.json</code>. A Navisworks that <code>pynavis run</code> starts
+then builds the ribbon, hooks, dock panels, shortcuts, upgrade notices and the update check
+exactly as a normal session does. Any other value, or no key at all, keeps the default and
+skips them. It is an escape hatch for a script that needs a side effect of the ribbon session,
+or for finding out why a script behaves differently on the ribbon and under the runner. With it
+on, hooks run during the automated session, and the update check may download an
+installer.</p>
+
+<pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
+{
+  "automatedBoot": "full"
+}
+</pre>
+
+<div class="cards">
+  <a href="script-environment.html"><span class="c-t">The script environment</span>
+    <span class="c-d">The globals, the engines and the rules every script runs under.</span></a>
+  <a href="user-interface.html"><span class="c-t">Talking to the user</span>
+    <span class="c-d">Toasts, dialogs and the output window, as they work on the ribbon.</span></a>
+  <a href="api-reference.html#script-is-runner"><span class="c-t">pynavis.script</span>
+    <span class="c-d">Including script.is_runner, for library code.</span></a>
+</div>

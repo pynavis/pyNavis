@@ -38,13 +38,14 @@
 <a href="script-environment.html" class="active"><span class="num">10</span>The script environment</a>
 <a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
 <a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
+<a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html"><span class="num">13</span>Python API reference</a>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
-<a href="troubleshooting.html"><span class="num">16</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="ai-assistant.html"><span class="num">16</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">17</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">18</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.2.0</span>
@@ -110,7 +111,7 @@ deterministic.</p>
   <path class="se1-arw" d="M131 136 V 146" marker-end="url(#se1-a)"/>
 
   <rect class="se1-hot" x="0" y="148" width="262" height="30" rx="4"/>
-  <text class="se1-t" x="14" y="167">Fresh scope, five globals set</text>
+  <text class="se1-t" x="14" y="167">Fresh scope, six globals set</text>
   <text class="se1-mono" x="292" y="167">__file__ __commandpath__ __title__</text>
   <path class="se1-arw" d="M131 178 V 188" marker-end="url(#se1-a)"/>
 
@@ -135,16 +136,16 @@ deterministic.</p>
 is formatted and written to the output window; the teardown still happens.</figcaption>
 </figure>
 
-<h2 id="the-five-injected-globals">The five injected globals<a class="anchor" href="#the-five-injected-globals" aria-label="Link to this section">#</a></h2>
+<h2 id="the-six-injected-globals">The six injected globals<a class="anchor" href="#the-six-injected-globals" aria-label="Link to this section">#</a></h2>
 
-<p>The runtime sets exactly five names in your scope before executing your file. This is the
+<p>The runtime sets exactly six names in your scope before executing your file. This is the
 complete list for a <code>*.pushbutton</code> and every kind built on one. Everything else you
 see is either something you defined or something Python itself provides.</p>
 
 <div class="note">
-<span class="note-t">A dockpane's script.py gets a sixth: __pane__</span>
+<span class="note-t">A dockpane's script.py gets a seventh: __pane__</span>
 <p>A <code>*.dockpane</code>'s <code>script.py</code> runs once, when the panel's content is
-built, with these same five plus <code>__pane__</code>, a proxy over the panel itself
+built, with these same six plus <code>__pane__</code>, a proxy over the panel itself
 (<code>Find</code>, <code>Content</code>, <code>Title</code>, <code>BundleKey</code>,
 <code>Visible</code>). See <a href="buttons.html#dockpane-a-real-navisworks-dock-panel">Buttons,
 stacks and pulldowns</a> and <a href="api-reference.html#panes"><code>pynavis.panes</code></a>.</p>
@@ -172,13 +173,35 @@ stacks and pulldowns</a> and <a href="api-reference.html#panes"><code>pynavis.pa
         there. See
         <a href="buttons.html#smartbutton-sets-its-own-title-tooltip-and-icon-at-build-time">Buttons,
         stacks and pulldowns</a>.</td></tr>
+<tr><td><code>__runner__</code></td><td>bool</td>
+    <td><code>False</code> on the ribbon, in hooks and in panels. Only
+        <a href="command-line.html"><code>pynavis run</code></a> sets it to
+        <code>True</code>, so check it before any prompt in a script that may run
+        there.</td></tr>
 <tr><td><code>__pynavis__</code></td><td>host object</td>
     <td>The runtime host singleton, your door back into the C# side.</td></tr>
 </tbody>
 </table>
 </div>
 
-<p>You can see all five at once. This is one of the few scripts where <code>print</code> is
+<div class="note">
+<span class="note-t">A script under pynavis run gets four more</span>
+<p>When <a href="command-line.html"><code>pynavis run</code></a> runs a script from the
+command line, it sets <code>__runner__</code> to <code>True</code> and adds four more:</p>
+<ul>
+<li><code>__model__</code> is the full path of the open model, or <code>None</code> when the
+    run has no model.</li>
+<li><code>__models__</code> is every model path in the run, as a .NET string array.</li>
+<li><code>__args__</code> is the words after <code>--</code> on the command line, also a
+    .NET string array.</li>
+<li><code>__run_dir__</code> is the run folder, the natural place for exported files.</li>
+</ul>
+<p>A runner script may also set <code>__result__</code> to a JSON-friendly value, which lands
+in the run's <code>results.json</code>. See <a href="command-line.html">Running without the
+ribbon</a>.</p>
+</div>
+
+<p>You can see all six at once. This is one of the few scripts where <code>print</code> is
 the right call, because opening the output window is the entire point of it:</p>
 
 <div class="code"><div class="code-head"><span>Probe.pushbutton\script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Prints the environment the runtime handed this script.&quot;&quot;&quot;</span>
@@ -186,6 +209,7 @@ print(<span class="tok-s">&#x27;__file__        %s&#x27;</span> % __file__)
 print(<span class="tok-s">&#x27;__commandpath__ %s&#x27;</span> % __commandpath__)
 print(<span class="tok-s">&#x27;__title__       %s&#x27;</span> % __title__)
 print(<span class="tok-s">&#x27;__selfinit__    %s&#x27;</span> % __selfinit__)
+print(<span class="tok-s">&#x27;__runner__      %s&#x27;</span> % __runner__)
 print(<span class="tok-s">&#x27;__pynavis__     %s&#x27;</span> % __pynavis__)
 print(<span class="tok-s">&#x27;version         %s&#x27;</span> % __pynavis__.Version)
 print(<span class="tok-s">&#x27;dark theme      %s&#x27;</span> % __pynavis__.IsDarkTheme)
@@ -248,6 +272,7 @@ script.get_command_path()  <span class="tok-c"># str, the bundle folder</span>
 script.get_title()         <span class="tok-c"># str, the resolved title</span>
 script.get_host_version()  <span class="tok-c"># str, runtime assembly version</span>
 script.is_dark_theme()     <span class="tok-c"># bool</span>
+script.is_runner()         <span class="tok-c"># bool, True under pynavis run</span>
 script.reload_pynavis()    <span class="tok-c"># rescan and rebuild the ribbon, no restart</span></code></pre></div>
 
 <div class="note">
@@ -277,7 +302,7 @@ that proves it. The familiar guard works:</p>
     main()</code></pre></div>
 
 <p>That is the only name Python itself would have given you. Everything else in the scope is
-either one of the five injected globals or something you defined.</p>
+either one of the six injected globals or something you defined.</p>
 
 <div class="note">
 <span class="note-t">The guard is not a way to make a file importable</span>
@@ -716,7 +741,7 @@ the input to disk, run something external, read the result back.</p>
 </article>
 <aside class="toc"><div class="toc-head">On this page</div>
 <a href="#what-happens-when-you-click">What happens when you click</a>
-<a href="#the-five-injected-globals">The five injected globals</a>
+<a href="#the-six-injected-globals">The six injected globals</a>
 <a href="#name-is-main">__name__ is &#x27;__main__&#x27;</a>
 <a href="#choosing-an-engine">Choosing an engine</a>
 <a href="#module-search-paths">Module search paths</a>

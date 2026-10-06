@@ -53,7 +53,7 @@ namespace PyNavis.Runtime.Events
 
         /// <summary>Raises to all consumers; one failing consumer never starves the rest.</summary>
         public static void Raise(NavisEvent evt, string commandKey = null,
-            string viewpointName = null)
+            string viewpointName = null, bool fromHook = false)
         {
             var handlers = Raised;
             if (handlers == null) return;
@@ -62,6 +62,7 @@ namespace PyNavis.Runtime.Events
                 Event = evt,
                 CommandKey = commandKey,
                 ViewpointName = viewpointName,
+                FromHook = fromHook,
             };
             foreach (Action<NavisEventArgs> handler in handlers.GetInvocationList())
             {
@@ -144,12 +145,14 @@ namespace PyNavis.Runtime.Events
 
         private static void OnSelectionChanged(object sender, EventArgs e)
         {
+            HookRunner.Loop.Armed(NavisEvent.SelectionChanged);
             _selectionTimer.Stop();
             _selectionTimer.Start();
         }
 
         private static void OnSelectionSetsChanged(object sender, NavApi.SavedItemChangedEventArgs e)
         {
+            HookRunner.Loop.Armed(NavisEvent.SelectionSetsChanged);
             _setsTimer.Stop();
             _setsTimer.Start();
         }
@@ -206,6 +209,7 @@ namespace PyNavis.Runtime.Events
         /// </summary>
         private static void OnCameraMoved(object sender, EventArgs e)
         {
+            HookRunner.Loop.Armed(NavisEvent.CameraMoved);
             _cameraTimer.Stop();
             _cameraTimer.Start();
         }
@@ -213,7 +217,7 @@ namespace PyNavis.Runtime.Events
         private static System.Windows.Forms.Timer MakeTimer(NavisEvent evt)
         {
             var timer = new System.Windows.Forms.Timer { Interval = DebounceMs };
-            timer.Tick += (s, e) => { timer.Stop(); Raise(evt); };
+            timer.Tick += (s, e) => { timer.Stop(); Raise(evt, fromHook: HookRunner.Loop.FiredFromHook(evt)); };
             return timer;
         }
     }

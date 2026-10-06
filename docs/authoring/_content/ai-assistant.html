@@ -111,7 +111,10 @@ answer usually runs first time.</p>
 <code>config.json</code>, edited from <strong>AI Settings</strong> or the AI section of the
 Settings window. The API key is not there: it is in <code>secrets.json</code> beside it,
 encrypted with Windows DPAPI for the current user, so a shared or screenshotted
-<code>config.json</code> never carries a key. Two providers are supported, Anthropic and any
+<code>config.json</code> never carries a key. The key is saved for the endpoint it was
+entered with and is only ever sent back there, over https or to a server on this computer, so
+switching provider or pointing the panel at another server never hands it to a different host;
+Remove in Settings deletes it. Two providers are supported, Anthropic and any
 OpenAI-compatible endpoint, which also covers a local server with no key at all. Requests go
 from Navisworks straight to that endpoint; pyNavis runs no service in between and keeps no
 copy of the conversation.</p>

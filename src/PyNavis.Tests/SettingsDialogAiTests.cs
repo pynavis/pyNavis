@@ -75,6 +75,34 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void Remove_MarksTheSavedKeyForRemoval_AndClearsTheBox()
+        {
+            OnSta(() =>
+            {
+                var window = SettingsDialog.Build(new PyNavisConfig.UserSettings(), hasKey: true,
+                    keySavedFor: "https://api.anthropic.com");
+                SettingsDialog.SetAiKeyForTest(window, "sk-typed");
+
+                SettingsDialog.PressRemoveKeyForTest(window);
+
+                Assert.True(SettingsDialog.KeyRemoveRequestedForTest(window));
+                Assert.Null(SettingsDialog.EnteredKeyForTest(window));
+            });
+        }
+
+        [Fact]
+        public void TheKeyHint_NamesTheEndpointTheKeyIsSavedFor()
+        {
+            OnSta(() =>
+            {
+                var window = SettingsDialog.Build(new PyNavisConfig.UserSettings(), hasKey: true,
+                    keySavedFor: "https://api.anthropic.com");
+
+                Assert.Contains("https://api.anthropic.com", SettingsDialog.AiSectionTextForTest(window));
+            });
+        }
+
+        [Fact]
         public void ANonNumericMaxTokens_FallsBackToTheDefault()
         {
             OnSta(() =>

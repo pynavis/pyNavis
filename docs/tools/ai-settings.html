@@ -96,7 +96,9 @@ with the values as they stand and reports what came back.</p>
     for example <code>http://localhost:11434/v1</code>; leave the key empty.</li>
   <li>Paste the key. It is stored encrypted for your Windows account in
     <code>%APPDATA%\pyNavis\secrets.json</code>, never in <code>config.json</code>, so
-    sharing your config or a screenshot of it never shares the key.</li>
+    sharing your config or a screenshot of it never shares the key. It is saved for the
+    endpoint you entered it with and only sent there, over https or to this computer; change
+    the provider or base URL and you enter the new endpoint's key. Remove deletes it.</li>
   <li>Click <strong>Test</strong>, then <strong>Save</strong>. Ask AI uses the new values from
     its next message; no Reload is needed for these.</li>
 </ol>

@@ -212,6 +212,48 @@ namespace PyNavis.Tests
             }
         }
 
+        // Engine parity with IronPythonEngineTests.CaptureGlobals_*.
+        [Fact]
+        public void CaptureGlobals_ReturnsTheGlobalAsJson_AndSkipsUnsetOrUnserialisable()
+        {
+            var set = new ScriptRequest { Code = "__result__ = {'count': 3, 'names': ['a']}" };
+            set.CaptureGlobals.Add("__result__");
+            var unset = new ScriptRequest { Code = "x = 1" };
+            unset.CaptureGlobals.Add("__result__");
+            var opaque = new ScriptRequest { Code = "__result__ = object()" };
+            opaque.CaptureGlobals.Add("__result__");
+
+            var r = _engine.Execute(set);
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Equal(IronPythonEngineTests.NormaliseJson("{\"count\": 3, \"names\": [\"a\"]}"),
+                         IronPythonEngineTests.NormaliseJson(r.Captured["__result__"]));
+
+            r = _engine.Execute(unset);
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.False(r.Captured.ContainsKey("__result__"));
+
+            r = _engine.Execute(opaque);
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.False(r.Captured.ContainsKey("__result__"));
+        }
+
+        [Fact]
+        public void CaptureGlobals_CapturesTheResult_OnACleanSysExit_AndLeavesOutNaN()
+        {
+            var exit = new ScriptRequest { Code = "import sys\n__result__ = 0\nsys.exit()" };
+            exit.CaptureGlobals.Add("__result__");
+            var nan = new ScriptRequest { Code = "__result__ = float('nan')" };
+            nan.CaptureGlobals.Add("__result__");
+
+            var r = _engine.Execute(exit);
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Equal("0", r.Captured["__result__"]);
+
+            r = _engine.Execute(nan);
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.False(r.Captured.ContainsKey("__result__"));
+        }
+
         [Fact]
         public void Numpy_Imports_AndComputes()
         {

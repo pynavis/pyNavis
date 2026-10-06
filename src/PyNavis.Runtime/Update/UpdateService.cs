@@ -45,6 +45,10 @@ namespace PyNavis.Runtime.Update
             public string Installer;
             public string InstallerVersion;
             public string InstallerSha256;
+            /// <summary>Times this installer was started on close; UpdateCheck caps it.</summary>
+            public int InstallAttempts;
+            /// <summary>The "could not install itself" toast was shown for this installer.</summary>
+            public bool GaveUpTold;
         }
 
         private static string AppData => _appData ?? Path.GetDirectoryName(RuntimeHost.UserConfigPath);
@@ -62,6 +66,17 @@ namespace PyNavis.Runtime.Update
             {
                 TryDelete(state.Installer);
                 state.Installer = state.InstallerVersion = state.InstallerSha256 = null;
+                state.InstallAttempts = 0;
+                state.GaveUpTold = false;
+                WriteState(state);
+            }
+            else if (state.Installer != null && !UpdateCheck.ShouldLaunchInstaller(state.InstallAttempts)
+                     && !state.GaveUpTold)
+            {
+                Log.Error($"Update: pyNavis {state.InstallerVersion} did not install after "
+                          + $"{state.InstallAttempts} attempts; not trying again (see the install-*.log files in {UpdatesDir}).");
+                Tell(UpdateCheck.GaveUpMessage(state.InstallerVersion));
+                state.GaveUpTold = true;
                 WriteState(state);
             }
             if (!_wired)
@@ -90,7 +105,8 @@ namespace PyNavis.Runtime.Update
         {
             var state = ReadState();
             var line = UpdateCheck.StatusLine(PyNavisVersion.Product, state.Latest,
-                state.Installer != null && File.Exists(state.Installer) ? state.InstallerVersion : null,
+                state.Installer != null && File.Exists(state.Installer)
+                    && UpdateCheck.ShouldLaunchInstaller(state.InstallAttempts) ? state.InstallerVersion : null,
                 skipped, state.LastCheckUtc?.ToLocalTime());
             return LastError == null ? line : line + " The last check failed: " + LastError;
         }
@@ -133,6 +149,8 @@ namespace PyNavis.Runtime.Update
                         state.Installer = Download(release);
                         state.InstallerVersion = release.Version;
                         state.InstallerSha256 = release.Sha256;
+                        state.InstallAttempts = 0;
+                        state.GaveUpTold = false;
                         WriteState(state);
                     }
                     if (!manual) Tell(UpdateCheck.ReadyMessage(release));
@@ -173,8 +191,18 @@ namespace PyNavis.Runtime.Update
                     return;
                 }
 
+                if (!UpdateCheck.ShouldLaunchInstaller(state.InstallAttempts)) return;
+                var self = Process.GetCurrentProcess();
+                if (UpdateCheck.OtherNavisworksInSession(self.Id, self.SessionId, Roamers()))
+                {
+                    Log.Info($"Update: another Navisworks is open; pyNavis {state.InstallerVersion} installs when the last one closes.");
+                    return;
+                }
+
+                state.InstallAttempts++;
+                WriteState(state);
                 var log = Path.Combine(UpdatesDir, $"install-{state.InstallerVersion}.log");
-                var arguments = UpdateCheck.InstallerArguments(Process.GetCurrentProcess().Id, log);
+                var arguments = UpdateCheck.InstallerArguments(self.Id, log);
                 Process.Start(new ProcessStartInfo(state.Installer, arguments) { UseShellExecute = true });
                 Log.Info($"Update: pyNavis {state.InstallerVersion} will install once Navisworks has closed ({state.Installer} {arguments}).");
             }
@@ -182,6 +210,18 @@ namespace PyNavis.Runtime.Update
             {
                 Log.Error("Update: could not start the installer on close", ex);
             }
+        }
+
+        private static List<(int pid, int session)> Roamers()
+        {
+            var found = new List<(int pid, int session)>();
+            foreach (var process in Process.GetProcessesByName("Roamer"))
+            {
+                try { found.Add((process.Id, process.SessionId)); }
+                catch (Exception) { }
+                finally { process.Dispose(); }
+            }
+            return found;
         }
 
         // ---- network ------------------------------------------------------------------
@@ -254,6 +294,8 @@ namespace PyNavis.Runtime.Update
                 state.Installer = Text(data, "installer");
                 state.InstallerVersion = Text(data, "installerVersion");
                 state.InstallerSha256 = Text(data, "installerSha256");
+                if (data.TryGetValue("installAttempts", out var attempts) && attempts is int count) state.InstallAttempts = count;
+                state.GaveUpTold = data.TryGetValue("gaveUpTold", out var told) && told is bool b && b;
             }
             catch (Exception ex)
             {
@@ -275,6 +317,8 @@ namespace PyNavis.Runtime.Update
                     ["installer"] = state.Installer,
                     ["installerVersion"] = state.InstallerVersion,
                     ["installerSha256"] = state.InstallerSha256,
+                    ["installAttempts"] = state.InstallAttempts,
+                    ["gaveUpTold"] = state.GaveUpTold,
                 };
                 File.WriteAllText(StatePath, new JavaScriptSerializer().Serialize(data), new UTF8Encoding(false));
             }

@@ -1,4 +1,5 @@
 using System.Text;
+using PyNavis.Runtime.Execution.Runner;
 using PyNavis.Runtime.Output.Html;
 
 namespace PyNavis.Runtime.Output
@@ -37,9 +38,12 @@ namespace PyNavis.Runtime.Output
                     // _currentTitle, not the constructor's: a SetTitle call before
                     // the first print is a real retitle, not a no-op, and it has to
                     // survive until there is a window to carry it.
-                    var window = WebView2Probe.IsAvailable
-                        ? (IOutputWindow)new HtmlOutputWindow(_currentTitle)
-                        : new OutputWindow(_currentTitle);
+                    // Under pynavis run there is no screen: the "window" is the transcript.
+                    var window = RunnerContext.IsActive
+                        ? new TranscriptOutputWindow(RunnerContext.Transcript)
+                        : WebView2Probe.IsAvailable
+                            ? (IOutputWindow)new HtmlOutputWindow(_currentTitle)
+                            : new OutputWindow(_currentTitle);
                     // Closing the window must not silently mute the script. Forget
                     // it here and the next write opens a fresh one under the same
                     // title; nothing else in the chain notices a window has gone,

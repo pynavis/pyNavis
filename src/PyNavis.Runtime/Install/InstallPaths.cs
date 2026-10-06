@@ -15,8 +15,21 @@ namespace PyNavis.Runtime.Install
         {
             yield return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pyNavis", "extensions");
-            yield return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "pyNavis", "extensions");
+            yield return MachineExtensionRoot;
+        }
+
+        public static string MachineExtensionRoot => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "pyNavis", "extensions");
+
+        /// <summary>Pure: a default root counts when it exists, and the machine-wide one
+        /// only when no one but an administrator can write to it (MachineFolderTrust):
+        /// anything found there runs, hooks and startup.py with no click, for every
+        /// user on the PC.</summary>
+        public static bool UsableDefaultRoot(string root, string machineRoot,
+            Func<string, bool> exists, Func<string, bool> adminOnly)
+        {
+            if (!exists(root)) return false;
+            return !string.Equals(root, machineRoot, StringComparison.OrdinalIgnoreCase) || adminOnly(root);
         }
 
         /// <summary>Pure: config.json roots first and in order, then each default root

@@ -93,7 +93,8 @@ namespace PyNavis.Runtime.Forms
             if (_session == null)
             {
                 _session = PartsOf(Build(AiSession.Live(),
-                    () => SecretStore.Default.Has(SecretStore.AiKeyName),
+                    () => ApiKeys.ForSaved(SecretStore.Default,
+                        Config.PyNavisConfig.Load(RuntimeHost.UserConfigPath).Ai) != null,
                     () =>
                     {
                         try

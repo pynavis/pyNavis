@@ -38,13 +38,14 @@
 <a href="script-environment.html"><span class="num">10</span>The script environment</a>
 <a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
 <a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
+<a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html"><span class="num">13</span>Python API reference</a>
+<a href="api-reference.html"><span class="num">14</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html"><span class="num">14</span>Cookbook</a>
-<a href="ai-assistant.html"><span class="num">15</span>Writing tools with an AI assistant</a>
-<a href="troubleshooting.html" class="active"><span class="num">16</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">17</span>Design rules for tools</a>
+<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
+<a href="ai-assistant.html"><span class="num">16</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html" class="active"><span class="num">17</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">18</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.2.0</span>
@@ -192,7 +193,8 @@ missing button is always one of these, in this order.</figcaption>
 <p><strong>Cause.</strong> The runtime scans only the folders listed under
 <code>"extensions"</code> in <code>%APPDATA%\pyNavis\config.json</code>, plus the two defaults,
 <code>%APPDATA%\pyNavis\extensions</code> and <code>%PROGRAMDATA%\pyNavis\extensions</code>
-if that folder exists. A perfectly formed extension anywhere else is never seen.</p>
+if that folder exists and only administrators can write to it (the log says when it is skipped
+for that reason). A perfectly formed extension anywhere else is never seen.</p>
 
 <p><strong>Fix.</strong> Register the folder that <em>contains</em> your
 <code>.extension</code> folder, not the <code>.extension</code> folder itself.</p>
@@ -543,7 +545,7 @@ button that builds fine and fails on first click is almost always this.</p>
 <code>PyNavis.Runtime.dll</code> in the runtime directory. This is logged once at startup, not
 per script, so search the top of the log.</p>
 
-<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.401 [ERROR] pynavislib not found (config &#x27;pynavislib&#x27; key or &amp;lt;runtime&amp;gt;\pynavislib) - &#x27;import pynavis&#x27; will fail.</code></pre></div>
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>2026-09-20 09:14:02.401 [ERROR] pynavislib not found (config &#x27;pynavislib&#x27; key or &lt;runtime&gt;\pynavislib) - &#x27;import pynavis&#x27; will fail.</code></pre></div>
 
 <h3 id="import-os-fails-on-ironpython">import os fails on IronPython<a class="anchor" href="#import-os-fails-on-ironpython" aria-label="Link to this section">#</a></h3>
 

@@ -56,7 +56,7 @@ namespace PyNavis.Runtime.Ai
             () =>
             {
                 var settings = Config.PyNavisConfig.Load(RuntimeHost.UserConfigPath).Ai;
-                return ChatProviders.Create(settings, SecretStore.Default.Get(SecretStore.AiKeyName));
+                return ChatProviders.Create(settings, ApiKeys.ForSaved(SecretStore.Default, settings));
             },
             () => Config.PyNavisConfig.Load(RuntimeHost.UserConfigPath).Ai,
             AuthoringPack.Load(),

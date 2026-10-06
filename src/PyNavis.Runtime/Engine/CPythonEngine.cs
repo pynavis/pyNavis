@@ -116,16 +116,25 @@ for _name in list(sys.modules.keys()):
                         if (request.ScriptPath != null && !request.Globals.ContainsKey("__file__"))
                             scope.Set("__file__", new PyString(request.ScriptPath));
 
-                        scope.Exec("exec(compile(__pynavis_source__, __pynavis_file__, 'exec'))");
+                        ExecResult result;
+                        try
+                        {
+                            scope.Exec("exec(compile(__pynavis_source__, __pynavis_file__, 'exec'))");
+                            result = new ExecResult { Succeeded = true };
+                        }
+                        catch (PythonException pex) when (pex.Type != null && pex.Type.Name == "SystemExit")
+                        {
+                            // sys.exit() is a script saying "stop here", not a crash: no traceback.
+                            // A message or a non-zero code is still a failure, in the script's own
+                            // words. Mirrors IronPythonEngine so both engines end a run alike.
+                            // Caught here, inside the scope, so a clean exit still hands back
+                            // the globals the caller asked for.
+                            result = ExitResult(pex);
+                        }
+                        if (result.Succeeded)
+                            CaptureGlobals(scope, request.CaptureGlobals, result);
+                        return result;
                     }
-                    return new ExecResult { Succeeded = true };
-                }
-                catch (PythonException pex) when (pex.Type != null && pex.Type.Name == "SystemExit")
-                {
-                    // sys.exit() is a script saying "stop here", not a crash: no traceback.
-                    // A message or a non-zero code is still a failure, in the script's own
-                    // words. Mirrors IronPythonEngine so both engines end a run alike.
-                    return ExitResult(pex);
                 }
                 catch (PythonException pex)
                 {
@@ -140,6 +149,26 @@ for _name in list(sys.modules.keys()):
                     sys.stdout = oldStdout;
                     sys.stderr = oldStderr;
                     sys.path = oldPath;
+                }
+            }
+        }
+
+        // Caller holds the GIL. Same contract as IronPythonEngine.CaptureGlobals: json.dumps
+        // in the script's scope, and a value json refuses is left out, not a failure.
+        private static void CaptureGlobals(PyModule scope, IList<string> names, ExecResult result)
+        {
+            foreach (var name in names)
+            {
+                if (!scope.Contains(name)) continue;
+                try
+                {
+                    scope.Exec("import json as _pynavis_json; __pynavis_captured__ = _pynavis_json.dumps(" + name + ", allow_nan=False)");
+                    using (var captured = scope.Get("__pynavis_captured__"))
+                        result.Captured[name] = captured.As<string>();
+                }
+                catch (Exception ex)
+                {
+                    Log.Info($"Script global '{name}' was not captured: {ex.Message}");
                 }
             }
         }

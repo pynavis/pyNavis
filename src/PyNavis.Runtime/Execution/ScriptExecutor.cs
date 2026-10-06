@@ -55,6 +55,7 @@ namespace PyNavis.Runtime.Execution
                 request.Globals["__title__"] = button.Title;
                 request.Globals["__selfinit__"] = false;
                 request.Globals["__pynavis__"] = PyNavisHost.Instance;
+                request.Globals["__runner__"] = false;   // only pynavis run sets it True
                 PyNavisHost.Instance.SetCommandContext(scriptPath, button.Directory, button.Title, button.BundleKey);
                 PyNavisHost.Instance.SetCurrentOutput(writer);
 
@@ -107,6 +108,10 @@ namespace PyNavis.Runtime.Execution
 
         /// <summary>True when the host UI renders dark; scripts theme their own dialogs with this.</summary>
         public bool IsDarkTheme => Output.PyNavisTheme.IsDark;
+
+        /// <summary>True while the script runs under <c>pynavis run</c>: no ribbon, no
+        /// window, and dialogs that need an answer throw.</summary>
+        public bool IsRunner => Runner.RunnerContext.IsActive;
 
         /// <summary>script.py of the command currently (or most recently) executing.</summary>
         public string ScriptPath { get; private set; }

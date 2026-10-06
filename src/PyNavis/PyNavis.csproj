@@ -24,8 +24,13 @@
     </ProjectReference>
   </ItemGroup>
 
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);PYNAVIS_LOADER</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
+    <Compile Include="..\Shared\MachineFolderTrust.cs" Link="MachineFolderTrust.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -14,8 +14,16 @@ namespace PyNavis.Runtime.Ribbon
     /// </summary>
     public class AdWindowsRibbonProvider : IRibbonProvider
     {
-        static AdWindowsRibbonProvider()
+        private static bool _subscribed;
+
+        /// <summary>Hooks the icon refreshes onto the toggle and pane events the first time a
+        /// ribbon is built, not from a static constructor: RuntimeHost holds the provider in a
+        /// static field, so any code reading RuntimeHost.UserConfigPath (updates, Settings, the
+        /// secret store) would otherwise wire handlers that need AdWindows into tests.</summary>
+        private static void Subscribe()
         {
+            if (_subscribed) return;
+            _subscribed = true;
             ToggleStateStore.Changed += OnToggleChanged;
             Panes.PaneRegistry.VisibleChanged += OnPaneVisibleChanged;
         }
@@ -79,6 +87,7 @@ namespace PyNavis.Runtime.Ribbon
                 return;
             }
 
+            Subscribe();
             var buttons = 0;
             // One bundle AdWindows rejects (or one tab) must cost only itself: the rest of
             // the ribbon still builds, and the user is told which ones are missing.

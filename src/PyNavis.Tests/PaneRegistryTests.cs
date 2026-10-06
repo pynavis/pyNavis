@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -134,6 +135,38 @@ namespace PyNavis.Tests
 
             Assert.Equal("T.tab/P.panel/A.dockpane", seenKey);
             Assert.True(seenVisible);
+        }
+
+        /// <summary>
+        /// Touching any RuntimeHost static (UpdateService, Settings and the secret store all
+        /// read UserConfigPath) must not hook the ribbon's icon refresh onto the pane event.
+        /// Outside Navisworks RuntimeHost's initialiser fails, because the provider it holds
+        /// is made of AdWindows types, but the provider's static constructor used to run
+        /// first and subscribe a handler that needs AdWindows, so once any test had touched
+        /// RuntimeHost this event blew up for the rest of the run.
+        /// </summary>
+        [Fact]
+        public void VisibilityChanged_After_Touching_RuntimeHost_Needs_No_Ribbon()
+        {
+            // Forced: RuntimeHost has no static constructor, so a plain property read may
+            // never run its field initialisers, and the test would pass without the fix.
+            try { RuntimeHelpers.RunClassConstructor(typeof(PyNavis.Runtime.RuntimeHost).TypeHandle); }
+            catch (TypeInitializationException) { }
+            PaneRegistry.Configure(new[] { Extension("A") }, PyNavisConfig.Load(_configPath), _configPath);
+
+            var raised = 0;
+            Action<string, bool> handler = (key, visible) => raised++;
+            PaneRegistry.VisibleChanged += handler;
+            try
+            {
+                PaneRegistry.VisibilityChanged(1, true);
+            }
+            finally
+            {
+                PaneRegistry.VisibleChanged -= handler;
+            }
+
+            Assert.Equal(1, raised);
         }
 
         /// <summary>

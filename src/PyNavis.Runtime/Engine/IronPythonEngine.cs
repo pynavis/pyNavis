@@ -84,7 +84,9 @@ for _name in list(sys.modules.keys()):
                     ? _engine.CreateScriptSourceFromFile(request.ScriptPath)
                     : _engine.CreateScriptSourceFromString(request.Code, SourceCodeKind.Statements);
                 source.Execute(scope);
-                return new ExecResult { Succeeded = true };
+                var result = new ExecResult { Succeeded = true };
+                CaptureGlobals(scope, request.CaptureGlobals, result);
+                return result;
             }
             catch (IronPython.Runtime.Exceptions.SystemExitException exit)
             {
@@ -94,9 +96,11 @@ for _name in list(sys.modules.keys()):
                 var code = exit.GetExitCode(out var other);
                 if (other != null)
                     return new ExecResult { Succeeded = false, ErrorText = Convert.ToString(other) };
-                return code == 0
-                    ? new ExecResult { Succeeded = true }
-                    : new ExecResult { Succeeded = false, ErrorText = "Script exited with code " + code + "." };
+                if (code != 0)
+                    return new ExecResult { Succeeded = false, ErrorText = "Script exited with code " + code + "." };
+                var result = new ExecResult { Succeeded = true };
+                CaptureGlobals(scope, request.CaptureGlobals, result);
+                return result;
             }
             catch (Exception ex)
             {
@@ -114,6 +118,30 @@ for _name in list(sys.modules.keys()):
                 catch (Exception ex)
                 {
                     Log.Error("IronPython engine state could not be restored after a run.", ex);
+                }
+            }
+        }
+
+        // json.dumps in the script's own scope, so the value is serialised by the same
+        // interpreter that made it. A value json refuses (an API object, a set, and with
+        // allow_nan=False a NaN or infinity, which is not JSON) is left out: the script
+        // still succeeded, it just has no result to hand back.
+        private void CaptureGlobals(ScriptScope scope, IList<string> names, ExecResult result)
+        {
+            foreach (var name in names)
+            {
+                if (!scope.ContainsVariable(name)) continue;
+                try
+                {
+                    _engine.CreateScriptSourceFromString(
+                            "import json as _pynavis_json; __pynavis_captured__ = _pynavis_json.dumps(" + name + ", allow_nan=False)",
+                            SourceCodeKind.Statements)
+                        .Execute(scope);
+                    result.Captured[name] = scope.GetVariable<string>("__pynavis_captured__");
+                }
+                catch (Exception ex)
+                {
+                    Log.Info($"Script global '{name}' was not captured: {ex.Message}");
                 }
             }
         }

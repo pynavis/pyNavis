@@ -191,6 +191,9 @@ namespace PyNavis.Tests
                 "assert close(sp.along(pipe, beam, '-y')['move'], 1.1)");
         }
 
+        // The bound is wall-clock and the suite runs test classes in parallel: alone this
+        // solves in about 5 s, under the full run it has taken 22 s. 60 s still separates
+        // "seconds" from the minutes an unbounded search would take.
         [Fact]
         public void DenseFitting_SolvesInSeconds_AndTheBudgetRaises()
         {
@@ -204,7 +207,7 @@ namespace PyNavis.Tests
                 "elapsed = time.time() - started\n" +
                 "assert r['status'] == 'clash' and r['axis'] == '+z', r\n" +
                 "assert close(r['move'], 0.16), r\n" +
-                "assert elapsed < 20.0, elapsed\n" +
+                "assert elapsed < 60.0, elapsed\n" +
                 "try:\n" +
                 "    sp.resolve(pipe, fitting, budget_seconds=0.0001)\n" +
                 "except sp.TooDetailed:\n" +

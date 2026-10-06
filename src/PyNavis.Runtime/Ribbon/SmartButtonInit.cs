@@ -28,6 +28,7 @@ namespace PyNavis.Runtime.Ribbon
                 request.Globals["__selfinit__"] = true;
                 request.Globals["__button__"] = new SmartButtonProxy(item);
                 request.Globals["__pynavis__"] = Execution.PyNavisHost.Instance;
+                request.Globals["__runner__"] = false;   // only pynavis run sets it True
 
                 var result = EngineManager.GetEngine(model.EngineId).Execute(request);
                 if (!result.Succeeded)

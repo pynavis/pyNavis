@@ -43,6 +43,11 @@ def is_dark_theme():
     return get_host().IsDarkTheme
 
 
+def is_runner():
+    """True when the script runs under ``pynavis run`` (no ribbon, no window)."""
+    return bool(get_host().IsRunner)
+
+
 def reload_pynavis():
     """Rescan extension folders and rebuild the pyNavis ribbon (no restart)."""
     get_host().Reload()

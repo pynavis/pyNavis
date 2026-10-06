@@ -30,6 +30,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- RunCommandTests reads the loader's plugin attributes reflection-only, which needs
+         the Navisworks API the loader compiled against; it is not copied to the bin. -->
+    <AssemblyMetadata Include="PyNavis.Tests.NavisApiDir" Value="$(NavisApiDir)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PyNavis.Runtime\PyNavis.Runtime.csproj" />
     <ProjectReference Include="..\PyNavis\PyNavis.csproj" />
     <ProjectReference Include="..\PyNavis.Cli\PyNavis.Cli.csproj" />

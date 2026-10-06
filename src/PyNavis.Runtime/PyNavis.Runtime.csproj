@@ -42,6 +42,9 @@
   <ItemGroup>
     <!-- Shared with the command line, which the installer runs to protect users' work -->
     <Compile Include="..\Shared\ShippedFiles.cs" Link="Upgrade\ShippedFiles.cs" />
+    <Compile Include="..\Shared\MachineFolderTrust.cs" Link="Install\MachineFolderTrust.cs" />
+    <!-- Shared with the command line, which hands pynavis run requests to the runner add-in -->
+    <Compile Include="..\Shared\RunContract.cs" Link="Execution\Runner\RunContract.cs" />
   </ItemGroup>
 
   <ItemGroup>
