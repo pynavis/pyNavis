@@ -12,8 +12,10 @@ namespace PyNavis.Runtime.Overlay
     /// every overlay pass here; scripts add and clear items through pynavis.overlay.
     ///
     /// Items live in world coordinates and are redrawn every frame, so they follow
-    /// orbit and zoom for free. Labels are drawn in the window context at the pixel
-    /// their world point projects to.
+    /// orbit and zoom for free. Lines and labels are both drawn in the window context
+    /// at the pixels their world points project to: View.ProjectPoint works in doubles
+    /// and is right to the pixel on a model a million feet from the origin, where 3D
+    /// lines handed to the graphics context did not appear at all (field-measured).
     /// </summary>
     public static class OverlayRegistry
     {
@@ -26,9 +28,12 @@ namespace PyNavis.Runtime.Overlay
         private static bool _renderFailureLogged;
 
         /// <summary>
-        /// Whether window-context Y runs bottom-up (OpenGL style) while ProjectPoint
-        /// reports top-down pixels. One field so a field check that finds labels
-        /// mirrored is a one-line fix.
+        /// Whether ProjectPoint counts rows from the top while the window context
+        /// counts from the bottom, so a projected Y must be flipped before drawing.
+        /// Field-measured both ways (true on one session, false on another: there
+        /// labels sat mirrored about the middle of the view), so every overlay pass
+        /// asks the view (Calibrate) and this holds the latest answer; the pick
+        /// marker reads it too.
         /// </summary>
         public static bool FlipY = true;
 
@@ -139,10 +144,12 @@ namespace PyNavis.Runtime.Overlay
 
             try
             {
+                var camera = Camera.Read(view);
+                Calibrate(view, camera);
                 graphics.DepthTest(false);
                 graphics.LineWidth(2.0);
                 foreach (var item in items)
-                    DrawSegments(graphics, item);
+                    DrawSegments(view, graphics, item, camera);
                 foreach (var item in items)
                     DrawLabel(view, graphics, item);
             }
@@ -182,15 +189,91 @@ namespace PyNavis.Runtime.Overlay
         private static Color Accent() => new Color(1.0, 0.55, 0.0);
         private static Color Paper() => new Color(1.0, 1.0, 1.0);
 
-        private static void DrawSegments(Graphics graphics, OverlayItem item)
+        /// <summary>The live camera, or null when it cannot be read.</summary>
+        private sealed class Camera
         {
-            graphics.Color(Accent(), 1.0);
-            foreach (var seg in item.Segments)
+            public double[] Eye;
+            public double[] Direction;
+            public double[] Up;
+            public bool Perspective;
+            public double Reach;
+
+            public static Camera Read(View view)
             {
-                if (seg.From == null || seg.To == null) continue;
-                if (seg.Dashed) graphics.LineStipple(3, 0x0F0F);
-                graphics.Line(ToPoint(seg.From), ToPoint(seg.To));
-                if (seg.Dashed) graphics.LineStipple(1, 0xFFFF);
+                try
+                {
+                    // CreateCopy, not Value: Value does not track the live camera.
+                    var vp = view.Document.CurrentViewpoint.CreateCopy();
+                    var r = vp.Rotation;
+                    return new Camera
+                    {
+                        Eye = ToArray(vp.Position),
+                        Direction = OverlayMath.Direction(r.A, r.B, r.C, r.D),
+                        Up = OverlayMath.Up(r.A, r.B, r.C, r.D),
+                        Perspective = vp.Projection == ViewpointProjection.Perspective,
+                        Reach = vp.HasFocalDistance && vp.FocalDistance > 0 ? vp.FocalDistance : 10.0,
+                    };
+                }
+                catch (Exception)
+                {
+                    return null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Asks the view which way up it counts rows: a point a little above the line
+        /// of sight must land above the middle of the view. FlipY keeps its last
+        /// value when the camera cannot be read or the probes land on one row.
+        /// </summary>
+        private static void Calibrate(View view, Camera camera)
+        {
+            if (camera == null) return;
+            var centre = new double[3];
+            var above = new double[3];
+            for (var i = 0; i < 3; i++)
+            {
+                centre[i] = camera.Eye[i] + camera.Direction[i] * camera.Reach;
+                above[i] = centre[i] + camera.Up[i] * camera.Reach * 0.1;
+            }
+            var answer = OverlayMath.RowsFromTop(
+                view.ProjectPoint(ToPoint(centre), false, false).Y,
+                view.ProjectPoint(ToPoint(above), false, false).Y);
+            if (answer.HasValue) FlipY = answer.Value;
+        }
+
+        private static Point2D ToWindow(View view, Graphics graphics, double[] world)
+        {
+            var shot = view.ProjectPoint(ToPoint(world), false, false);
+            var y = FlipY ? graphics.WindowHeight - (double)shot.Y : (double)shot.Y;
+            return new Point2D(shot.X, y);
+        }
+
+        private static void DrawSegments(View view, Graphics graphics, OverlayItem item, Camera camera)
+        {
+            graphics.BeginWindowContext();
+            try
+            {
+                graphics.Color(Accent(), 1.0);
+                foreach (var seg in item.Segments)
+                {
+                    if (seg.From == null || seg.To == null) continue;
+                    var from = seg.From;
+                    var to = seg.To;
+                    // A point behind a perspective camera projects to a mirrored
+                    // pixel, so the line is cut at the camera first.
+                    if (camera != null && camera.Perspective
+                        && !OverlayMath.ClipToFront(from, to, camera.Eye, camera.Direction,
+                                                    camera.Reach * 1e-3, out from, out to))
+                        continue;
+                    if (seg.Dashed) graphics.LineStipple(3, 0x0F0F);
+                    graphics.Line(ToWindow(view, graphics, from), ToWindow(view, graphics, to));
+                    if (seg.Dashed) graphics.LineStipple(1, 0xFFFF);
+                }
+            }
+            finally
+            {
+                graphics.EndWindowContext();
             }
         }
 

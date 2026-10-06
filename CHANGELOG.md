@@ -23,6 +23,10 @@ something existing changes meaning or goes away. The number in each heading is t
 
 ### Fixed
 
+- Lines and labels drawn in the view (`pynavis.overlay`: the True Distance dimension, the Go
+  to Coordinates marker) land on their points on every machine and on models far from the
+  origin. Before, a label could sit mirrored about the middle of the view, and on a model in
+  shared coordinates the lines could be missing altogether.
 - The Ask AI key is only sent to the endpoint it was saved for, and only over https or to a
   server on this computer. Before, switching provider or pointing the panel at a local model
   server on another machine sent the saved key there, in clear text over http. A key saved
