@@ -27,6 +27,12 @@ namespace PyNavis.Runtime.Output.Html
         private System.Windows.Controls.TextBox _fallback;
         private bool _ready;
         private bool _closed;
+        private bool _browserReleased;
+
+        // Every window whose browser is still alive, so Navisworks closing can
+        // release them all (see ReleaseBrowser).
+        private static readonly List<HtmlOutputWindow> Live = new List<HtmlOutputWindow>();
+        private static bool _closingWired;
 
         public HtmlOutputWindow(string title)
         {
@@ -63,6 +69,64 @@ namespace PyNavis.Runtime.Output.Html
             {
                 _closed = true;
                 _pending.Clear();
+                ReleaseBrowser();
+            };
+            Live.Add(this);
+            WireAppClosing();
+        }
+
+        /// <summary>
+        /// Disposes the browser control here, on the UI thread. A WebView2 that is
+        /// merely dropped is disposed by its finalizer instead, on the finalizer
+        /// thread, where touching its COM object throws InvalidCastException; an
+        /// exception there is unhandled and took Navisworks down as it closed
+        /// (six crash reports, every one this stack). Safe to call twice.
+        /// </summary>
+        private void ReleaseBrowser()
+        {
+            if (_browserReleased) return;
+            _browserReleased = true;
+            Live.Remove(this);
+            try
+            {
+                _view.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Output window browser could not be released.", ex);
+            }
+        }
+
+        /// <summary>
+        /// Releases every live browser when Navisworks starts closing: a window the
+        /// user left open is otherwise torn down with the process and its browser
+        /// left to the finalizer.
+        /// </summary>
+        internal static void ReleaseAll()
+        {
+            foreach (var window in Live.ToArray())
+            {
+                try
+                {
+                    window.Close();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Output window could not be closed.", ex);
+                }
+                window.ReleaseBrowser();
+            }
+        }
+
+        internal static int LiveCount => Live.Count;
+
+        private static void WireAppClosing()
+        {
+            if (_closingWired) return;
+            _closingWired = true;
+            Events.NavisEvents.Raised += e =>
+            {
+                if (e.Event == Events.NavisEvent.AppClosing) ReleaseAll();
             };
         }
 
@@ -141,6 +205,9 @@ namespace PyNavis.Runtime.Output.Html
             _pending.Clear();
             _pendingText.Clear();
             Content = _fallback;
+            // The browser that never came up is still a live control: release it now
+            // rather than leave it to the finalizer.
+            ReleaseBrowser();
         }
 
         /// <summary>What the plain-text fallback shows; null while the browser path is in use.</summary>

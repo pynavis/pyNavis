@@ -27,6 +27,9 @@ something existing changes meaning or goes away. The number in each heading is t
   to Coordinates marker) land on their points on every machine and on models far from the
   origin. Before, a label could sit mirrored about the middle of the view, and on a model in
   shared coordinates the lines could be missing altogether.
+- Navisworks no longer crashes as it closes after a script has shown the output window.
+  The window's browser is now released when the window closes, or when Navisworks does,
+  instead of being left for Windows to clean up at exit.
 - The Ask AI key is only sent to the endpoint it was saved for, and only over https or to a
   server on this computer. Before, switching provider or pointing the panel at a local model
   server on another machine sent the saved key there, in clear text over http. A key saved

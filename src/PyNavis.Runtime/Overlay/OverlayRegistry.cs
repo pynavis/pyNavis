@@ -26,6 +26,8 @@ namespace PyNavis.Runtime.Overlay
         private static bool _loadAttempted;
         private static bool _loaded;
         private static bool _renderFailureLogged;
+        private static bool _eventsWired;
+        private static volatile bool _closing;
 
         /// <summary>
         /// Whether ProjectPoint counts rows from the top while the window context
@@ -38,6 +40,35 @@ namespace PyNavis.Runtime.Overlay
         public static bool FlipY = true;
 
         public static int Count { get { lock (Gate) return _items.Count; } }
+
+        /// <summary>True once Navisworks has started closing: nothing is drawn or
+        /// asked to redraw from then on.</summary>
+        public static bool IsClosing => _closing;
+
+        /// <summary>
+        /// What the overlay does about a Navisworks event. Items belong to the
+        /// document they were drawn over, so a closed document takes them with it.
+        /// Once Navisworks starts closing, the overlay goes quiet for good: the view
+        /// still gets overlay passes while it is torn down, and drawing into one
+        /// crashed Navisworks on exit whenever items were still on screen
+        /// (field-measured, an access violation inside the host's plugin layer).
+        /// </summary>
+        internal static void OnEvent(Events.NavisEvent navisEvent)
+        {
+            if (navisEvent == Events.NavisEvent.AppClosing) _closing = true;
+            if (navisEvent == Events.NavisEvent.AppClosing || navisEvent == Events.NavisEvent.DocClosed)
+                Clear(null);
+        }
+
+        /// <summary>For tests: a later test must not inherit a closed overlay.</summary>
+        internal static void ResetClosing() => _closing = false;
+
+        private static void WireEvents()
+        {
+            if (_eventsWired) return;
+            _eventsWired = true;
+            Events.NavisEvents.Raised += e => OnEvent(e.Event);
+        }
 
         public static IReadOnlyList<OverlayItem> Items { get { lock (Gate) return _items.ToList(); } }
 
@@ -93,6 +124,7 @@ namespace PyNavis.Runtime.Overlay
         /// </summary>
         public static bool EnsureLoaded()
         {
+            WireEvents();
             if (_loaded) return true;
             if (_loadAttempted) return false;
             _loadAttempted = true;
@@ -120,8 +152,11 @@ namespace PyNavis.Runtime.Overlay
         {
             try
             {
+                if (_closing) return;
                 var doc = Application.ActiveDocument;
-                if (doc == null) return;
+                // A document with nothing in it is one being closed: asking its view
+                // for a pass then is asking a view that is on its way out.
+                if (doc == null || doc.IsClear) return;
                 doc.ActiveView.RequestDelayedRedraw(ViewRedrawRequests.OverlayRender);
             }
             catch (Exception ex)
@@ -133,6 +168,7 @@ namespace PyNavis.Runtime.Overlay
         /// <summary>Called by the loader plugin on every overlay pass of the view.</summary>
         public static void Render(View view, Graphics graphics)
         {
+            if (_closing || view == null || graphics == null) return;
             List<OverlayItem> items;
             lock (Gate)
             {
@@ -144,6 +180,8 @@ namespace PyNavis.Runtime.Overlay
 
             try
             {
+                var document = view.Document;
+                if (document == null || document.IsClear) return;
                 var camera = Camera.Read(view);
                 Calibrate(view, camera);
                 graphics.DepthTest(false);
@@ -203,16 +241,23 @@ namespace PyNavis.Runtime.Overlay
                 try
                 {
                     // CreateCopy, not Value: Value does not track the live camera.
-                    var vp = view.Document.CurrentViewpoint.CreateCopy();
-                    var r = vp.Rotation;
-                    return new Camera
+                    // The copy and what it hands out are native handles made on
+                    // every pass, so each is disposed here: left to the finalizer
+                    // they pile up and are torn down after the document at exit,
+                    // which crashed Navisworks on closing (field-measured).
+                    using (var vp = view.Document.CurrentViewpoint.CreateCopy())
+                    using (var r = vp.Rotation)
+                    using (var position = vp.Position)
                     {
-                        Eye = ToArray(vp.Position),
-                        Direction = OverlayMath.Direction(r.A, r.B, r.C, r.D),
-                        Up = OverlayMath.Up(r.A, r.B, r.C, r.D),
-                        Perspective = vp.Projection == ViewpointProjection.Perspective,
-                        Reach = vp.HasFocalDistance && vp.FocalDistance > 0 ? vp.FocalDistance : 10.0,
-                    };
+                        return new Camera
+                        {
+                            Eye = ToArray(position),
+                            Direction = OverlayMath.Direction(r.A, r.B, r.C, r.D),
+                            Up = OverlayMath.Up(r.A, r.B, r.C, r.D),
+                            Perspective = vp.Projection == ViewpointProjection.Perspective,
+                            Reach = vp.HasFocalDistance && vp.FocalDistance > 0 ? vp.FocalDistance : 10.0,
+                        };
+                    }
                 }
                 catch (Exception)
                 {
@@ -236,15 +281,20 @@ namespace PyNavis.Runtime.Overlay
                 centre[i] = camera.Eye[i] + camera.Direction[i] * camera.Reach;
                 above[i] = centre[i] + camera.Up[i] * camera.Reach * 0.1;
             }
-            var answer = OverlayMath.RowsFromTop(
-                view.ProjectPoint(ToPoint(centre), false, false).Y,
-                view.ProjectPoint(ToPoint(above), false, false).Y);
+            var answer = OverlayMath.RowsFromTop(Project(view, centre).Y, Project(view, above).Y);
             if (answer.HasValue) FlipY = answer.Value;
+        }
+
+        /// <summary>ProjectPoint on a world point, disposing the Point3D it needs.</summary>
+        private static ProjectionResult Project(View view, double[] world)
+        {
+            using (var point = ToPoint(world))
+                return view.ProjectPoint(point, false, false);
         }
 
         private static Point2D ToWindow(View view, Graphics graphics, double[] world)
         {
-            var shot = view.ProjectPoint(ToPoint(world), false, false);
+            var shot = Project(view, world);
             var y = FlipY ? graphics.WindowHeight - (double)shot.Y : (double)shot.Y;
             return new Point2D(shot.X, y);
         }
@@ -254,7 +304,8 @@ namespace PyNavis.Runtime.Overlay
             graphics.BeginWindowContext();
             try
             {
-                graphics.Color(Accent(), 1.0);
+                using (var accent = Accent())
+                    graphics.Color(accent, 1.0);
                 foreach (var seg in item.Segments)
                 {
                     if (seg.From == null || seg.To == null) continue;
@@ -267,7 +318,9 @@ namespace PyNavis.Runtime.Overlay
                                                     camera.Reach * 1e-3, out from, out to))
                         continue;
                     if (seg.Dashed) graphics.LineStipple(3, 0x0F0F);
-                    graphics.Line(ToWindow(view, graphics, from), ToWindow(view, graphics, to));
+                    using (var a = ToWindow(view, graphics, from))
+                    using (var b = ToWindow(view, graphics, to))
+                        graphics.Line(a, b);
                     if (seg.Dashed) graphics.LineStipple(1, 0xFFFF);
                 }
             }
@@ -280,7 +333,7 @@ namespace PyNavis.Runtime.Overlay
         private static void DrawLabel(View view, Graphics graphics, OverlayItem item)
         {
             if (string.IsNullOrEmpty(item.Label) || item.LabelAt == null) return;
-            var shot = view.ProjectPoint(ToPoint(item.LabelAt), false, false);
+            var shot = Project(view, item.LabelAt);
             var x = (double)shot.X;
             var y = FlipY ? graphics.WindowHeight - (double)shot.Y : (double)shot.Y;
 
@@ -296,10 +349,17 @@ namespace PyNavis.Runtime.Overlay
                     // Box sits just up and right of the anchor pixel, like the native tag.
                     var x0 = x + 8.0;
                     var y0 = y + 8.0;
-                    graphics.Color(Accent(), 1.0);
-                    graphics.Rectangle(new Point2D(x0, y0), new Point2D(x0 + w + 2 * pad, y0 + h + 2 * pad), true);
-                    graphics.Color(Paper(), 1.0);
-                    graphics.Text2D(font, item.Label, new Point2D(x0 + pad, y0 + pad), 0, 0);
+                    using (var corner = new Point2D(x0, y0))
+                    using (var opposite = new Point2D(x0 + w + 2 * pad, y0 + h + 2 * pad))
+                    using (var textAt = new Point2D(x0 + pad, y0 + pad))
+                    using (var accent = Accent())
+                    using (var paper = Paper())
+                    {
+                        graphics.Color(accent, 1.0);
+                        graphics.Rectangle(corner, opposite, true);
+                        graphics.Color(paper, 1.0);
+                        graphics.Text2D(font, item.Label, textAt, 0, 0);
+                    }
                 }
             }
             finally

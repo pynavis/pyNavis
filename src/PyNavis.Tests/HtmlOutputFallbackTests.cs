@@ -57,6 +57,36 @@ namespace PyNavis.Tests
             });
         }
 
+        // Field: Navisworks died as it closed, six times, with InvalidCastException out of
+        // WebView2's finalizer. A browser control must be disposed on the UI thread, when
+        // its window closes or Navisworks does, never left to the finalizer thread.
+        [Fact]
+        public void ClosingAWindow_OrNavisworks_ReleasesItsBrowser()
+        {
+            OnSta(() =>
+            {
+                HtmlOutputWindow.ReleaseAll();
+                Assert.Equal(0, HtmlOutputWindow.LiveCount);
+
+                var closedByUser = new HtmlOutputWindow("A");
+                var leftOpen = new HtmlOutputWindow("B");
+                var fellBack = new HtmlOutputWindow("C");
+                Assert.Equal(3, HtmlOutputWindow.LiveCount);
+
+                closedByUser.Close();
+                Assert.Equal(2, HtmlOutputWindow.LiveCount);
+
+                fellBack.FallBackToText(new InvalidOperationException("x"));
+                Assert.Equal(1, HtmlOutputWindow.LiveCount);
+                fellBack.AppendText("still shown", false);
+                Assert.Contains("still shown", fellBack.FallbackText);
+
+                HtmlOutputWindow.ReleaseAll();          // what app-closing does
+                Assert.Equal(0, HtmlOutputWindow.LiveCount);
+                HtmlOutputWindow.ReleaseAll();          // and twice is harmless
+            });
+        }
+
         // A plain <a href="https://..."> a script prints used to do nothing (or open a
         // bare browser popup inside Navisworks). Web and mail links go to the user's
         // default handler; everything else (the page itself, about:blank) stays put.

@@ -56,6 +56,37 @@ namespace PyNavis.Tests
             Assert.True(OverlayRegistry.IsStale(anchored, true, f, true, new[] { 4.0, 5.0, 6.5 }));
         }
 
+        // Field: with a pin still on screen, Navisworks crashed as it closed. The view
+        // keeps getting overlay passes while it is torn down, so the overlay must be
+        // empty and silent from the moment the document or the application closes.
+        [Fact]
+        public void ClosingADocumentClearsItsItems_AndClosingNavisworksSilencesTheOverlay()
+        {
+            OverlayRegistry.ResetClosing();
+            try
+            {
+                OverlayRegistry.Clear(null);
+                OverlayRegistry.Add(Item("pin"));
+                OverlayRegistry.OnEvent(PyNavis.Runtime.Events.NavisEvent.SelectionChanged);
+                Assert.Equal(1, OverlayRegistry.Count);
+                Assert.False(OverlayRegistry.IsClosing);
+
+                OverlayRegistry.OnEvent(PyNavis.Runtime.Events.NavisEvent.DocClosed);
+                Assert.Equal(0, OverlayRegistry.Count);
+                Assert.False(OverlayRegistry.IsClosing);
+
+                OverlayRegistry.Add(Item("pin"));
+                OverlayRegistry.OnEvent(PyNavis.Runtime.Events.NavisEvent.AppClosing);
+                Assert.Equal(0, OverlayRegistry.Count);
+                Assert.True(OverlayRegistry.IsClosing);
+            }
+            finally
+            {
+                OverlayRegistry.ResetClosing();
+                OverlayRegistry.Clear(null);
+            }
+        }
+
         [Fact]
         public void RowsFromTop_IsReadFromAProbeAboveTheLineOfSight()
         {
