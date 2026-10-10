@@ -133,6 +133,639 @@ make, and only then writes them into Clash Detective.</p>
 <p>Shift+Click stores presets in <code>smart_clash_grouper.json</code>; every run can still
 change all of them in the dialog. The groups it writes are ordinary Clash Detective groups
 and behave like any other in the report.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Clash.panel/Clash_Grouper.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Grouper.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Groups clash results into reviewable issues: one click Smart grouping by
+root-cause element, or chain custom rules (level, grid, proximity, model,
+status), with a live preview before anything is written.&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, clashgroup, forms, output, settings
+<span class="tok-k">from</span> pynavis._markdown <span class="tok-k">import</span> escape <span class="tok-k">as</span> _escape
+
+<span class="tok-k">try</span>:
+    <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> clash
+<span class="tok-k">except</span> ImportError:
+    clash = <span class="tok-k">None</span>
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+
+<span class="tok-c"># Int32 explicitly, never the builtin int: IronPython 3 maps int to</span>
+<span class="tok-c"># BigInteger, so Func[int, TestCounts] builds a delegate type the CLR does not</span>
+<span class="tok-c"># recognise (&quot;expected Func[Int32, TestCounts], got Func[int, TestCounts]&quot;).</span>
+<span class="tok-k">from</span> System <span class="tok-k">import</span> Func, Int32
+<span class="tok-k">from</span> System.Collections.Generic <span class="tok-k">import</span> List
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> ClashGrouperDialog, ProgressScope
+
+TestRow = ClashGrouperDialog.TestRow
+RuleChoice = ClashGrouperDialog.RuleChoice
+GrouperConfig = ClashGrouperDialog.GrouperConfig
+PreviewData = ClashGrouperDialog.PreviewData
+PreviewGroup = ClashGrouperDialog.PreviewGroup
+TestCounts = ClashGrouperDialog.TestCounts
+PreviewProgress = ClashGrouperDialog.PreviewProgress
+
+MAX_SUMMARY_ROWS = <span class="tok-n">20</span>
+
+<span class="tok-c"># Shift+Click (config.py) saves these; a plain run opens the dialog preset.</span>
+SETTINGS_DEFAULTS = {<span class="tok-s">&#x27;smart&#x27;</span>: <span class="tok-k">True</span>, <span class="tok-s">&#x27;rules&#x27;</span>: [], <span class="tok-s">&#x27;tolerance_m&#x27;</span>: <span class="tok-n">2.0</span>,
+                     <span class="tok-s">&#x27;keep_existing&#x27;</span>: <span class="tok-k">True</span>}
+
+
+<span class="tok-k">def</span> saved_defaults():
+    prefs = settings.load(<span class="tok-s">&#x27;smart_clash_grouper&#x27;</span>, SETTINGS_DEFAULTS)
+    defaults = GrouperConfig()
+    defaults.Smart = bool(prefs[<span class="tok-s">&#x27;smart&#x27;</span>])
+    defaults.KeepExisting = bool(prefs[<span class="tok-s">&#x27;keep_existing&#x27;</span>])
+    <span class="tok-c"># The cluster distance is shown and typed in the document&#x27;s units.</span>
+    <span class="tok-k">try</span>:
+        defaults.Units = str(app.get_doc().Units)
+    <span class="tok-k">except</span> Exception:
+        <span class="tok-k">pass</span>
+    <span class="tok-k">try</span>:
+        tolerance = float(prefs[<span class="tok-s">&#x27;tolerance_m&#x27;</span>])
+        <span class="tok-k">if</span> tolerance &gt; <span class="tok-n">0</span>:
+            defaults.ToleranceMeters = tolerance
+    <span class="tok-k">except</span> (TypeError, ValueError):
+        <span class="tok-k">pass</span>
+    known = set(rule_id <span class="tok-k">for</span> rule_id, _ <span class="tok-k">in</span> clashgroup.RULES)
+    <span class="tok-k">for</span> rule_id <span class="tok-k">in</span> prefs[<span class="tok-s">&#x27;rules&#x27;</span>]:
+        <span class="tok-k">if</span> rule_id <span class="tok-k">in</span> known:
+            defaults.RuleIds.Add(rule_id)
+    <span class="tok-k">return</span> defaults
+
+
+<span class="tok-k">def</span> build_test_rows(tests):
+    <span class="tok-s">&quot;&quot;&quot;Rows with no counts yet: counting walks every result, and the dialog
+    fills the numbers in after it is on screen.&quot;&quot;&quot;</span>
+    rows = List[TestRow]()
+    <span class="tok-k">for</span> i, test <span class="tok-k">in</span> enumerate(tests):
+        row = TestRow()
+        row.Index = i
+        row.Name = test.DisplayName
+        row.Total = -<span class="tok-n">1</span>
+        row.Grouped = -<span class="tok-n">1</span>
+        row.Checked = <span class="tok-k">False</span>
+        rows.Add(row)
+    <span class="tok-k">return</span> rows
+
+
+<span class="tok-k">def</span> build_rule_choices():
+    grid_hint = <span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> clash.has_grid() <span class="tok-k">else</span> <span class="tok-s">&#x27; (model has no grids)&#x27;</span>
+    rows = List[RuleChoice]()
+    <span class="tok-k">for</span> rule_id, label <span class="tok-k">in</span> clashgroup.RULES:
+        choice = RuleChoice()
+        choice.Id = rule_id
+        <span class="tok-k">if</span> rule_id <span class="tok-k">in</span> (<span class="tok-s">&#x27;level&#x27;</span>, <span class="tok-s">&#x27;grid&#x27;</span>):
+            label += grid_hint
+        choice.Label = label
+        rows.Add(choice)
+    <span class="tok-k">return</span> rows
+
+
+<span class="tok-k">def</span> compute_plan(snapshot, config):
+    tolerance = config.ToleranceMeters / clash.units_to_meters()
+    <span class="tok-k">if</span> config.Smart:
+        <span class="tok-k">return</span> clashgroup.smart_plan(snapshot, keep_existing=config.KeepExisting,
+                                     tolerance=tolerance)
+    <span class="tok-k">return</span> clashgroup.plan(snapshot, list(config.RuleIds),
+                           keep_existing=config.KeepExisting, tolerance=tolerance)
+
+
+<span class="tok-k">def</span> run():
+    tests = list(clash.walk_tests())
+    <span class="tok-k">if</span> <span class="tok-k">not</span> tests:
+        forms.alert(<span class="tok-s">&#x27;This document has no clash tests.\n\n&#x27;</span>
+                    <span class="tok-s">&#x27;Run a test in Clash Detective first, then group its results here.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    snapshots = {}
+    totals = {}     <span class="tok-c"># test index -&gt; (total, grouped), memo for counts()</span>
+    plans = {}      <span class="tok-c"># (signature, test index) -&gt; plan, so Apply never replans</span>
+
+    <span class="tok-k">def</span> counts(index):
+        <span class="tok-s">&quot;&quot;&quot;The dialog&#x27;s lazy per-test count. Also the preview&#x27;s denominator.
+
+        Memoised, because two callers ask: the dialog&#x27;s lazy counting pass and
+        preview()&#x27;s pre-pass for tests it has not seen yet. Counting walks
+        every leaf result, so a test previewed first and then reached by the
+        resumed counting pass would otherwise be walked twice - up to 67,000
+        results on the UI thread, with no progress bar and no cancel.
+        &quot;&quot;&quot;</span>
+        <span class="tok-k">if</span> index <span class="tok-k">in</span> totals:
+            total, grouped = totals[index]
+        <span class="tok-k">else</span>:
+            total, grouped = clash.count_results(tests[index])
+            totals[index] = (total, grouped)
+        row = TestCounts()
+        row.Total = total
+        row.Grouped = grouped
+        <span class="tok-k">return</span> row
+
+    <span class="tok-k">def</span> signature_of(config):
+        <span class="tok-k">return</span> (bool(config.Smart), tuple(config.RuleIds),
+                round(config.ToleranceMeters, <span class="tok-n">6</span>), bool(config.KeepExisting))
+
+    <span class="tok-k">def</span> preview(config, report):
+        indexes = list(config.TestIndexes)
+        <span class="tok-k">for</span> index <span class="tok-k">in</span> indexes:
+            <span class="tok-k">if</span> index <span class="tok-k">not</span> <span class="tok-k">in</span> totals:
+                <span class="tok-c"># Paint the progress panel and give the user a cancel</span>
+                <span class="tok-c"># checkpoint before each uncounted test&#x27;s enumeration, rather</span>
+                <span class="tok-c"># than walking every uncounted test before the first report:</span>
+                <span class="tok-c"># that pre-pass used to freeze the dialog with the old panel</span>
+                <span class="tok-c"># still on screen. count_results has no progress callback of</span>
+                <span class="tok-c"># its own, so this is a checkpoint between tests, not</span>
+                <span class="tok-c"># per-result cancellation the way the read below gets.</span>
+                <span class="tok-c">#</span>
+                <span class="tok-c"># == False, not &quot;not x&quot;: one convention for a progress</span>
+                <span class="tok-c"># callback&#x27;s answer across this file and clash.py (see</span>
+                <span class="tok-c"># clash.Cancelled) - only an explicit False means stop, so a</span>
+                <span class="tok-c"># callback that answers None carries on.</span>
+                <span class="tok-k">if</span> report(<span class="tok-n">0.0</span>, <span class="tok-s">&#x27;Counting clashes&#x27;</span>) == <span class="tok-k">False</span>:
+                    <span class="tok-k">return</span> <span class="tok-k">None</span>
+                counts(index)
+        grand = sum(totals.get(index, (<span class="tok-n">0</span>, <span class="tok-n">0</span>))[<span class="tok-n">0</span>] <span class="tok-k">for</span> index <span class="tok-k">in</span> indexes) <span class="tok-k">or</span> <span class="tok-n">1</span>
+        signature = signature_of(config)
+        done = [<span class="tok-n">0</span>]
+
+        <span class="tok-k">def</span> tick(read_here):
+            <span class="tok-c"># False from the dialog means the user hit Cancel; snapshot_results</span>
+            <span class="tok-c"># turns that into Cancelled and unwinds.</span>
+            <span class="tok-k">return</span> report(float(done[<span class="tok-n">0</span>] + read_here) / grand, <span class="tok-s">&#x27;Reading clashes&#x27;</span>)
+
+        rows = []
+        total = grouped = skipped = <span class="tok-n">0</span>
+        explanation = <span class="tok-s">&#x27;&#x27;</span>
+        multi = len(indexes) &gt; <span class="tok-n">1</span>
+        <span class="tok-k">try</span>:
+            <span class="tok-k">for</span> index <span class="tok-k">in</span> indexes:
+                <span class="tok-k">if</span> index <span class="tok-k">not</span> <span class="tok-k">in</span> snapshots:
+                    <span class="tok-c"># Assigned only on success: a cancelled read is partial and</span>
+                    <span class="tok-c"># must never be cached.</span>
+                    snapshots[index] = clash.snapshot_results(tests[index],
+                                                              progress=tick)
+                done[<span class="tok-n">0</span>] += totals.get(index, (<span class="tok-n">0</span>, <span class="tok-n">0</span>))[<span class="tok-n">0</span>]
+            <span class="tok-k">if</span> report(<span class="tok-n">1.0</span>, <span class="tok-s">&#x27;Grouping&#x27;</span>) == <span class="tok-k">False</span>:
+                <span class="tok-k">return</span> <span class="tok-k">None</span>
+            <span class="tok-c"># Only this run&#x27;s plans can ever be reached: Apply is gated on the</span>
+            <span class="tok-c"># dialog&#x27;s Done state, which requires the config&#x27;s signature to</span>
+            <span class="tok-c"># match the signature of the most recent successful preview.</span>
+            <span class="tok-c"># Dropping earlier entries keeps a model with many result ids from</span>
+            <span class="tok-c"># holding several complete, unreachable plan copies at once - the</span>
+            <span class="tok-c"># bound still holds, because this clears immediately before the one</span>
+            <span class="tok-c"># loop that repopulates it. It waits until the read is done so a</span>
+            <span class="tok-c"># cancelled re-preview of unchanged settings leaves the plans it</span>
+            <span class="tok-c"># was about to rewrite intact, instead of pushing Apply onto</span>
+            <span class="tok-c"># plan_for&#x27;s recompute path.</span>
+            plans.clear()
+            <span class="tok-k">for</span> index <span class="tok-k">in</span> indexes:
+                snapshot = snapshots[index]
+                plan = compute_plan(snapshot, config)
+                plans[(signature, index)] = plan
+                prefix = (tests[index].DisplayName + <span class="tok-s">&#x27;: &#x27;</span>) <span class="tok-k">if</span> multi <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>
+                <span class="tok-k">for</span> group <span class="tok-k">in</span> plan[<span class="tok-s">&#x27;groups&#x27;</span>]:
+                    rows.append((prefix + group[<span class="tok-s">&#x27;name&#x27;</span>], len(group[<span class="tok-s">&#x27;ids&#x27;</span>])))
+                    grouped += len(group[<span class="tok-s">&#x27;ids&#x27;</span>])
+                total += len(snapshot)
+                skipped += plan[<span class="tok-s">&#x27;skipped_existing&#x27;</span>]
+                explanation = explanation <span class="tok-k">or</span> plan[<span class="tok-s">&#x27;explanation&#x27;</span>]
+        <span class="tok-k">except</span> clash.Cancelled:
+            <span class="tok-k">return</span> <span class="tok-k">None</span>
+
+        data = PreviewData()
+        data.TotalClashes = total
+        data.TotalGroups = len(rows)
+        <span class="tok-c"># Single test: the engine&#x27;s own explanation reads best. Several tests:</span>
+        <span class="tok-c"># per-test counts would contradict the totals, so aggregate instead.</span>
+        parts = [] <span class="tok-k">if</span> multi <span class="tok-k">else</span> [explanation]
+        loose = total - grouped - skipped
+        <span class="tok-k">if</span> loose &gt; <span class="tok-n">0</span>:
+            parts.append(<span class="tok-s">&#x27;%d stay individual.&#x27;</span> % loose)
+        <span class="tok-k">if</span> skipped:
+            parts.append(<span class="tok-s">&#x27;%d stay in their existing groups.&#x27;</span> % skipped)
+        data.Note = <span class="tok-s">&#x27; &#x27;</span>.join(parts)
+        <span class="tok-k">for</span> name, count <span class="tok-k">in</span> sorted(rows, key=<span class="tok-k">lambda</span> pair: -pair[<span class="tok-n">1</span>]):
+            row = PreviewGroup()
+            row.Name = name
+            row.Count = count
+            data.Groups.Add(row)
+        <span class="tok-k">return</span> data
+
+    <span class="tok-k">def</span> plan_for(index, config):
+        <span class="tok-s">&quot;&quot;&quot;The plan the user previewed, or a fresh one if it went missing.&quot;&quot;&quot;</span>
+        cached = plans.get((signature_of(config), index))
+        <span class="tok-k">if</span> cached <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            <span class="tok-k">return</span> cached
+        <span class="tok-c"># Unreachable today: Apply is only enabled in the dialog&#x27;s Done state,</span>
+        <span class="tok-c"># which means the most recent preview succeeded with exactly this</span>
+        <span class="tok-c"># config, so it left a plan here for every selected test. Kept as a</span>
+        <span class="tok-c"># correctness backstop, not a routine path - note it calls</span>
+        <span class="tok-c"># snapshot_results with progress=None, so if the C# staleness rules</span>
+        <span class="tok-c"># ever loosen this becomes a silent, uncancellable full read of the</span>
+        <span class="tok-c"># test with the dialog already gone. Anything that can reach it should</span>
+        <span class="tok-c"># thread a progress callback through first.</span>
+        <span class="tok-k">if</span> index <span class="tok-k">not</span> <span class="tok-k">in</span> snapshots:
+            snapshots[index] = clash.snapshot_results(tests[index])
+        <span class="tok-k">return</span> compute_plan(snapshots[index], config)
+
+    config = ClashGrouperDialog.Show(
+        build_test_rows(tests), build_rule_choices(),
+        Func[GrouperConfig, PreviewProgress, PreviewData](preview),
+        Func[Int32, TestCounts](counts), saved_defaults())
+    <span class="tok-k">if</span> config <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>
+    <span class="tok-k">if</span> config.Action == <span class="tok-s">&#x27;apply&#x27;</span>:
+        apply_grouping(tests, plan_for, config)
+    <span class="tok-k">elif</span> config.Action == <span class="tok-s">&#x27;ungroup&#x27;</span>:
+        run_ungroup(tests, config)
+
+
+<span class="tok-k">def</span> apply_grouping(tests, plan_for, config):
+    <span class="tok-s">&quot;&quot;&quot;Writes the plans, then reports. The write runs behind a ProgressScope:
+    it holds the UI thread, so without one Navisworks paints a white
+    &quot;Not Responding&quot; frame for the duration and the user cannot tell a working
+    Apply from the hang this whole feature used to be.&quot;&quot;&quot;</span>
+    indexes = list(config.TestIndexes)
+    scope = ProgressScope.Begin(<span class="tok-s">&#x27;Grouping clashes&#x27;</span>, <span class="tok-s">&#x27;Starting&#x27;</span>)
+    <span class="tok-k">try</span>:
+        written = _write_plans(tests, plan_for, config, indexes, scope)
+    <span class="tok-k">finally</span>:
+        <span class="tok-c"># Never leave this to the runtime&#x27;s backstop: a live scope means</span>
+        <span class="tok-c"># Navisworks stays unclickable.</span>
+        scope.Dispose()
+    _report_plans(written)
+
+
+<span class="tok-k">def</span> _write_plans(tests, plan_for, config, indexes, scope):
+    <span class="tok-s">&quot;&quot;&quot;Commits every selected test, returning [(name, plan, links)] to report.
+
+    Nothing prints here. The output window cannot paint while this holds the UI
+    thread, and materialising it mid-write would leave an empty window sitting
+    behind the progress one.
+    &quot;&quot;&quot;</span>
+    written = []
+    <span class="tok-k">for</span> n, index <span class="tok-k">in</span> enumerate(indexes):
+        test = tests[index]
+        plan = plan_for(index, config)
+        <span class="tok-c"># Read everything the report needs BEFORE committing: apply_plan swaps</span>
+        <span class="tok-c"># the test for a restructured copy, which leaves this wrapper and all of</span>
+        <span class="tok-c"># its results disposed. ModelItems live in the model, so the links</span>
+        <span class="tok-c"># captured here stay valid afterwards.</span>
+        name = test.DisplayName
+
+        <span class="tok-c"># Only the first result of each reported group is wanted, so they are</span>
+        <span class="tok-c"># picked out of the walk instead of materialising it: a list of every</span>
+        <span class="tok-c"># result means holding 350,000 live wrappers for the sake of 20 links.</span>
+        wanted = {}
+        <span class="tok-k">for</span> group <span class="tok-k">in</span> plan[<span class="tok-s">&#x27;groups&#x27;</span>][:MAX_SUMMARY_ROWS]:
+            wanted[group[<span class="tok-s">&#x27;ids&#x27;</span>][<span class="tok-n">0</span>]] = <span class="tok-k">None</span>
+        remaining = len(wanted)
+        <span class="tok-k">if</span> remaining:
+            <span class="tok-k">for</span> rid, result <span class="tok-k">in</span> enumerate(clash.walk_results(test)):
+                <span class="tok-k">if</span> rid <span class="tok-k">in</span> wanted <span class="tok-k">and</span> wanted[rid] <span class="tok-k">is</span> <span class="tok-k">None</span>:
+                    wanted[rid] = result.Item1
+                    remaining -= <span class="tok-n">1</span>
+                    <span class="tok-k">if</span> remaining == <span class="tok-n">0</span>:
+                        <span class="tok-k">break</span>
+        links = [(group[<span class="tok-s">&#x27;name&#x27;</span>], len(group[<span class="tok-s">&#x27;ids&#x27;</span>]), wanted[group[<span class="tok-s">&#x27;ids&#x27;</span>][<span class="tok-n">0</span>]])
+                 <span class="tok-k">for</span> group <span class="tok-k">in</span> plan[<span class="tok-s">&#x27;groups&#x27;</span>][:MAX_SUMMARY_ROWS]]
+
+        <span class="tok-k">def</span> tick(fraction):
+            scope.Report((n + fraction) / len(indexes), <span class="tok-s">&#x27;Grouping %s&#x27;</span> % name)
+
+        clash.apply_plan(test, plan, keep_existing=config.KeepExisting,
+                         progress=tick)
+        written.append((name, plan, links))
+    scope.Report(<span class="tok-n">1.0</span>, <span class="tok-s">&#x27;Done&#x27;</span>)
+    <span class="tok-k">return</span> written
+
+
+<span class="tok-k">def</span> _report_plans(written):
+    <span class="tok-k">for</span> name, plan, links <span class="tok-k">in</span> written:
+        output.print_md(<span class="tok-s">&#x27;## %s&#x27;</span> % name)
+        print(plan[<span class="tok-s">&#x27;explanation&#x27;</span>])
+        <span class="tok-k">if</span> links:
+            <span class="tok-c"># Hand-built table (table_html would escape the link markup):</span>
+            <span class="tok-c"># plain names for reading, one small Show link per row.</span>
+            cells = <span class="tok-s">&#x27;&#x27;</span>.join(
+                <span class="tok-s">&#x27;&lt;tr&gt;&lt;td&gt;%s&lt;/td&gt;&lt;td&gt;%d&lt;/td&gt;&lt;td&gt;%s&lt;/td&gt;&lt;/tr&gt;&#x27;</span>
+                % (_escape(name), count,
+                   output.element_link(item, <span class="tok-s">&#x27;Show&#x27;</span>) <span class="tok-k">if</span> item <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>)
+                <span class="tok-k">for</span> name, count, item <span class="tok-k">in</span> links)
+            output.print_html(
+                <span class="tok-s">&#x27;&lt;table class=&quot;pynavis&quot;&gt;&lt;tr&gt;&lt;th&gt;Group&lt;/th&gt;&lt;th&gt;Clashes&lt;/th&gt;&#x27;</span>
+                <span class="tok-s">&#x27;&lt;th&gt;&lt;/th&gt;&lt;/tr&gt;%s&lt;/table&gt;&#x27;</span> % cells)
+        hidden = len(plan[<span class="tok-s">&#x27;groups&#x27;</span>]) - len(links)
+        <span class="tok-k">if</span> hidden &gt; <span class="tok-n">0</span>:
+            print(<span class="tok-s">&#x27;... and %d more group(s).&#x27;</span> % hidden)
+        <span class="tok-k">if</span> plan[<span class="tok-s">&#x27;skipped_existing&#x27;</span>]:
+            print(<span class="tok-s">&#x27;%d clash(es) kept in their existing groups.&#x27;</span>
+                  % plan[<span class="tok-s">&#x27;skipped_existing&#x27;</span>])
+        <span class="tok-k">if</span> plan[<span class="tok-s">&#x27;ungrouped_ids&#x27;</span>]:
+            print(<span class="tok-s">&#x27;%d clash(es) left individual.&#x27;</span> % len(plan[<span class="tok-s">&#x27;ungrouped_ids&#x27;</span>]))
+    <span class="tok-c"># No output.progress here: progress belongs to the ProgressScope now, and a</span>
+    <span class="tok-c"># bar that appears already finished only to fade out is noise.</span>
+    print(<span class="tok-s">&#x27;\nDone. Groups are ready in Clash Detective.&#x27;</span>)
+
+
+<span class="tok-k">def</span> run_ungroup(tests, config):
+    indexes = list(config.TestIndexes)
+    scope = ProgressScope.Begin(<span class="tok-s">&#x27;Removing groups&#x27;</span>, <span class="tok-s">&#x27;Starting&#x27;</span>)
+    removed_by_test = []
+    <span class="tok-k">try</span>:
+        <span class="tok-k">for</span> n, index <span class="tok-k">in</span> enumerate(indexes):
+            <span class="tok-c"># Read the name first: a commit leaves the old test wrapper disposed.</span>
+            name = tests[index].DisplayName
+
+            <span class="tok-k">def</span> tick(fraction):
+                scope.Report((n + fraction) / len(indexes),
+                             <span class="tok-s">&#x27;Ungrouping %s&#x27;</span> % name)
+
+            removed_by_test.append(
+                (name, clash.ungroup(tests[index], progress=tick)))
+        scope.Report(<span class="tok-n">1.0</span>, <span class="tok-s">&#x27;Done&#x27;</span>)
+    <span class="tok-k">finally</span>:
+        scope.Dispose()
+
+    removed_total = <span class="tok-n">0</span>
+    <span class="tok-k">for</span> name, removed <span class="tok-k">in</span> removed_by_test:
+        removed_total += removed
+        <span class="tok-k">if</span> removed:
+            print(<span class="tok-s">&#x27;%s: removed %d group(s).&#x27;</span> % (name, removed))
+    <span class="tok-k">if</span> <span class="tok-k">not</span> removed_total:
+        print(<span class="tok-s">&#x27;No groups created by this tool were found in the selected tests. &#x27;</span>
+              <span class="tok-s">&#x27;Hand-made groups are never touched.&#x27;</span>)
+
+
+<span class="tok-k">if</span> clash <span class="tok-k">is</span> <span class="tok-k">None</span>:
+    forms.alert(<span class="tok-s">&#x27;Clash Detective is not available in this Navisworks edition.\n&#x27;</span>
+                <span class="tok-s">&#x27;Clash Grouper needs Navisworks Manage.&#x27;</span>)
+<span class="tok-k">else</span>:
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Grouper.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Defaults for Clash Grouper (the Shift+Click settings).
+
+Presets what the grouper dialog opens with: mode, custom rule chain, cluster
+distance, and whether existing groups are kept. Every run can still change
+them in the dialog itself. The distance is shown and typed in the document&#x27;s
+units, the way any pyNavis length is (pynavis.lengths: 6&#x27; 6&quot;, 2m), and kept
+in metres.
+&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PresentationFramework&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PresentationCore&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsBase&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+
+<span class="tok-k">from</span> System.Windows <span class="tok-k">import</span> (CornerRadius, FontWeights, HorizontalAlignment,
+                            ResizeMode, SizeToContent, TextWrapping, Thickness,
+                            VerticalAlignment, Visibility, Window,
+                            WindowStartupLocation)
+<span class="tok-k">from</span> System.Windows.Controls <span class="tok-k">import</span> (Border, CheckBox, ComboBox, Grid,
+                                     Orientation, StackPanel, TextBox)
+<span class="tok-k">from</span> System.Windows.Media <span class="tok-k">import</span> FontFamily
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> DesignSystem, FluentChrome
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> clashgroup, lengths, settings, toast
+
+TOOL = <span class="tok-s">&#x27;smart_clash_grouper&#x27;</span>
+DEFAULTS = {<span class="tok-s">&#x27;smart&#x27;</span>: <span class="tok-k">True</span>, <span class="tok-s">&#x27;rules&#x27;</span>: [], <span class="tok-s">&#x27;tolerance_m&#x27;</span>: <span class="tok-n">2.0</span>, <span class="tok-s">&#x27;keep_existing&#x27;</span>: <span class="tok-k">True</span>}
+
+T = DesignSystem.Tokens.Current
+RULE_IDS = [rule_id <span class="tok-k">for</span> rule_id, _ <span class="tok-k">in</span> clashgroup.RULES]
+RULE_LABELS = [label <span class="tok-k">for</span> _, label <span class="tok-k">in</span> clashgroup.RULES]
+
+values = settings.load(TOOL, DEFAULTS)
+
+units = <span class="tok-s">&#x27;Meters&#x27;</span>                              <span class="tok-c"># no document open: the stored unit</span>
+<span class="tok-k">try</span>:
+    <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app
+    units = str(app.get_doc().Units)
+<span class="tok-k">except</span> Exception:
+    <span class="tok-k">pass</span>
+
+window = Window()
+window.Title = <span class="tok-s">&#x27;Grouper Defaults&#x27;</span>
+window.Width = <span class="tok-n">420</span>
+window.SizeToContent = SizeToContent.Height
+window.ResizeMode = ResizeMode.NoResize
+window.WindowStartupLocation = WindowStartupLocation.CenterScreen
+window.FontFamily = FontFamily(<span class="tok-s">&#x27;Segoe UI Variable Text, Segoe UI&#x27;</span>)
+window.Background = DesignSystem.Brush(T.Paper)
+window.ShowInTaskbar = <span class="tok-k">False</span>
+FluentChrome.Apply(window)
+
+body = StackPanel()
+body.Margin = Thickness(<span class="tok-n">20</span>, <span class="tok-n">16</span>, <span class="tok-n">20</span>, <span class="tok-n">16</span>)
+
+title = DesignSystem.Text(<span class="tok-s">&#x27;Clash Grouper defaults&#x27;</span>, <span class="tok-n">16</span>, T.Ink, FontWeights.SemiBold)
+body.Children.Add(title)
+caption = DesignSystem.Text(
+    <span class="tok-s">&#x27;These preset the dialog; every run can still change them.&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+caption.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">14</span>)
+caption.TextWrapping = TextWrapping.Wrap
+body.Children.Add(caption)
+
+
+<span class="tok-k">def</span> section(label):
+    text = DesignSystem.Text(label, <span class="tok-n">12</span>, T.Muted, FontWeights.Medium)
+    text.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">10</span>, <span class="tok-n">0</span>, <span class="tok-n">6</span>)
+    body.Children.Add(text)
+
+
+section(<span class="tok-s">&#x27;Mode&#x27;</span>)
+
+<span class="tok-c"># A segmented control, the same affordance the grouper itself uses for this</span>
+<span class="tok-c"># exact choice. Two radio buttons said the same thing in a different language.</span>
+state = {<span class="tok-s">&#x27;smart&#x27;</span>: bool(values[<span class="tok-s">&#x27;smart&#x27;</span>])}
+seg_smart = DesignSystem.Secondary(T, <span class="tok-s">&#x27;Smart&#x27;</span>, <span class="tok-k">None</span>)
+seg_custom = DesignSystem.Secondary(T, <span class="tok-s">&#x27;Custom rules&#x27;</span>, <span class="tok-k">None</span>)
+<span class="tok-k">for</span> seg <span class="tok-k">in</span> (seg_smart, seg_custom):
+    seg.Height = <span class="tok-n">30</span>
+    seg.MinWidth = <span class="tok-n">0</span>
+    seg.Padding = Thickness(<span class="tok-n">16</span>, <span class="tok-n">0</span>, <span class="tok-n">16</span>, <span class="tok-n">0</span>)
+    seg.BorderThickness = Thickness(<span class="tok-n">0</span>)
+
+seg_row = StackPanel()
+seg_row.Orientation = Orientation.Horizontal
+seg_row.Children.Add(seg_smart)
+seg_row.Children.Add(seg_custom)
+seg_shell = Border()
+seg_shell.CornerRadius = CornerRadius(<span class="tok-n">4</span>)
+seg_shell.BorderBrush = DesignSystem.Brush(T.LineStrong)
+seg_shell.BorderThickness = Thickness(<span class="tok-n">1</span>)
+seg_shell.HorizontalAlignment = HorizontalAlignment.Left
+seg_shell.Child = seg_row
+body.Children.Add(seg_shell)
+
+mode_caption = DesignSystem.Text(<span class="tok-s">&#x27;&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+mode_caption.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">8</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+mode_caption.TextWrapping = TextWrapping.Wrap
+body.Children.Add(mode_caption)
+
+rules_label = DesignSystem.Text(<span class="tok-s">&#x27;Custom rule chain&#x27;</span>, <span class="tok-n">12</span>, T.Muted, FontWeights.Medium)
+rules_label.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">10</span>, <span class="tok-n">0</span>, <span class="tok-n">6</span>)
+body.Children.Add(rules_label)
+rule_rows = StackPanel()
+body.Children.Add(rule_rows)
+empty_chain = DesignSystem.Text(<span class="tok-s">&#x27;Add at least one rule to group by.&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+empty_chain.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">6</span>)
+body.Children.Add(empty_chain)
+
+
+<span class="tok-k">def</span> paint_mode():
+    <span class="tok-s">&quot;&quot;&quot;Selected segment carries the accent; the caption states what the mode
+    does; the rule chain only exists in Custom, exactly as in the grouper.&quot;&quot;&quot;</span>
+    <span class="tok-k">for</span> seg, on <span class="tok-k">in</span> ((seg_smart, state[<span class="tok-s">&#x27;smart&#x27;</span>]), (seg_custom, <span class="tok-k">not</span> state[<span class="tok-s">&#x27;smart&#x27;</span>])):
+        seg.Background = DesignSystem.Brush(
+            DesignSystem.Accent <span class="tok-k">if</span> on <span class="tok-k">else</span> T.Paper)
+        seg.Foreground = DesignSystem.Brush(
+            DesignSystem.OnAccent(DesignSystem.Accent) <span class="tok-k">if</span> on <span class="tok-k">else</span> T.Ink)
+    mode_caption.Text = (
+        <span class="tok-s">&#x27;Smart finds the elements causing the clashes and groups them for you.&#x27;</span>
+        <span class="tok-k">if</span> state[<span class="tok-s">&#x27;smart&#x27;</span>] <span class="tok-k">else</span>
+        <span class="tok-s">&#x27;Chain rules; each one splits the groups made by the one before.&#x27;</span>)
+    shown = Visibility.Collapsed <span class="tok-k">if</span> state[<span class="tok-s">&#x27;smart&#x27;</span>] <span class="tok-k">else</span> Visibility.Visible
+    rules_label.Visibility = shown
+    rule_rows.Visibility = shown
+    add_btn.Visibility = shown
+    empty_chain.Visibility = (
+        Visibility.Visible
+        <span class="tok-k">if</span> <span class="tok-k">not</span> state[<span class="tok-s">&#x27;smart&#x27;</span>] <span class="tok-k">and</span> rule_rows.Children.Count == <span class="tok-n">0</span>
+        <span class="tok-k">else</span> Visibility.Collapsed)
+
+
+<span class="tok-k">def</span> set_mode(smart):
+    state[<span class="tok-s">&#x27;smart&#x27;</span>] = smart
+    paint_mode()
+
+
+seg_smart.Click += <span class="tok-k">lambda</span> s, e: set_mode(<span class="tok-k">True</span>)
+seg_custom.Click += <span class="tok-k">lambda</span> s, e: set_mode(<span class="tok-k">False</span>)
+
+
+<span class="tok-k">def</span> add_rule_row(rule_id=<span class="tok-k">None</span>):
+    row = StackPanel()
+    row.Orientation = Orientation.Horizontal
+    row.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">6</span>)
+
+    <span class="tok-c"># The chain is ordered, so each row carries its position, as in the grouper.</span>
+    ordinal = DesignSystem.TabularNumber(<span class="tok-s">&#x27;&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+    ordinal.Width = <span class="tok-n">18</span>
+    ordinal.VerticalAlignment = VerticalAlignment.Center
+    row.Children.Add(ordinal)
+
+    combo = ComboBox()
+    combo.Width = <span class="tok-n">230</span>
+    combo.ItemsSource = RULE_LABELS
+    combo.SelectedIndex = RULE_IDS.index(rule_id) <span class="tok-k">if</span> rule_id <span class="tok-k">in</span> RULE_IDS <span class="tok-k">else</span> <span class="tok-n">0</span>
+    row.Children.Add(combo)
+
+    <span class="tok-k">def</span> remove():
+        rule_rows.Children.Remove(row)
+        renumber()
+        paint_mode()
+
+    remove_btn = DesignSystem.Quiet(T, <span class="tok-s">&#x27;Remove&#x27;</span>, remove)
+    remove_btn.Margin = Thickness(<span class="tok-n">8</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+    row.Children.Add(remove_btn)
+    rule_rows.Children.Add(row)
+    renumber()
+    paint_mode()
+
+
+<span class="tok-k">def</span> renumber():
+    <span class="tok-k">for</span> index <span class="tok-k">in</span> range(rule_rows.Children.Count):
+        rule_rows.Children[index].Children[<span class="tok-n">0</span>].Text = <span class="tok-s">&#x27;%d.&#x27;</span> % (index + <span class="tok-n">1</span>)
+
+
+<span class="tok-k">for</span> saved_id <span class="tok-k">in</span> values[<span class="tok-s">&#x27;rules&#x27;</span>]:
+    <span class="tok-k">if</span> saved_id <span class="tok-k">in</span> RULE_IDS:
+        add_rule_row(saved_id)
+
+add_btn = DesignSystem.Quiet(T, <span class="tok-s">&#x27;Add rule&#x27;</span>, <span class="tok-k">lambda</span>: add_rule_row())
+add_btn.HorizontalAlignment = HorizontalAlignment.Left
+body.Children.Add(add_btn)
+
+section(<span class="tok-s">&#x27;Cluster distance&#x27;</span>)
+tolerance_box = TextBox()
+tolerance_box.Text = lengths.format_input(
+    lengths.convert(float(values[<span class="tok-s">&#x27;tolerance_m&#x27;</span>]), <span class="tok-s">&#x27;Meters&#x27;</span>, units), units)
+tolerance_box.Width = <span class="tok-n">110</span>
+field = DesignSystem.InputField(T, tolerance_box, lengths.suffix(units) <span class="tok-k">or</span> <span class="tok-k">None</span>)
+field.HorizontalAlignment = HorizontalAlignment.Left
+body.Children.Add(field)
+tolerance_error = DesignSystem.Text(
+    <span class="tok-s">&#x27;Enter a distance greater than 0, %s.&#x27;</span> % lengths.hint(units), <span class="tok-n">12</span>, T.Error)
+tolerance_error.TextWrapping = TextWrapping.Wrap
+tolerance_error.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+tolerance_error.Visibility = Visibility.Collapsed
+body.Children.Add(tolerance_error)
+
+keep_box = CheckBox()
+keep_box.Content = <span class="tok-s">&#x27;Keep existing groups&#x27;</span>
+keep_box.IsChecked = bool(values[<span class="tok-s">&#x27;keep_existing&#x27;</span>])
+keep_box.Foreground = DesignSystem.Brush(T.Ink)
+keep_box.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">12</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+body.Children.Add(keep_box)
+keep_caption = DesignSystem.Text(
+    <span class="tok-s">&#x27;Groups you already made by hand stay untouched.&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+keep_caption.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+body.Children.Add(keep_caption)
+
+
+<span class="tok-k">def</span> tolerance_value():
+    <span class="tok-s">&quot;&quot;&quot;The typed distance in metres; 0 when it does not read.&quot;&quot;&quot;</span>
+    typed = lengths.parse(tolerance_box.Text, units)
+    <span class="tok-k">return</span> <span class="tok-n">0.0</span> <span class="tok-k">if</span> typed <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">else</span> lengths.convert(typed, units, <span class="tok-s">&#x27;Meters&#x27;</span>)
+
+
+<span class="tok-k">def</span> validate(*args):
+    <span class="tok-s">&quot;&quot;&quot;Live: the error appears as you type and clears the same way, instead of
+    waiting for Save to tell you.&quot;&quot;&quot;</span>
+    bad = tolerance_value() &lt;= <span class="tok-n">0</span>
+    tolerance_error.Visibility = Visibility.Visible <span class="tok-k">if</span> bad <span class="tok-k">else</span> Visibility.Collapsed
+    field.BorderBrush = DesignSystem.Brush(T.Error <span class="tok-k">if</span> bad <span class="tok-k">else</span> T.LineStrong)
+    save_btn.IsEnabled = <span class="tok-k">not</span> bad
+
+
+<span class="tok-k">def</span> save():
+    <span class="tok-k">if</span> tolerance_value() &lt;= <span class="tok-n">0</span>:
+        validate()
+        <span class="tok-k">return</span>
+    rules = []
+    <span class="tok-k">for</span> row <span class="tok-k">in</span> rule_rows.Children:
+        rules.append(RULE_IDS[row.Children[<span class="tok-n">1</span>].SelectedIndex])
+    settings.save(TOOL, {
+        <span class="tok-s">&#x27;smart&#x27;</span>: state[<span class="tok-s">&#x27;smart&#x27;</span>],
+        <span class="tok-s">&#x27;rules&#x27;</span>: rules,
+        <span class="tok-s">&#x27;tolerance_m&#x27;</span>: tolerance_value(),
+        <span class="tok-s">&#x27;keep_existing&#x27;</span>: keep_box.IsChecked == <span class="tok-k">True</span>,
+    })
+    toast.success(<span class="tok-s">&#x27;Grouper defaults saved.&#x27;</span>)
+    window.Close()
+
+
+footer = StackPanel()
+footer.Orientation = Orientation.Horizontal
+footer.HorizontalAlignment = HorizontalAlignment.Right
+footer.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">18</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+cancel_btn = DesignSystem.Secondary(T, <span class="tok-s">&#x27;Cancel&#x27;</span>, <span class="tok-k">lambda</span>: window.Close())
+cancel_btn.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">8</span>, <span class="tok-n">0</span>)
+footer.Children.Add(cancel_btn)
+save_btn = DesignSystem.Primary(T, <span class="tok-s">&#x27;Save&#x27;</span>, save)
+footer.Children.Add(save_btn)
+body.Children.Add(footer)
+
+tolerance_box.TextChanged += validate
+paint_mode()
+validate()
+
+window.Content = body
+window.ShowDialog()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Grouper.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Clash\nGrouper</code></pre></div>
   <div class="pagenav">
 <a href="clash-report.html"><span class="dir">Previous</span><span class="ttl">Clash Report</span></a>
 <a class="next" href="clear-clash.html"><span class="dir">Next</span><span class="ttl">Clear Clash</span></a>
@@ -144,6 +777,7 @@ and behave like any other in the report.</p>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

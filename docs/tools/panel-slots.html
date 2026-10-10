@@ -107,6 +107,26 @@ satellite assembly holding more slots, up to 95 extra.</p>
 <h2 id="good-to-know">Good to know<a class="anchor" href="#good-to-know" aria-label="Link to this section">#</a></h2>
 <p>You will not need this unless you install extensions that bring their own dock panels.
 The two shipped panels use two of the five slots.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>pyNavis.panel/More.slideout/Panel_Slots.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/More.slideout/Panel_Slots.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Adds pyNavis panel slots beyond the five that ship with the loader.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, panes, toast
+
+current = panes.slot_count()
+extra = forms.ask_number(
+    <span class="tok-s">&#x27;Panel slots available now: %d.\nHow many extra slots do you want?&#x27;</span> % current,
+    default=<span class="tok-n">5</span>, min_value=<span class="tok-n">0</span>, max_value=<span class="tok-n">95</span>, title=<span class="tok-s">&#x27;Panel slots&#x27;</span>)
+<span class="tok-k">if</span> extra <span class="tok-k">is</span> <span class="tok-k">None</span>:
+    <span class="tok-k">pass</span>   <span class="tok-c"># cancelled: stay silent</span>
+<span class="tok-k">else</span>:
+    <span class="tok-k">try</span>:
+        total = panes.add_slots(extra)
+        toast.success(<span class="tok-s">&#x27;Panel slots: %d after restart&#x27;</span> % total,
+                      <span class="tok-s">&#x27;Restart Navisworks to register the new slots.&#x27;</span>)
+    <span class="tok-k">except</span> Exception <span class="tok-k">as</span> ex:
+        toast.error(<span class="tok-s">&#x27;Could not add panel slots&#x27;</span>, str(ex))</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/More.slideout/Panel_Slots.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Panel\nslots
+<span class="tok-k">tooltip</span>: Add more pyNavis panel slots</code></pre></div>
   <div class="pagenav">
 <a href="playground.html"><span class="dir">Previous</span><span class="ttl">Playground</span></a>
 <a class="next" href="remember.html"><span class="dir">Next</span><span class="ttl">Remember</span></a>
@@ -117,6 +137,7 @@ The two shipped panels use two of the five slots.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

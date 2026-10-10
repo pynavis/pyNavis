@@ -111,6 +111,52 @@ is nothing to delete.</p>
   <li>Save as Set makes a static set of the items as they are now, not a search, so it does
     not follow the model when new items match.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Selection.panel/More.pulldown</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/More.pulldown/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: More
+<span class="tok-k">tooltip</span>: Inspect the memory, promote it to a set, or delete stored memory files
+<span class="tok-k">layout</span>:
+  - Show_Contents
+  - Save_as_Set
+  - Purge</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>Purge.pushbutton/script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/More.pulldown/Purge.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Deletes the stored memory files for every document, not just this one.&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, memory, toast
+
+targets = memory.purge_targets()
+<span class="tok-k">if</span> <span class="tok-k">not</span> targets:
+    toast.info(<span class="tok-s">&#x27;No memory files to purge&#x27;</span>)
+<span class="tok-k">else</span>:
+    question = (<span class="tok-s">&#x27;Delete %d stored memory file(s)?\n\n&#x27;</span>
+                <span class="tok-s">&#x27;This clears the memory for every document, not just this one.&#x27;</span>
+                % len(targets))
+    <span class="tok-k">if</span> forms.confirm(question, <span class="tok-s">&#x27;Purge memory files&#x27;</span>):
+        result = memory.purge()
+        toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>Save_as_Set.pushbutton/script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/More.pulldown/Save_as_Set.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Saves the memory as a Navisworks selection set.
+
+Unlike the memory itself, a set is stored in the document, so this marks the
+document as modified.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> datetime
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, memory, toast
+
+default = <span class="tok-s">&#x27;Memory %s&#x27;</span> % datetime.datetime.now().strftime(<span class="tok-s">&#x27;%Y-%m-%d %H:%M&#x27;</span>)
+name = forms.ask_string(<span class="tok-s">&#x27;Name for the selection set&#x27;</span>, default, <span class="tok-s">&#x27;Save memory as set&#x27;</span>)
+<span class="tok-k">if</span> name:
+    result = memory.save_as_set(name)
+    toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>Show_Contents.pushbutton/script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/More.pulldown/Show_Contents.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Lists what is in memory, with a clickable link per item.&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> memory, output
+
+state, rows = memory.contents()
+<span class="tok-k">if</span> <span class="tok-k">not</span> state[<span class="tok-s">&#x27;items&#x27;</span>]:
+    output.print_md(<span class="tok-s">&#x27;**Memory is empty.** Select something and press Remember.&#x27;</span>)
+<span class="tok-k">else</span>:
+    output.print_html(memory.contents_html(rows, state))</code></pre></div>
   <div class="pagenav">
 <a href="forget.html"><span class="dir">Previous</span><span class="ttl">Forget</span></a>
 <a class="next" href="clash-report.html"><span class="dir">Next</span><span class="ttl">Clash Report</span></a>
@@ -122,6 +168,7 @@ is nothing to delete.</p>
 <a href="#save-as-set">Save as Set</a>
 <a href="#purge">Purge</a>
 <a href="#limitations">Limitations</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

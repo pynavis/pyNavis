@@ -114,6 +114,177 @@ little padding so faces do not graze the geometry.</p>
 pyNavis length: <code>6"</code> in a feet-and-inches document, or a value with its unit such
 as <code>150mm</code> anywhere. Both settings are shared with Section Plan in
 <code>section_planes.json</code>.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Section.stack/Fit.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section.stack/Fit.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Fits the six section planes to the current selection.
+
+Navisworks&#x27; own Fit Section to Selection gives a world-aligned box; this turns
+the box to the objects, so a diagonal run gets planes parallel to the run
+instead of four corners of empty space. Shift+Click sets the padding.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> section, selection, settings, toast
+
+values = settings.load(section.TOOL, section.DEFAULTS)
+result = section.fit_to_selection(selection.get_items(), values)
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section.stack/Fit.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Defaults for Section Fit (the Shift+Click settings).
+
+Padding is how far each of the six planes stands off the objects, so faces do
+not graze the geometry. It is shown and typed in the document&#x27;s units, the
+way any pyNavis length is (pynavis.lengths: 6&quot;, 1&#x27; 6 1/2&quot;, 150mm), and kept
+in millimetres. Snap angle is how close to square counts as square: below it
+the box stops turning, because a two-degree tilt costs you every plane&#x27;s
+alignment and buys nothing.
+&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PresentationFramework&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PresentationCore&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsBase&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+
+<span class="tok-k">from</span> System.Windows <span class="tok-k">import</span> (FontWeights, HorizontalAlignment, ResizeMode,
+                            SizeToContent, TextWrapping, Thickness, Visibility,
+                            Window, WindowStartupLocation)
+<span class="tok-k">from</span> System.Windows.Controls <span class="tok-k">import</span> Orientation, StackPanel, TextBox
+<span class="tok-k">from</span> System.Windows.Media <span class="tok-k">import</span> FontFamily
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> DesignSystem, FluentChrome
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> lengths, section, settings, toast
+
+T = DesignSystem.Tokens.Current
+values = settings.load(section.TOOL, section.DEFAULTS)
+
+units = <span class="tok-s">&#x27;Millimeters&#x27;</span>                         <span class="tok-c"># no document open: the stored unit</span>
+<span class="tok-k">try</span>:
+    <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app
+    units = str(app.get_doc().Units)
+<span class="tok-k">except</span> Exception:
+    <span class="tok-k">pass</span>
+
+window = Window()
+window.Title = <span class="tok-s">&#x27;Section Defaults&#x27;</span>
+window.Width = <span class="tok-n">380</span>
+window.SizeToContent = SizeToContent.Height
+window.ResizeMode = ResizeMode.NoResize
+window.WindowStartupLocation = WindowStartupLocation.CenterScreen
+window.FontFamily = FontFamily(<span class="tok-s">&#x27;Segoe UI Variable Text, Segoe UI&#x27;</span>)
+window.Background = DesignSystem.Brush(T.Paper)
+window.ShowInTaskbar = <span class="tok-k">False</span>
+FluentChrome.Apply(window)
+
+body = StackPanel()
+body.Margin = Thickness(<span class="tok-n">20</span>, <span class="tok-n">16</span>, <span class="tok-n">20</span>, <span class="tok-n">16</span>)
+
+title = DesignSystem.Text(<span class="tok-s">&#x27;Section fit defaults&#x27;</span>, <span class="tok-n">16</span>, T.Ink, FontWeights.SemiBold)
+body.Children.Add(title)
+caption = DesignSystem.Text(<span class="tok-s">&#x27;Used every time Fit or Plan runs.&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+caption.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">14</span>)
+caption.TextWrapping = TextWrapping.Wrap
+body.Children.Add(caption)
+
+
+<span class="tok-k">def</span> section_label(label):
+    text = DesignSystem.Text(label, <span class="tok-n">12</span>, T.Muted, FontWeights.Medium)
+    text.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">10</span>, <span class="tok-n">0</span>, <span class="tok-n">6</span>)
+    body.Children.Add(text)
+
+
+section_label(<span class="tok-s">&#x27;Padding&#x27;</span>)
+padding_box = TextBox()
+padding_box.Text = lengths.format_input(
+    lengths.convert(float(values[<span class="tok-s">&#x27;padding_mm&#x27;</span>]), <span class="tok-s">&#x27;Millimeters&#x27;</span>, units), units)
+padding_box.Width = <span class="tok-n">110</span>
+padding_field = DesignSystem.InputField(T, padding_box, lengths.suffix(units) <span class="tok-k">or</span> <span class="tok-k">None</span>)
+padding_field.HorizontalAlignment = HorizontalAlignment.Left
+body.Children.Add(padding_field)
+padding_caption = DesignSystem.Text(
+    <span class="tok-s">&#x27;How far each plane stands off the objects.&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+padding_caption.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+body.Children.Add(padding_caption)
+padding_error = DesignSystem.Text(<span class="tok-s">&#x27;Enter a length, %s.&#x27;</span> % lengths.hint(units), <span class="tok-n">12</span>, T.Error)
+padding_error.TextWrapping = TextWrapping.Wrap
+padding_error.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+padding_error.Visibility = Visibility.Collapsed
+body.Children.Add(padding_error)
+
+section_label(<span class="tok-s">&#x27;Snap angle&#x27;</span>)
+snap_box = TextBox()
+snap_box.Text = <span class="tok-s">&#x27;%g&#x27;</span> % float(values[<span class="tok-s">&#x27;snap_degrees&#x27;</span>])
+snap_box.Width = <span class="tok-n">80</span>
+snap_field = DesignSystem.InputField(T, snap_box, <span class="tok-s">&#x27;deg&#x27;</span>)
+snap_field.HorizontalAlignment = HorizontalAlignment.Left
+body.Children.Add(snap_field)
+snap_caption = DesignSystem.Text(
+    <span class="tok-s">&#x27;Within this of square, the box stays square to the world.&#x27;</span>, <span class="tok-n">12</span>, T.Muted)
+snap_caption.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+snap_caption.TextWrapping = TextWrapping.Wrap
+body.Children.Add(snap_caption)
+snap_error = DesignSystem.Text(<span class="tok-s">&#x27;Enter between 0 and 45.&#x27;</span>, <span class="tok-n">12</span>, T.Error)
+snap_error.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+snap_error.Visibility = Visibility.Collapsed
+body.Children.Add(snap_error)
+
+
+<span class="tok-k">def</span> number(box):
+    <span class="tok-k">try</span>:
+        <span class="tok-k">return</span> float(box.Text)
+    <span class="tok-k">except</span> ValueError:
+        <span class="tok-k">return</span> <span class="tok-k">None</span>
+
+
+<span class="tok-k">def</span> padding_mm():
+    <span class="tok-s">&quot;&quot;&quot;The typed padding in millimetres, or None when it does not read.&quot;&quot;&quot;</span>
+    typed = lengths.parse(padding_box.Text, units)
+    <span class="tok-k">return</span> <span class="tok-k">None</span> <span class="tok-k">if</span> typed <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">else</span> lengths.convert(typed, units, <span class="tok-s">&#x27;Millimeters&#x27;</span>)
+
+
+<span class="tok-k">def</span> validate(*args):
+    <span class="tok-s">&quot;&quot;&quot;Live, so the error appears as you type and clears the same way.&quot;&quot;&quot;</span>
+    padding = padding_mm()
+    snap = number(snap_box)
+    padding_bad = padding <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">or</span> padding &lt; <span class="tok-n">0</span>
+    snap_bad = snap <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">or</span> snap &lt; <span class="tok-n">0</span> <span class="tok-k">or</span> snap &gt; <span class="tok-n">45</span>
+    padding_error.Visibility = (Visibility.Visible <span class="tok-k">if</span> padding_bad
+                                <span class="tok-k">else</span> Visibility.Collapsed)
+    snap_error.Visibility = Visibility.Visible <span class="tok-k">if</span> snap_bad <span class="tok-k">else</span> Visibility.Collapsed
+    padding_field.BorderBrush = DesignSystem.Brush(
+        T.Error <span class="tok-k">if</span> padding_bad <span class="tok-k">else</span> T.LineStrong)
+    snap_field.BorderBrush = DesignSystem.Brush(
+        T.Error <span class="tok-k">if</span> snap_bad <span class="tok-k">else</span> T.LineStrong)
+    save_btn.IsEnabled = <span class="tok-k">not</span> (padding_bad <span class="tok-k">or</span> snap_bad)
+    <span class="tok-k">return</span> <span class="tok-k">not</span> (padding_bad <span class="tok-k">or</span> snap_bad)
+
+
+<span class="tok-k">def</span> save():
+    <span class="tok-k">if</span> <span class="tok-k">not</span> validate():
+        <span class="tok-k">return</span>
+    settings.save(section.TOOL, {<span class="tok-s">&#x27;padding_mm&#x27;</span>: padding_mm(),
+                                 <span class="tok-s">&#x27;snap_degrees&#x27;</span>: number(snap_box)})
+    toast.success(<span class="tok-s">&#x27;Section defaults saved.&#x27;</span>)
+    window.Close()
+
+
+footer = StackPanel()
+footer.Orientation = Orientation.Horizontal
+footer.HorizontalAlignment = HorizontalAlignment.Right
+footer.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">18</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+cancel_btn = DesignSystem.Secondary(T, <span class="tok-s">&#x27;Cancel&#x27;</span>, <span class="tok-k">lambda</span>: window.Close())
+cancel_btn.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">8</span>, <span class="tok-n">0</span>)
+footer.Children.Add(cancel_btn)
+save_btn = DesignSystem.Primary(T, <span class="tok-s">&#x27;Save&#x27;</span>, save)
+footer.Children.Add(save_btn)
+body.Children.Add(footer)
+
+padding_box.TextChanged += validate
+snap_box.TextChanged += validate
+validate()
+
+window.Content = body
+window.ShowDialog()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section.stack/Fit.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Section Fit
+<span class="tok-k">tooltip</span>: Fit the six section planes to the selection, square to the objects</code></pre></div>
   <div class="pagenav">
 <a href="manage.html"><span class="dir">Previous</span><span class="ttl">Manage</span></a>
 <a class="next" href="section-plan.html"><span class="dir">Next</span><span class="ttl">Section Plan</span></a>
@@ -125,6 +296,7 @@ as <code>150mm</code> anywhere. Both settings are shared with Section Plan in
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

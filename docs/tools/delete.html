@@ -107,6 +107,72 @@ carrying comments, check the count, and delete them as one operation.</p>
 <ul>
   <li>Clear out every view with a comment after the comments have been actioned.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Manage.stack/Deleter.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Manage.stack/Deleter.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Bulk deletes saved viewpoints: search and select, or pick them out by type,
+duplicates, or comments, then confirm. The whole delete is one undo step.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> System.Collections.Generic <span class="tok-k">import</span> List
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> ViewpointDeleterDialog, ViewpointRow
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, output, toast, viewpoints
+
+
+<span class="tok-k">def</span> to_rows(snapshot):
+    rows = List[ViewpointRow]()
+    <span class="tok-k">for</span> row <span class="tok-k">in</span> snapshot:
+        r = ViewpointRow()
+        r.Guid = row[<span class="tok-s">&#x27;guid&#x27;</span>]
+        r.Key = row[<span class="tok-s">&#x27;key&#x27;</span>]
+        r.ParentKey = row[<span class="tok-s">&#x27;parent_key&#x27;</span>]
+        r.Folder = row[<span class="tok-s">&#x27;folder&#x27;</span>]
+        r.Name = row[<span class="tok-s">&#x27;name&#x27;</span>]
+        r.Kind = row[<span class="tok-s">&#x27;kind&#x27;</span>]
+        r.Depth = row[<span class="tok-s">&#x27;depth&#x27;</span>]
+        r.IsFolder = row[<span class="tok-s">&#x27;is_folder&#x27;</span>]
+        r.Comments = row[<span class="tok-s">&#x27;comments&#x27;</span>]
+        rows.Add(r)
+    <span class="tok-k">return</span> rows
+
+
+<span class="tok-k">def</span> run():
+    snapshot = viewpoints.snapshot()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> snapshot:
+        forms.alert(<span class="tok-s">&#x27;This document has no saved viewpoints.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    guids = ViewpointDeleterDialog.Show(to_rows(snapshot))
+    <span class="tok-k">if</span> guids <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>
+
+    guids = list(guids)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> guids:
+        toast.info(<span class="tok-s">&#x27;Nothing to delete.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    question = (<span class="tok-s">&#x27;Delete %d saved viewpoint(s)?\n\n&#x27;</span>
+                <span class="tok-s">&#x27;This removes them from the document.&#x27;</span> % len(guids))
+    <span class="tok-k">if</span> <span class="tok-k">not</span> forms.confirm(question, <span class="tok-s">&#x27;Delete viewpoints&#x27;</span>):
+        <span class="tok-k">return</span>
+
+    <span class="tok-k">def</span> tick(done, count):
+        output.progress(float(done) / count, <span class="tok-s">&#x27;Deleting %d of %d&#x27;</span> % (done, count))
+
+    removed, errors = viewpoints.apply_deletes(
+        guids, progress=tick <span class="tok-k">if</span> len(guids) &gt; <span class="tok-n">500</span> <span class="tok-k">else</span> <span class="tok-k">None</span>)
+    output.progress(<span class="tok-n">1.0</span>)
+    <span class="tok-k">if</span> errors:
+        toast.warning(<span class="tok-s">&#x27;Deleted %d item(s), %d failed.&#x27;</span> % (removed, len(errors)),
+                      errors[<span class="tok-n">0</span>])
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Deleted %d item(s).&#x27;</span> % removed)
+
+
+run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Manage.stack/Deleter.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Delete
+<span class="tok-k">tooltip</span>: Find saved viewpoints by search, type, duplicate name or comments, and delete them together</code></pre></div>
   <div class="pagenav">
 <a href="rename.html"><span class="dir">Previous</span><span class="ttl">Rename</span></a>
 <a class="next" href="manage.html"><span class="dir">Next</span><span class="ttl">Manage</span></a>
@@ -117,6 +183,7 @@ carrying comments, check the count, and delete them as one operation.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

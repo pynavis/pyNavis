@@ -112,6 +112,18 @@ review each clash element, each unresolved comment, each item on a snag list.</p
   <li>A quick model walkthrough for a meeting: Remember the ten things to show, then step
     through them with one hand while talking.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Selection.panel/Step.stack/Next.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Step.stack/Next.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Selects the next item in memory and zooms to it.
+
+Wraps around at the end. The camera move cannot be undone.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> memory, toast
+
+result = memory.step_next()
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Step.stack/Next.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">shortcut</span>: Ctrl+Shift+Right</code></pre></div>
   <div class="pagenav">
 <a href="intersect.html"><span class="dir">Previous</span><span class="ttl">Intersect</span></a>
 <a class="next" href="forget.html"><span class="dir">Next</span><span class="ttl">Forget</span></a>
@@ -122,6 +134,7 @@ review each clash element, each unresolved comment, each item on a snag list.</p
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

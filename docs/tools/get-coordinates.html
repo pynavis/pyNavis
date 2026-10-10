@@ -108,6 +108,46 @@ units, which is the shape Go to Coordinates reads back.</p>
 <ul>
   <li>Report exactly where a clash is to someone who does not have the model open.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Data.panel/Coordinates.stack/Get_Coordinates.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Coordinates.stack/Get_Coordinates.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Copies the coordinates of a point the user clicks to the clipboard.
+
+The click runs on the native Measure tool (pynavis.pick.measure_point), so the
+snapping to vertices, edges and line ends is the host&#x27;s own and the point that
+reaches the clipboard is the snapped one rather than wherever the cursor
+happened to be. It is written in the shape Go to Coordinates reads back:
+&quot;X, Y, Z&quot; at three decimals, in model units.
+
+Esc, a right-click or picking another tool cancels and copies nothing, with no
+complaint: a cancelled pick is an answer, not a failure. See lib/coords.py
+for the formatting.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> coords
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, pick, script, toast
+
+
+<span class="tok-k">def</span> run():
+    doc = app.get_doc()
+    log = script.get_logger()
+
+    hit = pick.measure_point(<span class="tok-s">&#x27;Click a point to copy its coordinates&#x27;</span>)
+    <span class="tok-k">if</span> hit <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>
+
+    units = str(doc.Units)
+    text = coords.format_point(hit.point)
+    script.clipboard_copy(text)
+    log.info(<span class="tok-s">&#x27;copied %s (%s)&#x27;</span> % (text, units))
+    toast.success(<span class="tok-s">&#x27;Coordinates copied&#x27;</span>, <span class="tok-s">&#x27;%s %s&#x27;</span> % (text, units))
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Coordinates.stack/Get_Coordinates.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Get Coordinates
+<span class="tok-k">tooltip</span>: Click a point in the view and its coordinates go to the clipboard, ready to paste into Go to Coordinates, into a report, or back into the authoring model. The click uses the Measure tool, so the pointer snaps to vertices and edges exactly as a measurement does; Esc or right-click cancels.
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="open-ai-folder.html"><span class="dir">Previous</span><span class="ttl">Open AI Folder</span></a>
 <a class="next" href="go-to-coordinates.html"><span class="dir">Next</span><span class="ttl">Go to Coordinates</span></a>
@@ -118,6 +158,7 @@ units, which is the shape Go to Coordinates reads back.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

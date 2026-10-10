@@ -106,6 +106,130 @@ nothing is loaded and the whole run is one undo step.</p>
   <li>On some Navisworks releases a view has to be rebuilt to take the change, and the toast
     says plainly when redlines and appearance overrides were not carried over.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Speeds.stack/Speeds_to_Saved.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Speeds.stack/Speeds_to_Saved.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Writes the stored speeds and field of view into saved viewpoints you pick.
+
+Apply Speeds beside this does the view on screen; this does views already saved
+in the document, without loading any of them: each saved item is copied, its
+camera edited, and the copy swapped back into place. The whole run lands as a
+single undo step and can be stopped part way, keeping whatever was written.
+
+The picking is the shared viewpoint browser the Deleter and Manager use. The
+writing is lib/vpspeeds.py, which also records the two routes that look like
+they should work and do not.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+
+<span class="tok-k">import</span> speeds
+<span class="tok-k">import</span> vpspeeds
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> System.Collections.Generic <span class="tok-k">import</span> List
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> ViewpointResetDialog, ViewpointRow
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, settings, toast, viewpoints
+
+
+<span class="tok-k">def</span> to_rows(snapshot):
+    rows = List[ViewpointRow]()
+    <span class="tok-k">for</span> row <span class="tok-k">in</span> snapshot:
+        r = ViewpointRow()
+        r.Guid = row[<span class="tok-s">&#x27;guid&#x27;</span>]
+        r.Key = row[<span class="tok-s">&#x27;key&#x27;</span>]
+        r.ParentKey = row[<span class="tok-s">&#x27;parent_key&#x27;</span>]
+        r.Folder = row[<span class="tok-s">&#x27;folder&#x27;</span>]
+        r.Name = row[<span class="tok-s">&#x27;name&#x27;</span>]
+        r.Kind = row[<span class="tok-s">&#x27;kind&#x27;</span>]
+        r.Depth = row[<span class="tok-s">&#x27;depth&#x27;</span>]
+        r.IsFolder = row[<span class="tok-s">&#x27;is_folder&#x27;</span>]
+        r.Comments = row[<span class="tok-s">&#x27;comments&#x27;</span>]
+        rows.Add(r)
+    <span class="tok-k">return</span> rows
+
+
+<span class="tok-k">def</span> run():
+    log = script.get_logger()
+    values = speeds.normalise(settings.load(speeds.SETTINGS_KEY, speeds.DEFAULTS))
+    wanted = speeds.summary(values)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> wanted:
+        toast.info(<span class="tok-s">&#x27;Nothing to reset&#x27;</span>,
+                   <span class="tok-s">&#x27;All three are switched off in the settings (Shift+Click)&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    snapshot = viewpoints.snapshot()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> snapshot:
+        forms.alert(<span class="tok-s">&#x27;This document has no saved viewpoints.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    guids = ViewpointResetDialog.Show(to_rows(snapshot), wanted)
+    <span class="tok-k">if</span> guids <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>                                  <span class="tok-c"># cancelled: say nothing</span>
+
+    guids = list(guids)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> guids:
+        toast.info(<span class="tok-s">&#x27;Nothing to reset&#x27;</span>, <span class="tok-s">&#x27;No viewpoints were ticked&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    <span class="tok-c"># A cancellable window rather than the output bar: this can run over hundreds</span>
+    <span class="tok-c"># of viewpoints, and a run with no way out is worse than a slow one. update()</span>
+    <span class="tok-c"># returns False once Cancel is clicked, which is the whole cancel signal; it</span>
+    <span class="tok-c"># also pumps, so the button can be clicked at all while this holds the UI</span>
+    <span class="tok-c"># thread.</span>
+    running = [<span class="tok-k">True</span>]
+    <span class="tok-k">with</span> forms.progress(<span class="tok-s">&#x27;Reset viewpoints&#x27;</span>, <span class="tok-s">&#x27;Starting&#x27;</span>) <span class="tok-k">as</span> bar:
+        <span class="tok-k">def</span> tick(done, count):
+            running[<span class="tok-n">0</span>] = bar.update(float(done) / count,
+                                    <span class="tok-s">&#x27;Resetting %d of %d&#x27;</span> % (done, count))
+
+        written, unchanged, errors, route, stopped = vpspeeds.apply(
+            snapshot, guids, values,
+            progress=tick, cancelled=<span class="tok-k">lambda</span>: <span class="tok-k">not</span> running[<span class="tok-n">0</span>])
+
+    skipped = vpspeeds.dropped_kinds(snapshot, guids)
+    notes = []
+    <span class="tok-k">if</span> skipped[<span class="tok-s">&#x27;folder&#x27;</span>]:
+        notes.append(<span class="tok-s">&#x27;%d folder(s) have no camera&#x27;</span> % skipped[<span class="tok-s">&#x27;folder&#x27;</span>])
+    <span class="tok-k">if</span> skipped[<span class="tok-s">&#x27;animation&#x27;</span>]:
+        notes.append(<span class="tok-s">&#x27;%d animation(s) keep theirs on their cuts&#x27;</span> % skipped[<span class="tok-s">&#x27;animation&#x27;</span>])
+    <span class="tok-k">if</span> unchanged:
+        notes.append(<span class="tok-s">&#x27;%d already matched&#x27;</span> % unchanged)
+    <span class="tok-k">if</span> route == vpspeeds.REBUILT:
+        notes.append(<span class="tok-s">&#x27;redlines and appearance overrides were not carried over&#x27;</span>)
+
+    log.info(<span class="tok-s">&#x27;reset %d viewpoint(s), %s: %s&#x27;</span> % (written, route, wanted))
+
+    <span class="tok-k">if</span> errors:
+        toast.warning(<span class="tok-s">&#x27;Reset %d viewpoint(s), %d failed&#x27;</span> % (written, len(errors)),
+                      errors[<span class="tok-n">0</span>])
+    <span class="tok-k">elif</span> stopped:
+        toast.warning(<span class="tok-s">&#x27;Stopped after %d viewpoint(s)&#x27;</span> % written,
+                      <span class="tok-s">&#x27;What was written is kept, and one undo takes it all back&#x27;</span>)
+    <span class="tok-k">elif</span> written:
+        detail = wanted <span class="tok-k">if</span> <span class="tok-k">not</span> notes <span class="tok-k">else</span> <span class="tok-s">&#x27;%s. %s.&#x27;</span> % (wanted, <span class="tok-s">&#x27;, &#x27;</span>.join(notes))
+        toast.success(<span class="tok-s">&#x27;Reset %d viewpoint(s)&#x27;</span> % written, detail)
+    <span class="tok-k">else</span>:
+        toast.info(<span class="tok-s">&#x27;Nothing to change&#x27;</span>,
+                   <span class="tok-s">&#x27;. &#x27;</span>.join(notes) <span class="tok-k">or</span> <span class="tok-s">&#x27;Those viewpoints already match your settings&#x27;</span>)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Speeds.stack/Speeds_to_Saved.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Shift+Click settings for both speed buttons.
+
+The window itself is shared (extensions/pyNavis.extension/lib), because the
+two buttons read one settings store.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> speedsconfig
+
+speedsconfig.edit()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Speeds.stack/Speeds_to_Saved.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Speeds to Saved
+<span class="tok-k">tooltip</span>: Write the stored walk speed, turn speed and field of view into saved viewpoints you pick. Shift+Click to change them.
+<span class="tok-k">shortcut</span>: Alt+Z
+<span class="tok-k">context</span>: viewpoints</code></pre></div>
   <div class="pagenav">
 <a href="apply-speeds.html"><span class="dir">Previous</span><span class="ttl">Apply Speeds</span></a>
 <a class="next" href="viewpoint-tracker.html"><span class="dir">Next</span><span class="ttl">Viewpoint Tracker</span></a>
@@ -115,6 +239,7 @@ nothing is loaded and the whole run is one undo step.</p>
 <a href="#what-it-does">What it does</a>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

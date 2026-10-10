@@ -59,6 +59,16 @@ figure.shot figcaption { font-size: 12.5px; color: var(--muted); margin-top: 8px
   display: flex; align-items: center; justify-content: center;
 }
 
+/* Source section: the bundle's files, word for word. */
+.code.src .code-head > span {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0;
+}
+.code.src .code-head code { background: none; padding: 0; color: var(--ink); }
+.code.src .src-note { font-family: var(--sans); font-size: 11.5px; }
+.code.src .src-note:empty { display: none; }
+.code.src .code-head a { font-family: var(--sans); font-size: 11.5px; }
+.code.src pre { max-height: 560px; overflow: auto; }
+
 .side-link { font-size: 11.5px; color: var(--muted); text-decoration: none; }
 .side-link:hover { color: var(--ink); }
 

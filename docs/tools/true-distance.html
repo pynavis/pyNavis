@@ -119,6 +119,115 @@ which is the number a tape held square to the faces would give.</p>
 <h2 id="good-to-know">Good to know<a class="anchor" href="#good-to-know" aria-label="Link to this section">#</a></h2>
 <p>On an imperial document the reading matches the native readout style, and the rounding
 fraction is yours to set. Settings live in <code>true_distance.json</code>.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Clash.panel/True_Distance.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/True_Distance.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Perpendicular distance between the two faces the current measurement
+touches.
+
+A rotated project makes the measure tool&#x27;s X/Y/Z readouts meaningless and
+the straight line overshoots whenever the two clicks are not exactly
+opposite each other. A click starts a native point-to-point measurement
+(pynavis.pick.measure_points), waits for its two points, finds which faces
+each point sits on from the items&#x27; own triangles (pynavis.faces), and shows
+the measurement projected onto the normal of the parallel pair on a banner
+across the bottom of the window. The native measurement is dropped as soon
+as its two points are in and the previous tool comes back; the same value
+is drawn in the view as a dimension square to the faces and stays until
+the next run. Everything above the guard at the bottom is importable
+without Navisworks; see truedistance.py for the math.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> truedistance
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, banner, faces, overlay, pick, script, settings
+<span class="tok-k">from</span> pynavis.clash <span class="tok-k">import</span> units_to_meters
+
+<span class="tok-c"># Overlay tag for the dimension this tool draws; one at a time.</span>
+DIMENSION_TAG = <span class="tok-s">&#x27;true-distance&#x27;</span>
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">from</span> pynavis._api <span class="tok-k">import</span> Api
+    doc = app.get_doc()
+    log = script.get_logger()
+    <span class="tok-c"># The dimension and banner from the last run make way for this one.</span>
+    overlay.clear(DIMENSION_TAG)
+    overlay.redraw()
+    banner.clear()
+    measured = pick.measure_points(<span class="tok-s">&#x27;Click the first face&#x27;</span>, <span class="tok-s">&#x27;Now click the second face&#x27;</span>,
+                                   notify=banner.prompt, keep=<span class="tok-k">False</span>)
+    <span class="tok-k">if</span> measured <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        banner.clear()
+        <span class="tok-k">return</span>                              <span class="tok-c"># Esc, right-click or another tool: say nothing</span>
+    p1, p2 = measured
+
+    values = settings.load(truedistance.TOOL, truedistance.DEFAULTS)
+    view = doc.ActiveView
+    first, end = Api.Point3D(p1[<span class="tok-n">0</span>], p1[<span class="tok-n">1</span>], p1[<span class="tok-n">2</span>]), Api.Point3D(p2[<span class="tok-n">0</span>], p2[<span class="tok-n">1</span>], p2[<span class="tok-n">2</span>])
+    log.info(<span class="tok-s">&#x27;measurement %s -&gt; %s, units %s&#x27;</span> % (p1, p2, doc.Units))
+
+    meters = units_to_meters(doc)
+    tol = truedistance.tolerance_for((p1, p2), meters)
+    floor = truedistance.tolerance_for((), meters)
+    result = truedistance.resolve(
+        p1, p2,
+        faces.faces_under(view, first, tol, log, <span class="tok-s">&#x27;first&#x27;</span>, floor=floor)[<span class="tok-n">0</span>],
+        faces.faces_under(view, end, tol, log, <span class="tok-s">&#x27;end&#x27;</span>, floor=floor)[<span class="tok-n">0</span>],
+        parallel_degrees=float(values[<span class="tok-s">&#x27;parallel_degrees&#x27;</span>]))
+    log.info(<span class="tok-s">&#x27;result %s&#x27;</span> % result)
+
+    units = str(doc.Units)
+    denominator = int(values[<span class="tok-s">&#x27;denominator&#x27;</span>])
+    title, detail = truedistance.describe(result, units, denominator)
+    <span class="tok-k">if</span> result[<span class="tok-s">&#x27;status&#x27;</span>] == <span class="tok-s">&#x27;no-face&#x27;</span>:
+        overlay.clear(DIMENSION_TAG)
+        overlay.redraw()
+        banner.error(title, detail)
+        <span class="tok-k">return</span>
+    <span class="tok-k">if</span> result[<span class="tok-s">&#x27;status&#x27;</span>] == <span class="tok-s">&#x27;ok&#x27;</span>:
+        banner.success(title, detail)
+    <span class="tok-k">else</span>:
+        banner.warning(title, detail)
+
+    <span class="tok-c"># The same value drawn in the view: a dimension square to the faces from</span>
+    <span class="tok-c"># the first point, a dashed extension to the second. The measurement is</span>
+    <span class="tok-c"># gone, so this is not anchored to it; the next run clears it.</span>
+    start, foot = truedistance.dimension(p1, p2, result[<span class="tok-s">&#x27;normal&#x27;</span>])
+    drawn = overlay.dimension(DIMENSION_TAG, start, foot,
+                              truedistance.format_length(result[<span class="tok-s">&#x27;across&#x27;</span>], units, denominator),
+                              extension_to=p2)
+    overlay.redraw()
+    log.info(<span class="tok-s">&#x27;dimension %s -&gt; %s drawn=%s&#x27;</span> % (start, foot, drawn))
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/True_Distance.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Options for True Distance: fraction denominator and parallel tolerance.&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> truedistance
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, settings, toast
+
+values = settings.load(truedistance.TOOL, truedistance.DEFAULTS)
+
+denominator = forms.ask_number(
+    <span class="tok-s">&#x27;Round feet-inches readings to this fraction of an inch (1/N):&#x27;</span>,
+    default=values[<span class="tok-s">&#x27;denominator&#x27;</span>], min_value=<span class="tok-n">1</span>, max_value=<span class="tok-n">1024</span>,
+    title=<span class="tok-s">&#x27;True Distance&#x27;</span>)
+<span class="tok-k">if</span> denominator <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                    <span class="tok-c"># None means cancelled: change nothing</span>
+    degrees = forms.ask_number(
+        <span class="tok-s">&#x27;Treat two faces as parallel when their normals differ by no more than (degrees):&#x27;</span>,
+        default=values[<span class="tok-s">&#x27;parallel_degrees&#x27;</span>], min_value=<span class="tok-n">0</span>, max_value=<span class="tok-n">45</span>,
+        title=<span class="tok-s">&#x27;True Distance&#x27;</span>)
+    <span class="tok-k">if</span> degrees <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        values[<span class="tok-s">&#x27;denominator&#x27;</span>] = int(round(denominator))
+        values[<span class="tok-s">&#x27;parallel_degrees&#x27;</span>] = float(degrees)
+        settings.save(truedistance.TOOL, values)
+        toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>, <span class="tok-s">&#x27;Fractions to 1/%d, parallel within %.1f deg.&#x27;</span>
+                      % (values[<span class="tok-s">&#x27;denominator&#x27;</span>], values[<span class="tok-s">&#x27;parallel_degrees&#x27;</span>]))</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/True_Distance.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: True\nDistance
+<span class="tok-k">tooltip</span>: True perpendicular distance between two faces, unaffected by project rotation, shown on a bar across the bottom of the window. Click, then measure the two faces with the native Point to Point tool it opens. Shift+Click for settings.
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="clear-clash.html"><span class="dir">Previous</span><span class="ttl">Clear Clash</span></a>
 <a class="next" href="rename.html"><span class="dir">Next</span><span class="ttl">Rename</span></a>
@@ -130,6 +239,7 @@ fraction is yours to set. Settings live in <code>true_distance.json</code>.</p>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

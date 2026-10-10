@@ -94,6 +94,77 @@ on screen. Both run the same code, so they can never disagree.</p>
   <li>Click the name to go back to that view. Clicking the button again focuses the window
     that is already open rather than opening a second.</li>
 </ol>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/More.slideout/Tracker_Window.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/More.slideout/Tracker_Window.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Opens the viewpoint tracker as a floating window that stays on top.
+
+The same two lines as the Viewpoint Tracker panel, in a window that can sit
+over another application while you walk the model. Clicking the name goes back
+to that view. The behaviour is shared: both shells call
+lib/vptrackerlive.attach.
+
+Clicking again focuses the window that is already open rather than stacking a
+second one on top of it.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+
+<span class="tok-k">import</span> vptrackerlive
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsFormsIntegration&#x27;</span>)
+
+<span class="tok-k">from</span> System.Windows.Forms.Integration <span class="tok-k">import</span> ElementHost
+
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> FluentChrome
+
+
+<span class="tok-k">def</span> run():
+    held = vptrackerlive.session()
+
+    existing = held.window
+    <span class="tok-k">if</span> existing <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        <span class="tok-k">try</span>:
+            <span class="tok-k">if</span> existing.IsLoaded:
+                existing.Activate()
+                <span class="tok-k">return</span>                  <span class="tok-c"># already open: bring it forward, say nothing</span>
+        <span class="tok-k">except</span> Exception:
+            <span class="tok-k">pass</span>                        <span class="tok-c"># it was closed out from under us; rebuild</span>
+        held.window = <span class="tok-k">None</span>
+
+    win = forms.WPFWindow(<span class="tok-s">&#x27;window.xaml&#x27;</span>)
+    window = win.window
+    live = vptrackerlive.attach(win[<span class="tok-s">&#x27;Status&#x27;</span>], win[<span class="tok-s">&#x27;ViewName&#x27;</span>], script.get_logger())
+
+    <span class="tok-k">def</span> on_closed(sender, args):
+        live[<span class="tok-s">&#x27;detach&#x27;</span>]()
+        held.window = <span class="tok-k">None</span>
+
+    window.Closed += on_closed
+
+    <span class="tok-c"># Owns the window to the Navisworks main window and themes its titlebar.</span>
+    FluentChrome.Apply(window)
+
+    <span class="tok-c"># A modeless WPF window rides the HOST&#x27;s message pump, which preprocesses</span>
+    <span class="tok-c"># keyboard messages itself: most keydowns and every WM_CHAR die before the</span>
+    <span class="tok-c"># window&#x27;s WndProc. This window takes no typing, but Esc and the system</span>
+    <span class="tok-c"># menu are keyboard too, and the call costs nothing. It has to run BEFORE</span>
+    <span class="tok-c"># Show(). Modal ShowDialog windows pump for themselves and never need it.</span>
+    ElementHost.EnableModelessKeyboardInterop(window)
+
+    window.Show()
+    held.window = window
+    <span class="tok-c"># No toast. An always-on-top window centred on screen is its own report,</span>
+    <span class="tok-c"># the way the dock panel&#x27;s toggle is, and a toast on top of it is noise.</span>
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/More.slideout/Tracker_Window.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Tracker Window
+<span class="tok-k">tooltip</span>: The viewpoint tracker as a floating window that stays on top, for when the dock panel is in the way. It shows the same two lines as the panel.</code></pre></div>
   <div class="pagenav">
 <a href="section-nudge.html"><span class="dir">Previous</span><span class="ttl">Section Nudge</span></a>
 <a class="next" href="ask-ai.html"><span class="dir">Next</span><span class="ttl">Ask AI</span></a>
@@ -102,6 +173,7 @@ on screen. Both run the same code, so they can never disagree.</p>
 <aside class="toc"><div class="toc-head">On this page</div>
 <a href="#what-it-does">What it does</a>
 <a href="#how-to-use-it">How to use it</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

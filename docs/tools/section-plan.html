@@ -95,6 +95,21 @@ skewed across it.</p>
 
 <h2 id="good-to-know">Good to know<a class="anchor" href="#good-to-know" aria-label="Link to this section">#</a></h2>
 <p>Plan has no Shift+Click of its own; change the padding and snap angle from Section Fit.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Section.stack/Plan.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section.stack/Plan.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Fits the section planes, then swings to an orthographic plan of them.
+
+The camera turns with the box, so the objects sit square on screen rather than
+skewed across it.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> section, selection, settings, toast
+
+values = settings.load(section.TOOL, section.DEFAULTS)
+result = section.plan_to_selection(selection.get_items(), values)
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section.stack/Plan.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Section Plan
+<span class="tok-k">tooltip</span>: Fit the section planes and look straight down at them, square on</code></pre></div>
   <div class="pagenav">
 <a href="section-fit.html"><span class="dir">Previous</span><span class="ttl">Section Fit</span></a>
 <a class="next" href="copy-state.html"><span class="dir">Next</span><span class="ttl">Copy State</span></a>
@@ -104,6 +119,7 @@ skewed across it.</p>
 <a href="#what-it-does">What it does</a>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

@@ -33,6 +33,11 @@ SHOTS = os.path.join(ASSETS, 'shots')
 ICONS = os.path.join(ASSETS, 'icons')
 AUTHORING_ASSETS = os.path.join(ROOT, 'docs', 'authoring', '_assets')
 EXTENSION = os.path.join(ROOT, 'extensions', 'pyNavis.extension', 'pyNavis.tab')
+# Where the shipped bundles live on GitHub, so each file in a Source section can link out.
+BLOB_BASE = 'https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/'
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from build_docs import highlight  # noqa: E402  (the authoring guide's highlighter)
 
 # Panel order is the ribbon's order. Each fragment holds that panel's tools.
 PANELS = [
@@ -120,6 +125,67 @@ def figures(body, tool, wanted):
         wanted.append((tool, name, TAG_RE.sub('', caption)))
         return ''
     return FIGURE_RE.sub(repl, body)
+
+
+# --------------------------------------------------------------------------- #
+# source
+# --------------------------------------------------------------------------- #
+
+# The files a Source section shows, in this order, and how each is coloured.
+SOURCE_NAMES = (('script.py', 'python'), ('config.py', 'python'),
+                ('pane.xaml', 'xml'), ('bundle.yaml', 'yaml'))
+SOURCE_NOTES = {
+    'script.py': 'Runs on a click.',
+    'config.py': 'Runs on Shift+Click.',
+    'pane.xaml': "The dock panel's content.",
+    'bundle.yaml': 'The bundle contract: the keys pyNavis reads for this tool.',
+}
+
+
+def source_files(folder):
+    """[(rel, lang)] for the bundle's own files in SOURCE_NAMES order. A container with
+    no script of its own (a pulldown, a stack) lists each child bundle's files after its
+    own, children in name order, so the page still shows the code behind its menu."""
+    out = []
+    for name, lang in SOURCE_NAMES:
+        if os.path.isfile(os.path.join(folder, name)):
+            out.append((name, lang))
+    if not os.path.isfile(os.path.join(folder, 'script.py')):
+        for child in sorted(os.listdir(folder)):
+            sub = os.path.join(folder, child)
+            if os.path.isdir(sub) and '.' in child:
+                for name, lang in SOURCE_NAMES:
+                    if os.path.isfile(os.path.join(sub, name)):
+                        out.append((child + '/' + name, lang))
+    return out
+
+
+def source_section(tool, extension=EXTENSION):
+    """The Source <h2> plus one code block per bundle file, word for word; '' when the
+    tool names no bundle. The heading is plain here: headings() adds the anchor."""
+    if not tool.bundle:
+        return ''
+    folder = os.path.join(extension, tool.bundle.replace('/', os.sep))
+    files = source_files(folder)
+    if not files:
+        return ''
+    out = ['<h2>Source</h2>',
+           "<p>The tool's own files, word for word as shipped in "
+           '<code>%s</code>. Every pyNavis tool is an ordinary bundle: copy these into '
+           'your own extension and change what you like.</p>' % html.escape(tool.bundle)]
+    for rel, lang in files:
+        with io.open(os.path.join(folder, rel.replace('/', os.sep)), encoding='utf-8') as fh:
+            code = fh.read().replace('\r\n', '\n').rstrip('\n')
+        note = SOURCE_NOTES.get(rel.rsplit('/', 1)[-1], '')
+        url = BLOB_BASE + tool.bundle + '/' + rel
+        out.append(
+            '<div class="code src">'
+            '<div class="code-head"><span><code>%s</code> <span class="src-note">%s</span> '
+            '<a href="%s" rel="noopener">View on GitHub</a></span>'
+            '<button class="copy-btn" type="button">Copy</button></div>'
+            '<pre><code>%s</code></pre>'
+            '</div>' % (html.escape(rel), html.escape(note), html.escape(url), highlight(code, lang)))
+    return '\n'.join(out)
 
 
 # --------------------------------------------------------------------------- #
@@ -309,8 +375,9 @@ LANDING_INTRO = """
 <p>Each page opens with the facts: where the tool sits, what it needs before its button is
 live, its keyboard shortcut and what Shift+Click does. Then what it does, a walkthrough with
 screenshots, the limits worth knowing before you rely on it, and other jobs it is good for.
-Alt+Click on any tool opens its folder, since every tool here is an ordinary bundle you can
-read and copy.</p>
+Each page ends with the tool's source: every file in its bundle, word for word, since every
+tool here is an ordinary bundle you can read and copy. Alt+Click on any tool opens its
+folder in Explorer.</p>
 </div>
 """
 
@@ -387,6 +454,9 @@ def build():
             elif os.path.isfile(os.path.join(ICONS, tool.slug + '.png')):
                 tool.icon = '_assets/icons/%s.png' % tool.slug
             tool.body = figures(tool.body, tool, wanted)
+            source = source_section(tool)
+            if source:
+                tool.body += '\n' + source
             headings(tool)
         panels.append((panel, lead, tools))
         intros.append(intro)

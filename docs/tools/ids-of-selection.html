@@ -108,6 +108,138 @@ own Select by ID, or for a report.</p>
   <li>Tell a modeller exactly which elements to fix, in the one identifier both tools
     share.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Data.panel/Element_IDs.stack/IDs_of_Selection.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Element_IDs.stack/IDs_of_Selection.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Copies the Revit element IDs of the current selection to the clipboard.
+
+The Revit command of the same name, for a federated model. Each selected item
+resolves its id the two ways an id survives federation: the &quot;Element ID&quot;
+property tab an NWC exported from Revit carries, and the &quot;[123456]&quot; suffix a
+design coordination model carries in its name instead.
+
+The list lands on the clipboard ready to paste back into Select by IDs, into
+Revit&#x27;s Select by ID, or into a report. Settings are shared with Select by
+IDs; Shift+Click opens them.
+
+Everything above the guard at the bottom is pure, so this file doubles as an
+importable module for tests (src/PyNavis.Tests/IdsOfSelectionScriptTests.cs).
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> elementids
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> props, script, settings, toast
+
+<span class="tok-c"># How far up the tree to look for an id. A click in the view selects whichever</span>
+<span class="tok-c"># node the current selection resolution lands on, often a geometry leaf below</span>
+<span class="tok-c"># the Revit element, so the walk has to go up; the cap keeps it from reaching</span>
+<span class="tok-c"># a model root whose own name happens to carry a bracketed number.</span>
+_MAX_ANCESTORS = <span class="tok-n">8</span>
+
+
+<span class="tok-k">def</span> summary(ids, without):
+    <span class="tok-s">&quot;&quot;&quot;(level, message, detail) for the toast. One id is named rather than
+    counted, and items that carry no id at all are always reported, so the
+    tool never finishes looking like it did nothing.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> <span class="tok-k">not</span> ids:
+        <span class="tok-k">return</span> (<span class="tok-s">&#x27;warning&#x27;</span>, <span class="tok-s">&#x27;No element IDs found&#x27;</span>,
+                <span class="tok-s">&#x27;None of the %d selected item(s) carry an element ID.&#x27;</span> % without)
+
+    <span class="tok-k">if</span> len(ids) == <span class="tok-n">1</span>:
+        message = <span class="tok-s">&#x27;Element ID %s copied&#x27;</span> % ids[<span class="tok-n">0</span>]
+    <span class="tok-k">else</span>:
+        message = <span class="tok-s">&#x27;%d element IDs copied&#x27;</span> % len(ids)
+
+    <span class="tok-k">if</span> without:
+        <span class="tok-k">return</span> (<span class="tok-s">&#x27;warning&#x27;</span>, message,
+                <span class="tok-s">&#x27;%d selected item(s) carry no element ID.&#x27;</span> % without)
+    <span class="tok-k">return</span> (<span class="tok-s">&#x27;success&#x27;</span>, message, <span class="tok-k">None</span>)
+
+
+<span class="tok-c"># --- API half (Navisworks only) ---------------------------------------------</span>
+
+
+<span class="tok-k">def</span> id_of(item, values):
+    <span class="tok-s">&quot;&quot;&quot;The element id for one selected ModelItem, or None.
+
+    The nearest ancestor-or-self that is a real element wins - the one the
+    exporter marked with its Element category (elementids.ELEMENT_CATEGORY).
+    That is not always the nearest node with an &quot;Element ID&quot; tab: the nested
+    parts under a family instance carry the tab too, holding the TYPE&#x27;s id,
+    and a click in the view usually lands on one of those. Reading the first
+    tab found copied the type id out, and Select by IDs then resolved it to
+    the first instance of that family - the round trip through the clipboard
+    landed on a different fixture. Field-checked (12345678 was the
+    type, 12345679 the instance).
+
+    A model whose exporter never wrote the category falls back to the old
+    rule: the first ancestor-or-self carrying an id at all. Descendants are
+    deliberately not searched either way: a group node would then report one
+    arbitrary child&#x27;s id as if it were its own.
+    &quot;&quot;&quot;</span>
+    node = item
+    fallback = <span class="tok-k">None</span>
+    <span class="tok-k">for</span> _depth <span class="tok-k">in</span> range(_MAX_ANCESTORS + <span class="tok-n">1</span>):
+        <span class="tok-k">if</span> node <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            <span class="tok-k">break</span>
+        found = _id_on(node, values)
+        <span class="tok-k">if</span> found <span class="tok-k">and</span> elementids.is_element(props.categories(node)):
+            <span class="tok-k">return</span> found
+        <span class="tok-k">if</span> found <span class="tok-k">and</span> fallback <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            fallback = found
+        node = node.Parent
+    <span class="tok-k">return</span> fallback
+
+
+<span class="tok-k">def</span> _id_on(item, values):
+    value = props.get(item, values[<span class="tok-s">&#x27;id_category&#x27;</span>], values[<span class="tok-s">&#x27;id_property&#x27;</span>])
+    <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        text = str(value).strip()
+        <span class="tok-k">if</span> text:
+            <span class="tok-k">return</span> text
+    <span class="tok-k">return</span> elementids.id_from_name(getattr(item, <span class="tok-s">&#x27;DisplayName&#x27;</span>, <span class="tok-k">None</span>))
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection
+
+    items = selection.get_items()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> items:
+        toast.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Select some elements first.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    values = settings.load(elementids.SETTINGS_KEY, elementids.DEFAULTS)
+
+    ids = []
+    seen = {}
+    without = <span class="tok-n">0</span>
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        found = id_of(item, values)
+        <span class="tok-k">if</span> <span class="tok-k">not</span> found:
+            without += <span class="tok-n">1</span>
+            <span class="tok-k">continue</span>
+        <span class="tok-k">if</span> found <span class="tok-k">not</span> <span class="tok-k">in</span> seen:
+            seen[found] = <span class="tok-k">True</span>
+            ids.append(found)
+
+    <span class="tok-k">if</span> ids:
+        script.clipboard_copy(elementids.format_id_list(ids))
+    toast.show(*summary(ids, without))
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Element_IDs.stack/IDs_of_Selection.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Shift+Click settings for both element id buttons.
+
+The window itself is shared (extensions/pyNavis.extension/lib), because the
+two buttons read one settings store.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> elementidconfig
+
+elementidconfig.edit()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Element_IDs.stack/IDs_of_Selection.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: IDs of Selection
+<span class="tok-k">tooltip</span>: Copy the Revit element IDs of the current selection to the clipboard, ready to paste into Select by IDs or back into Revit. Shift+Click for settings.
+<span class="tok-k">context</span>: selection</code></pre></div>
   <div class="pagenav">
 <a href="select-by-ids.html"><span class="dir">Previous</span><span class="ttl">Select by IDs</span></a>
 <a class="next" href="excel-sets.html"><span class="dir">Next</span><span class="ttl">Excel Sets</span></a>
@@ -118,6 +250,7 @@ own Select by ID, or for a report.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

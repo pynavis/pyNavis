@@ -108,6 +108,19 @@ skipped rather than failing the whole recall.</p>
   <li>Hand a colleague a selection: Save as Set puts it in the document; Recall is the
     private version that stays yours.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Selection.panel/Recall.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Recall.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Selects whatever is in memory.
+
+Items that are no longer in the model are reported and skipped.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> memory, toast
+
+result = memory.recall()
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Recall.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Recall
+<span class="tok-k">shortcut</span>: Ctrl+Shift+R</code></pre></div>
   <div class="pagenav">
 <a href="remember.html"><span class="dir">Previous</span><span class="ttl">Remember</span></a>
 <a class="next" href="add.html"><span class="dir">Next</span><span class="ttl">Add</span></a>
@@ -118,6 +131,7 @@ skipped rather than failing the whole recall.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

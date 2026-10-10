@@ -164,6 +164,149 @@ was, quietly. The last gap you gave is stored with its unit in <code>resolve_cla
 so 25 mm stays 25 mm in a feet-and-inches document and the next prompt opens on it. If you
 set a clearance with Shift+Click in an earlier version, the first prompt opens on that. There
 is no Shift+Click: the prompt is where the gap is set.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Clash.panel/Clear_Clash.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clear_Clash.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Moves the selected object so the face you point at sits exactly a chosen
+gap from the face it must clear, and tells you how far, so the fix can be
+typed straight into the authoring tool.
+
+Select the object that should move and click. The native Point to Point
+measure opens and the banner along the bottom of the window asks for two
+faces: one on the object, then the one it must clear. Both faces are found
+from the items&#x27; own triangles (pynavis.faces); two flat faces must be
+parallel, a pipe or conduit is measured to its real surface from a flat
+face, and two straight pipes outside to outside (see facemove). Anything
+that cannot be measured is refused on the banner before a number is asked
+for. A prompt then shows the gap as it is now (&quot;Pipe 1 is 3in into Beam 7&quot;,
+&quot;Tray 42 is 350 mm from Duct 7&quot;) and asks for the gap to leave, prefilled
+with the one used last, so Enter accepts it and a clash review stays at two
+clicks and Enter. Before any gap has been given, the clearance older
+versions set with Shift+Click is the starting value. The prompt reads
+lengths the way Revit does (1&#x27; 6 1/2&quot;, 3/4&quot;, 1 6, 25mm; forms.ask_length)
+and asks again on anything it cannot read. The object slides by exactly the
+difference, tighter or apart, clash or no clash. The move is the same
+permanent transform Item Tools &gt; Transform makes; Ctrl+Z reverses it. The
+distance goes in a dialog that stays until dismissed, ready to copy;
+refusals and &quot;already there&quot; stay on the banner. Nothing is drawn in the
+view. There is no Shift+Click: the prompt is where the gap is set, every
+time.
+
+Everything above the guard at the bottom is importable without Navisworks;
+see lib/facemove.py for the maths and the words.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> facemove
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, banner, faces, forms, geometry, pick, script, selection, settings
+<span class="tok-k">from</span> pynavis.clash <span class="tok-k">import</span> units_to_meters
+
+
+<span class="tok-k">def</span> names_of(items):
+    <span class="tok-k">return</span> facemove.label([str(item.DisplayName <span class="tok-k">or</span> item.ClassDisplayName <span class="tok-k">or</span> <span class="tok-s">&#x27;&#x27;</span>)
+                           <span class="tok-k">for</span> item <span class="tok-k">in</span> items])
+
+
+<span class="tok-k">def</span> triangles_of(items, log):
+    <span class="tok-s">&quot;&quot;&quot;Every triangle of what moves: the whole selection, which is what must
+    end up clear. Every item is read; what fails is logged.&quot;&quot;&quot;</span>
+    triangles = []
+    <span class="tok-k">for</span> item <span class="tok-k">in</span> items:
+        notes = []
+        triangles.extend(geometry.world_triangles(item, note=notes.append))
+        <span class="tok-k">if</span> notes:
+            log.info(<span class="tok-s">&#x27;mover &quot;%s&quot;: %s&#x27;</span> % (item.DisplayName, notes[<span class="tok-n">0</span>]))
+    <span class="tok-k">return</span> triangles
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">from</span> pynavis._api <span class="tok-k">import</span> Api
+    doc = app.get_doc()
+    log = script.get_logger()
+    mover = selection.get_items()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> mover:
+        banner.info(<span class="tok-s">&#x27;Nothing selected&#x27;</span>, <span class="tok-s">&#x27;Select the object that should move, then click.&#x27;</span>)
+        <span class="tok-k">return</span>
+    mover_name = names_of(mover)
+
+    banner.clear()
+    measured = pick.measure_points(<span class="tok-s">&#x27;Click the face of %s that must move&#x27;</span> % mover_name,
+                                   <span class="tok-s">&#x27;Now click the face it must clear&#x27;</span>,
+                                   notify=banner.prompt, keep=<span class="tok-k">False</span>)
+    <span class="tok-k">if</span> measured <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        banner.clear()
+        <span class="tok-k">return</span>                              <span class="tok-c"># Esc, right-click or another tool: say nothing</span>
+    p1, p2 = measured
+
+    values = settings.load(facemove.TOOL, facemove.DEFAULTS)
+    units = str(doc.Units)
+    last_gap = facemove.starting_gap(values, units)
+    view = doc.ActiveView
+    first, end = Api.Point3D(p1[<span class="tok-n">0</span>], p1[<span class="tok-n">1</span>], p1[<span class="tok-n">2</span>]), Api.Point3D(p2[<span class="tok-n">0</span>], p2[<span class="tok-n">1</span>], p2[<span class="tok-n">2</span>])
+    log.info(<span class="tok-s">&#x27;measurement %s -&gt; %s, units %s, last gap %s&#x27;</span> % (p1, p2, units, last_gap))
+
+    meters = units_to_meters(doc)
+    tol = faces.tolerance_for((p1, p2), meters)
+    floor = faces.tolerance_for((), meters)
+    mover_side = faces.surface_under(view, first, tol, log, <span class="tok-s">&#x27;mover&#x27;</span>, floor=floor)
+    obstacle_side = faces.surface_under(view, end, tol, log, <span class="tok-s">&#x27;obstacle&#x27;</span>, floor=floor)
+    mover_item, obstacle_item = mover_side[<span class="tok-s">&#x27;item&#x27;</span>], obstacle_side[<span class="tok-s">&#x27;item&#x27;</span>]
+    obstacle_name = (str(obstacle_item.DisplayName <span class="tok-k">or</span> obstacle_item.ClassDisplayName <span class="tok-k">or</span> <span class="tok-s">&#x27;&#x27;</span>)
+                     <span class="tok-k">if</span> obstacle_item <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;the obstacle&#x27;</span>)
+    <span class="tok-k">if</span> mover_item <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">and</span> <span class="tok-k">not</span> any(mover_item.Equals(m) <span class="tok-k">for</span> m <span class="tok-k">in</span> mover):
+        log.warning(<span class="tok-s">&#x27;first point is on &quot;%s&quot;, which is not in the selection&#x27;</span>
+                    % mover_item.DisplayName)
+    body = triangles_of(mover, log)
+    shapes = {<span class="tok-s">&#x27;mover_triangles&#x27;</span>: mover_side[<span class="tok-s">&#x27;triangles&#x27;</span>],
+              <span class="tok-s">&#x27;obstacle_triangles&#x27;</span>: obstacle_side[<span class="tok-s">&#x27;triangles&#x27;</span>],
+              <span class="tok-s">&#x27;mover_body&#x27;</span>: body, <span class="tok-s">&#x27;tol&#x27;</span>: max(mover_side[<span class="tok-s">&#x27;tol&#x27;</span>], obstacle_side[<span class="tok-s">&#x27;tol&#x27;</span>])}
+
+    <span class="tok-k">def</span> plan(target):
+        <span class="tok-k">return</span> facemove.plan(p1, mover_side[<span class="tok-s">&#x27;faces&#x27;</span>], p2, obstacle_side[<span class="tok-s">&#x27;faces&#x27;</span>],
+                             [tri[<span class="tok-n">0</span>] <span class="tok-k">for</span> tri <span class="tok-k">in</span> body], target, **shapes)
+
+    <span class="tok-c"># Find the faces before asking for the number, so a refusal (no face,</span>
+    <span class="tok-c"># not parallel, nothing in front) never makes the user type a gap that</span>
+    <span class="tok-c"># cannot be used.</span>
+    situation = plan(last_gap)
+    log.info(<span class="tok-s">&#x27;situation %s&#x27;</span> % situation)
+    <span class="tok-k">if</span> situation[<span class="tok-s">&#x27;status&#x27;</span>] <span class="tok-k">in</span> facemove.REFUSALS:
+        level, title, detail = facemove.describe(situation, units, mover_name, obstacle_name)
+        banner.show(level, title, detail)
+        <span class="tok-k">return</span>
+
+    banner.clear()
+    state = facemove.gap_state(situation[<span class="tok-s">&#x27;gap&#x27;</span>], units, mover_name, obstacle_name)
+    target = forms.ask_length(facemove.gap_prompt(state, units), units,
+                              default=last_gap, title=<span class="tok-s">&#x27;Clear Clash&#x27;</span>)
+    <span class="tok-k">if</span> target <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>                              <span class="tok-c"># cancelled: say nothing</span>
+
+    <span class="tok-c"># The gap just given is the one the next prompt opens on.</span>
+    settings.save(facemove.TOOL, facemove.remember(target, units))
+
+    result = plan(float(target))
+    log.info(<span class="tok-s">&#x27;plan %s&#x27;</span> % result)
+
+    <span class="tok-k">if</span> result[<span class="tok-s">&#x27;status&#x27;</span>] == <span class="tok-s">&#x27;moved&#x27;</span>:
+        moved = geometry.translate(mover, result[<span class="tok-s">&#x27;vector&#x27;</span>], doc, name=<span class="tok-s">&#x27;Resolve clash&#x27;</span>)
+        log.info(<span class="tok-s">&#x27;moved %d item(s) by %s&#x27;</span> % (moved, result[<span class="tok-s">&#x27;vector&#x27;</span>]))
+        selection.set_items(mover, doc)
+
+    level, title, detail = facemove.describe(result, units, mover_name, obstacle_name)
+    <span class="tok-k">if</span> result[<span class="tok-s">&#x27;status&#x27;</span>] == <span class="tok-s">&#x27;moved&#x27;</span>:
+        <span class="tok-c"># The number is what the user came for and will type elsewhere: it</span>
+        <span class="tok-c"># must outlive a glance, so it waits to be dismissed.</span>
+        forms.alert(title + chr(<span class="tok-n">10</span>) + chr(<span class="tok-n">10</span>) + detail, title=<span class="tok-s">&#x27;Clear Clash&#x27;</span>,
+                    copy=facemove.format_length(abs(result[<span class="tok-s">&#x27;move&#x27;</span>]), units))
+    <span class="tok-k">else</span>:
+        banner.show(level, title, detail)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clear_Clash.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Clear\nClash
+<span class="tok-k">tooltip</span>: Two clicks and Enter. Select the object that should move and click, then click the face of it that is in the way and the face it must clear. A prompt shows the gap as it is now and asks for the gap to leave, opening on the one you used last; type it the way you would in Revit, like 3<span class="tok-s">&quot;, 1&#x27; 6 1/2&quot;</span> or 25mm. The object slides the exact difference, tighter or apart, clash or no clash, pipes and conduits measured to their real surface, and a dialog says how far, ready to type into the authoring tool. Ctrl+Z puts it back.
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="clash-grouper.html"><span class="dir">Previous</span><span class="ttl">Clash Grouper</span></a>
 <a class="next" href="true-distance.html"><span class="dir">Next</span><span class="ttl">True Distance</span></a>
@@ -176,6 +319,7 @@ is no Shift+Click: the prompt is where the gap is set.</p>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

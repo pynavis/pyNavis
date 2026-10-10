@@ -111,6 +111,65 @@ view's name, sized to fit the panel. Click the name to go back.</p>
   <li>Tracker Window in the panel flyout is the same two lines as a floating always-on-top
     window, for when the dock panel is in the way.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Viewpoint_Tracker.dockpane</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Viewpoint_Tracker.dockpane/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Shows which saved viewpoint the camera is looking through, live.
+
+Two lines: whether the camera is still on the view or has walked off it, and
+the view&#x27;s name. Clicking the name goes back to that view.
+
+All of the behaviour is in lib/vptrackerlive.py, which the floating Tracker
+Window shares, so the panel and the window can never disagree.
+
+Reload re-runs this script against fresh TextBlocks: PaneRegistry.Configure is
+&quot;Boot and Reload: re-read the claims and re-content any open pane&quot;, and it
+re-contents through PaneContentBuilder.Build. The previous run&#x27;s timer and
+subscriptions are still live at that point and would go on painting into
+TextBlocks that are no longer on screen, so the last detach is kept in the
+session holder (which outlives a run) and called before a new one is wired.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> vptrackerlive
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> script
+
+pane = __pane__
+
+held = vptrackerlive.session()
+
+previous = getattr(held, <span class="tok-s">&#x27;pane_detach&#x27;</span>, <span class="tok-k">None</span>)
+<span class="tok-k">if</span> previous <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+    previous()              <span class="tok-c"># self-guarded: detach() wraps its own body</span>
+
+held.pane_detach = vptrackerlive.attach(
+    pane.Find(<span class="tok-s">&#x27;Status&#x27;</span>), pane.Find(<span class="tok-s">&#x27;ViewName&#x27;</span>), script.get_logger())[<span class="tok-s">&#x27;detach&#x27;</span>]</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>pane.xaml</code> <span class="src-note">The dock panel&#x27;s content.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Viewpoint_Tracker.dockpane/pane.xaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code>&lt;Grid xmlns=&quot;http://schemas.microsoft.com/winfx/2006/xaml/presentation&quot;
+      xmlns:x=&quot;http://schemas.microsoft.com/winfx/2006/xaml&quot;
+      Margin=&quot;12&quot;&gt;
+  &lt;Grid.RowDefinitions&gt;
+    &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+    &lt;RowDefinition Height=&quot;*&quot;/&gt;
+  &lt;/Grid.RowDefinitions&gt;
+
+  &lt;TextBlock x:Name=&quot;Status&quot; Grid.Row=&quot;0&quot; Text=&quot;&quot;
+             FontSize=&quot;11&quot; TextAlignment=&quot;Center&quot; Opacity=&quot;0.75&quot;/&gt;
+
+  &lt;!-- The Viewbox does what the C# did with a binary search over MeasureString:
+       shrink a long name to fit and grow a short one, capped so a three letter
+       name does not fill the panel. No colours are set anywhere here, so the
+       panel follows the Navisworks theme instead of the hardcoded white and
+       blue the original used. --&gt;
+  &lt;Viewbox Grid.Row=&quot;1&quot; Margin=&quot;0,6,0,0&quot; MaxHeight=&quot;72&quot;
+           HorizontalAlignment=&quot;Center&quot; VerticalAlignment=&quot;Center&quot;&gt;
+    &lt;TextBlock x:Name=&quot;ViewName&quot; Text=&quot;No viewpoint selected&quot;
+               FontSize=&quot;28&quot; FontWeight=&quot;SemiBold&quot; TextAlignment=&quot;Center&quot;
+               Background=&quot;Transparent&quot; Cursor=&quot;Hand&quot;/&gt;
+  &lt;/Viewbox&gt;
+&lt;/Grid&gt;</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Viewpoint_Tracker.dockpane/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Viewpoint Tracker
+<span class="tok-k">tooltip</span>: A panel showing which saved viewpoint you are looking through, and whether the camera is still on it. Click the name to go back to that view.
+<span class="tok-k">keytip</span>: VT</code></pre></div>
   <div class="pagenav">
 <a href="speeds-to-saved.html"><span class="dir">Previous</span><span class="ttl">Speeds to Saved</span></a>
 <a class="next" href="section-nudge.html"><span class="dir">Next</span><span class="ttl">Section Nudge</span></a>
@@ -121,6 +180,7 @@ view's name, sized to fit the panel. Click the name to go back.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

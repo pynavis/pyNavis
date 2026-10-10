@@ -86,12 +86,43 @@
   <h2 id="what-it-does">What it does<a class="anchor" href="#what-it-does" aria-label="Link to this section">#</a></h2>
 <p>Offers only the kinds actually copied for this document and restores the one you pick.
 With nothing copied yet it says so instead of showing an empty picker.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/State.stack/Paste_State.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/State.stack/Paste_State.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Pastes a kind of view state copied earlier with Copy State.
+
+Only the kinds actually copied for this document are offered; with nothing
+copied yet the tool says so instead of showing an empty picker.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, toast, viewstate
+
+kinds = viewstate.available_kinds()
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> kinds:
+    forms.alert(<span class="tok-s">&#x27;No copied state for this document. Use &quot;Copy State&quot; first.&#x27;</span>,
+                title=<span class="tok-s">&#x27;Paste State&#x27;</span>)
+<span class="tok-k">else</span>:
+    <span class="tok-c"># prompt=None gives the chromeless quick switch, same as Copy State.</span>
+    label = forms.ask_options(
+        <span class="tok-k">None</span>,
+        [viewstate.label_for(kind) <span class="tok-k">for</span> kind <span class="tok-k">in</span> kinds],
+        title=<span class="tok-s">&#x27;Paste State&#x27;</span>,
+    )
+    <span class="tok-k">if</span> label <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                      <span class="tok-c"># None means cancelled: say nothing</span>
+        result = viewstate.paste_state(viewstate.kind_for(label))
+        toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/State.stack/Paste_State.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Paste State
+<span class="tok-k">tooltip</span>: Paste the section planes, hidden items, or appearance overrides copied for this document
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="copy-state.html"><span class="dir">Previous</span><span class="ttl">Copy State</span></a>
 <a class="next" href="apply-speeds.html"><span class="dir">Next</span><span class="ttl">Apply Speeds</span></a>
 </div>
 </article>
-<aside class="toc"></aside>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#what-it-does">What it does</a>
+<a href="#source">Source</a>
+</aside>
 </main>
 </div>
 <script src="_assets/search-index.js"></script>

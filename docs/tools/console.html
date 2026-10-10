@@ -125,6 +125,239 @@ a tool, and a handy calculator for one-off jobs that do not deserve a button.</p
 every helper available here. If you find yourself pasting the same lines twice, the
 <a href="https://docs.pynavis.com/quickstart.html">quickstart</a> shows how to turn them
 into a button in five minutes.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>pyNavis.panel/Console.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Console.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Interactive python console running inside Navisworks with the pyNavis environment.
+
+Built on the DesignSystem v2 toolkit: a solid surface, the real Windows titlebar,
+bordered monospace panes and an accent Run button - the same language as every
+other pyNavis form.
+&quot;&quot;&quot;</span>
+
+__title__ = <span class="tok-s">&#x27;Console&#x27;</span>
+
+<span class="tok-k">import</span> sys
+
+<span class="tok-k">import</span> clr
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> _repl, script
+<span class="tok-k">from</span> pynavis._history <span class="tok-k">import</span> CommandHistory
+
+clr.AddReference(<span class="tok-s">&#x27;PresentationFramework&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PresentationCore&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsBase&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsFormsIntegration&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+
+<span class="tok-k">from</span> System.Windows <span class="tok-k">import</span> (
+    CornerRadius, GridLength, GridUnitType, HorizontalAlignment, Thickness,
+    TextWrapping, VerticalAlignment, Window, WindowStartupLocation,
+)
+<span class="tok-k">from</span> System.Windows.Controls <span class="tok-k">import</span> (
+    Border, ColumnDefinition, Grid, RowDefinition, ScrollBarVisibility, TextBox,
+)
+<span class="tok-k">from</span> System.Windows.Controls.Primitives <span class="tok-k">import</span> ScrollBar
+<span class="tok-k">from</span> System.Windows.Input <span class="tok-k">import</span> Cursors, Key, Keyboard, ModifierKeys
+<span class="tok-k">from</span> System.Windows.Forms.Integration <span class="tok-k">import</span> ElementHost
+<span class="tok-k">from</span> System.Windows.Media <span class="tok-k">import</span> Brushes, FontFamily
+<span class="tok-k">from</span> System.Windows.Threading <span class="tok-k">import</span> DispatcherFrame, DispatcherPriority
+<span class="tok-k">from</span> System <span class="tok-k">import</span> Action
+<span class="tok-k">from</span> System.Windows.Threading <span class="tok-k">import</span> Dispatcher
+
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> DesignSystem, FluentChrome
+<span class="tok-k">from</span> PyNavis.Runtime.Output <span class="tok-k">import</span> OutputWindowWriter, PyNavisTheme
+
+<span class="tok-c"># Rich output (pynavis.output) goes to whichever writer the host holds, and that</span>
+<span class="tok-c"># is set per RIBBON command - so console output landed in the last button&#x27;s</span>
+<span class="tok-c"># window, under its title. The console owns one writer for its whole life and</span>
+<span class="tok-c"># re-asserts it before each run, so output.print_* always lands in a window</span>
+<span class="tok-c"># titled for the console.</span>
+_output = OutputWindowWriter(<span class="tok-s">&#x27;pyNavis - Console&#x27;</span>)
+
+
+<span class="tok-k">def</span> _pump():
+    <span class="tok-s">&quot;&quot;&quot;Lets WPF finish painting before we block the UI thread on a script.&quot;&quot;&quot;</span>
+    frame = DispatcherFrame()
+
+    <span class="tok-k">def</span> done():
+        frame.Continue = <span class="tok-k">False</span>
+
+    Dispatcher.CurrentDispatcher.BeginInvoke(
+        DispatcherPriority.Background, Action(done))
+    Dispatcher.PushFrame(frame)
+
+_BANNER = (
+    <span class="tok-s">&#x27;pyNavis console - IronPython %s.%s.%s\n&#x27;</span>
+    <span class="tok-s">&#x27;Run: Ctrl+Enter . History: Up/Down at the edges. Try: from pynavis import doc, selection\n&#x27;</span>
+    % sys.version_info[:<span class="tok-n">3</span>])
+
+<span class="tok-c"># One namespace for the window&#x27;s lifetime, so assignments survive between runs.</span>
+_namespace = {<span class="tok-s">&#x27;__pynavis__&#x27;</span>: __pynavis__}
+_history = CommandHistory()
+
+_T = DesignSystem.Tokens.Current
+_MONO = FontFamily(<span class="tok-s">&#x27;Consolas&#x27;</span>)
+
+
+<span class="tok-k">def</span> _console_pane(read_only):
+    <span class="tok-s">&quot;&quot;&quot;A bordered v2 frame wrapping a borderless monospace TextBox. Returns (frame, box).&quot;&quot;&quot;</span>
+    box = TextBox()
+    box.FontFamily = _MONO
+    box.FontSize = <span class="tok-n">13</span>
+    box.AcceptsReturn = <span class="tok-k">True</span>
+    box.AcceptsTab = <span class="tok-k">True</span>
+    box.TextWrapping = TextWrapping.NoWrap
+    box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+    box.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+    box.IsReadOnly = read_only
+    box.Background = Brushes.Transparent
+    box.Foreground = DesignSystem.Brush(_T.Ink)
+    box.BorderThickness = Thickness(<span class="tok-n">0</span>)
+    box.Padding = Thickness(<span class="tok-n">8</span>)
+    box.FocusVisualStyle = DesignSystem.FocusRing(DesignSystem.Accent)
+    box.Resources.Add(clr.GetClrType(ScrollBar), DesignSystem.SlimScrollStyle())
+
+    frame = Border()
+    frame.CornerRadius = CornerRadius(<span class="tok-n">4</span>)
+    frame.BorderBrush = DesignSystem.Brush(_T.LineStrong)
+    frame.BorderThickness = Thickness(<span class="tok-n">1</span>)
+    frame.Background = DesignSystem.Brush(_T.Paper)
+    frame.Child = box
+    <span class="tok-k">return</span> frame, box
+
+
+<span class="tok-k">def</span> _build_window():
+    window = Window()
+    window.Title = <span class="tok-s">&#x27;pyNavis Console&#x27;</span>
+    window.Width = <span class="tok-n">720</span>
+    window.Height = <span class="tok-n">540</span>
+    window.MinWidth = <span class="tok-n">460</span>
+    window.MinHeight = <span class="tok-n">320</span>
+    window.WindowStartupLocation = WindowStartupLocation.CenterScreen
+    window.Background = DesignSystem.Brush(_T.Surface)
+    window.FontFamily = FontFamily(<span class="tok-s">&#x27;Segoe UI Variable Text, Segoe UI&#x27;</span>)
+    FluentChrome.Apply(window)  <span class="tok-c"># real Windows titlebar (dark attr in dark theme)</span>
+
+    grid = Grid()
+    grid.Margin = Thickness(<span class="tok-n">16</span>)
+    <span class="tok-k">for</span> height <span class="tok-k">in</span> (GridLength(<span class="tok-n">1</span>, GridUnitType.Star), GridLength.Auto):
+        row = RowDefinition()
+        row.Height = height
+        grid.RowDefinitions.Add(row)
+
+    output_frame, output_box = _console_pane(<span class="tok-k">True</span>)
+    output_box.Text = _BANNER
+    Grid.SetRow(output_frame, <span class="tok-n">0</span>)
+    grid.Children.Add(output_frame)
+
+    <span class="tok-c"># Two columns: the input pane fills the row, Run sits in its own auto column</span>
+    <span class="tok-c"># so the two never overlap and Run&#x27;s bottom aligns with the pane&#x27;s bottom.</span>
+    input_grid = Grid()
+    input_grid.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">12</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+    Grid.SetRow(input_grid, <span class="tok-n">1</span>)
+    fill_col = ColumnDefinition()
+    fill_col.Width = GridLength(<span class="tok-n">1</span>, GridUnitType.Star)
+    run_col = ColumnDefinition()
+    run_col.Width = GridLength.Auto
+    input_grid.ColumnDefinitions.Add(fill_col)
+    input_grid.ColumnDefinitions.Add(run_col)
+
+    input_frame, input_box = _console_pane(<span class="tok-k">False</span>)
+    input_frame.MinHeight = <span class="tok-n">84</span>
+    input_frame.MaxHeight = <span class="tok-n">160</span>
+    Grid.SetColumn(input_frame, <span class="tok-n">0</span>)
+    input_grid.Children.Add(input_frame)
+
+    run = DesignSystem.Primary(_T, <span class="tok-s">&#x27;Run&#x27;</span>, <span class="tok-k">None</span>)
+    run.MinWidth = <span class="tok-n">0</span>
+    run.Width = <span class="tok-n">92</span>
+    run.Margin = Thickness(<span class="tok-n">12</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+    run.VerticalAlignment = VerticalAlignment.Bottom
+    Grid.SetColumn(run, <span class="tok-n">1</span>)
+    input_grid.Children.Add(run)
+    grid.Children.Add(input_grid)
+
+    window.Content = grid
+
+    <span class="tok-k">def</span> append(text):
+        output_box.AppendText(text)
+        output_box.ScrollToEnd()
+
+    <span class="tok-k">def</span> run_code(sender, args):
+        code = input_box.Text.replace(<span class="tok-s">&#x27;\r\n&#x27;</span>, <span class="tok-s">&#x27;\n&#x27;</span>).strip()
+        <span class="tok-k">if</span> <span class="tok-k">not</span> code:
+            <span class="tok-k">return</span>
+        _history.add(code)
+        <span class="tok-k">for</span> line <span class="tok-k">in</span> code.split(<span class="tok-s">&#x27;\n&#x27;</span>):
+            append(<span class="tok-s">&#x27;&gt;&gt;&gt; %s\n&#x27;</span> % line)
+
+        <span class="tok-c"># A script runs on the UI thread (the Navisworks API demands it), so a</span>
+        <span class="tok-c"># slow one freezes this window. Say so instead of looking hung: disable</span>
+        <span class="tok-c"># Run, show the wait cursor, and let WPF paint before we block.</span>
+        run.IsEnabled = <span class="tok-k">False</span>
+        run.Content = <span class="tok-s">&#x27;Running&#x27;</span>
+        window.Cursor = Cursors.Wait
+        <span class="tok-k">try</span>:
+            _pump()
+            <span class="tok-c"># Console output belongs in the console&#x27;s own window, not in whatever</span>
+            <span class="tok-c"># ribbon button ran last. Guarded: a failure here must never be the</span>
+            <span class="tok-c"># reason a script does not run.</span>
+            <span class="tok-k">try</span>:
+                __pynavis__.SetCurrentOutput(_output)
+            <span class="tok-k">except</span> Exception:
+                <span class="tok-k">pass</span>
+            append(_repl.execute(code, _namespace))
+        <span class="tok-k">finally</span>:
+            window.Cursor = <span class="tok-k">None</span>
+            run.Content = <span class="tok-s">&#x27;Run&#x27;</span>
+            run.IsEnabled = <span class="tok-k">True</span>
+        input_box.Clear()
+        input_box.Focus()
+
+    <span class="tok-k">def</span> recall(entry):
+        input_box.Text = entry
+        input_box.CaretIndex = len(input_box.Text)
+
+    <span class="tok-k">def</span> key_down(sender, args):
+        <span class="tok-c"># PREVIEW, not KeyDown: a TextBox with AcceptsReturn owns Enter (it</span>
+        <span class="tok-c"># inserts a line break) and the arrow keys (caret movement), and marks</span>
+        <span class="tok-c"># them handled in class handling, which runs BEFORE instance handlers.</span>
+        <span class="tok-c"># On the bubbling event this whole function never sees them, so both</span>
+        <span class="tok-c"># Ctrl+Enter and the history keys are dead. Tunnelling gets there first,</span>
+        <span class="tok-c"># and Handled=True here also stops the stray newline.</span>
+        <span class="tok-k">if</span> args.Key == Key.Enter <span class="tok-k">and</span> Keyboard.Modifiers == ModifierKeys.Control:
+            args.Handled = <span class="tok-k">True</span>
+            run_code(sender, args)
+            <span class="tok-k">return</span>
+        <span class="tok-c"># History: Up on the first line / Down on the last (REPL feel; middle</span>
+        <span class="tok-c"># lines keep normal caret movement for multiline editing).</span>
+        <span class="tok-k">if</span> args.Key == Key.Up:
+            <span class="tok-k">if</span> input_box.GetLineIndexFromCharacterIndex(input_box.CaretIndex) == <span class="tok-n">0</span>:
+                args.Handled = <span class="tok-k">True</span>
+                recall(_history.previous())
+        <span class="tok-k">elif</span> args.Key == Key.Down:
+            at_last = (input_box.GetLineIndexFromCharacterIndex(input_box.CaretIndex)
+                       == input_box.LineCount - <span class="tok-n">1</span>)
+            <span class="tok-k">if</span> at_last:
+                args.Handled = <span class="tok-k">True</span>
+                recall(_history.next())
+
+    run.Click += run_code
+    input_box.PreviewKeyDown += key_down
+    window.ContentRendered += <span class="tok-k">lambda</span> s, e: input_box.Focus()
+    <span class="tok-k">return</span> window
+
+
+<span class="tok-c"># Modeless: Navisworks stays usable while the console floats. A modeless WPF</span>
+<span class="tok-c"># window rides the HOST&#x27;s message pump, which preprocesses keyboard messages</span>
+<span class="tok-c"># itself - most keydowns (digits, Enter) and every WM_CHAR die before the</span>
+<span class="tok-c"># window&#x27;s WndProc, so typing shows nothing and Ctrl+Enter never fires. The</span>
+<span class="tok-c"># interop call registers a filter that hands keyboard messages to this window</span>
+<span class="tok-c"># first; it must run before Show(). Modal ShowDialog windows pump for</span>
+<span class="tok-c"># themselves and do not need it.</span>
+_window = _build_window()
+ElementHost.EnableModelessKeyboardInterop(_window)
+_window.Show()</code></pre></div>
   <div class="pagenav">
 <a href="hide-tabs.html"><span class="dir">Previous</span><span class="ttl">Hide Tabs</span></a>
 <a class="next" href="reload.html"><span class="dir">Next</span><span class="ttl">Reload</span></a>
@@ -136,6 +369,7 @@ into a button in five minutes.</p>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

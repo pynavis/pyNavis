@@ -112,6 +112,52 @@ with the values as they stand and reports what came back.</p>
   <li>Provider, base URL, model and longest answer live in <code>config.json</code> under
     <code>ai</code>, like every other setting.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>AI_(beta).panel/Setup.stack/AI_Settings.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/AI_(beta).panel/Setup.stack/AI_Settings.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Opens the Settings window scrolled to the AI assistant section.
+
+The section itself is part of Settings, so there is one place where every
+pyNavis setting lives. This button is the short way there from the AI panel.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> SettingsDialog
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, toast
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">try</span>:
+        outcome = SettingsDialog.ShowAndSave(<span class="tok-s">&#x27;ai&#x27;</span>)
+    <span class="tok-k">except</span> Exception <span class="tok-k">as</span> error:
+        script.get_logger().error(<span class="tok-s">&#x27;settings not saved: %s&#x27;</span> % error)
+        toast.error(<span class="tok-s">&#x27;Could not save your settings&#x27;</span>, str(error))
+        <span class="tok-k">return</span>
+
+    <span class="tok-k">if</span> outcome == SettingsDialog.Outcome.Cancelled:
+        <span class="tok-k">return</span>                                  <span class="tok-c"># cancelled: say nothing</span>
+
+    <span class="tok-k">if</span> outcome == SettingsDialog.Outcome.NeedsRestart:
+        toast.warning(<span class="tok-s">&#x27;Settings saved&#x27;</span>,
+                      <span class="tok-s">&#x27;The engine paths changed, so Navisworks needs restarting&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    <span class="tok-c"># The AI keys take effect at the next message with no Reload, but the same</span>
+    <span class="tok-c"># window edits everything else too, so offer the Reload the Settings button does.</span>
+    <span class="tok-k">if</span> forms.confirm(<span class="tok-s">&#x27;Reload pyNavis now so the changes show?&#x27;</span>, <span class="tok-s">&#x27;Settings saved&#x27;</span>):
+        script.reload_pynavis()
+        toast.success(<span class="tok-s">&#x27;Settings saved&#x27;</span>, <span class="tok-s">&#x27;pyNavis reloaded, so they show now&#x27;</span>)
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Settings saved&#x27;</span>, <span class="tok-s">&#x27;Ask AI uses them from your next message&#x27;</span>)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/AI_(beta).panel/Setup.stack/AI_Settings.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: AI Settings
+<span class="tok-k">tooltip</span>: Which provider Ask AI talks to (Anthropic, or any OpenAI-compatible endpoint such as Azure OpenAI or a local server), the model, and your API key. The key is stored encrypted for your Windows account, never in config.json. Opens the Settings window on its AI section.</code></pre></div>
   <div class="pagenav">
 <a href="ask-ai.html"><span class="dir">Previous</span><span class="ttl">Ask AI</span></a>
 <a class="next" href="open-ai-folder.html"><span class="dir">Next</span><span class="ttl">Open AI Folder</span></a>
@@ -121,6 +167,7 @@ with the values as they stand and reports what came back.</p>
 <a href="#what-it-does">What it does</a>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

@@ -91,6 +91,15 @@ documents keep theirs.</p>
 <p>You rarely need this: Remember replaces the memory anyway. It is there for the moment you
 want to be certain nothing is stored, and for tidying up after a job. To delete the stored
 files for every document at once, use Purge in the More menu.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Selection.panel/Step.stack/Forget.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Step.stack/Forget.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Empties the memory for this document.&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> memory, toast
+
+result = memory.clear()
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Step.stack/Forget.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Forget</code></pre></div>
   <div class="pagenav">
 <a href="previous-next.html"><span class="dir">Previous</span><span class="ttl">Previous and Next</span></a>
 <a class="next" href="more-menu.html"><span class="dir">Next</span><span class="ttl">More menu</span></a>
@@ -99,6 +108,7 @@ files for every document at once, use Purge in the More menu.</p>
 <aside class="toc"><div class="toc-head">On this page</div>
 <a href="#what-it-does">What it does</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

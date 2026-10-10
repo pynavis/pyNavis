@@ -112,6 +112,90 @@ speed, field of view, and a checkbox against each.</figcaption></figure>
 <p>The unit dropdown converts the number rather than relabelling it, so switching m/s to ft/s
 turns 30 into 98.4252. The speed is stored in the unit you typed and converted to the
 document's units when applied, so it means the same thing in a model drawn in feet.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Speeds.stack/Apply_Speeds.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Speeds.stack/Apply_Speeds.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Pushes your saved walk speed, turn speed and field of view at the current view.
+
+Which of the three actually move is up to the checkboxes in the settings
+window (Shift+Click). The numbers live in lib/speeds.py, which Speeds to Saved
+beside this one reads too, so the view on screen and the views saved in the
+document can never be given different answers.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> speeds
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, script, settings, toast
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> view <span class="tok-k">as</span> pnview
+<span class="tok-k">from</span> pynavis._api <span class="tok-k">import</span> Api
+
+
+<span class="tok-k">def</span> run():
+    doc = app.get_doc()
+    log = script.get_logger()
+    values = speeds.normalise(settings.load(speeds.SETTINGS_KEY, speeds.DEFAULTS))
+
+    wanted = speeds.summary(values)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> wanted:
+        toast.info(<span class="tok-s">&#x27;Nothing to reset&#x27;</span>,
+                   <span class="tok-s">&#x27;All three are switched off in the settings (Shift+Click)&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    view = doc.CurrentViewpoint.CreateCopy()
+
+    <span class="tok-k">if</span> values[<span class="tok-s">&#x27;change_linear&#x27;</span>]:
+        view.LinearSpeed = speeds.convert_linear(
+            values[<span class="tok-s">&#x27;linear&#x27;</span>], values[<span class="tok-s">&#x27;linear_unit&#x27;</span>], str(doc.Units))
+    <span class="tok-k">if</span> values[<span class="tok-s">&#x27;change_angular&#x27;</span>]:
+        view.AngularSpeed = speeds.angular_radians(values[<span class="tok-s">&#x27;angular&#x27;</span>])
+
+    note = <span class="tok-k">None</span>
+    <span class="tok-k">if</span> values[<span class="tok-s">&#x27;change_fov&#x27;</span>]:
+        <span class="tok-k">if</span> view.Projection != Api.ViewpointProjection.Perspective:
+            note = <span class="tok-s">&#x27;Field of view needs a perspective view&#x27;</span>
+        <span class="tok-k">else</span>:
+            <span class="tok-c"># The AspectRatio on a copied viewpoint can be stale, and the whole</span>
+            <span class="tok-c"># conversion divides by it, so it is refreshed before it is read.</span>
+            <span class="tok-c"># pynavis.view.aspect_ratio does that refresh, and Speeds to Saved</span>
+            <span class="tok-c"># calls the same function: reading the ratio two different ways is</span>
+            <span class="tok-c"># how the two buttons once wrote lenses that differed by a fraction</span>
+            <span class="tok-c"># of a degree for the same setting.</span>
+            ratio = pnview.aspect_ratio(doc)
+            height = <span class="tok-k">None</span> <span class="tok-k">if</span> ratio <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">else</span> speeds.vertical_fov(values[<span class="tok-s">&#x27;fov&#x27;</span>], ratio)
+            <span class="tok-k">if</span> height <span class="tok-k">is</span> <span class="tok-k">None</span>:
+                note = <span class="tok-s">&#x27;Field of view skipped: the viewport aspect ratio was unusable&#x27;</span>
+            <span class="tok-k">else</span>:
+                view.HeightField = height
+
+    doc.CurrentViewpoint.CopyFrom(view)
+
+    <span class="tok-k">if</span> note <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        log.info(<span class="tok-s">&#x27;reset %s&#x27;</span> % wanted)
+        toast.success(<span class="tok-s">&#x27;Speeds reset&#x27;</span>, wanted)
+        <span class="tok-k">return</span>
+
+    log.warning(note)
+    <span class="tok-k">if</span> values[<span class="tok-s">&#x27;change_linear&#x27;</span>] <span class="tok-k">or</span> values[<span class="tok-s">&#x27;change_angular&#x27;</span>]:
+        toast.warning(<span class="tok-s">&#x27;Speeds reset&#x27;</span>, note)
+    <span class="tok-k">else</span>:
+        toast.warning(<span class="tok-s">&#x27;Nothing reset&#x27;</span>, note)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Speeds.stack/Apply_Speeds.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Shift+Click settings for both speed buttons.
+
+The window itself is shared (extensions/pyNavis.extension/lib), because the
+two buttons read one settings store.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> speedsconfig
+
+speedsconfig.edit()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Speeds.stack/Apply_Speeds.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Apply Speeds
+<span class="tok-k">tooltip</span>: Push your saved walk speed, turn speed and field of view at the current view. Shift+Click to change them.
+<span class="tok-k">shortcut</span>: Alt+Q
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="paste-state.html"><span class="dir">Previous</span><span class="ttl">Paste State</span></a>
 <a class="next" href="speeds-to-saved.html"><span class="dir">Next</span><span class="ttl">Speeds to Saved</span></a>
@@ -122,6 +206,7 @@ document's units when applied, so it means the same thing in a model drawn in fe
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

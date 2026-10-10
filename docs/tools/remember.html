@@ -111,6 +111,19 @@ the starting point for everything else on the panel.</p>
   <li>Before a risky operation, Remember the selection so a mis-click costs nothing.</li>
   <li>Remember at the end of the day; the memory is still there tomorrow.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Selection.panel/Remember.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Remember.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Stores the current selection in memory.
+
+The memory belongs to this document and survives closing Navisworks.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> memory, toast
+
+result = memory.memorize()
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Remember.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Remember
+<span class="tok-k">shortcut</span>: Ctrl+Shift+M</code></pre></div>
   <div class="pagenav">
 <a href="panel-slots.html"><span class="dir">Previous</span><span class="ttl">Panel slots</span></a>
 <a class="next" href="recall.html"><span class="dir">Next</span><span class="ttl">Recall</span></a>
@@ -121,6 +134,7 @@ the starting point for everything else on the panel.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

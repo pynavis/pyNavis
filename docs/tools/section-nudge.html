@@ -138,6 +138,484 @@ half a foot and shows as 0' 6", 0 0 1/8 is an eighth of an inch, and 1' 6", 6 1/
   <li>Step through a building floor by floor: set the step to the storey height and press
     Up.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Section_Nudge.dockpane</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section_Nudge.dockpane/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;The Section Nudge panel: move the section box or planes from the keyboard.
+
+The panel is a remote: the six faces laid out as an unfolded box and named the
+way you see them, Front being the face that looks at you, with the world axis
+each faces printed under its name. The camera&#x27;s right, up and forward are
+snapped to world axes (the way the ViewCube reads a view) and the names follow
+the camera on the readout timer, so orbit round the model and Front stays the
+face in front of you. Two tabs: Adjust holds the
+remote and a face is the target; Move is the whole box. Face targets nudge
+In and Out; the box moves left, right, up,
+down, nearer and farther on the screen: along the nearest world axes (the
+compass ring round the ViewCube) or exactly along the screen (the cube
+itself), as the World axes / Screen switch says. Every
+nudge is one viewpoint write, so Ctrl+Z steps back one nudge. The behaviour
+lives in lib/sectionnudge.py, which the six chord bundles beside this panel
+share, so a key here and a chord over the view do the same thing.
+
+Reload re-runs this script against fresh controls; the previous run&#x27;s timer is
+stopped through the session holder first, the way the Viewpoint Tracker does.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+
+<span class="tok-k">import</span> sectionnudge
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, script, section, selection, settings, toast
+
+clr.AddReference(<span class="tok-s">&#x27;PresentationFramework&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PresentationCore&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsBase&#x27;</span>)
+
+<span class="tok-k">from</span> System <span class="tok-k">import</span> TimeSpan
+<span class="tok-k">from</span> System.Windows <span class="tok-k">import</span> FontWeights, Thickness, Visibility
+<span class="tok-k">from</span> System.Windows.Controls <span class="tok-k">import</span> Control
+<span class="tok-k">from</span> System.Windows.Media <span class="tok-k">import</span> BrushConverter
+<span class="tok-k">from</span> System.Windows.Controls <span class="tok-k">import</span> Button
+<span class="tok-k">from</span> System.Windows.Input <span class="tok-k">import</span> Key
+<span class="tok-k">from</span> System.Windows.Threading <span class="tok-k">import</span> DispatcherPriority, DispatcherTimer
+
+<span class="tok-c"># How often the readout and the face names follow the camera and changes made</span>
+<span class="tok-c"># outside the panel.</span>
+REFRESH_MS = <span class="tok-n">1000</span>
+
+pane = __pane__
+log = script.get_logger()
+held = sectionnudge.session()
+
+previous = getattr(held, <span class="tok-s">&#x27;pane_detach&#x27;</span>, <span class="tok-k">None</span>)
+<span class="tok-k">if</span> previous <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+    previous()
+
+find = pane.Find
+root = find(<span class="tok-s">&#x27;Root&#x27;</span>)
+step_box = find(<span class="tok-s">&#x27;StepBox&#x27;</span>)
+tabs = find(<span class="tok-s">&#x27;Tabs&#x27;</span>)
+adjust_tab, move_tab = find(<span class="tok-s">&#x27;AdjustTab&#x27;</span>), find(<span class="tok-s">&#x27;MoveTab&#x27;</span>)
+cells = dict((name, find(<span class="tok-s">&#x27;Cell&#x27;</span> + name)) <span class="tok-k">for</span> name <span class="tok-k">in</span> sectionnudge.CELLS)
+cell_names = dict((name, find(<span class="tok-s">&#x27;Cell%sName&#x27;</span> % name)) <span class="tok-k">for</span> name <span class="tok-k">in</span> sectionnudge.CELLS)
+cell_axes = dict((name, find(<span class="tok-s">&#x27;Cell%sAxis&#x27;</span> % name)) <span class="tok-k">for</span> name <span class="tok-k">in</span> sectionnudge.CELLS)
+others_panel = find(<span class="tok-s">&#x27;Others&#x27;</span>)
+presets_panel = find(<span class="tok-s">&#x27;Presets&#x27;</span>)
+moves_buttons = {<span class="tok-s">&#x27;world&#x27;</span>: find(<span class="tok-s">&#x27;MovesWorld&#x27;</span>), <span class="tok-s">&#x27;screen&#x27;</span>: find(<span class="tok-s">&#x27;MovesScreen&#x27;</span>)}
+
+scale = [<span class="tok-n">1.0</span>]                   <span class="tok-c"># document units per mm, refreshed with the readout</span>
+
+<span class="tok-c"># The active choice gets the same fill the buttons show on hover, so the</span>
+<span class="tok-c"># selected face reads at a glance rather than only by weight; the pair is</span>
+<span class="tok-c"># picked for the host theme so it stays visible on dark.</span>
+_brush = BrushConverter()
+<span class="tok-k">if</span> script.is_dark_theme():
+    ACTIVE_FILL, ACTIVE_EDGE = _brush.ConvertFromString(<span class="tok-s">&#x27;#3A5A7A&#x27;</span>), _brush.ConvertFromString(<span class="tok-s">&#x27;#7FB2E5&#x27;</span>)
+<span class="tok-k">else</span>:
+    ACTIVE_FILL, ACTIVE_EDGE = _brush.ConvertFromString(<span class="tok-s">&#x27;#BEE6FD&#x27;</span>), _brush.ConvertFromString(<span class="tok-s">&#x27;#3C7FB1&#x27;</span>)
+
+
+<span class="tok-k">def</span> mark(button, active):
+    <span class="tok-s">&quot;&quot;&quot;Bold and filled when active; back to the theme&#x27;s own look when not.&quot;&quot;&quot;</span>
+    button.FontWeight = FontWeights.Bold <span class="tok-k">if</span> active <span class="tok-k">else</span> FontWeights.Normal
+    <span class="tok-k">if</span> active:
+        button.Background = ACTIVE_FILL
+        button.BorderBrush = ACTIVE_EDGE
+    <span class="tok-k">else</span>:
+        button.ClearValue(Control.BackgroundProperty)
+        button.ClearValue(Control.BorderBrushProperty)
+last_face = [<span class="tok-n">0</span>]                 <span class="tok-c"># the face to come back to when Adjust reopens</span>
+syncing = [<span class="tok-k">False</span>]               <span class="tok-c"># refresh is moving the tab, not the user</span>
+cell_index = {}                 <span class="tok-c"># cell name -&gt; plane index, from the last refresh</span>
+shown_units = [<span class="tok-k">None</span>]            <span class="tok-c"># which units the presets were built for</span>
+
+
+<span class="tok-k">def</span> safely(work):
+    <span class="tok-s">&quot;&quot;&quot;An exception escaping a WPF handler on the UI thread takes Navisworks
+    down with it; a panel is not worth that.&quot;&quot;&quot;</span>
+    <span class="tok-k">try</span>:
+        work()
+    <span class="tok-k">except</span> Exception <span class="tok-k">as</span> error:
+        log.error(<span class="tok-s">&#x27;Section Nudge: %s&#x27;</span> % error)
+
+
+<span class="tok-k">def</span> small_button(text, action):
+    button = Button()
+    button.Content = text
+    button.Margin = Thickness(<span class="tok-n">1</span>)
+    button.Padding = Thickness(<span class="tok-n">6</span>, <span class="tok-n">2</span>, <span class="tok-n">6</span>, <span class="tok-n">2</span>)
+    button.Click += <span class="tok-k">lambda</span> sender, args: safely(<span class="tok-k">lambda</span>: act(action))
+    <span class="tok-k">return</span> button
+
+
+<span class="tok-k">def</span> fill_presets(units):
+    presets_panel.Children.Clear()
+    <span class="tok-k">for</span> label, mm <span class="tok-k">in</span> sectionnudge.presets(units):
+        presets_panel.Children.Add(small_button(label, <span class="tok-s">&#x27;step:%r&#x27;</span> % mm))
+    shown_units[<span class="tok-n">0</span>] = units
+
+
+<span class="tok-k">def</span> fill_others(indices, labels, target):
+    others_panel.Children.Clear()
+    <span class="tok-k">for</span> index <span class="tok-k">in</span> indices:
+        button = small_button(labels.get(index, sectionnudge.target_name(index)),
+                              <span class="tok-s">&#x27;target:%d&#x27;</span> % index)
+        mark(button, index == target)
+        others_panel.Children.Add(button)
+    others_panel.Visibility = Visibility.Visible <span class="tok-k">if</span> indices <span class="tok-k">else</span> Visibility.Collapsed
+
+
+<span class="tok-k">def</span> refresh():
+    doc = app.get_doc()
+    state = sectionnudge.load_state()
+    snapshot = sectionnudge.read(doc, note=log.warning)
+    frame = sectionnudge.camera_frame(doc)
+    units = str(doc.Units)
+    scale[<span class="tok-n">0</span>] = sectionnudge.per_mm(doc)
+    text = sectionnudge.describe(state, snapshot, units, scale[<span class="tok-n">0</span>], frame)
+    placed = sectionnudge.layout(snapshot, frame)
+    target = state[<span class="tok-s">&#x27;target&#x27;</span>]
+
+    find(<span class="tok-s">&#x27;Readout&#x27;</span>).Text = text[<span class="tok-s">&#x27;readout&#x27;</span>]
+    imperial = units <span class="tok-k">in</span> (<span class="tok-s">&#x27;Feet&#x27;</span>, <span class="tok-s">&#x27;Inches&#x27;</span>, <span class="tok-s">&#x27;Yards&#x27;</span>, <span class="tok-s">&#x27;Miles&#x27;</span>)
+    find(<span class="tok-s">&#x27;StepUnits&#x27;</span>).Text = <span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> imperial <span class="tok-k">else</span> units.lower()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> step_box.IsKeyboardFocusWithin:
+        step = state[<span class="tok-s">&#x27;step_mm&#x27;</span>] * scale[<span class="tok-n">0</span>]
+        step_box.Text = text[<span class="tok-s">&#x27;step&#x27;</span>] <span class="tok-k">if</span> imperial <span class="tok-k">else</span> <span class="tok-s">&#x27;%g&#x27;</span> % step
+    <span class="tok-k">if</span> units != shown_units[<span class="tok-n">0</span>]:
+        fill_presets(units)
+
+    is_box = target == <span class="tok-s">&#x27;box&#x27;</span>
+    <span class="tok-k">if</span> <span class="tok-k">not</span> is_box:
+        last_face[<span class="tok-n">0</span>] = target
+    syncing[<span class="tok-n">0</span>] = <span class="tok-k">True</span>
+    <span class="tok-k">try</span>:
+        tabs.SelectedItem = move_tab <span class="tok-k">if</span> is_box <span class="tok-k">else</span> adjust_tab
+    <span class="tok-k">finally</span>:
+        syncing[<span class="tok-n">0</span>] = <span class="tok-k">False</span>
+    <span class="tok-k">for</span> name, button <span class="tok-k">in</span> moves_buttons.items():
+        mark(button, name == state[<span class="tok-s">&#x27;moves&#x27;</span>])
+    planes = (snapshot <span class="tok-k">or</span> {}).get(<span class="tok-s">&#x27;planes&#x27;</span>) <span class="tok-k">or</span> []
+    cell_index.clear()
+    <span class="tok-k">for</span> name <span class="tok-k">in</span> sectionnudge.CELLS:
+        index = placed[<span class="tok-s">&#x27;cells&#x27;</span>][name]
+        cell_index[name] = index
+        cells[name].IsEnabled = index <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>
+        mark(cells[name], index == target)
+        <span class="tok-k">if</span> index <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">or</span> index &gt;= len(planes):
+            cell_axes[name].Text = <span class="tok-s">&#x27;&#x27;</span>
+        <span class="tok-k">else</span>:
+            inward = planes[index].get(<span class="tok-s">&#x27;normal&#x27;</span>, (<span class="tok-n">0.0</span>, <span class="tok-n">0.0</span>, <span class="tok-n">0.0</span>))
+            cell_axes[name].Text = sectionnudge.axis_label((-inward[<span class="tok-n">0</span>], -inward[<span class="tok-n">1</span>], -inward[<span class="tok-n">2</span>]))
+    fill_others(placed[<span class="tok-s">&#x27;others&#x27;</span>], placed[<span class="tok-s">&#x27;labels&#x27;</span>], target)
+
+    off = snapshot <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">and</span> <span class="tok-k">not</span> snapshot[<span class="tok-s">&#x27;enabled&#x27;</span>]
+    find(<span class="tok-s">&#x27;SectionOn&#x27;</span>).Visibility = Visibility.Visible <span class="tok-k">if</span> off <span class="tok-k">else</span> Visibility.Collapsed
+    find(<span class="tok-s">&#x27;SectionOff&#x27;</span>).IsEnabled = snapshot <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">and</span> <span class="tok-k">not</span> off
+
+
+<span class="tok-k">def</span> act(action):
+    result = sectionnudge.run_action(action)
+    <span class="tok-k">if</span> result[<span class="tok-s">&#x27;problem&#x27;</span>]:
+        toast.warning(result[<span class="tok-s">&#x27;problem&#x27;</span>])
+    refresh()
+
+
+<span class="tok-k">def</span> apply_typed_step():
+    typed = sectionnudge.parse_length(step_box.Text, str(app.get_doc().Units))
+    <span class="tok-k">if</span> typed <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        toast.warning(<span class="tok-s">&#x27;That is not a distance&#x27;</span>)
+        <span class="tok-k">return</span>
+    <span class="tok-k">if</span> typed &lt;= <span class="tok-n">0</span>:
+        toast.warning(<span class="tok-s">&#x27;The step must be more than zero&#x27;</span>)
+        <span class="tok-k">return</span>
+    act(<span class="tok-s">&#x27;step:%r&#x27;</span> % (typed / scale[<span class="tok-n">0</span>] <span class="tok-k">if</span> scale[<span class="tok-n">0</span>] <span class="tok-k">else</span> typed))
+    root.Focus()
+
+
+<span class="tok-k">def</span> wire(name, action):
+    find(name).Click += <span class="tok-k">lambda</span> sender, args: safely(<span class="tok-k">lambda</span>: act(action))
+
+
+<span class="tok-k">def</span> pick_cell(name):
+    index = cell_index.get(name)
+    <span class="tok-k">if</span> index <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        act(<span class="tok-s">&#x27;target:%d&#x27;</span> % index)
+
+
+<span class="tok-k">for</span> cell <span class="tok-k">in</span> sectionnudge.CELLS:
+    cells[cell].Click += (<span class="tok-k">lambda</span> n: <span class="tok-k">lambda</span> sender, args: safely(<span class="tok-k">lambda</span>: pick_cell(n)))(cell)
+wire(<span class="tok-s">&#x27;NudgeIn&#x27;</span>, <span class="tok-s">&#x27;in&#x27;</span>)
+wire(<span class="tok-s">&#x27;NudgeOut&#x27;</span>, <span class="tok-s">&#x27;out&#x27;</span>)
+wire(<span class="tok-s">&#x27;MoveLeft&#x27;</span>, <span class="tok-s">&#x27;left&#x27;</span>)
+wire(<span class="tok-s">&#x27;MoveRight&#x27;</span>, <span class="tok-s">&#x27;right&#x27;</span>)
+wire(<span class="tok-s">&#x27;MoveUp&#x27;</span>, <span class="tok-s">&#x27;up&#x27;</span>)
+wire(<span class="tok-s">&#x27;MoveDown&#x27;</span>, <span class="tok-s">&#x27;down&#x27;</span>)
+wire(<span class="tok-s">&#x27;MoveNearer&#x27;</span>, <span class="tok-s">&#x27;nearer&#x27;</span>)
+wire(<span class="tok-s">&#x27;MoveFarther&#x27;</span>, <span class="tok-s">&#x27;farther&#x27;</span>)
+wire(<span class="tok-s">&#x27;MovesWorld&#x27;</span>, <span class="tok-s">&#x27;moves:world&#x27;</span>)
+wire(<span class="tok-s">&#x27;MovesScreen&#x27;</span>, <span class="tok-s">&#x27;moves:screen&#x27;</span>)
+wire(<span class="tok-s">&#x27;StepHalve&#x27;</span>, <span class="tok-s">&#x27;halve&#x27;</span>)
+wire(<span class="tok-s">&#x27;StepDouble&#x27;</span>, <span class="tok-s">&#x27;double&#x27;</span>)
+
+
+<span class="tok-k">def</span> turn_on(sender, args):
+    <span class="tok-k">def</span> work():
+        sectionnudge.enable(app.get_doc())
+        refresh()
+    safely(work)
+
+
+<span class="tok-k">def</span> turn_off(sender, args):
+    <span class="tok-k">def</span> work():
+        result = section.clear()
+        toast.show(result.level, result.message, result.detail)
+        refresh()
+    safely(work)
+
+
+<span class="tok-k">def</span> fit(sender, args):
+    <span class="tok-k">def</span> work():
+        values = settings.load(section.TOOL, section.DEFAULTS)
+        result = section.fit_to_selection(selection.get_items(), values)
+        toast.show(result.level, result.message, result.detail)
+        refresh()
+    safely(work)
+
+
+<span class="tok-k">def</span> on_tab(sender, args):
+    <span class="tok-c"># The Move tab is the box target and Adjust is a face, so switching tabs</span>
+    <span class="tok-c"># switches targets; refresh moving the tab to match the target must not</span>
+    <span class="tok-c"># bounce back through here.</span>
+    <span class="tok-k">if</span> syncing[<span class="tok-n">0</span>] <span class="tok-k">or</span> args.Source <span class="tok-k">is</span> <span class="tok-k">not</span> tabs:
+        <span class="tok-k">return</span>
+    <span class="tok-k">def</span> work():
+        <span class="tok-k">if</span> tabs.SelectedItem <span class="tok-k">is</span> move_tab:
+            act(<span class="tok-s">&#x27;target:box&#x27;</span>)
+        <span class="tok-k">else</span>:
+            act(<span class="tok-s">&#x27;target:%d&#x27;</span> % last_face[<span class="tok-n">0</span>])
+    safely(work)
+
+
+tabs.SelectionChanged += on_tab
+find(<span class="tok-s">&#x27;SectionOn&#x27;</span>).Click += turn_on
+find(<span class="tok-s">&#x27;SectionOff&#x27;</span>).Click += turn_off
+find(<span class="tok-s">&#x27;FitSelection&#x27;</span>).Click += fit
+
+
+<span class="tok-k">def</span> on_key(sender, args):
+    <span class="tok-k">def</span> work():
+        name = args.Key.ToString()
+        <span class="tok-k">if</span> step_box.IsKeyboardFocusWithin:
+            <span class="tok-c"># Typing a number: only Enter and Escape mean anything here.</span>
+            <span class="tok-k">if</span> args.Key == Key.Enter:
+                args.Handled = <span class="tok-k">True</span>
+                apply_typed_step()
+            <span class="tok-k">elif</span> args.Key == Key.Escape:
+                args.Handled = <span class="tok-k">True</span>
+                root.Focus()
+            <span class="tok-k">return</span>
+        action = sectionnudge.action_for_key(name, sectionnudge.load_state()[<span class="tok-s">&#x27;target&#x27;</span>])
+        <span class="tok-k">if</span> action <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            args.Handled = <span class="tok-k">True</span>
+            act(action)
+    safely(work)
+
+
+root.PreviewKeyDown += on_key
+root.PreviewMouseDown += <span class="tok-k">lambda</span> sender, args: (
+    <span class="tok-k">None</span> <span class="tok-k">if</span> step_box.IsMouseOver <span class="tok-k">else</span> root.Focus())
+
+timer = DispatcherTimer(DispatcherPriority.Background)
+timer.Interval = TimeSpan.FromMilliseconds(REFRESH_MS)
+
+
+<span class="tok-k">def</span> tick(sender, args):
+    <span class="tok-k">if</span> pane.Visible:
+        safely(refresh)
+
+
+timer.Tick += tick
+timer.Start()
+
+
+<span class="tok-k">def</span> detach():
+    <span class="tok-k">try</span>:
+        timer.Stop()
+    <span class="tok-k">except</span> Exception:
+        <span class="tok-k">pass</span>
+
+
+held.pane_detach = detach
+safely(refresh)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>pane.xaml</code> <span class="src-note">The dock panel&#x27;s content.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section_Nudge.dockpane/pane.xaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code>&lt;Grid xmlns=&quot;http://schemas.microsoft.com/winfx/2006/xaml/presentation&quot;
+      xmlns:x=&quot;http://schemas.microsoft.com/winfx/2006/xaml&quot;
+      x:Name=&quot;Root&quot; Margin=&quot;12&quot; Focusable=&quot;True&quot;&gt;
+  &lt;Grid.RowDefinitions&gt;
+    &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+    &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+    &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+    &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+    &lt;RowDefinition Height=&quot;*&quot;/&gt;
+  &lt;/Grid.RowDefinitions&gt;
+
+  &lt;!-- No colours anywhere: the panel follows the Navisworks theme. The active
+       target is shown bold, which reads in both themes. --&gt;
+
+  &lt;!-- Row 0: the two jobs. Adjust moves one face in or out; Move slides the
+       whole box. The Move tab is the box target, so opening it picks the box
+       and opening Adjust picks the last face used. --&gt;
+  &lt;TabControl x:Name=&quot;Tabs&quot; Grid.Row=&quot;0&quot; Padding=&quot;4&quot;&gt;
+
+    &lt;TabItem x:Name=&quot;AdjustTab&quot; Header=&quot;Adjust&quot;&gt;
+      &lt;StackPanel&gt;
+        &lt;!-- The remote. The six faces laid out as an unfolded box, named the
+             way you see them (Front is the face looking at you), each with the
+             world axis it faces under the name. The script fills the names and
+             axes from the camera and greys a cell no plane faces. --&gt;
+        &lt;Grid&gt;
+          &lt;Grid.ColumnDefinitions&gt;
+            &lt;ColumnDefinition Width=&quot;*&quot;/&gt;
+            &lt;ColumnDefinition Width=&quot;*&quot;/&gt;
+            &lt;ColumnDefinition Width=&quot;*&quot;/&gt;
+          &lt;/Grid.ColumnDefinitions&gt;
+          &lt;Grid.RowDefinitions&gt;
+            &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+            &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+            &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+            &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+          &lt;/Grid.RowDefinitions&gt;
+
+          &lt;Button x:Name=&quot;CellTop&quot; Grid.Row=&quot;0&quot; Grid.Column=&quot;1&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;&gt;
+            &lt;StackPanel&gt;
+              &lt;TextBlock x:Name=&quot;CellTopName&quot; Text=&quot;Top&quot; TextAlignment=&quot;Center&quot;/&gt;
+              &lt;TextBlock x:Name=&quot;CellTopAxis&quot; Text=&quot;&quot; FontSize=&quot;10&quot; Opacity=&quot;0.6&quot; TextAlignment=&quot;Center&quot;/&gt;
+            &lt;/StackPanel&gt;
+          &lt;/Button&gt;
+          &lt;Button x:Name=&quot;CellLeft&quot; Grid.Row=&quot;1&quot; Grid.Column=&quot;0&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;&gt;
+            &lt;StackPanel&gt;
+              &lt;TextBlock x:Name=&quot;CellLeftName&quot; Text=&quot;Left&quot; TextAlignment=&quot;Center&quot;/&gt;
+              &lt;TextBlock x:Name=&quot;CellLeftAxis&quot; Text=&quot;&quot; FontSize=&quot;10&quot; Opacity=&quot;0.6&quot; TextAlignment=&quot;Center&quot;/&gt;
+            &lt;/StackPanel&gt;
+          &lt;/Button&gt;
+          &lt;Button x:Name=&quot;CellFront&quot; Grid.Row=&quot;1&quot; Grid.Column=&quot;1&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;&gt;
+            &lt;StackPanel&gt;
+              &lt;TextBlock x:Name=&quot;CellFrontName&quot; Text=&quot;Front&quot; TextAlignment=&quot;Center&quot;/&gt;
+              &lt;TextBlock x:Name=&quot;CellFrontAxis&quot; Text=&quot;&quot; FontSize=&quot;10&quot; Opacity=&quot;0.6&quot; TextAlignment=&quot;Center&quot;/&gt;
+            &lt;/StackPanel&gt;
+          &lt;/Button&gt;
+          &lt;Button x:Name=&quot;CellRight&quot; Grid.Row=&quot;1&quot; Grid.Column=&quot;2&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;&gt;
+            &lt;StackPanel&gt;
+              &lt;TextBlock x:Name=&quot;CellRightName&quot; Text=&quot;Right&quot; TextAlignment=&quot;Center&quot;/&gt;
+              &lt;TextBlock x:Name=&quot;CellRightAxis&quot; Text=&quot;&quot; FontSize=&quot;10&quot; Opacity=&quot;0.6&quot; TextAlignment=&quot;Center&quot;/&gt;
+            &lt;/StackPanel&gt;
+          &lt;/Button&gt;
+          &lt;Button x:Name=&quot;CellBottom&quot; Grid.Row=&quot;2&quot; Grid.Column=&quot;1&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;&gt;
+            &lt;StackPanel&gt;
+              &lt;TextBlock x:Name=&quot;CellBottomName&quot; Text=&quot;Bottom&quot; TextAlignment=&quot;Center&quot;/&gt;
+              &lt;TextBlock x:Name=&quot;CellBottomAxis&quot; Text=&quot;&quot; FontSize=&quot;10&quot; Opacity=&quot;0.6&quot; TextAlignment=&quot;Center&quot;/&gt;
+            &lt;/StackPanel&gt;
+          &lt;/Button&gt;
+          &lt;Button x:Name=&quot;CellBack&quot; Grid.Row=&quot;3&quot; Grid.Column=&quot;1&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;&gt;
+            &lt;StackPanel&gt;
+              &lt;TextBlock x:Name=&quot;CellBackName&quot; Text=&quot;Back&quot; TextAlignment=&quot;Center&quot;/&gt;
+              &lt;TextBlock x:Name=&quot;CellBackAxis&quot; Text=&quot;&quot; FontSize=&quot;10&quot; Opacity=&quot;0.6&quot; TextAlignment=&quot;Center&quot;/&gt;
+            &lt;/StackPanel&gt;
+          &lt;/Button&gt;
+        &lt;/Grid&gt;
+
+        &lt;!-- Planes that face no cell (tilted, off, or a second plane the same
+             way). The script fills it; hidden when there are none. --&gt;
+        &lt;WrapPanel x:Name=&quot;Others&quot; Margin=&quot;0,4,0,0&quot; Visibility=&quot;Collapsed&quot;/&gt;
+
+        &lt;UniformGrid Rows=&quot;1&quot; Columns=&quot;2&quot; Margin=&quot;0,8,0,0&quot;&gt;
+          &lt;Button x:Name=&quot;NudgeIn&quot; Content=&quot;In&quot; Margin=&quot;1&quot; Padding=&quot;0,6,0,6&quot;
+                  ToolTip=&quot;Move the face in, keeping less of the model (Up)&quot;/&gt;
+          &lt;Button x:Name=&quot;NudgeOut&quot; Content=&quot;Out&quot; Margin=&quot;1&quot; Padding=&quot;0,6,0,6&quot;
+                  ToolTip=&quot;Move the face out, keeping more of the model (Down)&quot;/&gt;
+        &lt;/UniformGrid&gt;
+      &lt;/StackPanel&gt;
+    &lt;/TabItem&gt;
+
+    &lt;TabItem x:Name=&quot;MoveTab&quot; Header=&quot;Move&quot;&gt;
+      &lt;Grid&gt;
+        &lt;Grid.ColumnDefinitions&gt;
+          &lt;ColumnDefinition Width=&quot;*&quot;/&gt;
+          &lt;ColumnDefinition Width=&quot;*&quot;/&gt;
+          &lt;ColumnDefinition Width=&quot;*&quot;/&gt;
+        &lt;/Grid.ColumnDefinitions&gt;
+        &lt;Grid.RowDefinitions&gt;
+          &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+          &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+          &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+          &lt;RowDefinition Height=&quot;Auto&quot;/&gt;
+        &lt;/Grid.RowDefinitions&gt;
+
+        &lt;!-- Which frame the box moves in: the compass ring round the ViewCube
+             (world axes, snapped to the view) or the cube itself (the screen). --&gt;
+        &lt;Button x:Name=&quot;MovesWorld&quot; Grid.Row=&quot;0&quot; Grid.Column=&quot;0&quot; Content=&quot;World axes&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;
+                ToolTip=&quot;Moves land on the world axes nearest the screen&#x27;s, like the compass ring round the ViewCube&quot;/&gt;
+        &lt;Button x:Name=&quot;MovesScreen&quot; Grid.Row=&quot;0&quot; Grid.Column=&quot;1&quot; Grid.ColumnSpan=&quot;2&quot; Content=&quot;Screen&quot; Margin=&quot;1&quot; Padding=&quot;0,3,0,3&quot;
+                ToolTip=&quot;Moves follow the screen exactly, like the ViewCube itself, so Left is always screen-left&quot;/&gt;
+
+        &lt;Button x:Name=&quot;MoveUp&quot; Grid.Row=&quot;1&quot; Grid.Column=&quot;1&quot; Content=&quot;&amp;#9650;&quot; Margin=&quot;1,8,1,1&quot; Padding=&quot;0,4,0,4&quot;
+                ToolTip=&quot;Move the box up the screen (Up)&quot;/&gt;
+        &lt;Button x:Name=&quot;MoveNearer&quot; Grid.Row=&quot;1&quot; Grid.Column=&quot;2&quot; Content=&quot;Nearer&quot; Margin=&quot;1,8,1,1&quot; Padding=&quot;0,4,0,4&quot;
+                ToolTip=&quot;Move the box towards you (Page Up)&quot;/&gt;
+        &lt;Button x:Name=&quot;MoveLeft&quot; Grid.Row=&quot;2&quot; Grid.Column=&quot;0&quot; Content=&quot;&amp;#9664;&quot; Margin=&quot;1&quot; Padding=&quot;0,4,0,4&quot;
+                ToolTip=&quot;Move the box left on the screen (Left)&quot;/&gt;
+        &lt;Button x:Name=&quot;MoveRight&quot; Grid.Row=&quot;2&quot; Grid.Column=&quot;2&quot; Content=&quot;&amp;#9654;&quot; Margin=&quot;1&quot; Padding=&quot;0,4,0,4&quot;
+                ToolTip=&quot;Move the box right on the screen (Right)&quot;/&gt;
+        &lt;Button x:Name=&quot;MoveDown&quot; Grid.Row=&quot;3&quot; Grid.Column=&quot;1&quot; Content=&quot;&amp;#9660;&quot; Margin=&quot;1&quot; Padding=&quot;0,4,0,4&quot;
+                ToolTip=&quot;Move the box down the screen (Down)&quot;/&gt;
+        &lt;Button x:Name=&quot;MoveFarther&quot; Grid.Row=&quot;3&quot; Grid.Column=&quot;2&quot; Content=&quot;Farther&quot; Margin=&quot;1&quot; Padding=&quot;0,4,0,4&quot;
+                ToolTip=&quot;Move the box away from you (Page Down)&quot;/&gt;
+      &lt;/Grid&gt;
+    &lt;/TabItem&gt;
+  &lt;/TabControl&gt;
+
+  &lt;!-- Row 1: where the target is, right under the buttons that move it --&gt;
+  &lt;StackPanel Grid.Row=&quot;1&quot; Margin=&quot;0,6,0,0&quot;&gt;
+    &lt;TextBlock x:Name=&quot;Readout&quot; Text=&quot;&quot; FontSize=&quot;11&quot; Opacity=&quot;0.75&quot; TextWrapping=&quot;Wrap&quot;/&gt;
+    &lt;Button x:Name=&quot;SectionOn&quot; Content=&quot;Turn sectioning on&quot; Margin=&quot;0,6,0,0&quot;
+            Padding=&quot;8,3,8,3&quot; HorizontalAlignment=&quot;Left&quot; Visibility=&quot;Collapsed&quot;/&gt;
+  &lt;/StackPanel&gt;
+
+  &lt;!-- Row 2: the step, with presets in the document&#x27;s units --&gt;
+  &lt;StackPanel Grid.Row=&quot;2&quot; Margin=&quot;0,10,0,0&quot;&gt;
+    &lt;Grid&gt;
+      &lt;Grid.ColumnDefinitions&gt;
+        &lt;ColumnDefinition Width=&quot;Auto&quot;/&gt;
+        &lt;ColumnDefinition Width=&quot;*&quot;/&gt;
+        &lt;ColumnDefinition Width=&quot;Auto&quot;/&gt;
+        &lt;ColumnDefinition Width=&quot;Auto&quot;/&gt;
+        &lt;ColumnDefinition Width=&quot;Auto&quot;/&gt;
+      &lt;/Grid.ColumnDefinitions&gt;
+      &lt;TextBlock Grid.Column=&quot;0&quot; Text=&quot;Step&quot; VerticalAlignment=&quot;Center&quot; Margin=&quot;0,0,6,0&quot;/&gt;
+      &lt;TextBox x:Name=&quot;StepBox&quot; Grid.Column=&quot;1&quot; Text=&quot;100&quot; VerticalAlignment=&quot;Center&quot;
+               Padding=&quot;4,2,4,2&quot; MinWidth=&quot;60&quot;/&gt;
+      &lt;TextBlock x:Name=&quot;StepUnits&quot; Grid.Column=&quot;2&quot; Text=&quot;mm&quot; VerticalAlignment=&quot;Center&quot;
+                 Margin=&quot;6,0,6,0&quot; Opacity=&quot;0.75&quot;/&gt;
+      &lt;Button x:Name=&quot;StepHalve&quot; Grid.Column=&quot;3&quot; Content=&quot;-&quot; Width=&quot;28&quot; Margin=&quot;1&quot;
+              ToolTip=&quot;Halve the step (minus key)&quot;/&gt;
+      &lt;Button x:Name=&quot;StepDouble&quot; Grid.Column=&quot;4&quot; Content=&quot;+&quot; Width=&quot;28&quot; Margin=&quot;1&quot;
+              ToolTip=&quot;Double the step (plus key)&quot;/&gt;
+    &lt;/Grid&gt;
+    &lt;WrapPanel x:Name=&quot;Presets&quot; Margin=&quot;0,4,0,0&quot;/&gt;
+  &lt;/StackPanel&gt;
+
+  &lt;!-- Row 3: the two things you do before and after nudging --&gt;
+  &lt;UniformGrid Grid.Row=&quot;3&quot; Rows=&quot;1&quot; Columns=&quot;2&quot; Margin=&quot;0,10,0,0&quot;&gt;
+    &lt;Button x:Name=&quot;FitSelection&quot; Content=&quot;Fit to selection&quot; Margin=&quot;1&quot; Padding=&quot;0,4,0,4&quot;
+            ToolTip=&quot;Fit the section box to the selected objects, then nudge from there&quot;/&gt;
+    &lt;Button x:Name=&quot;SectionOff&quot; Content=&quot;Sectioning off&quot; Margin=&quot;1&quot; Padding=&quot;0,4,0,4&quot;
+            ToolTip=&quot;Switch sectioning off, leaving the camera where it is&quot;/&gt;
+  &lt;/UniformGrid&gt;
+&lt;/Grid&gt;</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Section_Nudge.dockpane/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Section Nudge
+<span class="tok-k">tooltip</span>: A remote for the section box. The six faces are named the way you see them, Front being the face looking at you, and the box moves left, right, up, down, nearer and farther on the screen. Pick a face or the whole box, set a step, nudge. Each nudge is one undo step. The same moves are on Ctrl+Alt chords over the 3D view.
+<span class="tok-k">keytip</span>: SN</code></pre></div>
   <div class="pagenav">
 <a href="viewpoint-tracker.html"><span class="dir">Previous</span><span class="ttl">Viewpoint Tracker</span></a>
 <a class="next" href="tracker-window.html"><span class="dir">Next</span><span class="ttl">Tracker Window</span></a>
@@ -151,6 +629,7 @@ half a foot and shows as 0' 6", 0 0 1/8 is an eighth of an inch, and 1' 6", 6 1/
 <a href="#keys-and-chords">Keys and chords</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

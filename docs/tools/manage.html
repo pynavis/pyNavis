@@ -101,6 +101,141 @@ against a stale picture.</p>
     than half applied.</li>
   <li>Purge asks for confirmation naming how many folders it would remove.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Manage.stack/Manager.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Manage.stack/Manager.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Sorts, reorganizes, and cleans up saved viewpoint folders: sort A-Z, move
+items between folders, create folders, and purge empty ones, applied live.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> System <span class="tok-k">import</span> Func
+<span class="tok-k">from</span> System.Collections.Generic <span class="tok-k">import</span> List
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> ViewpointManagerDialog, ViewpointRow
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, viewpoints
+
+ManagerAction = ViewpointManagerDialog.ManagerAction
+ManagerResult = ViewpointManagerDialog.ManagerResult
+
+
+<span class="tok-k">def</span> to_rows(snapshot):
+    rows = List[ViewpointRow]()
+    <span class="tok-k">for</span> row <span class="tok-k">in</span> snapshot:
+        r = ViewpointRow()
+        r.Guid = row[<span class="tok-s">&#x27;guid&#x27;</span>]
+        r.Key = row[<span class="tok-s">&#x27;key&#x27;</span>]
+        r.ParentKey = row[<span class="tok-s">&#x27;parent_key&#x27;</span>]
+        r.Folder = row[<span class="tok-s">&#x27;folder&#x27;</span>]
+        r.Name = row[<span class="tok-s">&#x27;name&#x27;</span>]
+        r.Kind = row[<span class="tok-s">&#x27;kind&#x27;</span>]
+        r.Depth = row[<span class="tok-s">&#x27;depth&#x27;</span>]
+        r.IsFolder = row[<span class="tok-s">&#x27;is_folder&#x27;</span>]
+        r.Comments = row[<span class="tok-s">&#x27;comments&#x27;</span>]
+        rows.Add(r)
+    <span class="tok-k">return</span> rows
+
+
+<span class="tok-k">def</span> run():
+    snapshot = viewpoints.snapshot()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> snapshot:
+        forms.alert(<span class="tok-s">&#x27;This document has no saved viewpoints.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    current = {<span class="tok-s">&#x27;rows&#x27;</span>: snapshot}
+
+    <span class="tok-k">def</span> key_of_folder(path):
+        <span class="tok-s">&quot;&quot;&quot;The index-path key for a folder path, or &#x27;&#x27; for the top level.&quot;&quot;&quot;</span>
+        <span class="tok-k">if</span> <span class="tok-k">not</span> path:
+            <span class="tok-k">return</span> <span class="tok-s">&#x27;&#x27;</span>
+        <span class="tok-k">for</span> row <span class="tok-k">in</span> current[<span class="tok-s">&#x27;rows&#x27;</span>]:
+            <span class="tok-k">if</span> row[<span class="tok-s">&#x27;is_folder&#x27;</span>]:
+                full = (row[<span class="tok-s">&#x27;folder&#x27;</span>] + <span class="tok-s">&#x27;/&#x27;</span> + row[<span class="tok-s">&#x27;name&#x27;</span>]) <span class="tok-k">if</span> row[<span class="tok-s">&#x27;folder&#x27;</span>] <span class="tok-k">else</span> row[<span class="tok-s">&#x27;name&#x27;</span>]
+                <span class="tok-k">if</span> full == path:
+                    <span class="tok-k">return</span> row[<span class="tok-s">&#x27;key&#x27;</span>]
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;&#x27;</span>
+
+    <span class="tok-k">def</span> fresh(result, message):
+        current[<span class="tok-s">&#x27;rows&#x27;</span>] = viewpoints.snapshot()
+        result.Success = <span class="tok-k">True</span>
+        result.Message = message
+        result.Rows = to_rows(current[<span class="tok-s">&#x27;rows&#x27;</span>])
+        <span class="tok-k">return</span> result
+
+    <span class="tok-k">def</span> fail(result, message):
+        result.Success = <span class="tok-k">False</span>
+        result.Message = message
+        <span class="tok-k">return</span> result
+
+    <span class="tok-k">def</span> execute(action):
+        result = ManagerResult()
+        <span class="tok-k">try</span>:
+            guids = list(action.Guids)
+            by_guid = dict((row[<span class="tok-s">&#x27;guid&#x27;</span>], row) <span class="tok-k">for</span> row <span class="tok-k">in</span> current[<span class="tok-s">&#x27;rows&#x27;</span>])
+            keys = [by_guid[g][<span class="tok-s">&#x27;key&#x27;</span>] <span class="tok-k">for</span> g <span class="tok-k">in</span> guids <span class="tok-k">if</span> g <span class="tok-k">in</span> by_guid]
+            target_key = key_of_folder(action.TargetKey)
+
+            <span class="tok-k">if</span> action.Kind == <span class="tok-s">&#x27;sort&#x27;</span>:
+                moved, errors = viewpoints.apply_sort(current[<span class="tok-s">&#x27;rows&#x27;</span>])
+                <span class="tok-k">if</span> errors:
+                    current[<span class="tok-s">&#x27;rows&#x27;</span>] = viewpoints.snapshot()
+                    <span class="tok-k">return</span> fail(result, errors[<span class="tok-n">0</span>])
+                <span class="tok-k">return</span> fresh(result, <span class="tok-s">&#x27;Sorted: %d move(s).&#x27;</span> % moved)
+
+            <span class="tok-k">if</span> action.Kind == <span class="tok-s">&#x27;move&#x27;</span>:
+                <span class="tok-k">if</span> <span class="tok-k">not</span> keys:
+                    <span class="tok-k">return</span> fail(result, <span class="tok-s">&#x27;Select what to move first.&#x27;</span>)
+                error = viewpoints.validate_move(current[<span class="tok-s">&#x27;rows&#x27;</span>], keys, target_key)
+                <span class="tok-k">if</span> error <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+                    <span class="tok-k">return</span> fail(result, error)
+                moved, errors = viewpoints.apply_moves(
+                    current[<span class="tok-s">&#x27;rows&#x27;</span>], keys, target_key)
+                <span class="tok-k">if</span> errors:
+                    current[<span class="tok-s">&#x27;rows&#x27;</span>] = viewpoints.snapshot()
+                    <span class="tok-k">return</span> fail(result, errors[<span class="tok-n">0</span>])
+                <span class="tok-k">return</span> fresh(result, <span class="tok-s">&#x27;Moved %d item(s).&#x27;</span> % moved)
+
+            <span class="tok-k">if</span> action.Kind == <span class="tok-s">&#x27;create&#x27;</span>:
+                name = (action.Name <span class="tok-k">or</span> <span class="tok-s">&#x27;&#x27;</span>).strip()
+                <span class="tok-k">if</span> <span class="tok-k">not</span> name:
+                    <span class="tok-k">return</span> fail(result, <span class="tok-s">&#x27;Give the new folder a name first.&#x27;</span>)
+                viewpoints.create_folder(name, target_key)
+                <span class="tok-k">return</span> fresh(result, <span class="tok-s">&quot;Created folder &#x27;%s&#x27;.&quot;</span> % name)
+
+            <span class="tok-k">if</span> action.Kind == <span class="tok-s">&#x27;purge&#x27;</span>:
+                empties = [row[<span class="tok-s">&#x27;key&#x27;</span>] <span class="tok-k">for</span> row <span class="tok-k">in</span> current[<span class="tok-s">&#x27;rows&#x27;</span>]
+                           <span class="tok-k">if</span> row[<span class="tok-s">&#x27;is_folder&#x27;</span>] <span class="tok-k">and</span> <span class="tok-k">not</span> any(
+                               <span class="tok-k">not</span> other[<span class="tok-s">&#x27;is_folder&#x27;</span>]
+                               <span class="tok-k">and</span> other[<span class="tok-s">&#x27;key&#x27;</span>].startswith(row[<span class="tok-s">&#x27;key&#x27;</span>] + <span class="tok-s">&#x27;/&#x27;</span>)
+                               <span class="tok-k">for</span> other <span class="tok-k">in</span> current[<span class="tok-s">&#x27;rows&#x27;</span>])]
+                <span class="tok-k">if</span> <span class="tok-k">not</span> empties:
+                    <span class="tok-k">return</span> fail(result, <span class="tok-s">&#x27;No empty folders.&#x27;</span>)
+                plan = viewpoints.plan_deletes(current[<span class="tok-s">&#x27;rows&#x27;</span>], empties)
+                question = <span class="tok-s">&#x27;Delete %d empty folder(s)?&#x27;</span> % plan[<span class="tok-s">&#x27;count&#x27;</span>]
+                <span class="tok-k">if</span> <span class="tok-k">not</span> forms.confirm(question, <span class="tok-s">&#x27;Purge empty folders&#x27;</span>):
+                    <span class="tok-k">return</span> fail(result, <span class="tok-s">&#x27;Purge cancelled.&#x27;</span>)
+                removed, errors = viewpoints.apply_deletes(plan[<span class="tok-s">&#x27;guids&#x27;</span>])
+                <span class="tok-k">if</span> errors:
+                    current[<span class="tok-s">&#x27;rows&#x27;</span>] = viewpoints.snapshot()
+                    <span class="tok-k">return</span> fail(result, errors[<span class="tok-n">0</span>])
+                <span class="tok-k">return</span> fresh(result, <span class="tok-s">&#x27;Purged %d folder(s).&#x27;</span> % removed)
+
+            <span class="tok-k">return</span> fail(result, <span class="tok-s">&#x27;Unknown action.&#x27;</span>)
+        <span class="tok-k">except</span> Exception <span class="tok-k">as</span> error:
+            <span class="tok-c"># Whatever went wrong, the tree may have moved: re-read before the</span>
+            <span class="tok-c"># next action so nothing is planned against a stale snapshot.</span>
+            <span class="tok-k">try</span>:
+                current[<span class="tok-s">&#x27;rows&#x27;</span>] = viewpoints.snapshot()
+            <span class="tok-k">except</span> Exception:
+                <span class="tok-k">pass</span>
+            <span class="tok-k">return</span> fail(result, str(error))
+
+    ViewpointManagerDialog.Show(
+        to_rows(snapshot), Func[ManagerAction, ManagerResult](execute))
+
+
+run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Manage.stack/Manager.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Manage
+<span class="tok-k">tooltip</span>: Sort, reorganize, and clean up saved viewpoint folders</code></pre></div>
   <div class="pagenav">
 <a href="delete.html"><span class="dir">Previous</span><span class="ttl">Delete</span></a>
 <a class="next" href="section-fit.html"><span class="dir">Next</span><span class="ttl">Section Fit</span></a>
@@ -110,6 +245,7 @@ against a stale picture.</p>
 <a href="#what-it-does">What it does</a>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

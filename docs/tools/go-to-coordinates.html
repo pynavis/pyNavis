@@ -116,6 +116,151 @@ labelled with the coordinates is drawn on the point.</p>
 <ul>
   <li>Walk a list of survey points from a spreadsheet: copy, click, look, next row.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Data.panel/Coordinates.stack/Go_to_Coordinates.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Coordinates.stack/Go_to_Coordinates.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Moves the view to a set of coordinates and marks the point.
+
+The camera keeps the direction it is already looking and only where it stands
+changes, so the angle the user set up survives and the point lands in the
+middle of the view, coords.VIEW_DISTANCE_METERS away. The focal distance moves
+with it, so an orbit straight afterwards turns around the point instead of
+around wherever the camera was pivoting before.
+
+The point is also drawn as a cross in the view, because a camera that has
+moved to nothing in particular looks like a tool that did nothing. Shift+Click
+(config.py) clears it.
+
+Everything above the guard at the bottom is importable without Navisworks; see
+lib/coords.py for the parsing and the arithmetic.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> coords
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, forms, lengths, overlay, script, toast
+<span class="tok-k">from</span> pynavis.clash <span class="tok-k">import</span> units_to_meters
+
+
+<span class="tok-k">def</span> prefill(units):
+    <span class="tok-s">&quot;&quot;&quot;The default for the box: the clipboard when it already holds three
+    coordinates, which is the round trip straight out of Get Coordinates, and
+    an empty box when it holds anything else.&quot;&quot;&quot;</span>
+    pasted = coords.parse(script.clipboard_text(), units)
+    <span class="tok-k">if</span> pasted <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;&#x27;</span>
+    <span class="tok-k">return</span> coords.format_point(pasted)
+
+
+<span class="tok-k">def</span> viewing_distance(doc):
+    <span class="tok-s">&quot;&quot;&quot;VIEW_DISTANCE_METERS in this model&#x27;s own units, so the same 5m frames
+    the same thing in a model drawn in feet. units_to_meters reports metres per
+    model unit and already answers 1.0 for units it does not know; the guard is
+    for a document that reports nothing usable at all.&quot;&quot;&quot;</span>
+    per_unit = units_to_meters(doc)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> per_unit:
+        <span class="tok-k">return</span> coords.VIEW_DISTANCE_METERS
+    <span class="tok-k">return</span> coords.VIEW_DISTANCE_METERS / per_unit
+
+
+<span class="tok-k">def</span> move_camera(document, target, distance, log):
+    <span class="tok-s">&quot;&quot;&quot;Stands the camera back from target along the direction it is already
+    looking. True when the view moved, False when the camera reported no
+    usable orientation.
+
+    CurrentViewpoint.Value does not track the live camera (it reports the same
+    coordinates however far the user has orbited), so the copy has to come from
+    CreateCopy(). Nothing reaches the view until CopyFrom, which is also what
+    makes this one change: the same shape pynavis.section and pynavis.viewstate
+    use.
+    &quot;&quot;&quot;</span>
+    <span class="tok-k">from</span> pynavis._api <span class="tok-k">import</span> Api
+
+    viewpoint = document.CurrentViewpoint.CreateCopy()
+    rotation = viewpoint.Rotation
+    direction = coords.view_direction(
+        (rotation.A, rotation.B, rotation.C, rotation.D))
+    <span class="tok-k">if</span> direction <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span> <span class="tok-k">False</span>
+
+    position = coords.camera_position(target, direction, distance)
+    log.info(<span class="tok-s">&#x27;direction (%.4f, %.4f, %.4f), camera to %s&#x27;</span>
+             % (direction[<span class="tok-n">0</span>], direction[<span class="tok-n">1</span>], direction[<span class="tok-n">2</span>],
+                coords.format_point(position)))
+    viewpoint.Position = Api.Point3D(position[<span class="tok-n">0</span>], position[<span class="tok-n">1</span>], position[<span class="tok-n">2</span>])
+
+    <span class="tok-c"># The focal distance is what a later orbit pivots on, so moving it with the</span>
+    <span class="tok-c"># camera is the difference between orbiting around the point and orbiting</span>
+    <span class="tok-c"># around thin air. An orthographic camera still takes the new position, so</span>
+    <span class="tok-c"># the point is centred either way; only this part may not apply, and a view</span>
+    <span class="tok-c"># that moved correctly must not fail over it.</span>
+    <span class="tok-k">try</span>:
+        viewpoint.FocalDistance = distance
+    <span class="tok-k">except</span> Exception <span class="tok-k">as</span> error:
+        log.info(<span class="tok-s">&#x27;focal distance left alone: %s&#x27;</span> % error)
+
+    document.CurrentViewpoint.CopyFrom(viewpoint)
+    <span class="tok-k">return</span> <span class="tok-k">True</span>
+
+
+<span class="tok-k">def</span> mark(target, size):
+    <span class="tok-s">&quot;&quot;&quot;Draws the cross on the point, labelled with its own coordinates. The
+    overlay answers False when its render plugin is not loaded; the view still
+    moved, so a missing drawing is not a failed tool.&quot;&quot;&quot;</span>
+    overlay.clear(coords.MARKER_TAG)
+    drawn = overlay.add(coords.MARKER_TAG, coords.marker_segments(target, size),
+                        label=coords.format_point(target), label_at=target)
+    overlay.redraw()
+    <span class="tok-k">return</span> drawn
+
+
+<span class="tok-k">def</span> run():
+    doc = app.get_doc()
+    log = script.get_logger()
+
+    units = str(doc.Units)
+    ask = <span class="tok-s">&#x27;Coordinates to move to (X, Y, Z):&#x27;</span>
+    <span class="tok-k">if</span> lengths.is_imperial(units):
+        ask = <span class="tok-s">&#x27;Coordinates to move to (X, Y, Z), with commas between them for feet and inches:&#x27;</span>
+    answer = forms.ask_string(ask, default=prefill(units), title=<span class="tok-s">&#x27;Go to Coordinates&#x27;</span>)
+    <span class="tok-k">if</span> answer <span class="tok-k">is</span> <span class="tok-k">None</span>:                         <span class="tok-c"># None means cancelled: say nothing</span>
+        <span class="tok-k">return</span>
+
+    target = coords.parse(answer, units)
+    <span class="tok-k">if</span> target <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        toast.error(<span class="tok-s">&#x27;Could not read coordinates&#x27;</span>,
+                    <span class="tok-s">&quot;Expected three values, like 12.5, -3, 40 or 1&#x27; 6\&quot;, -3&#x27; 3\&quot;, 40&#x27;.&quot;</span>)
+        <span class="tok-k">return</span>
+
+    distance = viewing_distance(doc)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> move_camera(doc, target, distance, log):
+        toast.error(<span class="tok-s">&#x27;Could not move the view&#x27;</span>,
+                    <span class="tok-s">&#x27;The current view reported no usable orientation.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    <span class="tok-c"># An arm a twentieth of the viewing distance: big enough to find, small</span>
+    <span class="tok-c"># enough that it marks a point rather than covering what is around it.</span>
+    drawn = mark(target, distance / <span class="tok-n">20.0</span>)
+
+    units = str(doc.Units)
+    text = coords.format_point(target)
+    log.info(<span class="tok-s">&#x27;moved to %s (%s), %.4f units away, marker drawn=%s&#x27;</span>
+             % (text, units, distance, drawn))
+    toast.success(<span class="tok-s">&#x27;Moved to coordinates&#x27;</span>, <span class="tok-s">&#x27;%s %s&#x27;</span> % (text, units))
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Coordinates.stack/Go_to_Coordinates.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Clears the marker Go to Coordinates left in the view.&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> coords
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> overlay, toast
+
+overlay.clear(coords.MARKER_TAG)
+overlay.redraw()
+toast.info(<span class="tok-s">&#x27;Marker cleared&#x27;</span>)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Coordinates.stack/Go_to_Coordinates.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Go to Coordinates
+<span class="tok-k">tooltip</span>: Move the view to a set of coordinates and mark the point with a cross. The box opens with the clipboard&#x27;s coordinates already filled in, so a point copied by Get Coordinates is one click away. Shift+Click clears the marker.
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="get-coordinates.html"><span class="dir">Previous</span><span class="ttl">Get Coordinates</span></a>
 <a class="next" href="select-by-ids.html"><span class="dir">Next</span><span class="ttl">Select by IDs</span></a>
@@ -126,6 +271,7 @@ labelled with the coordinates is drawn on the point.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

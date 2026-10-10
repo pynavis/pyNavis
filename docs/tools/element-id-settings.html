@@ -106,6 +106,15 @@ holds the ID is a fact about the model rather than about the button that reads i
 <h2 id="good-to-know">Good to know<a class="anchor" href="#good-to-know" aria-label="Link to this section">#</a></h2>
 <p>Open it from the flyout arrow on the Data panel title, or Shift+Click either element ID
 button; it is the same window.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Data.panel/More.slideout/Element_ID_Settings.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/More.slideout/Element_ID_Settings.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Settings shared by Select by IDs and IDs of Selection.&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> elementidconfig
+
+elementidconfig.edit()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/More.slideout/Element_ID_Settings.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Element ID Settings
+<span class="tok-k">tooltip</span>: How Select by IDs and IDs of Selection find and copy Revit element IDs. The same window opens on Shift+Click of either button.</code></pre></div>
   <div class="pagenav">
 <a href="export-viewpoints.html"><span class="dir">Previous</span><span class="ttl">Export Viewpoints</span></a>
 <span></span>
@@ -115,6 +124,7 @@ button; it is the same window.</p>
 <a href="#what-it-does">What it does</a>
 <a href="#the-settings">The settings</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

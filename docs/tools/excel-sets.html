@@ -118,6 +118,250 @@ carry a library of standard sets from one federated model to the next.</p>
     import it into each new federated model.</li>
   <li>Review a model's sets without opening the model: the workbook reads as a list.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Data.panel/Excel_Sets.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Excel_Sets.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Round-trips selection sets through an Excel workbook: export every set to
+one row per condition, or import a workbook back into new sets.
+
+The row&lt;-&gt;dict converters (rows_to_spec, spec_to_rows) are pure and have no
+Navisworks dependency, so this file doubles as an importable module for
+tests: everything below the guard at the bottom only runs when pyNavis
+actually launches the button (see the &#x27;__commandpath__ in globals()&#x27; trick
+in the bundle-authoring skill&#x27;s templates).&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, output, sets, toast, xl
+
+HEADERS = [<span class="tok-s">&#x27;Folder&#x27;</span>, <span class="tok-s">&#x27;Set&#x27;</span>, <span class="tok-s">&#x27;Category&#x27;</span>, <span class="tok-s">&#x27;Property&#x27;</span>, <span class="tok-s">&#x27;Op&#x27;</span>, <span class="tok-s">&#x27;Value&#x27;</span>]
+
+<span class="tok-c"># Ops whose compiled condition dict (see pynavis.sets._condition_to_dict)</span>
+<span class="tok-c"># carries no &#x27;prop&#x27; key at all, and ops that carry no &#x27;value&#x27; key - has_category</span>
+<span class="tok-c"># has neither prop nor value, has_property/not_has_property have prop but no</span>
+<span class="tok-c"># value. Mirrored on both sides of the row&lt;-&gt;dict conversion below.</span>
+_NO_PROP_OPS = (<span class="tok-s">&#x27;has_category&#x27;</span>,)
+_NO_VALUE_OPS = (<span class="tok-s">&#x27;has_category&#x27;</span>, <span class="tok-s">&#x27;has_property&#x27;</span>, <span class="tok-s">&#x27;not_has_property&#x27;</span>)
+
+
+<span class="tok-k">def</span> spec_to_rows(spec):
+    <span class="tok-s">&quot;&quot;&quot;The {&#x27;sets&#x27;: [{&#x27;name&#x27;, &#x27;folder&#x27;, &#x27;query&#x27;}, ...]} shape sets.export_all()
+    returns, flattened to plain rows for xl.write: one row per condition
+    (folder, set name, category, property, op, value). A set with several
+    AND&#x27;d conditions repeats its folder and name, one row per condition, in
+    condition order - the inverse of rows_to_spec below. A set with no
+    conditions at all (an empty AND group, or a non-portable {&#x27;items&#x27;: N}
+    static set, which only reaches here because run_export asks for
+    export_all(include_static=True)) still gets a single row so it stays
+    visible in the workbook, with category/property/op/value blank -
+    rows_to_spec skips exactly those rows again on the way back in.
+    &quot;&quot;&quot;</span>
+    rows = []
+    <span class="tok-k">for</span> entry <span class="tok-k">in</span> spec.get(<span class="tok-s">&#x27;sets&#x27;</span>, []):
+        folder = entry.get(<span class="tok-s">&#x27;folder&#x27;</span>) <span class="tok-k">or</span> <span class="tok-s">&#x27;&#x27;</span>
+        name = entry.get(<span class="tok-s">&#x27;name&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>)
+        conditions = _conditions_of(entry)
+        <span class="tok-k">if</span> <span class="tok-k">not</span> conditions:
+            rows.append([folder, name, <span class="tok-s">&#x27;&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>])
+            <span class="tok-k">continue</span>
+        <span class="tok-k">for</span> condition <span class="tok-k">in</span> conditions:
+            rows.append(_row_for_condition(folder, name, condition))
+    <span class="tok-k">return</span> rows
+
+
+<span class="tok-k">def</span> rows_to_spec(rows):
+    <span class="tok-s">&quot;&quot;&quot;The inverse of spec_to_rows: groups xl-read rows (folder, set,
+    category, property, op, value) back into the {&#x27;sets&#x27;: [...]} shape
+    sets.import_dict() expects. Consecutive rows sharing the same
+    (folder, set) belong to one set&#x27;s single AND group, in row order - a set
+    never splits across a non-adjacent block of rows, matching how
+    spec_to_rows lays a set&#x27;s rows out.
+
+    Returns (spec, skipped): a block whose every row has a blank op yields
+    no conditions at all, and is DROPPED from spec rather than emitted as an
+    empty query, with skipped counting how many blocks were dropped (the
+    caller toasts it, so a silently missing set is still visible). Those
+    blocks are exactly the static/explicit sets export_all(include_static=
+    True) puts in the workbook for visibility: {&#x27;items&#x27;: N} is a count, not
+    a query, so there is nothing to rebuild the set from - an empty query
+    would mean &quot;match the whole model&quot;, which sets._validate_import rejects
+    outright, and rejecting would abort the WHOLE import over rows the user
+    never meant to import in the first place.
+
+    Excel has no int/float distinction: a real workbook read with
+    pynavis.xl.read hands every numeric cell back as float, so an exported
+    int like 42 would otherwise re-import as 42.0 (compiling as FromDouble
+    instead of FromInt32, and stringifying as &#x27;42.0&#x27; instead of &#x27;42&#x27; for
+    contains/wildcard). See _normalize_value: an integral float is
+    normalized back to int here on the way in; a genuine decimal (1.5) is
+    left as float. This is a one-way, lossy convention (a float that was
+    genuinely written as e.g. 3.0 on purpose re-imports as int 3) but it is
+    the best available guess given xlsx&#x27;s single numeric cell type, and it
+    is what keeps a plain integer property value searching the same way
+    after a round trip through Excel.
+    &quot;&quot;&quot;</span>
+    entries = []
+    prev_key = <span class="tok-k">None</span>
+    <span class="tok-k">for</span> row <span class="tok-k">in</span> rows:
+        folder, name, category, prop, op, value = _padded(row)
+        key = (folder, name)
+        <span class="tok-k">if</span> key != prev_key:
+            entry = {<span class="tok-s">&#x27;name&#x27;</span>: name, <span class="tok-s">&#x27;folder&#x27;</span>: folder <span class="tok-k">or</span> <span class="tok-k">None</span>, <span class="tok-s">&#x27;conditions&#x27;</span>: []}
+            entries.append(entry)
+            prev_key = key
+        <span class="tok-k">else</span>:
+            entry = entries[-<span class="tok-n">1</span>]
+        <span class="tok-k">if</span> op:
+            entry[<span class="tok-s">&#x27;conditions&#x27;</span>].append(_condition_from_row(category, prop, op, value))
+
+    kept = [entry <span class="tok-k">for</span> entry <span class="tok-k">in</span> entries <span class="tok-k">if</span> entry[<span class="tok-s">&#x27;conditions&#x27;</span>]]
+    spec = {<span class="tok-s">&#x27;sets&#x27;</span>: [
+        {<span class="tok-s">&#x27;name&#x27;</span>: entry[<span class="tok-s">&#x27;name&#x27;</span>], <span class="tok-s">&#x27;folder&#x27;</span>: entry[<span class="tok-s">&#x27;folder&#x27;</span>],
+         <span class="tok-s">&#x27;query&#x27;</span>: {<span class="tok-s">&#x27;or&#x27;</span>: [{<span class="tok-s">&#x27;and&#x27;</span>: entry[<span class="tok-s">&#x27;conditions&#x27;</span>]}]}}
+        <span class="tok-k">for</span> entry <span class="tok-k">in</span> kept
+    ]}
+    <span class="tok-k">return</span> spec, len(entries) - len(kept)
+
+
+<span class="tok-k">def</span> _conditions_of(entry):
+    query = entry.get(<span class="tok-s">&#x27;query&#x27;</span>)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> isinstance(query, dict):
+        <span class="tok-k">return</span> []
+    conditions = []
+    <span class="tok-k">for</span> group <span class="tok-k">in</span> query.get(<span class="tok-s">&#x27;or&#x27;</span>, []):
+        conditions.extend(group.get(<span class="tok-s">&#x27;and&#x27;</span>, []))
+    <span class="tok-k">return</span> conditions
+
+
+<span class="tok-k">def</span> _row_for_condition(folder, name, condition):
+    op = condition.get(<span class="tok-s">&#x27;op&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>)
+    <span class="tok-k">if</span> op == <span class="tok-s">&#x27;raw&#x27;</span>:
+        <span class="tok-c"># to_dict&#x27;s marker for a condition it could not reverse-map: not</span>
+        <span class="tok-c"># portable (sets._validate_import rejects it on import), but the</span>
+        <span class="tok-c"># raw text is worth showing rather than a silently blank row.</span>
+        <span class="tok-k">return</span> [folder, name, <span class="tok-s">&#x27;&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>, op, condition.get(<span class="tok-s">&#x27;text&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>)]
+    <span class="tok-k">return</span> [
+        folder, name,
+        condition.get(<span class="tok-s">&#x27;category&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>),
+        <span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> op <span class="tok-k">in</span> _NO_PROP_OPS <span class="tok-k">else</span> condition.get(<span class="tok-s">&#x27;prop&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>),
+        op,
+        <span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> op <span class="tok-k">in</span> _NO_VALUE_OPS <span class="tok-k">else</span> condition.get(<span class="tok-s">&#x27;value&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>),
+    ]
+
+
+<span class="tok-k">def</span> _condition_from_row(category, prop, op, value):
+    <span class="tok-k">if</span> op == <span class="tok-s">&#x27;raw&#x27;</span>:
+        <span class="tok-k">return</span> {<span class="tok-s">&#x27;op&#x27;</span>: <span class="tok-s">&#x27;raw&#x27;</span>, <span class="tok-s">&#x27;text&#x27;</span>: value}
+    condition = {<span class="tok-s">&#x27;category&#x27;</span>: category, <span class="tok-s">&#x27;op&#x27;</span>: op}
+    <span class="tok-k">if</span> op <span class="tok-k">not</span> <span class="tok-k">in</span> _NO_PROP_OPS:
+        condition[<span class="tok-s">&#x27;prop&#x27;</span>] = prop
+    <span class="tok-k">if</span> op <span class="tok-k">not</span> <span class="tok-k">in</span> _NO_VALUE_OPS:
+        condition[<span class="tok-s">&#x27;value&#x27;</span>] = _normalize_value(value)
+    <span class="tok-k">return</span> condition
+
+
+<span class="tok-k">def</span> _normalize_value(value):
+    <span class="tok-s">&quot;&quot;&quot;An integral float becomes int; anything else passes through
+    unchanged. See rows_to_spec&#x27;s docstring for why: xl.read hands back
+    every numeric cell as float, so this is what makes an exported int
+    property value (e.g. a level number, a count) behave the same way after
+    a round trip through Excel instead of silently becoming a float.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> isinstance(value, float):
+        <span class="tok-k">try</span>:
+            as_int = int(value)
+        <span class="tok-k">except</span> (OverflowError, ValueError):
+            <span class="tok-k">return</span> value
+        <span class="tok-k">if</span> as_int == value:
+            <span class="tok-k">return</span> as_int
+    <span class="tok-k">return</span> value
+
+
+<span class="tok-k">def</span> _padded(row):
+    <span class="tok-s">&quot;&quot;&quot;Exactly 6 cells, missing trailing ones treated as &#x27;&#x27;.&quot;&quot;&quot;</span>
+    values = list(row) + [<span class="tok-s">&#x27;&#x27;</span>] * <span class="tok-n">6</span>
+    <span class="tok-k">return</span> tuple(values[:<span class="tok-n">6</span>])
+
+
+<span class="tok-k">def</span> run_export():
+    <span class="tok-c"># include_static=True: a static/explicit set exports as {&#x27;items&#x27;: N},</span>
+    <span class="tok-c"># which is NOT importable - but leaving it out of the workbook entirely</span>
+    <span class="tok-c"># would make a set the user can see in Navisworks silently missing from</span>
+    <span class="tok-c"># the sheet. It gets a blank row here for visibility, and rows_to_spec</span>
+    <span class="tok-c"># skips those blank rows again on the way back in.</span>
+    spec = sets.export_all(include_static=<span class="tok-k">True</span>)
+    rows = spec_to_rows(spec)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> rows:
+        toast.info(<span class="tok-s">&#x27;No sets to export&#x27;</span>, <span class="tok-s">&#x27;This document has no selection sets.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    path = forms.save_file(
+        filter=<span class="tok-s">&#x27;Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*&#x27;</span>,
+        default_name=<span class="tok-s">&#x27;selection_sets.xlsx&#x27;</span>, title=<span class="tok-s">&#x27;Export sets to Excel&#x27;</span>)
+    <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">None</span>:                                <span class="tok-c"># cancelled: say nothing</span>
+        <span class="tok-k">return</span>
+
+    xl.write(path, rows, headers=HEADERS)
+    toast.success(<span class="tok-s">&#x27;Exported %d row(s)&#x27;</span> % len(rows), path)
+
+
+<span class="tok-k">def</span> run_import():
+    path = forms.open_file(
+        filter=<span class="tok-s">&#x27;Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*&#x27;</span>,
+        title=<span class="tok-s">&#x27;Import sets from Excel&#x27;</span>)
+    <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">None</span>:                                <span class="tok-c"># cancelled: say nothing</span>
+        <span class="tok-k">return</span>
+
+    raw_rows = xl.read(path)
+    data_rows = raw_rows[<span class="tok-n">1</span>:] <span class="tok-k">if</span> raw_rows <span class="tok-k">and</span> raw_rows[<span class="tok-n">0</span>] == HEADERS <span class="tok-k">else</span> raw_rows
+    <span class="tok-k">if</span> <span class="tok-k">not</span> data_rows:
+        toast.info(<span class="tok-s">&#x27;Nothing to import&#x27;</span>, <span class="tok-s">&#x27;The workbook has no rows.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    spec, skipped = rows_to_spec(data_rows)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> spec[<span class="tok-s">&#x27;sets&#x27;</span>]:
+        detail = (<span class="tok-s">&#x27;%d set(s) had no conditions and were skipped.&#x27;</span> % skipped
+                  <span class="tok-k">if</span> skipped <span class="tok-k">else</span> <span class="tok-s">&#x27;No rows carried a condition.&#x27;</span>)
+        toast.info(<span class="tok-s">&#x27;Nothing to import&#x27;</span>, detail)
+        <span class="tok-k">return</span>
+
+    problems = sets._validate_import(spec)
+    <span class="tok-k">if</span> problems:
+        output.print_table([[p] <span class="tok-k">for</span> p <span class="tok-k">in</span> problems], [<span class="tok-s">&#x27;Problem&#x27;</span>])
+        toast.error(<span class="tok-s">&#x27;Cannot import&#x27;</span>, <span class="tok-s">&#x27;%d problem(s); see the output window.&#x27;</span> % len(problems))
+        <span class="tok-k">return</span>
+
+    <span class="tok-k">try</span>:
+        <span class="tok-k">with</span> forms.progress(<span class="tok-s">&#x27;Importing sets&#x27;</span>, <span class="tok-s">&#x27;Starting&#x27;</span>) <span class="tok-k">as</span> p:
+            <span class="tok-k">def</span> report(done, total):
+                p.check()
+                p.update(float(done) / total <span class="tok-k">if</span> total <span class="tok-k">else</span> <span class="tok-n">1.0</span>,
+                         <span class="tok-s">&#x27;%d of %d&#x27;</span> % (done, total))
+            created, errors = sets.import_dict(spec, progress=report)
+    <span class="tok-k">except</span> forms.Cancelled:                         <span class="tok-c"># cancelled: say nothing</span>
+        <span class="tok-k">return</span>
+
+    skipped_note = (<span class="tok-s">&#x27;%d set(s) with no conditions skipped&#x27;</span> % skipped) <span class="tok-k">if</span> skipped <span class="tok-k">else</span> <span class="tok-k">None</span>
+    <span class="tok-k">if</span> errors:
+        toast.warning(<span class="tok-s">&#x27;Created %d set(s), %d failed&#x27;</span> % (created, len(errors)), errors[<span class="tok-n">0</span>])
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;%d sets created&#x27;</span> % created, skipped_note)
+
+
+<span class="tok-k">def</span> run():
+    choice = forms.ask_options(
+        <span class="tok-s">&#x27;Export the selection sets in this document to an Excel workbook, &#x27;</span>
+        <span class="tok-s">&#x27;or import a workbook back into new sets?&#x27;</span>, [<span class="tok-s">&#x27;Export&#x27;</span>, <span class="tok-s">&#x27;Import&#x27;</span>],
+        title=<span class="tok-s">&#x27;Excel Sets&#x27;</span>)
+    <span class="tok-k">if</span> choice <span class="tok-k">is</span> <span class="tok-k">None</span>:                              <span class="tok-c"># cancelled: say nothing</span>
+        <span class="tok-k">return</span>
+    <span class="tok-k">if</span> choice == <span class="tok-s">&#x27;Export&#x27;</span>:
+        run_export()
+    <span class="tok-k">else</span>:
+        run_import()
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Excel_Sets.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Excel\nSets
+<span class="tok-k">tooltip</span>: Exports every selection set to an Excel workbook (one row per condition), or imports a workbook back into new sets.
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="ids-of-selection.html"><span class="dir">Previous</span><span class="ttl">IDs of Selection</span></a>
 <a class="next" href="export-viewpoints.html"><span class="dir">Next</span><span class="ttl">Export Viewpoints</span></a>
@@ -128,6 +372,7 @@ carry a library of standard sets from one federated model to the next.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

@@ -111,6 +111,105 @@ conventions. Tick the views, choose an operation, watch the preview, apply.</p>
     out in sequence.</li>
   <li>Strip a date suffix off fifty views in one go.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/Manage.stack/Renamer.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Manage.stack/Renamer.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Batch renames saved viewpoints: find/replace (plain or regex), prefix and
+suffix, sequential numbering, or case cleanup, with a live preview.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> System <span class="tok-k">import</span> Func
+<span class="tok-k">from</span> System.Collections.Generic <span class="tok-k">import</span> List
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> ViewpointRenamerDialog, ViewpointRow
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, output, toast, viewpoints
+
+RenameRequest = ViewpointRenamerDialog.RenameRequest
+RenamePreview = ViewpointRenamerDialog.RenamePreview
+RenameItem = ViewpointRenamerDialog.RenameItem
+
+
+<span class="tok-k">def</span> to_rows(snapshot):
+    rows = List[ViewpointRow]()
+    <span class="tok-k">for</span> row <span class="tok-k">in</span> snapshot:
+        r = ViewpointRow()
+        r.Guid = row[<span class="tok-s">&#x27;guid&#x27;</span>]
+        r.Key = row[<span class="tok-s">&#x27;key&#x27;</span>]
+        r.ParentKey = row[<span class="tok-s">&#x27;parent_key&#x27;</span>]
+        r.Folder = row[<span class="tok-s">&#x27;folder&#x27;</span>]
+        r.Name = row[<span class="tok-s">&#x27;name&#x27;</span>]
+        r.Kind = row[<span class="tok-s">&#x27;kind&#x27;</span>]
+        r.Depth = row[<span class="tok-s">&#x27;depth&#x27;</span>]
+        r.IsFolder = row[<span class="tok-s">&#x27;is_folder&#x27;</span>]
+        r.Comments = row[<span class="tok-s">&#x27;comments&#x27;</span>]
+        rows.Add(r)
+    <span class="tok-k">return</span> rows
+
+
+<span class="tok-k">def</span> op_dict(op):
+    <span class="tok-k">return</span> {
+        <span class="tok-s">&#x27;type&#x27;</span>: op.Type,
+        <span class="tok-s">&#x27;find&#x27;</span>: op.Find, <span class="tok-s">&#x27;replace&#x27;</span>: op.Replace, <span class="tok-s">&#x27;regex&#x27;</span>: op.Regex,
+        <span class="tok-s">&#x27;prefix&#x27;</span>: op.Prefix, <span class="tok-s">&#x27;suffix&#x27;</span>: op.Suffix,
+        <span class="tok-s">&#x27;pattern&#x27;</span>: op.Pattern, <span class="tok-s">&#x27;start&#x27;</span>: op.Start, <span class="tok-s">&#x27;pad&#x27;</span>: op.Pad,
+        <span class="tok-s">&#x27;mode&#x27;</span>: op.CaseMode,
+    }
+
+
+<span class="tok-k">def</span> run():
+    snapshot = viewpoints.snapshot()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> snapshot:
+        forms.alert(<span class="tok-s">&#x27;This document has no saved viewpoints.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    by_guid = dict((row[<span class="tok-s">&#x27;guid&#x27;</span>], row) <span class="tok-k">for</span> row <span class="tok-k">in</span> snapshot)
+
+    <span class="tok-k">def</span> plan_for(request):
+        keys = [by_guid[g][<span class="tok-s">&#x27;key&#x27;</span>] <span class="tok-k">for</span> g <span class="tok-k">in</span> request.CheckedGuids <span class="tok-k">if</span> g <span class="tok-k">in</span> by_guid]
+        <span class="tok-k">return</span> viewpoints.plan_renames(snapshot, keys, op_dict(request.Op))
+
+    <span class="tok-k">def</span> preview(request):
+        plan = plan_for(request)
+        data = RenamePreview()
+        <span class="tok-k">for</span> entry <span class="tok-k">in</span> plan[<span class="tok-s">&#x27;renames&#x27;</span>]:
+            item = RenameItem()
+            item.Guid = entry[<span class="tok-s">&#x27;guid&#x27;</span>]
+            item.OldName = entry[<span class="tok-s">&#x27;old&#x27;</span>]
+            item.NewName = entry[<span class="tok-s">&#x27;new&#x27;</span>]
+            item.Collision = bool(entry.get(<span class="tok-s">&#x27;collision&#x27;</span>))
+            data.Items.Add(item)
+        <span class="tok-k">for</span> problem <span class="tok-k">in</span> plan[<span class="tok-s">&#x27;problems&#x27;</span>]:
+            data.Problems.Add(problem)
+        <span class="tok-k">return</span> data
+
+    request = ViewpointRenamerDialog.Show(
+        to_rows(snapshot), Func[RenameRequest, RenamePreview](preview))
+    <span class="tok-k">if</span> request <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>
+
+    plan = plan_for(request)
+    <span class="tok-k">if</span> plan[<span class="tok-s">&#x27;collisions&#x27;</span>] <span class="tok-k">or</span> plan[<span class="tok-s">&#x27;problems&#x27;</span>] <span class="tok-k">or</span> <span class="tok-k">not</span> plan[<span class="tok-s">&#x27;renames&#x27;</span>]:
+        toast.info(<span class="tok-s">&#x27;Nothing to rename.&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    total = len(plan[<span class="tok-s">&#x27;renames&#x27;</span>])
+
+    <span class="tok-k">def</span> tick(done, count):
+        output.progress(float(done) / count, <span class="tok-s">&#x27;Renaming %d of %d&#x27;</span> % (done, count))
+
+    applied, errors = viewpoints.apply_renames(
+        plan[<span class="tok-s">&#x27;renames&#x27;</span>], progress=tick <span class="tok-k">if</span> total &gt; <span class="tok-n">500</span> <span class="tok-k">else</span> <span class="tok-k">None</span>)
+    output.progress(<span class="tok-n">1.0</span>)
+    <span class="tok-k">if</span> errors:
+        toast.warning(<span class="tok-s">&#x27;Renamed %d item(s), %d failed.&#x27;</span> % (applied, len(errors)),
+                      errors[<span class="tok-n">0</span>])
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Renamed %d item(s).&#x27;</span> % applied)
+
+
+run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/Manage.stack/Renamer.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Rename
+<span class="tok-k">tooltip</span>: Batch rename saved viewpoints with find/replace, numbering, and case cleanup</code></pre></div>
   <div class="pagenav">
 <a href="true-distance.html"><span class="dir">Previous</span><span class="ttl">True Distance</span></a>
 <a class="next" href="delete.html"><span class="dir">Next</span><span class="ttl">Delete</span></a>
@@ -121,6 +220,7 @@ conventions. Tick the views, choose an operation, watch the preview, apply.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

@@ -141,6 +141,784 @@ install folder.</p>
     this PC loaded, if there is one.</li>
   <li>A catalog that asks for a newer pyNavis can be browsed but not installed from.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>pyNavis.panel/Playground.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Playground.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Browse pyNavis Playground and install only the tools you tick.
+
+The catalog (catalog.json, schema 1) comes from GitHub, or from the path or
+address in config.json under playground.catalog. Fetching runs off the UI
+thread so the window stays responsive; nothing here touches the Navisworks
+API. What to copy and what to delete is decided by lib/playground.py, which is
+unit-tested; this file only fetches, shows and calls in.
+
+A tick is the state you want: installed tools open ticked, Install adds the
+ticked ones that are not there yet, Remove deletes the installed ones you
+unticked. Both close the window, reload pyNavis and toast the result, so the
+ribbon is never rebuilt underneath an open dialog.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> datetime
+<span class="tok-k">import</span> io
+<span class="tok-k">import</span> os
+
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PresentationFramework&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PresentationCore&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsBase&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;System.Net.Http&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+
+<span class="tok-k">from</span> System <span class="tok-k">import</span> Action, TimeSpan
+<span class="tok-k">from</span> System.IO <span class="tok-k">import</span> File
+<span class="tok-k">from</span> System.Net <span class="tok-k">import</span> SecurityProtocolType, ServicePointManager
+<span class="tok-k">from</span> System.Net.Http <span class="tok-k">import</span> HttpClient, HttpClientHandler
+<span class="tok-k">from</span> System.Threading <span class="tok-k">import</span> Thread, ThreadStart
+<span class="tok-k">from</span> System.Windows <span class="tok-k">import</span> (
+    CornerRadius, FontWeights, GridLength, GridUnitType, TextWrapping,
+    Thickness, VerticalAlignment, Visibility, Window, WindowStartupLocation,
+)
+<span class="tok-k">from</span> System.Windows.Controls <span class="tok-k">import</span> (
+    Border, CheckBox, ColumnDefinition, ComboBox, Grid, Orientation,
+    RowDefinition, ScrollViewer, ScrollBarVisibility, StackPanel, TextBlock, TextBox,
+)
+<span class="tok-k">from</span> System.Windows.Documents <span class="tok-k">import</span> Hyperlink, Run
+<span class="tok-k">from</span> System.Windows.Media <span class="tok-k">import</span> FontFamily
+
+<span class="tok-k">from</span> PyNavis.Runtime <span class="tok-k">import</span> RuntimeHost
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> DesignSystem, FluentChrome
+
+<span class="tok-k">import</span> pynavis
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, toast
+
+<span class="tok-k">try</span>:
+    <span class="tok-k">import</span> playground <span class="tok-k">as</span> pg       <span class="tok-c"># extension lib/, which pynavis run does not put on the path</span>
+<span class="tok-k">except</span> ImportError:
+    pg = <span class="tok-k">None</span>
+
+_T = DesignSystem.Tokens.Current
+_STATUS_LABELS = [(<span class="tok-s">&#x27;All statuses&#x27;</span>, <span class="tok-s">&#x27;All&#x27;</span>), (<span class="tok-s">&#x27;Untested&#x27;</span>, <span class="tok-s">&#x27;untested&#x27;</span>), (<span class="tok-s">&#x27;Launched&#x27;</span>, <span class="tok-s">&#x27;launched&#x27;</span>),
+                  (<span class="tok-s">&#x27;Verified&#x27;</span>, <span class="tok-s">&#x27;verified&#x27;</span>), (<span class="tok-s">&#x27;Known issue&#x27;</span>, <span class="tok-s">&#x27;known-issue&#x27;</span>)]
+_CHIP = {<span class="tok-s">&#x27;untested&#x27;</span>: (<span class="tok-s">&#x27;Untested&#x27;</span>, _T.Muted), <span class="tok-s">&#x27;launched&#x27;</span>: (<span class="tok-s">&#x27;Launched&#x27;</span>, _T.Info),
+         <span class="tok-s">&#x27;verified&#x27;</span>: (<span class="tok-s">&#x27;Verified&#x27;</span>, _T.Success), <span class="tok-s">&#x27;known-issue&#x27;</span>: (<span class="tok-s">&#x27;Known issue&#x27;</span>, _T.Warning)}
+_CATALOG_TIMEOUT = TimeSpan.FromSeconds(<span class="tok-n">15</span>)
+_ZIP_TIMEOUT = TimeSpan.FromMinutes(<span class="tok-n">10</span>)
+
+
+<span class="tok-c"># ---- network and files (run off the UI thread) ---------------------------------</span>
+
+<span class="tok-k">def</span> _client(timeout):
+    <span class="tok-s">&quot;&quot;&quot;The same client UpdateService uses: TLS 1.2, the user&#x27;s proxy credentials,
+    redirects followed (release downloads redirect to GitHub&#x27;s CDN).&quot;&quot;&quot;</span>
+    ServicePointManager.SecurityProtocol = (ServicePointManager.SecurityProtocol
+                                            | SecurityProtocolType.Tls12)
+    handler = HttpClientHandler()
+    handler.UseDefaultCredentials = <span class="tok-k">True</span>
+    handler.AllowAutoRedirect = <span class="tok-k">True</span>
+    client = HttpClient(handler)
+    client.Timeout = timeout
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(<span class="tok-s">&#x27;pyNavis/&#x27;</span> + pynavis.__version__)
+    <span class="tok-k">return</span> client
+
+
+<span class="tok-k">def</span> _reason(error):
+    <span class="tok-s">&quot;&quot;&quot;One readable line from a Python or .NET failure.&quot;&quot;&quot;</span>
+    inner = getattr(error, <span class="tok-s">&#x27;clsException&#x27;</span>, <span class="tok-k">None</span>)
+    <span class="tok-k">if</span> inner <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        <span class="tok-k">try</span>:
+            base = inner.GetBaseException()
+            <span class="tok-k">if</span> <span class="tok-s">&#x27;TaskCanceled&#x27;</span> <span class="tok-k">in</span> base.GetType().Name:
+                <span class="tok-k">return</span> <span class="tok-s">&#x27;No answer within the time limit.&#x27;</span>
+            <span class="tok-k">return</span> base.Message
+        <span class="tok-k">except</span> Exception:
+            <span class="tok-k">pass</span>
+    <span class="tok-k">return</span> str(error) <span class="tok-k">or</span> error.__class__.__name__
+
+
+<span class="tok-k">def</span> _config():
+    <span class="tok-k">try</span>:
+        <span class="tok-k">return</span> pg.read_config(RuntimeHost.UserConfigPath)
+    <span class="tok-k">except</span> Exception:
+        <span class="tok-k">return</span> {}
+
+
+<span class="tok-k">def</span> _fetch_catalog():
+    <span class="tok-s">&quot;&quot;&quot;(kind, location, text) for the configured catalog. Raises on failure.&quot;&quot;&quot;</span>
+    kind, where = pg.catalog_url(_config())
+    <span class="tok-k">if</span> kind == <span class="tok-s">&#x27;file&#x27;</span>:
+        <span class="tok-k">with</span> io.open(where, <span class="tok-s">&#x27;r&#x27;</span>, encoding=<span class="tok-s">&#x27;utf-8-sig&#x27;</span>) <span class="tok-k">as</span> f:
+            <span class="tok-k">return</span> kind, where, f.read()
+    client = _client(_CATALOG_TIMEOUT)
+    <span class="tok-k">try</span>:
+        <span class="tok-k">return</span> kind, where, client.GetStringAsync(where).Result
+    <span class="tok-k">finally</span>:
+        client.Dispose()
+
+
+<span class="tok-k">def</span> _ensure_zip(catalog, kind, where):
+    <span class="tok-s">&quot;&quot;&quot;A local path to the release zip, checked against the catalog&#x27;s SHA-256.
+    A cached zip that fails the check is downloaded again once.&quot;&quot;&quot;</span>
+    expected = catalog[<span class="tok-s">&#x27;download&#x27;</span>][<span class="tok-s">&#x27;sha256&#x27;</span>]
+    source_kind, source = pg.zip_source(catalog, kind, where)
+    <span class="tok-k">if</span> source_kind == <span class="tok-s">&#x27;file&#x27;</span>:
+        <span class="tok-k">if</span> <span class="tok-k">not</span> os.path.isfile(source):
+            <span class="tok-k">raise</span> IOError(<span class="tok-s">&#x27;The zip the catalog names is not there: %s&#x27;</span> % source)
+        <span class="tok-k">if</span> <span class="tok-k">not</span> pg.verify_sha256(source, expected):
+            <span class="tok-k">raise</span> IOError(<span class="tok-s">&#x27;The zip does not match the checksum in the catalog.&#x27;</span>)
+        <span class="tok-k">return</span> source
+
+    target = pg.zip_cache_path(catalog)
+    <span class="tok-k">if</span> os.path.isfile(target) <span class="tok-k">and</span> pg.verify_sha256(target, expected):
+        <span class="tok-k">return</span> target
+    folder = os.path.dirname(target)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> os.path.isdir(folder):
+        os.makedirs(folder)
+    part = target + <span class="tok-s">&#x27;.part&#x27;</span>
+    client = _client(_ZIP_TIMEOUT)
+    <span class="tok-k">try</span>:
+        File.WriteAllBytes(part, client.GetByteArrayAsync(source).Result)
+    <span class="tok-k">finally</span>:
+        client.Dispose()
+    <span class="tok-k">if</span> <span class="tok-k">not</span> pg.verify_sha256(part, expected):
+        os.remove(part)
+        <span class="tok-k">raise</span> IOError(<span class="tok-s">&#x27;The download does not match the checksum in the catalog.&#x27;</span>)
+    os.replace(part, target)
+    <span class="tok-k">return</span> target
+
+
+<span class="tok-c"># ---- the window ------------------------------------------------------------------</span>
+
+<span class="tok-k">class</span> Browser(object):
+
+    <span class="tok-k">def</span> __init__(<span class="tok-k">self</span>):
+        <span class="tok-k">self</span>.catalog = <span class="tok-k">None</span>
+        <span class="tok-k">self</span>.kind = <span class="tok-k">None</span>
+        <span class="tok-k">self</span>.where = <span class="tok-k">None</span>
+        <span class="tok-k">self</span>.installed = []
+        <span class="tok-k">self</span>.rows = {}            <span class="tok-c"># id -&gt; (row border, checkbox)</span>
+        <span class="tok-k">self</span>.busy = <span class="tok-k">False</span>
+        <span class="tok-k">self</span>.outcome = <span class="tok-k">None</span>
+        <span class="tok-k">self</span>.window = <span class="tok-k">self</span>._build()
+
+    <span class="tok-c"># -- layout --</span>
+
+    <span class="tok-k">def</span> _build(<span class="tok-k">self</span>):
+        window = Window()
+        window.Title = <span class="tok-s">&#x27;pyNavis Playground&#x27;</span>
+        window.Width = <span class="tok-n">860</span>
+        window.Height = <span class="tok-n">680</span>
+        window.MinWidth = <span class="tok-n">580</span>
+        window.MinHeight = <span class="tok-n">420</span>
+        window.WindowStartupLocation = WindowStartupLocation.CenterScreen
+        window.Background = DesignSystem.Brush(_T.Surface)
+        window.FontFamily = FontFamily(<span class="tok-s">&#x27;Segoe UI Variable Text, Segoe UI&#x27;</span>)
+        window.FontSize = <span class="tok-n">13</span>
+        window.Foreground = DesignSystem.Brush(_T.Ink)
+
+        grid = Grid()
+        grid.Margin = Thickness(<span class="tok-n">16</span>)
+        <span class="tok-k">for</span> height <span class="tok-k">in</span> (GridLength.Auto, GridLength.Auto,
+                       GridLength(<span class="tok-n">1</span>, GridUnitType.Star), GridLength.Auto):
+            row = RowDefinition()
+            row.Height = height
+            grid.RowDefinitions.Add(row)
+
+        grid.Children.Add(<span class="tok-k">self</span>._toolbar())
+
+        <span class="tok-k">self</span>.status = DesignSystem.Text(<span class="tok-s">&#x27;Loading the catalog...&#x27;</span>, <span class="tok-n">12</span>, _T.Muted)
+        <span class="tok-k">self</span>.status.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">8</span>, <span class="tok-n">0</span>, <span class="tok-n">8</span>)
+        Grid.SetRow(<span class="tok-k">self</span>.status, <span class="tok-n">1</span>)
+        grid.Children.Add(<span class="tok-k">self</span>.status)
+
+        <span class="tok-k">self</span>.list = StackPanel()
+        <span class="tok-k">self</span>.empty = DesignSystem.Text(<span class="tok-s">&#x27;&#x27;</span>, <span class="tok-n">13</span>, _T.Muted)
+        <span class="tok-k">self</span>.empty.Margin = Thickness(<span class="tok-n">12</span>)
+        <span class="tok-k">self</span>.empty.Visibility = Visibility.Collapsed
+        holder = StackPanel()
+        holder.Children.Add(<span class="tok-k">self</span>.empty)
+        holder.Children.Add(<span class="tok-k">self</span>.list)
+        scroll = ScrollViewer()
+        scroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        scroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        scroll.Content = holder
+        DesignSystem.SlimScroll(scroll)
+        frame = Border()
+        frame.BorderBrush = DesignSystem.Brush(_T.LineStrong)
+        frame.BorderThickness = Thickness(<span class="tok-n">1</span>)
+        frame.CornerRadius = CornerRadius(<span class="tok-n">4</span>)
+        frame.Background = DesignSystem.Brush(_T.Paper)
+        frame.Child = scroll
+        Grid.SetRow(frame, <span class="tok-n">2</span>)
+        grid.Children.Add(frame)
+
+        footer = <span class="tok-k">self</span>._footer()
+        Grid.SetRow(footer, <span class="tok-n">3</span>)
+        grid.Children.Add(footer)
+
+        window.Content = grid
+        window.Closing += <span class="tok-k">self</span>._closing
+        window.ContentRendered += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>.search.Focus()
+        <span class="tok-k">return</span> window
+
+    <span class="tok-k">def</span> _toolbar(<span class="tok-k">self</span>):
+        bar = Grid()
+        fill = ColumnDefinition()
+        fill.Width = GridLength(<span class="tok-n">1</span>, GridUnitType.Star)
+        side = ColumnDefinition()
+        side.Width = GridLength.Auto
+        bar.ColumnDefinitions.Add(fill)
+        bar.ColumnDefinitions.Add(side)
+
+        <span class="tok-k">self</span>.search = TextBox()
+        field = DesignSystem.InputField(_T, <span class="tok-k">self</span>.search)
+        field.Height = <span class="tok-n">32</span>
+        hint = DesignSystem.Text(<span class="tok-s">&#x27;Search titles, summaries, tabs and panels&#x27;</span>, <span class="tok-n">13</span>, _T.Muted)
+        hint.Margin = Thickness(<span class="tok-n">9</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+        hint.VerticalAlignment = VerticalAlignment.Center
+        hint.IsHitTestVisible = <span class="tok-k">False</span>
+        holder = Grid()
+        holder.Children.Add(field)
+        holder.Children.Add(hint)
+
+        <span class="tok-k">def</span> typed(sender, args):
+            hint.Visibility = Visibility.Collapsed <span class="tok-k">if</span> <span class="tok-k">self</span>.search.Text <span class="tok-k">else</span> Visibility.Visible
+            <span class="tok-k">self</span>._apply_filter()
+        <span class="tok-k">self</span>.search.TextChanged += typed
+        bar.Children.Add(holder)
+
+        <span class="tok-k">self</span>.filter = ComboBox()
+        <span class="tok-k">self</span>.filter.Width = <span class="tok-n">160</span>
+        <span class="tok-k">self</span>.filter.Height = <span class="tok-n">32</span>
+        <span class="tok-k">self</span>.filter.Margin = Thickness(<span class="tok-n">8</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+        <span class="tok-k">self</span>.filter.VerticalContentAlignment = VerticalAlignment.Center
+        <span class="tok-k">for</span> label, _value <span class="tok-k">in</span> _STATUS_LABELS:
+            <span class="tok-k">self</span>.filter.Items.Add(label)
+        <span class="tok-k">self</span>.filter.SelectedIndex = <span class="tok-n">0</span>
+        <span class="tok-k">self</span>.filter.SelectionChanged += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>._apply_filter()
+        Grid.SetColumn(<span class="tok-k">self</span>.filter, <span class="tok-n">1</span>)
+        bar.Children.Add(<span class="tok-k">self</span>.filter)
+        <span class="tok-k">return</span> bar
+
+    <span class="tok-k">def</span> _footer(<span class="tok-k">self</span>):
+        footer = Grid()
+        footer.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">12</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+        fill = ColumnDefinition()
+        fill.Width = GridLength(<span class="tok-n">1</span>, GridUnitType.Star)
+        side = ColumnDefinition()
+        side.Width = GridLength.Auto
+        footer.ColumnDefinitions.Add(fill)
+        footer.ColumnDefinitions.Add(side)
+
+        <span class="tok-k">self</span>.count = DesignSystem.Text(<span class="tok-s">&#x27;&#x27;</span>, <span class="tok-n">12</span>, _T.Muted)
+        <span class="tok-k">self</span>.count.VerticalAlignment = VerticalAlignment.Center
+        footer.Children.Add(<span class="tok-k">self</span>.count)
+
+        buttons = StackPanel()
+        buttons.Orientation = Orientation.Horizontal
+        <span class="tok-k">self</span>.open_button = DesignSystem.Quiet(_T, <span class="tok-s">&#x27;Open folder&#x27;</span>, <span class="tok-k">None</span>)
+        <span class="tok-k">self</span>.refresh_button = DesignSystem.Quiet(_T, <span class="tok-s">&#x27;Refresh&#x27;</span>, <span class="tok-k">None</span>)
+        <span class="tok-k">self</span>.remove_button = DesignSystem.Danger(_T, <span class="tok-s">&#x27;Remove&#x27;</span>, <span class="tok-k">None</span>)
+        <span class="tok-k">self</span>.install_button = DesignSystem.Primary(_T, <span class="tok-s">&#x27;Install&#x27;</span>, <span class="tok-k">None</span>)
+        <span class="tok-k">self</span>.open_button.Click += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>._open_folder()
+        <span class="tok-k">self</span>.refresh_button.Click += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>.load()
+        <span class="tok-k">self</span>.remove_button.Click += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>._remove()
+        <span class="tok-k">self</span>.install_button.Click += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>._install()
+        <span class="tok-k">for</span> i, button <span class="tok-k">in</span> enumerate((<span class="tok-k">self</span>.open_button, <span class="tok-k">self</span>.refresh_button,
+                                    <span class="tok-k">self</span>.remove_button, <span class="tok-k">self</span>.install_button)):
+            <span class="tok-k">if</span> i:
+                button.Margin = Thickness(<span class="tok-n">8</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+            buttons.Children.Add(button)
+        Grid.SetColumn(buttons, <span class="tok-n">1</span>)
+        footer.Children.Add(buttons)
+        <span class="tok-k">return</span> footer
+
+    <span class="tok-k">def</span> _row(<span class="tok-k">self</span>, tool, ticked, installed):
+        title = TextBlock()
+        title.TextWrapping = TextWrapping.Wrap
+        name = Run(tool[<span class="tok-s">&#x27;title&#x27;</span>])
+        name.FontWeight = FontWeights.SemiBold
+        name.Foreground = DesignSystem.Brush(_T.Ink)
+        title.Inlines.Add(name)
+        place = Run(<span class="tok-s">&#x27;   %s &gt; %s&#x27;</span> % (tool[<span class="tok-s">&#x27;tab&#x27;</span>], tool[<span class="tok-s">&#x27;panel&#x27;</span>]))
+        place.Foreground = DesignSystem.Brush(_T.Muted)
+        place.FontSize = <span class="tok-n">12</span>
+        title.Inlines.Add(place)
+
+        check = CheckBox()
+        check.Content = title
+        check.IsChecked = ticked
+        check.Foreground = DesignSystem.Brush(_T.Ink)
+        check.VerticalContentAlignment = VerticalAlignment.Top
+        check.Checked += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>._update_counts()
+        check.Unchecked += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>._update_counts()
+
+        text = StackPanel()
+        text.Children.Add(check)
+        <span class="tok-k">if</span> tool[<span class="tok-s">&#x27;summary&#x27;</span>]:
+            summary = DesignSystem.Text(tool[<span class="tok-s">&#x27;summary&#x27;</span>], <span class="tok-n">12.5</span>, _T.Muted)
+            summary.Margin = Thickness(<span class="tok-n">20</span>, <span class="tok-n">2</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+            text.Children.Add(summary)
+        meta = <span class="tok-k">self</span>._meta(tool, installed)
+        <span class="tok-k">if</span> meta <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            text.Children.Add(meta)
+
+        label, color = _CHIP.get(tool[<span class="tok-s">&#x27;status&#x27;</span>], _CHIP[<span class="tok-s">&#x27;untested&#x27;</span>])
+        chip = Border()
+        chip.BorderBrush = DesignSystem.Brush(color)
+        chip.BorderThickness = Thickness(<span class="tok-n">1</span>)
+        chip.CornerRadius = CornerRadius(<span class="tok-n">4</span>)
+        chip.Padding = Thickness(<span class="tok-n">6</span>, <span class="tok-n">1</span>, <span class="tok-n">6</span>, <span class="tok-n">1</span>)
+        chip.Margin = Thickness(<span class="tok-n">12</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+        chip.VerticalAlignment = VerticalAlignment.Top
+        chip.Child = DesignSystem.Text(label, <span class="tok-n">11.5</span>, color)
+
+        grid = Grid()
+        fill = ColumnDefinition()
+        fill.Width = GridLength(<span class="tok-n">1</span>, GridUnitType.Star)
+        side = ColumnDefinition()
+        side.Width = GridLength.Auto
+        grid.ColumnDefinitions.Add(fill)
+        grid.ColumnDefinitions.Add(side)
+        grid.Children.Add(text)
+        Grid.SetColumn(chip, <span class="tok-n">1</span>)
+        grid.Children.Add(chip)
+
+        row = Border()
+        row.Padding = Thickness(<span class="tok-n">12</span>, <span class="tok-n">8</span>, <span class="tok-n">12</span>, <span class="tok-n">8</span>)
+        row.BorderBrush = DesignSystem.Brush(_T.Line)
+        row.BorderThickness = Thickness(<span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">1</span>)
+        row.Child = grid
+        <span class="tok-k">return</span> row, check
+
+    <span class="tok-k">def</span> _meta(<span class="tok-k">self</span>, tool, installed):
+        <span class="tok-s">&quot;&quot;&quot;The quiet line under a summary: installed, stack mates, a known
+        issue&#x27;s note, and the Ask link to the request behind the tool.&quot;&quot;&quot;</span>
+        parts = []
+        <span class="tok-k">if</span> installed:
+            parts.append(<span class="tok-s">&#x27;Installed&#x27;</span>)
+        note = pg.sibling_note(<span class="tok-k">self</span>.catalog, tool)
+        <span class="tok-k">if</span> note:
+            parts.append(note)
+        <span class="tok-k">if</span> tool[<span class="tok-s">&#x27;status&#x27;</span>] == <span class="tok-s">&#x27;known-issue&#x27;</span> <span class="tok-k">and</span> tool.get(<span class="tok-s">&#x27;status_note&#x27;</span>):
+            parts.append(tool[<span class="tok-s">&#x27;status_note&#x27;</span>])
+        source = tool.get(<span class="tok-s">&#x27;source&#x27;</span>) <span class="tok-k">if</span> isinstance(tool.get(<span class="tok-s">&#x27;source&#x27;</span>), dict) <span class="tok-k">else</span> {}
+        url = pg.web_url(source.get(<span class="tok-s">&#x27;url&#x27;</span>))
+        <span class="tok-k">if</span> <span class="tok-k">not</span> parts <span class="tok-k">and</span> <span class="tok-k">not</span> url:
+            <span class="tok-k">return</span> <span class="tok-k">None</span>
+        line = TextBlock()
+        line.TextWrapping = TextWrapping.Wrap
+        line.FontSize = <span class="tok-n">12</span>
+        line.Foreground = DesignSystem.Brush(_T.Muted)
+        line.Margin = Thickness(<span class="tok-n">20</span>, <span class="tok-n">4</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+        <span class="tok-k">if</span> parts:
+            text = <span class="tok-s">&#x27;. &#x27;</span>.join(p.strip().rstrip(<span class="tok-s">&#x27;.&#x27;</span>) <span class="tok-k">for</span> p <span class="tok-k">in</span> parts) + <span class="tok-s">&#x27;.&#x27;</span>
+            line.Inlines.Add(Run(text + (<span class="tok-s">&#x27;   &#x27;</span> <span class="tok-k">if</span> url <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>)))
+        <span class="tok-k">if</span> url:
+            link = Hyperlink(Run(<span class="tok-s">&#x27;Ask&#x27;</span>))
+            link.Foreground = DesignSystem.Brush(_T.Ink)
+            quote = source.get(<span class="tok-s">&#x27;quote&#x27;</span>) <span class="tok-k">or</span> <span class="tok-s">&#x27;&#x27;</span>
+            where = <span class="tok-s">&#x27;, &#x27;</span>.join([p <span class="tok-k">for</span> p <span class="tok-k">in</span> (source.get(<span class="tok-s">&#x27;site&#x27;</span>), source.get(<span class="tok-s">&#x27;date&#x27;</span>)) <span class="tok-k">if</span> p])
+            link.ToolTip = (<span class="tok-s">&#x27;&quot;%s&quot;\n%s&#x27;</span> % (quote, where)).strip() <span class="tok-k">if</span> quote <span class="tok-k">else</span> (where <span class="tok-k">or</span> url)
+            link.Click += <span class="tok-k">lambda</span> s, e: script.open_url(url)
+            line.Inlines.Add(link)
+        <span class="tok-k">return</span> line
+
+    <span class="tok-c"># -- state --</span>
+
+    <span class="tok-k">def</span> _set_busy(<span class="tok-k">self</span>, busy, message=<span class="tok-k">None</span>):
+        <span class="tok-k">self</span>.busy = busy
+        <span class="tok-k">if</span> message <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            <span class="tok-k">self</span>.status.Text = message
+        <span class="tok-k">for</span> button <span class="tok-k">in</span> (<span class="tok-k">self</span>.refresh_button, <span class="tok-k">self</span>.install_button, <span class="tok-k">self</span>.remove_button):
+            button.IsEnabled = <span class="tok-k">not</span> busy
+        <span class="tok-k">if</span> <span class="tok-k">not</span> busy:
+            <span class="tok-k">self</span>._update_counts()
+
+    <span class="tok-k">def</span> _ticked(<span class="tok-k">self</span>):
+        <span class="tok-k">return</span> set(tid <span class="tok-k">for</span> tid, (row, check) <span class="tok-k">in</span> <span class="tok-k">self</span>.rows.items() <span class="tok-k">if</span> check.IsChecked)
+
+    <span class="tok-k">def</span> _update_counts(<span class="tok-k">self</span>):
+        <span class="tok-k">if</span> <span class="tok-k">self</span>.catalog <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            <span class="tok-k">self</span>.count.Text = <span class="tok-s">&#x27;&#x27;</span>
+            <span class="tok-k">self</span>.install_button.IsEnabled = <span class="tok-k">False</span>
+            <span class="tok-k">self</span>.remove_button.IsEnabled = <span class="tok-k">False</span>
+            <span class="tok-k">return</span>
+        ticked = <span class="tok-k">self</span>._ticked()
+        installed = set(<span class="tok-k">self</span>.installed)
+        adding = pg.install_plan(<span class="tok-k">self</span>.catalog, ticked, installed)[<span class="tok-s">&#x27;tools&#x27;</span>]
+        removing = pg.remove_plan(<span class="tok-k">self</span>.catalog, installed - ticked, installed)[<span class="tok-s">&#x27;tools&#x27;</span>]
+        bits = [<span class="tok-s">&#x27;%d selected&#x27;</span> % len(ticked)]
+        <span class="tok-k">if</span> adding:
+            bits.append(<span class="tok-s">&#x27;%d to install&#x27;</span> % len(adding))
+        <span class="tok-k">if</span> removing:
+            bits.append(<span class="tok-s">&#x27;%d to remove&#x27;</span> % len(removing))
+        <span class="tok-k">self</span>.count.Text = <span class="tok-s">&#x27;, &#x27;</span>.join(bits)
+        blocked = pg.needs_newer_pynavis(<span class="tok-k">self</span>.catalog, pynavis.__version__)
+        <span class="tok-k">self</span>.install_button.IsEnabled = bool(adding) <span class="tok-k">and</span> <span class="tok-k">not</span> <span class="tok-k">self</span>.busy <span class="tok-k">and</span> <span class="tok-k">not</span> blocked
+        <span class="tok-k">self</span>.remove_button.IsEnabled = bool(removing) <span class="tok-k">and</span> <span class="tok-k">not</span> <span class="tok-k">self</span>.busy
+
+    <span class="tok-k">def</span> _apply_filter(<span class="tok-k">self</span>):
+        <span class="tok-k">if</span> <span class="tok-k">self</span>.catalog <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            <span class="tok-k">return</span>
+        status = _STATUS_LABELS[max(<span class="tok-n">0</span>, <span class="tok-k">self</span>.filter.SelectedIndex)][<span class="tok-n">1</span>]
+        shown = set(t[<span class="tok-s">&#x27;id&#x27;</span>] <span class="tok-k">for</span> t <span class="tok-k">in</span> pg.filter_tools(<span class="tok-k">self</span>.catalog[<span class="tok-s">&#x27;tools&#x27;</span>], <span class="tok-k">self</span>.search.Text, status))
+        <span class="tok-k">for</span> tid, (row, check) <span class="tok-k">in</span> <span class="tok-k">self</span>.rows.items():
+            row.Visibility = Visibility.Visible <span class="tok-k">if</span> tid <span class="tok-k">in</span> shown <span class="tok-k">else</span> Visibility.Collapsed
+        <span class="tok-k">self</span>.empty.Text = <span class="tok-s">&#x27;No tool matches the search.&#x27;</span>
+        <span class="tok-k">self</span>.empty.Visibility = Visibility.Collapsed <span class="tok-k">if</span> shown <span class="tok-k">else</span> Visibility.Visible
+
+    <span class="tok-k">def</span> _show(<span class="tok-k">self</span>, catalog, kind, where, note):
+        keep = <span class="tok-k">self</span>._ticked() <span class="tok-k">if</span> <span class="tok-k">self</span>.catalog <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-k">None</span>
+        <span class="tok-k">self</span>.catalog, <span class="tok-k">self</span>.kind, <span class="tok-k">self</span>.where = catalog, kind, where
+        <span class="tok-k">self</span>.installed = pg.installed_on_disk(catalog, pg.extension_dir(catalog))
+        <span class="tok-k">self</span>.rows = {}
+        <span class="tok-k">self</span>.list.Children.Clear()
+        <span class="tok-k">for</span> tool <span class="tok-k">in</span> catalog[<span class="tok-s">&#x27;tools&#x27;</span>]:
+            installed = tool[<span class="tok-s">&#x27;id&#x27;</span>] <span class="tok-k">in</span> <span class="tok-k">self</span>.installed
+            ticked = installed <span class="tok-k">if</span> keep <span class="tok-k">is</span> <span class="tok-k">None</span> <span class="tok-k">else</span> (tool[<span class="tok-s">&#x27;id&#x27;</span>] <span class="tok-k">in</span> keep <span class="tok-k">or</span> installed)
+            row, check = <span class="tok-k">self</span>._row(tool, ticked, installed)
+            <span class="tok-k">self</span>.rows[tool[<span class="tok-s">&#x27;id&#x27;</span>]] = (row, check)
+            <span class="tok-k">self</span>.list.Children.Add(row)
+        summary = <span class="tok-s">&#x27;%s %s, %d tools, %d installed. Every tool here is experimental.&#x27;</span> % (
+            catalog[<span class="tok-s">&#x27;name&#x27;</span>], catalog[<span class="tok-s">&#x27;version&#x27;</span>], len(catalog[<span class="tok-s">&#x27;tools&#x27;</span>]), len(<span class="tok-k">self</span>.installed))
+        <span class="tok-k">if</span> pg.needs_newer_pynavis(catalog, pynavis.__version__):
+            summary = (<span class="tok-s">&#x27;This catalog needs pyNavis %s or newer to install from. Update pyNavis first.&#x27;</span>
+                       % catalog.get(<span class="tok-s">&#x27;min_pynavis&#x27;</span>))
+        <span class="tok-k">self</span>.status.Text = (note + <span class="tok-s">&#x27; &#x27;</span> + summary) <span class="tok-k">if</span> note <span class="tok-k">else</span> summary
+        <span class="tok-k">self</span>._apply_filter()
+        <span class="tok-k">self</span>._update_counts()
+
+    <span class="tok-c"># -- actions --</span>
+
+    <span class="tok-k">def</span> load(<span class="tok-k">self</span>):
+        <span class="tok-k">self</span>._set_busy(<span class="tok-k">True</span>, <span class="tok-s">&#x27;Loading the catalog...&#x27;</span>)
+
+        <span class="tok-k">def</span> done(result, error):
+            <span class="tok-k">self</span>._set_busy(<span class="tok-k">False</span>)
+            <span class="tok-k">if</span> error <span class="tok-k">is</span> <span class="tok-k">None</span>:
+                kind, where, text = result
+                <span class="tok-k">try</span>:
+                    catalog = pg.parse_catalog(text)
+                <span class="tok-k">except</span> pg.CatalogError <span class="tok-k">as</span> bad:
+                    <span class="tok-k">self</span>._fallback(<span class="tok-s">&#x27;The catalog could not be used&#x27;</span>, str(bad))
+                    <span class="tok-k">return</span>
+                <span class="tok-k">try</span>:
+                    pg.save_cached(text)
+                <span class="tok-k">except</span> Exception <span class="tok-k">as</span> cache_error:
+                    script.get_logger().warning(<span class="tok-s">&#x27;catalog not cached: %s&#x27;</span> % _reason(cache_error))
+                <span class="tok-k">self</span>._show(catalog, kind, where, <span class="tok-s">&#x27;&#x27;</span>)
+                <span class="tok-k">return</span>
+            kind, where = pg.catalog_url(_config())
+            <span class="tok-k">if</span> kind == <span class="tok-s">&#x27;file&#x27;</span>:
+                <span class="tok-k">self</span>._fallback(<span class="tok-s">&#x27;The catalog file could not be read&#x27;</span>, _reason(error))
+            <span class="tok-k">else</span>:
+                <span class="tok-k">self</span>._fallback(<span class="tok-s">&#x27;GitHub could not be reached&#x27;</span>, _reason(error))
+
+        <span class="tok-k">self</span>._background(_fetch_catalog, done)
+
+    <span class="tok-k">def</span> _fallback(<span class="tok-k">self</span>, message, detail):
+        script.get_logger().warning(<span class="tok-s">&#x27;%s: %s&#x27;</span> % (message, detail))
+        toast.error(message, detail)
+        cached = pg.load_cached()
+        <span class="tok-k">if</span> cached <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            <span class="tok-k">self</span>._show(cached, <span class="tok-s">&#x27;url&#x27;</span>, pg.DEFAULT_CATALOG_URL,
+                       <span class="tok-s">&#x27;Showing the catalog saved on this PC.&#x27;</span>)
+        <span class="tok-k">elif</span> <span class="tok-k">self</span>.catalog <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            <span class="tok-k">self</span>.status.Text = <span class="tok-s">&#x27;No catalog yet. Check the connection, then click Refresh.&#x27;</span>
+            <span class="tok-k">self</span>._update_counts()
+
+    <span class="tok-k">def</span> _install(<span class="tok-k">self</span>):
+        installed = set(<span class="tok-k">self</span>.installed)
+        plan = pg.install_plan(<span class="tok-k">self</span>.catalog, <span class="tok-k">self</span>._ticked(), installed)
+        <span class="tok-k">if</span> <span class="tok-k">not</span> plan[<span class="tok-s">&#x27;tools&#x27;</span>]:
+            <span class="tok-k">return</span>
+        catalog, kind, where = <span class="tok-k">self</span>.catalog, <span class="tok-k">self</span>.kind, <span class="tok-k">self</span>.where
+        target = pg.extension_dir(catalog)
+        <span class="tok-k">self</span>._set_busy(<span class="tok-k">True</span>, <span class="tok-s">&#x27;Downloading and installing %s...&#x27;</span> % _tools(len(plan[<span class="tok-s">&#x27;tools&#x27;</span>])))
+
+        <span class="tok-k">def</span> work():
+            zip_path = _ensure_zip(catalog, kind, where)
+            pg.install_files(zip_path, plan, target)
+            state = os.path.join(pg.data_dir(), <span class="tok-s">&#x27;installed.json&#x27;</span>)
+            pg.write_installed(state, pg.record_install(
+                pg.read_installed(state), catalog, plan[<span class="tok-s">&#x27;tools&#x27;</span>],
+                datetime.date.today().isoformat()))
+            <span class="tok-k">return</span> plan
+
+        <span class="tok-k">def</span> done(result, error):
+            <span class="tok-k">self</span>._set_busy(<span class="tok-k">False</span>)
+            <span class="tok-k">if</span> error <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+                script.get_logger().error(<span class="tok-s">&#x27;playground install failed: %s&#x27;</span> % _reason(error))
+                toast.error(<span class="tok-s">&#x27;The tools could not be installed&#x27;</span>, _reason(error))
+                <span class="tok-k">self</span>._show(<span class="tok-k">self</span>.catalog, <span class="tok-k">self</span>.kind, <span class="tok-k">self</span>.where, <span class="tok-s">&#x27;&#x27;</span>)
+                <span class="tok-k">return</span>
+            <span class="tok-k">self</span>.outcome = (<span class="tok-s">&#x27;installed&#x27;</span>, result)
+            <span class="tok-k">self</span>.window.Close()
+
+        <span class="tok-k">self</span>._background(work, done)
+
+    <span class="tok-k">def</span> _remove(<span class="tok-k">self</span>):
+        installed = set(<span class="tok-k">self</span>.installed)
+        plan = pg.remove_plan(<span class="tok-k">self</span>.catalog, installed - <span class="tok-k">self</span>._ticked(), installed)
+        <span class="tok-k">if</span> <span class="tok-k">not</span> plan[<span class="tok-s">&#x27;tools&#x27;</span>]:
+            <span class="tok-k">return</span>
+        <span class="tok-k">if</span> <span class="tok-k">not</span> forms.confirm(<span class="tok-s">&#x27;Remove %s? Their folders are deleted, with any changes &#x27;</span>
+                             <span class="tok-s">&#x27;you made to them.&#x27;</span> % _tools(len(plan[<span class="tok-s">&#x27;tools&#x27;</span>])),
+                             <span class="tok-s">&#x27;pyNavis Playground&#x27;</span>):
+            <span class="tok-k">return</span>                                  <span class="tok-c"># cancelled: say nothing</span>
+        <span class="tok-k">try</span>:
+            pg.remove_files(pg.extension_dir(<span class="tok-k">self</span>.catalog), plan)
+            state = os.path.join(pg.data_dir(), <span class="tok-s">&#x27;installed.json&#x27;</span>)
+            pg.write_installed(state, pg.record_remove(pg.read_installed(state), plan[<span class="tok-s">&#x27;tools&#x27;</span>]))
+        <span class="tok-k">except</span> Exception <span class="tok-k">as</span> error:
+            script.get_logger().error(<span class="tok-s">&#x27;playground remove failed: %s&#x27;</span> % _reason(error))
+            toast.error(<span class="tok-s">&#x27;The tools could not be removed&#x27;</span>, _reason(error))
+            <span class="tok-k">self</span>._show(<span class="tok-k">self</span>.catalog, <span class="tok-k">self</span>.kind, <span class="tok-k">self</span>.where, <span class="tok-s">&#x27;&#x27;</span>)
+            <span class="tok-k">return</span>
+        <span class="tok-k">self</span>.outcome = (<span class="tok-s">&#x27;removed&#x27;</span>, plan)
+        <span class="tok-k">self</span>.window.Close()
+
+    <span class="tok-k">def</span> _open_folder(<span class="tok-k">self</span>):
+        target = pg.extension_dir(<span class="tok-k">self</span>.catalog)
+        <span class="tok-k">if</span> os.path.isdir(target):
+            script.show_in_explorer(target)
+        <span class="tok-k">else</span>:
+            toast.info(<span class="tok-s">&#x27;Nothing is installed yet&#x27;</span>, <span class="tok-s">&#x27;Tick a tool and click Install&#x27;</span>)
+
+    <span class="tok-k">def</span> _closing(<span class="tok-k">self</span>, sender, args):
+        <span class="tok-k">if</span> <span class="tok-k">self</span>.busy <span class="tok-k">and</span> <span class="tok-k">self</span>.outcome <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            args.Cancel = <span class="tok-k">True</span>
+
+    <span class="tok-k">def</span> _background(<span class="tok-k">self</span>, work, done):
+        <span class="tok-s">&quot;&quot;&quot;Runs work() off the UI thread, then done(result, error) back on it.&quot;&quot;&quot;</span>
+        dispatcher = <span class="tok-k">self</span>.window.Dispatcher
+
+        <span class="tok-k">def</span> body():
+            result, error = <span class="tok-k">None</span>, <span class="tok-k">None</span>
+            <span class="tok-k">try</span>:
+                result = work()
+            <span class="tok-k">except</span> Exception <span class="tok-k">as</span> ex:
+                error = ex
+            dispatcher.BeginInvoke(Action(<span class="tok-k">lambda</span>: <span class="tok-k">self</span>._finish(done, result, error)))
+
+        thread = Thread(ThreadStart(body))
+        thread.IsBackground = <span class="tok-k">True</span>
+        thread.Start()
+
+    <span class="tok-k">def</span> _finish(<span class="tok-k">self</span>, done, result, error):
+        <span class="tok-c"># Raised here, a bug would surface far from its cause and leave the</span>
+        <span class="tok-c"># window stuck busy, so it is logged, toasted and the window freed.</span>
+        <span class="tok-k">try</span>:
+            done(result, error)
+        <span class="tok-k">except</span> Exception <span class="tok-k">as</span> bug:
+            script.get_logger().error(<span class="tok-s">&#x27;playground: %s&#x27;</span> % _reason(bug))
+            toast.error(<span class="tok-s">&#x27;Playground hit an error&#x27;</span>, _reason(bug))
+            <span class="tok-k">try</span>:
+                <span class="tok-k">self</span>._set_busy(<span class="tok-k">False</span>)               <span class="tok-c"># Refresh too, not just Install and Remove</span>
+            <span class="tok-k">except</span> Exception:
+                <span class="tok-k">self</span>.busy = <span class="tok-k">False</span>
+
+    <span class="tok-k">def</span> show(<span class="tok-k">self</span>):
+        FluentChrome.Apply(<span class="tok-k">self</span>.window)
+        <span class="tok-k">self</span>.window.Loaded += <span class="tok-k">lambda</span> s, e: <span class="tok-k">self</span>.load()
+        <span class="tok-k">self</span>.window.ShowDialog()
+        <span class="tok-k">return</span> <span class="tok-k">self</span>.outcome
+
+
+<span class="tok-k">def</span> _tools(count):
+    <span class="tok-k">return</span> <span class="tok-s">&#x27;%d tool%s&#x27;</span> % (count, <span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> count == <span class="tok-n">1</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;s&#x27;</span>)
+
+
+<span class="tok-k">def</span> _tabs(catalog, ids):
+    by_id = pg.tool_by_id(catalog)
+    tabs = []
+    <span class="tok-k">for</span> tid <span class="tok-k">in</span> ids:
+        tab = by_id[tid][<span class="tok-s">&#x27;tab&#x27;</span>]
+        <span class="tok-k">if</span> tab <span class="tok-k">and</span> tab <span class="tok-k">not</span> <span class="tok-k">in</span> tabs:
+            tabs.append(tab)
+    <span class="tok-k">return</span> tabs
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">if</span> globals().get(<span class="tok-s">&#x27;__runner__&#x27;</span>) <span class="tok-k">or</span> script.is_runner():
+        toast.info(<span class="tok-s">&#x27;Playground opens a window&#x27;</span>, <span class="tok-s">&#x27;Run it from the ribbon, not from pynavis run&#x27;</span>)
+        <span class="tok-k">return</span>
+    browser = Browser()
+    outcome = browser.show()
+    <span class="tok-k">if</span> outcome <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>                                      <span class="tok-c"># closed: say nothing</span>
+    kind, plan = outcome
+    script.reload_pynavis()
+    <span class="tok-k">if</span> kind == <span class="tok-s">&#x27;installed&#x27;</span>:
+        tabs = _tabs(browser.catalog, plan[<span class="tok-s">&#x27;tools&#x27;</span>])
+        detail = <span class="tok-s">&#x27;Find them on the %s tab%s. They are experimental.&#x27;</span> % (
+            pg.join_and(tabs), <span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> len(tabs) == <span class="tok-n">1</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;s&#x27;</span>) <span class="tok-k">if</span> tabs <span class="tok-k">else</span> <span class="tok-s">&#x27;They are experimental.&#x27;</span>
+        toast.success(<span class="tok-s">&#x27;Installed %s&#x27;</span> % _tools(len(plan[<span class="tok-s">&#x27;tools&#x27;</span>])), detail)
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Removed %s&#x27;</span> % _tools(len(plan[<span class="tok-s">&#x27;tools&#x27;</span>])))
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Playground.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Shift+Click on Playground: where the catalog comes from, and the install folder.
+
+Writes config.json playground.catalog, or removes it to go back to the catalog
+on GitHub. A local path is accepted for working offline or on a catalog that is
+not published yet; its zip may sit beside it.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> os
+
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PresentationFramework&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PresentationCore&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;WindowsBase&#x27;</span>)
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+
+<span class="tok-k">from</span> System.Windows <span class="tok-k">import</span> (
+    GridLength, GridUnitType, HorizontalAlignment, ResizeMode, SizeToContent,
+    Thickness, Window, WindowStartupLocation,
+)
+<span class="tok-k">from</span> System.Windows.Controls <span class="tok-k">import</span> ColumnDefinition, Grid, Orientation, StackPanel, TextBox
+<span class="tok-k">from</span> System.Windows.Media <span class="tok-k">import</span> FontFamily
+
+<span class="tok-k">from</span> PyNavis.Runtime <span class="tok-k">import</span> RuntimeHost
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> DesignSystem, FluentChrome
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, toast
+
+<span class="tok-k">try</span>:
+    <span class="tok-k">import</span> playground <span class="tok-k">as</span> pg       <span class="tok-c"># extension lib/, which pynavis run does not put on the path</span>
+<span class="tok-k">except</span> ImportError:
+    pg = <span class="tok-k">None</span>
+
+_T = DesignSystem.Tokens.Current
+
+
+<span class="tok-k">def</span> _current(path):
+    <span class="tok-k">try</span>:
+        section = pg.read_config(path).get(<span class="tok-s">&#x27;playground&#x27;</span>)
+    <span class="tok-k">except</span> Exception:
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;&#x27;</span>
+    <span class="tok-k">if</span> isinstance(section, dict) <span class="tok-k">and</span> isinstance(section.get(<span class="tok-s">&#x27;catalog&#x27;</span>), str):
+        <span class="tok-k">return</span> section[<span class="tok-s">&#x27;catalog&#x27;</span>]
+    <span class="tok-k">return</span> <span class="tok-s">&#x27;&#x27;</span>
+
+
+<span class="tok-k">def</span> _ask(current):
+    <span class="tok-s">&quot;&quot;&quot;The catalog the user wants (&#x27;&#x27; for GitHub), or None when they cancel.&quot;&quot;&quot;</span>
+    window = Window()
+    window.Title = <span class="tok-s">&#x27;Playground settings&#x27;</span>
+    window.Width = <span class="tok-n">520</span>
+    window.SizeToContent = SizeToContent.Height
+    window.ResizeMode = ResizeMode.NoResize
+    window.WindowStartupLocation = WindowStartupLocation.CenterScreen
+    window.Background = DesignSystem.Brush(_T.Paper)
+    window.FontFamily = FontFamily(<span class="tok-s">&#x27;Segoe UI Variable Text, Segoe UI&#x27;</span>)
+    window.FontSize = <span class="tok-n">13</span>
+
+    body = StackPanel()
+    body.Margin = Thickness(<span class="tok-n">24</span>)
+    body.Children.Add(DesignSystem.Text(<span class="tok-s">&#x27;Catalog&#x27;</span>, <span class="tok-n">13</span>, _T.Ink))
+
+    box = TextBox()
+    box.Text = current
+    field = DesignSystem.InputField(_T, box)
+    field.Height = <span class="tok-n">32</span>
+    field.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">8</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+    body.Children.Add(field)
+
+    hint = DesignSystem.Text(
+        <span class="tok-s">&#x27;Leave it empty for the catalog on GitHub. A web address or the path of a &#x27;</span>
+        <span class="tok-s">&#x27;catalog.json on this PC or a share also works; a local catalog may keep its &#x27;</span>
+        <span class="tok-s">&#x27;zip beside it.&#x27;</span>, <span class="tok-n">12</span>, _T.Muted)
+    hint.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">6</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+    body.Children.Add(hint)
+
+    tools = StackPanel()
+    tools.Orientation = Orientation.Horizontal
+    tools.Margin = Thickness(-<span class="tok-n">12</span>, <span class="tok-n">12</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+
+    <span class="tok-k">def</span> browse():
+        path = forms.open_file(<span class="tok-s">&#x27;Catalog (*.json)|*.json|All files (*.*)|*.*&#x27;</span>, <span class="tok-s">&#x27;Choose a catalog&#x27;</span>)
+        <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            box.Text = path
+
+    <span class="tok-k">def</span> open_folder():
+        target = pg.extension_dir()
+        <span class="tok-k">if</span> os.path.isdir(target):
+            script.show_in_explorer(target)
+        <span class="tok-k">else</span>:
+            toast.info(<span class="tok-s">&#x27;Nothing is installed yet&#x27;</span>, <span class="tok-s">&#x27;Install a tool from Playground first&#x27;</span>)
+
+    tools.Children.Add(DesignSystem.Quiet(_T, <span class="tok-s">&#x27;Browse...&#x27;</span>, browse))
+    tools.Children.Add(DesignSystem.Quiet(_T, <span class="tok-s">&#x27;Use GitHub&#x27;</span>, <span class="tok-k">lambda</span>: setattr(box, <span class="tok-s">&#x27;Text&#x27;</span>, <span class="tok-s">&#x27;&#x27;</span>)))
+    tools.Children.Add(DesignSystem.Quiet(_T, <span class="tok-s">&#x27;Open install folder&#x27;</span>, open_folder))
+    body.Children.Add(tools)
+
+    answer = {<span class="tok-s">&#x27;value&#x27;</span>: <span class="tok-k">None</span>}
+
+    <span class="tok-k">def</span> save():
+        answer[<span class="tok-s">&#x27;value&#x27;</span>] = box.Text.strip()
+        window.DialogResult = <span class="tok-k">True</span>
+
+    footer = Grid()
+    footer.Margin = Thickness(<span class="tok-n">0</span>, <span class="tok-n">24</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+    fill = ColumnDefinition()
+    fill.Width = GridLength(<span class="tok-n">1</span>, GridUnitType.Star)
+    footer.ColumnDefinitions.Add(fill)
+    buttons = StackPanel()
+    buttons.Orientation = Orientation.Horizontal
+    buttons.HorizontalAlignment = HorizontalAlignment.Right
+    cancel = DesignSystem.Secondary(_T, <span class="tok-s">&#x27;Cancel&#x27;</span>, <span class="tok-k">lambda</span>: window.Close())
+    cancel.IsCancel = <span class="tok-k">True</span>
+    ok = DesignSystem.Primary(_T, <span class="tok-s">&#x27;Save&#x27;</span>, save)
+    ok.IsDefault = <span class="tok-k">True</span>
+    ok.Margin = Thickness(<span class="tok-n">8</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>, <span class="tok-n">0</span>)
+    buttons.Children.Add(cancel)
+    buttons.Children.Add(ok)
+    footer.Children.Add(buttons)
+    body.Children.Add(footer)
+
+    window.Content = body
+    window.ContentRendered += <span class="tok-k">lambda</span> s, e: box.Focus()
+    FluentChrome.Apply(window)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> window.ShowDialog():
+        <span class="tok-k">return</span> <span class="tok-k">None</span>
+    <span class="tok-k">return</span> answer[<span class="tok-s">&#x27;value&#x27;</span>]
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">if</span> globals().get(<span class="tok-s">&#x27;__runner__&#x27;</span>) <span class="tok-k">or</span> script.is_runner():
+        toast.info(<span class="tok-s">&#x27;Playground settings open a window&#x27;</span>, <span class="tok-s">&#x27;Run them from the ribbon, not from pynavis run&#x27;</span>)
+        <span class="tok-k">return</span>
+    path = RuntimeHost.UserConfigPath
+    current = _current(path)
+    value = _ask(current)
+    <span class="tok-k">if</span> value <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>                                      <span class="tok-c"># cancelled: say nothing</span>
+    <span class="tok-k">if</span> value == current.strip():
+        toast.info(<span class="tok-s">&#x27;The catalog setting is unchanged&#x27;</span>)
+        <span class="tok-k">return</span>
+    <span class="tok-k">try</span>:
+        pg.save_catalog_override(path, value)
+    <span class="tok-k">except</span> Exception <span class="tok-k">as</span> error:
+        script.get_logger().error(<span class="tok-s">&#x27;playground catalog not saved: %s&#x27;</span> % error)
+        toast.error(<span class="tok-s">&#x27;The catalog setting could not be saved&#x27;</span>, str(error))
+        <span class="tok-k">return</span>
+    <span class="tok-k">if</span> value:
+        toast.success(<span class="tok-s">&#x27;Playground catalog set&#x27;</span>, value)
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Playground uses the catalog on GitHub&#x27;</span>)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Playground.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Playground
+<span class="tok-k">tooltip</span>: Browse pyNavis Playground, a catalog of experimental tools, read the ask behind each one, and install only the ones you tick. Shift+Click to set where the catalog comes from.</code></pre></div>
   <div class="pagenav">
 <a href="reload.html"><span class="dir">Previous</span><span class="ttl">Reload</span></a>
 <a class="next" href="panel-slots.html"><span class="dir">Next</span><span class="ttl">Panel slots</span></a>
@@ -153,6 +931,7 @@ install folder.</p>
 <a href="#where-things-go">Where things go</a>
 <a href="#shift-click">Shift+Click</a>
 <a href="#limitations">Limitations</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

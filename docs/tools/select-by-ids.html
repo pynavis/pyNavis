@@ -122,6 +122,387 @@ name instead.</p>
     reverse.</li>
   <li>Check a list of "fixed" elements from an email against the current model.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Data.panel/Element_IDs.stack/Select_by_IDs.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Element_IDs.stack/Select_by_IDs.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Selects elements by their Revit element ID.
+
+The paste box always opens, with the clipboard&#x27;s IDs already in it when the
+clipboard holds something that looks like IDs (see elementids.clipboard_ids
+for what counts). So copying a column of IDs out of a clash report or a
+schedule and clicking the button leaves nothing to type - but the IDs are
+still shown for approval and editing before anything is searched, because the
+search costs seconds per ID and replaces the current selection when it lands.
+
+Both places an element id hides in a federated model are searched, and the
+one that worked moves to the front for the remaining ids, so a whole paste
+costs one walk of the model per id in a model of either flavour:
+
+  * the &quot;Element ID&quot; property tab an NWC exported from Revit carries
+  * the &quot;[123456]&quot; suffix a model published straight through design
+    coordination carries in its name instead, having no such tab at all
+
+Only real elements match - nodes the exporter marked with its Element
+category. The nested parts under a family instance carry an &quot;Element ID&quot; tab
+too, holding the TYPE&#x27;s id, and without the check a pasted type id resolved
+to the first instance of that family (see elementids.ELEMENT_CATEGORY). One
+id then selects one item; the every_match setting keeps walking for the same
+element exported into more than one file.
+
+Zooming, hiding everything else, whether the clipboard fills the box, and
+every_match are settings; Shift+Click opens them. Everything above the guard at the bottom is
+pure, so this file doubles as an importable module for tests (see
+src/PyNavis.Tests/SelectByIdsScriptTests.cs).
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> elementids
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, sets, settings, toast, view
+
+<span class="tok-c"># What a python int compiles to in a search condition is</span>
+<span class="tok-c"># VariantData.FromInt32, so a larger id has to be matched as text instead of</span>
+<span class="tok-c"># overflowing on the way in.</span>
+_INT32_MAX = <span class="tok-n">2147483647</span>
+
+<span class="tok-c"># The shapes an element id search can take, tried in this order until one</span>
+<span class="tok-c"># matches. The property tab is the common case and goes first; the name</span>
+<span class="tok-c"># suffix is the design coordination fallback.</span>
+<span class="tok-c">#</span>
+<span class="tok-c"># Text before number, though both read the same property: the Revit exporter</span>
+<span class="tok-c"># stores the id as a DisplayString (field-checked - the variant</span>
+<span class="tok-c"># reports IsDisplayString, and an EqualValue against FromInt32 matched nothing</span>
+<span class="tok-c"># on a model whose tab plainly held the id). Number stays for a model that</span>
+<span class="tok-c"># does store it numerically, but it is the rarer shape and a strategy that</span>
+<span class="tok-c"># misses costs a full walk of the model, so it must not be the one tried first.</span>
+STRATEGIES = (<span class="tok-s">&#x27;text&#x27;</span>, <span class="tok-s">&#x27;number&#x27;</span>, <span class="tok-s">&#x27;name&#x27;</span>)
+
+<span class="tok-c"># Above this many ids the search gets a progress window with a Cancel button.</span>
+<span class="tok-c"># One id is a second or so and the window would only flash; two is already</span>
+<span class="tok-c"># long enough to want to see which id is being looked for.</span>
+_PROGRESS_THRESHOLD = <span class="tok-n">1</span>
+
+<span class="tok-c"># How many ids a toast detail line names before it starts counting instead.</span>
+_DETAIL_LIMIT = <span class="tok-n">8</span>
+
+
+<span class="tok-k">def</span> condition_for(strategy, element_id, values):
+    <span class="tok-s">&quot;&quot;&quot;The single search condition for one strategy, or None when it cannot
+    apply to this id at all.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> strategy == <span class="tok-s">&#x27;name&#x27;</span>:
+        <span class="tok-c"># Both brackets on purpose: &quot;[123456]&quot; cannot match &quot;[1234567]&quot;.</span>
+        <span class="tok-k">return</span> {<span class="tok-s">&#x27;category&#x27;</span>: <span class="tok-s">&#x27;Item&#x27;</span>, <span class="tok-s">&#x27;prop&#x27;</span>: <span class="tok-s">&#x27;Name&#x27;</span>,
+                <span class="tok-s">&#x27;op&#x27;</span>: <span class="tok-s">&#x27;contains&#x27;</span>, <span class="tok-s">&#x27;value&#x27;</span>: <span class="tok-s">&#x27;[%s]&#x27;</span> % element_id}
+
+    category = values[<span class="tok-s">&#x27;id_category&#x27;</span>]
+    prop = values[<span class="tok-s">&#x27;id_property&#x27;</span>]
+    <span class="tok-k">if</span> strategy == <span class="tok-s">&#x27;text&#x27;</span>:
+        <span class="tok-k">return</span> {<span class="tok-s">&#x27;category&#x27;</span>: category, <span class="tok-s">&#x27;prop&#x27;</span>: prop,
+                <span class="tok-s">&#x27;op&#x27;</span>: <span class="tok-s">&#x27;equals&#x27;</span>, <span class="tok-s">&#x27;value&#x27;</span>: str(element_id)}
+
+    number = int(element_id)
+    <span class="tok-k">if</span> number &gt; _INT32_MAX:
+        <span class="tok-k">return</span> <span class="tok-k">None</span>
+    <span class="tok-k">return</span> {<span class="tok-s">&#x27;category&#x27;</span>: category, <span class="tok-s">&#x27;prop&#x27;</span>: prop, <span class="tok-s">&#x27;op&#x27;</span>: <span class="tok-s">&#x27;equals&#x27;</span>, <span class="tok-s">&#x27;value&#x27;</span>: number}
+
+
+<span class="tok-k">def</span> query_for(strategy, element_id, values, elements_only):
+    <span class="tok-s">&quot;&quot;&quot;The whole query for one strategy, or None when the strategy cannot
+    apply to this id.
+
+    elements_only ANDs in &quot;carries the exporter&#x27;s Element category&quot;, so a
+    property-tab match has to be a real Revit element and not one of the
+    nested parts that carry the TYPE&#x27;s id under the same tab (see
+    elementids.ELEMENT_CATEGORY). It is skipped for the name strategy: a
+    design coordination model has no Revit categories at all, and there the
+    bracketed suffix IS the element.
+    &quot;&quot;&quot;</span>
+    condition = condition_for(strategy, element_id, values)
+    <span class="tok-k">if</span> condition <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span> <span class="tok-k">None</span>
+    conditions = [condition]
+    <span class="tok-k">if</span> elements_only <span class="tok-k">and</span> strategy != <span class="tok-s">&#x27;name&#x27;</span>:
+        conditions.append({<span class="tok-s">&#x27;category&#x27;</span>: elementids.ELEMENT_CATEGORY,
+                           <span class="tok-s">&#x27;op&#x27;</span>: <span class="tok-s">&#x27;has_category&#x27;</span>, <span class="tok-s">&#x27;by_display&#x27;</span>: <span class="tok-k">False</span>})
+    <span class="tok-k">return</span> {<span class="tok-s">&#x27;or&#x27;</span>: [{<span class="tok-s">&#x27;and&#x27;</span>: conditions}]}
+
+
+<span class="tok-k">def</span> strategies_for(kind):
+    <span class="tok-s">&quot;&quot;&quot;STRATEGIES minus the property shape the model provably does not store.
+
+    kind is what stored_kind read off the model: &#x27;text&#x27; (a DisplayString, the
+    Revit exporter&#x27;s shape), &#x27;number&#x27; (an Int32), or None when it could not
+    tell. A property strategy that cannot match is not free to keep: every
+    strategy tried on an id that misses costs a full walk of the model, so on
+    the 1.75M-item federation dropping the impossible one takes a miss - and
+    a type id is now a miss by design - from ~9s to ~6s.
+    &quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> kind == <span class="tok-s">&#x27;text&#x27;</span>:
+        <span class="tok-k">return</span> (<span class="tok-s">&#x27;text&#x27;</span>, <span class="tok-s">&#x27;name&#x27;</span>)
+    <span class="tok-k">if</span> kind == <span class="tok-s">&#x27;number&#x27;</span>:
+        <span class="tok-k">return</span> (<span class="tok-s">&#x27;number&#x27;</span>, <span class="tok-s">&#x27;name&#x27;</span>)
+    <span class="tok-k">return</span> STRATEGIES
+
+
+<span class="tok-k">def</span> promote(order, winner):
+    <span class="tok-s">&quot;&quot;&quot;order with winner moved to the front, so the next id tries what just
+    worked first. A winner that is not in order leaves it unchanged.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> winner <span class="tok-k">not</span> <span class="tok-k">in</span> order:
+        <span class="tok-k">return</span> list(order)
+    rest = [strategy <span class="tok-k">for</span> strategy <span class="tok-k">in</span> order <span class="tok-k">if</span> strategy != winner]
+    <span class="tok-k">return</span> [winner] + rest
+
+
+<span class="tok-k">def</span> short_list(ids):
+    <span class="tok-s">&quot;&quot;&quot;ids as one line for a toast detail, counting the tail once it gets long
+    enough that naming every id would push the toast off the screen.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> len(ids) &lt;= _DETAIL_LIMIT:
+        <span class="tok-k">return</span> elementids.format_id_list(ids)
+    head = elementids.format_id_list(ids[:_DETAIL_LIMIT])
+    <span class="tok-k">return</span> <span class="tok-s">&#x27;%s and %d more&#x27;</span> % (head, len(ids) - _DETAIL_LIMIT)
+
+
+<span class="tok-c"># --- API half (Navisworks only) ---------------------------------------------</span>
+
+
+<span class="tok-k">def</span> find_by_ids(ids, values, report=<span class="tok-k">None</span>):
+    <span class="tok-s">&quot;&quot;&quot;(items, matched, missing) for a list of id strings.
+
+    items is a ModelItemCollection with duplicates removed: under every_match
+    one id can match several items, and two ids can land on the same item in a
+    model whose name carries an id that a child repeats.
+    &quot;&quot;&quot;</span>
+    <span class="tok-k">from</span> pynavis._api <span class="tok-k">import</span> Api
+
+    found = Api.ModelItemCollection()
+    matched = []
+    missing = []
+    order = list(strategies_for(stored_kind(values)))
+    elements_only = model_marks_elements()
+
+    <span class="tok-k">for</span> index, element_id <span class="tok-k">in</span> enumerate(ids):
+        <span class="tok-k">if</span> report <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            report(index, len(ids), element_id)
+        hits, winner = _first_hit(element_id, order, values, elements_only)
+        <span class="tok-k">if</span> hits <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            missing.append(element_id)
+            <span class="tok-k">continue</span>
+        matched.append(element_id)
+        <span class="tok-k">for</span> item <span class="tok-k">in</span> hits:
+            <span class="tok-k">if</span> <span class="tok-k">not</span> found.Contains(item):
+                found.Add(item)
+        order = promote(order, winner)
+
+    <span class="tok-k">return</span> found, matched, missing
+
+
+<span class="tok-k">def</span> stored_kind(values):
+    <span class="tok-s">&quot;&quot;&quot;&#x27;text&#x27;, &#x27;number&#x27;, or None: the variant kind the configured id property
+    is stored in, read off the first item in the walk that carries it.
+
+    One cheap find_first per run - the first wall or fixture answers it. The
+    Revit exporter writes a DisplayString (field-checked), so the
+    answer is nearly always &#x27;text&#x27;; the point of asking rather than assuming
+    is a model that stores it as an Int32, where assuming would make every
+    id a miss. None (no item carries the property at all, or an unfamiliar
+    kind) keeps every strategy in play.
+    &quot;&quot;&quot;</span>
+    probe = {<span class="tok-s">&#x27;or&#x27;</span>: [{<span class="tok-s">&#x27;and&#x27;</span>: [{<span class="tok-s">&#x27;category&#x27;</span>: values[<span class="tok-s">&#x27;id_category&#x27;</span>],
+                              <span class="tok-s">&#x27;prop&#x27;</span>: values[<span class="tok-s">&#x27;id_property&#x27;</span>],
+                              <span class="tok-s">&#x27;op&#x27;</span>: <span class="tok-s">&#x27;has_property&#x27;</span>}]}]}
+    item = sets.find_first(probe)
+    <span class="tok-k">if</span> item <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span> <span class="tok-k">None</span>
+    found = item.PropertyCategories.FindPropertyByDisplayName(
+        values[<span class="tok-s">&#x27;id_category&#x27;</span>], values[<span class="tok-s">&#x27;id_property&#x27;</span>])
+    <span class="tok-k">if</span> found <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span> <span class="tok-k">None</span>
+    <span class="tok-k">return</span> kind_of(found.Value)
+
+
+<span class="tok-k">def</span> kind_of(variant):
+    <span class="tok-s">&quot;&quot;&quot;&#x27;text&#x27; for a DisplayString variant, &#x27;number&#x27; for an Int32, else None.
+    Pure: probes the same Is* flags pynavis.props does.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> getattr(variant, <span class="tok-s">&#x27;IsDisplayString&#x27;</span>, <span class="tok-k">False</span>):
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;text&#x27;</span>
+    <span class="tok-k">if</span> getattr(variant, <span class="tok-s">&#x27;IsInt32&#x27;</span>, <span class="tok-k">False</span>):
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;number&#x27;</span>
+    <span class="tok-k">return</span> <span class="tok-k">None</span>
+
+
+<span class="tok-k">def</span> model_marks_elements():
+    <span class="tok-s">&quot;&quot;&quot;Does this model carry the exporter&#x27;s Element category anywhere?
+
+    One cheap find_first per run (the first wall or instance in the walk
+    answers it, milliseconds). When it does, every property-tab match has to
+    be a real element, so a type id - which every nested part of every
+    instance of that type carries under &quot;Element ID&quot; - finds nothing instead
+    of finding some arbitrary instance. When it does not, the model came
+    through an exporter that never wrote the category, and requiring it
+    would turn every id into a miss.
+    &quot;&quot;&quot;</span>
+    probe = {<span class="tok-s">&#x27;or&#x27;</span>: [{<span class="tok-s">&#x27;and&#x27;</span>: [{<span class="tok-s">&#x27;category&#x27;</span>: elementids.ELEMENT_CATEGORY,
+                              <span class="tok-s">&#x27;op&#x27;</span>: <span class="tok-s">&#x27;has_category&#x27;</span>, <span class="tok-s">&#x27;by_display&#x27;</span>: <span class="tok-k">False</span>}]}]}
+    <span class="tok-k">return</span> sets.find_first(probe) <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>
+
+
+<span class="tok-k">def</span> _first_hit(element_id, order, values, elements_only):
+    <span class="tok-s">&quot;&quot;&quot;(hits, strategy) for the first strategy that matches anything.
+
+    ONE node by default, every copy under every_match - see elementids for why
+    one id is not one item. Matches are real elements only when the model
+    marks them (see query_for and model_marks_elements).
+
+    The default stops the walk at its first hit (sets.find_first, ~0.80s on the
+    1.75M-item federation this was measured against), which is what &quot;take me to
+    this element&quot; means. every_match pays a full FindAll per strategy instead,
+    ~3.0s per id, and nothing cheaper reaches the whole set: an OR search costs
+    a full walk PER TERM (20 ids measured at 56s, exactly what 20 separate
+    searches cost), PruneBelowMatch changes neither cost nor result, and a
+    follow-up sweep scoped to any ancestor short of the document root misses
+    the copies living in sibling exports (measured level by level: 1 -&gt; 6 -&gt;
+    16). So these two modes really are the whole menu.
+    &quot;&quot;&quot;</span>
+    every = values.get(<span class="tok-s">&#x27;every_match&#x27;</span>)
+
+    <span class="tok-k">for</span> strategy <span class="tok-k">in</span> order:
+        query = query_for(strategy, element_id, values, elements_only)
+        <span class="tok-k">if</span> query <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            <span class="tok-k">continue</span>
+
+        <span class="tok-k">if</span> every:
+            hits = sets.run(query)
+            <span class="tok-k">if</span> hits.Count:
+                <span class="tok-k">return</span> hits, strategy
+            <span class="tok-k">continue</span>
+
+        first = sets.find_first(query)
+        <span class="tok-k">if</span> first <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            <span class="tok-k">return</span> _just(first), strategy
+    <span class="tok-k">return</span> <span class="tok-k">None</span>, <span class="tok-k">None</span>
+
+
+<span class="tok-k">def</span> _just(item):
+    <span class="tok-s">&quot;&quot;&quot;One item as a ModelItemCollection, so both search modes hand back the
+    same shape to find_by_ids.&quot;&quot;&quot;</span>
+    <span class="tok-k">from</span> pynavis._api <span class="tok-k">import</span> Api
+
+    collection = Api.ModelItemCollection()
+    collection.Add(item)
+    <span class="tok-k">return</span> collection
+
+
+<span class="tok-k">def</span> search(ids, values):
+    <span class="tok-s">&quot;&quot;&quot;find_by_ids with a progress window once there are enough ids to be
+    worth cancelling. Raises forms.Cancelled if the user cancels.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> len(ids) &lt;= _PROGRESS_THRESHOLD:
+        <span class="tok-k">return</span> find_by_ids(ids, values)
+
+    <span class="tok-k">with</span> forms.progress(<span class="tok-s">&#x27;Select by IDs&#x27;</span>, <span class="tok-s">&#x27;Searching&#x27;</span>) <span class="tok-k">as</span> p:
+        <span class="tok-k">def</span> report(done, total, element_id):
+            p.check()
+            p.update(float(done) / total,
+                     <span class="tok-s">&#x27;Searching %d of %d: %s&#x27;</span> % (done + <span class="tok-n">1</span>, total, element_id))
+        <span class="tok-k">return</span> find_by_ids(ids, values, report)
+
+
+<span class="tok-k">def</span> ask(prefill=<span class="tok-s">&#x27;&#x27;</span>):
+    <span class="tok-s">&quot;&quot;&quot;The paste box; returns its text, or None on cancel.&quot;&quot;&quot;</span>
+    win = forms.WPFWindow(<span class="tok-s">&#x27;layout.xaml&#x27;</span>)
+    box = win[<span class="tok-s">&#x27;IdsBox&#x27;</span>]
+    box.Text = prefill
+    box.SelectAll()
+
+    <span class="tok-k">def</span> _ok(sender, args):
+        win.close(<span class="tok-k">True</span>)
+
+    win[<span class="tok-s">&#x27;OkButton&#x27;</span>].Click += _ok
+    <span class="tok-k">if</span> <span class="tok-k">not</span> win.show_dialog():
+        <span class="tok-k">return</span> <span class="tok-k">None</span>
+    <span class="tok-k">return</span> win[<span class="tok-s">&#x27;IdsBox&#x27;</span>].Text
+
+
+<span class="tok-k">def</span> clipboard_prefill(values):
+    <span class="tok-s">&quot;&quot;&quot;The text the box opens with: the clipboard&#x27;s ids when it holds
+    something that looks like ids, otherwise empty. Pure apart from the
+    clipboard read itself, which is why the parsing lives here rather than
+    inline in run().&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> <span class="tok-k">not</span> values[<span class="tok-s">&#x27;use_clipboard&#x27;</span>]:
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;&#x27;</span>
+    ids = elementids.clipboard_ids(script.clipboard_text())
+    <span class="tok-k">return</span> elementids.format_id_list(ids) <span class="tok-k">if</span> ids <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>
+
+
+<span class="tok-k">def</span> run():
+    values = settings.load(elementids.SETTINGS_KEY, elementids.DEFAULTS)
+
+    <span class="tok-c"># The box always opens, even when the clipboard parses cleanly: a search</span>
+    <span class="tok-c"># that costs seconds per id and then replaces the selection is not</span>
+    <span class="tok-c"># something to start from a stray copy, so the ids are shown for approval</span>
+    <span class="tok-c"># (and editing) first. The clipboard only fills the box in.</span>
+    typed = ask(clipboard_prefill(values))
+    <span class="tok-k">if</span> typed <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        <span class="tok-k">return</span>                                      <span class="tok-c"># cancelled: say nothing</span>
+
+    ids, rejected = elementids.parse_ids(typed)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> ids:
+        toast.warning(<span class="tok-s">&#x27;No element IDs found&#x27;</span>, _rejected_detail(rejected))
+        <span class="tok-k">return</span>
+
+    <span class="tok-k">try</span>:
+        found, matched, missing = search(ids, values)
+    <span class="tok-k">except</span> forms.Cancelled:                         <span class="tok-c"># cancelled: say nothing</span>
+        <span class="tok-k">return</span>
+
+    <span class="tok-k">if</span> <span class="tok-k">not</span> found.Count:
+        toast.warning(<span class="tok-s">&#x27;No elements matched&#x27;</span>,
+                      <span class="tok-s">&#x27;Searched %d ID(s): %s&#x27;</span> % (len(ids), short_list(ids)))
+        <span class="tok-k">return</span>
+
+    _apply(found, values)
+    _report(found, matched, missing)
+
+
+<span class="tok-k">def</span> _apply(found, values):
+    <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection
+
+    selection.set_items(found)
+    <span class="tok-k">if</span> values[<span class="tok-s">&#x27;isolate&#x27;</span>]:
+        view.isolate(found)
+    <span class="tok-k">if</span> values[<span class="tok-s">&#x27;zoom&#x27;</span>]:
+        view.zoom_selected()
+
+
+<span class="tok-k">def</span> _report(found, matched, missing):
+    <span class="tok-s">&quot;&quot;&quot;The closing toast. No note about where the ids came from any more: the
+    user typed or approved them in the box either way.&quot;&quot;&quot;</span>
+    <span class="tok-k">if</span> missing:
+        toast.warning(<span class="tok-s">&#x27;Selected %d element(s), %d ID(s) not found&#x27;</span>
+                      % (found.Count, len(missing)),
+                      <span class="tok-s">&#x27;Not found: %s&#x27;</span> % short_list(missing))
+        <span class="tok-k">return</span>
+    toast.success(<span class="tok-s">&#x27;Selected %d element(s) from %d ID(s)&#x27;</span>
+                  % (found.Count, len(matched)))
+
+
+<span class="tok-k">def</span> _rejected_detail(rejected):
+    <span class="tok-k">if</span> <span class="tok-k">not</span> rejected:
+        <span class="tok-k">return</span> <span class="tok-s">&#x27;Nothing in the box looked like an element ID.&#x27;</span>
+    <span class="tok-k">return</span> <span class="tok-s">&#x27;Ignored: %s&#x27;</span> % short_list(rejected)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Element_IDs.stack/Select_by_IDs.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Shift+Click settings for both element id buttons.
+
+The window itself is shared (extensions/pyNavis.extension/lib), because the
+two buttons read one settings store.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> elementidconfig
+
+elementidconfig.edit()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Element_IDs.stack/Select_by_IDs.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Select by IDs
+<span class="tok-k">tooltip</span>: Select elements by Revit element ID. Opens a box with the clipboard&#x27;s IDs already filled in, ready to check or edit. Works on NWC exports and on design coordination models, where the ID sits in the item name. Shift+Click for settings.
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="go-to-coordinates.html"><span class="dir">Previous</span><span class="ttl">Go to Coordinates</span></a>
 <a class="next" href="ids-of-selection.html"><span class="dir">Next</span><span class="ttl">IDs of Selection</span></a>
@@ -132,6 +513,7 @@ name instead.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

@@ -93,6 +93,33 @@ opening an empty window.</p>
 <p>Deleting a tool's folder and clicking Reload removes it from the ribbon. Renaming the
 folder changes its bundle key, so a shortcut bound to it in the Shortcuts editor would need
 rebinding.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>AI_(beta).panel/Setup.stack/Open_AI_Folder.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/AI_(beta).panel/Setup.stack/Open_AI_Folder.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Shows the generated-tools extension in Explorer.
+
+Ask AI writes every tool into AI.extension under the per-user extensions
+folder. Until the first tool is created there is nothing to show, and saying
+so beats opening an empty Explorer window.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+<span class="tok-k">import</span> os
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> PyNavis.Runtime.Ai <span class="tok-k">import</span> GeneratedExtensionWriter
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> script, toast
+
+root = GeneratedExtensionWriter.DefaultRoot
+
+<span class="tok-k">if</span> <span class="tok-k">not</span> os.path.isdir(root):
+    toast.info(<span class="tok-s">&#x27;No AI tools yet&#x27;</span>, <span class="tok-s">&#x27;Ask AI creates this folder with your first tool&#x27;</span>)
+<span class="tok-k">else</span>:
+    panel = os.path.join(root, GeneratedExtensionWriter.TabFolder, GeneratedExtensionWriter.PanelFolder)
+    script.show_in_explorer(panel <span class="tok-k">if</span> os.path.isdir(panel) <span class="tok-k">else</span> root)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/AI_(beta).panel/Setup.stack/Open_AI_Folder.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Open AI Folder
+<span class="tok-k">tooltip</span>: Opens the folder where Ask AI writes its tools, AI.extension under your pyNavis extensions, in Explorer. Every generated tool is an ordinary bundle there, so you can read it, edit it, or delete it like any other.</code></pre></div>
   <div class="pagenav">
 <a href="ai-settings.html"><span class="dir">Previous</span><span class="ttl">AI Settings</span></a>
 <a class="next" href="get-coordinates.html"><span class="dir">Next</span><span class="ttl">Get Coordinates</span></a>
@@ -101,6 +128,7 @@ rebinding.</p>
 <aside class="toc"><div class="toc-head">On this page</div>
 <a href="#what-it-does">What it does</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

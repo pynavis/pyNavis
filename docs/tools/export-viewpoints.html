@@ -108,6 +108,41 @@ or to diff two issues of the same model.</p>
   <li>Compare two exports in a spreadsheet to see which views were added, renamed or moved
     between issues.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Data.panel/Export_Viewpoints_CSV.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Export_Viewpoints_CSV.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Exports every saved viewpoint (name, folder, camera position) to a CSV file.&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> csv
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> doc, forms, toast
+
+items = list(doc.walk_saved_viewpoints())
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    forms.alert(<span class="tok-s">&#x27;This document has no saved viewpoints.&#x27;</span>)
+<span class="tok-k">else</span>:
+    default_name = (doc.get_title() <span class="tok-k">or</span> <span class="tok-s">&#x27;viewpoints&#x27;</span>) + <span class="tok-s">&#x27;_viewpoints.csv&#x27;</span>
+    path = forms.save_file(default_name=default_name, title=<span class="tok-s">&#x27;Export viewpoints CSV&#x27;</span>)
+    <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+        rows = <span class="tok-n">0</span>
+        <span class="tok-k">with</span> open(path, <span class="tok-s">&#x27;w&#x27;</span>) <span class="tok-k">as</span> f:
+            writer = csv.writer(f, lineterminator=<span class="tok-s">&#x27;\n&#x27;</span>)
+            writer.writerow([<span class="tok-s">&#x27;Name&#x27;</span>, <span class="tok-s">&#x27;Folder&#x27;</span>, <span class="tok-s">&#x27;Type&#x27;</span>, <span class="tok-s">&#x27;CameraX&#x27;</span>, <span class="tok-s">&#x27;CameraY&#x27;</span>, <span class="tok-s">&#x27;CameraZ&#x27;</span>])
+            <span class="tok-k">for</span> folders, item <span class="tok-k">in</span> items:
+                <span class="tok-c"># the saved-viewpoints tree also holds animations/cuts, which</span>
+                <span class="tok-c"># have no camera - export them with empty position columns</span>
+                viewpoint = getattr(item, <span class="tok-s">&#x27;Viewpoint&#x27;</span>, <span class="tok-k">None</span>)
+                position = getattr(viewpoint, <span class="tok-s">&#x27;Position&#x27;</span>, <span class="tok-k">None</span>)
+                writer.writerow([
+                    item.DisplayName,
+                    <span class="tok-s">&#x27;/&#x27;</span>.join(folders),
+                    item.GetType().Name,
+                    <span class="tok-s">&#x27;%.6f&#x27;</span> % position.X <span class="tok-k">if</span> position <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>,
+                    <span class="tok-s">&#x27;%.6f&#x27;</span> % position.Y <span class="tok-k">if</span> position <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>,
+                    <span class="tok-s">&#x27;%.6f&#x27;</span> % position.Z <span class="tok-k">if</span> position <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;&#x27;</span>,
+                ])
+                rows += <span class="tok-n">1</span>
+        toast.success(<span class="tok-s">&#x27;Exported %d saved item(s)&#x27;</span> % rows, path)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Data.panel/Export_Viewpoints_CSV.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Export\nViewpoints</code></pre></div>
   <div class="pagenav">
 <a href="excel-sets.html"><span class="dir">Previous</span><span class="ttl">Excel Sets</span></a>
 <a class="next" href="element-id-settings.html"><span class="dir">Next</span><span class="ttl">Element ID Settings</span></a>
@@ -118,6 +153,7 @@ or to diff two issues of the same model.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

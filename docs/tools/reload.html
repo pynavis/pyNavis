@@ -111,6 +111,13 @@ Reload is the whole development loop.</p>
 <p>Reload writes <code>==== pyNavis reload ====</code> to
 <code>%APPDATA%\pyNavis\logs\pyNavis.log</code> and then lists every bundle it skipped and
 why, so a button that fails to appear is one log line away from an explanation.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>pyNavis.panel/Reload.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Reload.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Rescan extension folders and rebuild the pyNavis ribbon (no restart needed).&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> toast
+
+__pynavis__.Reload()
+toast.success(<span class="tok-s">&#x27;pyNavis ribbon reloaded.&#x27;</span>)</code></pre></div>
   <div class="pagenav">
 <a href="console.html"><span class="dir">Previous</span><span class="ttl">Console</span></a>
 <a class="next" href="playground.html"><span class="dir">Next</span><span class="ttl">Playground</span></a>
@@ -121,6 +128,7 @@ why, so a button that fails to appear is one log line away from an explanation.<
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

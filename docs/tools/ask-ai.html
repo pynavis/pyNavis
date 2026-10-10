@@ -155,6 +155,38 @@ provider you configured and nowhere else; pyNavis has no server in the middle.</
 most of it is read from the provider's cache rather than billed in full. The
 <strong>Longest answer</strong> setting caps a reply; if the transcript says the answer hit the
 limit, raise it and ask again.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>AI_(beta).panel/Ask_AI.dockpane</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/AI_(beta).panel/Ask_AI.dockpane/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;The Ask AI panel (beta): a chat that writes pyNavis tools.
+
+Everything is in the runtime&#x27;s AiChatPane. The control is built once per
+Navisworks session and handed back on every Reload, because creating a tool
+triggers a Reload, and a chat that forgot itself at that exact moment would be
+useless. This script only parents that control into the pane&#x27;s grid.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> AiChatPane
+
+pane = __pane__
+
+host = pane.Find(<span class="tok-s">&#x27;Host&#x27;</span>)
+host.Children.Clear()
+host.Children.Add(AiChatPane.LiveContent())
+AiChatPane.OnShown()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>pane.xaml</code> <span class="src-note">The dock panel&#x27;s content.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/AI_(beta).panel/Ask_AI.dockpane/pane.xaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code>&lt;Grid xmlns=&quot;http://schemas.microsoft.com/winfx/2006/xaml/presentation&quot;
+      xmlns:x=&quot;http://schemas.microsoft.com/winfx/2006/xaml&quot;
+      x:Name=&quot;Host&quot;&gt;
+  &lt;!-- The chat lives in the runtime (PyNavis.Runtime.Forms.AiChatPane) so its
+       conversation survives the Reload that creating a tool triggers. script.py
+       drops that one shared control into this grid on every build. --&gt;
+&lt;/Grid&gt;</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/AI_(beta).panel/Ask_AI.dockpane/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Ask AI
+<span class="tok-k">tooltip</span>: Beta. A chat panel that writes pyNavis tools for you. Describe the button you want, read what the model proposes, click Create, and it appears on the AI tab. Needs an API key from AI Settings, or a local OpenAI-compatible server. You can also build tools with any other assistant using the authoring guide the panel copies for you.
+<span class="tok-k">keytip</span>: AA</code></pre></div>
   <div class="pagenav">
 <a href="tracker-window.html"><span class="dir">Previous</span><span class="ttl">Tracker Window</span></a>
 <a class="next" href="ai-settings.html"><span class="dir">Next</span><span class="ttl">AI Settings</span></a>
@@ -167,6 +199,7 @@ limit, raise it and ask again.</p>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

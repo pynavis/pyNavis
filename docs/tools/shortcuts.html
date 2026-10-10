@@ -131,6 +131,21 @@ flagged on another.</figcaption></figure>
 <h2 id="good-to-know">Good to know<a class="anchor" href="#good-to-know" aria-label="Link to this section">#</a></h2>
 <p>Bindings are keyed by the tool's folder path, so a tool that moves to another panel loses
 its override and goes back to its default. The shipped tools do not move between releases.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>pyNavis.panel/Shortcuts.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Shortcuts.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;View and rebind pyNavis keyboard shortcuts (writes config.json overrides).&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> ShortcutsDialog
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> toast
+
+<span class="tok-k">if</span> ShortcutsDialog.ShowAndSave():
+    __pynavis__.Reload()
+    toast.success(<span class="tok-s">&#x27;Shortcuts saved and applied.&#x27;</span>)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Shortcuts.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Shortcuts
+<span class="tok-k">tooltip</span>: View and rebind keyboard shortcuts</code></pre></div>
   <div class="pagenav">
 <a href="settings.html"><span class="dir">Previous</span><span class="ttl">Settings</span></a>
 <a class="next" href="hide-tabs.html"><span class="dir">Next</span><span class="ttl">Hide Tabs</span></a>
@@ -142,6 +157,7 @@ its override and goes back to its default. The shipped tools do not move between
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

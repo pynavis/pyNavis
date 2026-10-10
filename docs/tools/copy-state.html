@@ -108,6 +108,30 @@ another session.</p>
   <li>Copy the appearance overrides of a colour-coded review, clear them to take clean
     screenshots, paste them back.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Viewpoints.panel/State.stack/Copy_State.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/State.stack/Copy_State.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Copies one kind of view state to disk, per document.
+
+Pick section state, hidden items, or appearance overrides; Paste State brings
+it back later in this document, including in another Navisworks session.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, toast, viewstate
+
+<span class="tok-c"># prompt=None gives the chromeless quick switch: the button labels ARE the</span>
+<span class="tok-c"># question, so the window carries no titlebar and no prompt text.</span>
+label = forms.ask_options(
+    <span class="tok-k">None</span>,
+    [viewstate.label_for(kind) <span class="tok-k">for</span> kind <span class="tok-k">in</span> viewstate.KINDS],
+    title=<span class="tok-s">&#x27;Copy State&#x27;</span>,
+)
+
+<span class="tok-k">if</span> label <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                          <span class="tok-c"># None means cancelled: say nothing</span>
+    result = viewstate.copy_state(viewstate.kind_for(label))
+    toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Viewpoints.panel/State.stack/Copy_State.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Copy State
+<span class="tok-k">tooltip</span>: Copy the section planes, hidden items, or appearance overrides to memory for this document
+<span class="tok-k">context</span>: doc</code></pre></div>
   <div class="pagenav">
 <a href="section-plan.html"><span class="dir">Previous</span><span class="ttl">Section Plan</span></a>
 <a class="next" href="paste-state.html"><span class="dir">Next</span><span class="ttl">Paste State</span></a>
@@ -118,6 +142,7 @@ another session.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

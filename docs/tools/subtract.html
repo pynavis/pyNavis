@@ -99,6 +99,15 @@ a stored set: Recall, click the items that should not be there, Subtract.</p>
   <li>Everything except: Remember a whole system, select the part that is finished,
     Subtract, and the memory is the outstanding work.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Selection.panel/Set.stack/Subtract.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Set.stack/Subtract.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Removes the current selection from memory.&quot;&quot;&quot;</span>
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> memory, toast
+
+result = memory.subtract()
+toast.show(result.level, result.message, result.detail)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Selection.panel/Set.stack/Subtract.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Subtract</code></pre></div>
   <div class="pagenav">
 <a href="add.html"><span class="dir">Previous</span><span class="ttl">Add</span></a>
 <a class="next" href="intersect.html"><span class="dir">Next</span><span class="ttl">Intersect</span></a>
@@ -108,6 +117,7 @@ a stored set: Recall, click the items that should not be there, Subtract.</p>
 <a href="#what-it-does">What it does</a>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

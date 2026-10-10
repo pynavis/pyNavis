@@ -161,6 +161,57 @@ runtime lives, with a Copy button beside it. Paste that line into any bug report
 line is the first thing pyNavis writes to <code>%APPDATA%\pyNavis\logs\pyNavis.log</code>
 at every start, and <code>pynavis.script.get_host().Version</code> returns the version to a
 script.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>pyNavis.panel/Settings.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Settings.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-c"># -*- coding: utf-8 -*-</span>
+<span class="tok-s">&quot;&quot;&quot;Edits everything in config.json a person is meant to change, in a window.
+
+The Shortcuts editor still owns which tool has which chord, and the pane registry
+still owns which panel holds which slot, so neither is edited here. This covers
+the rest: theme, the two ribbon hints, whether a bare key may be a shortcut,
+where extensions load from, and the two engine paths.
+
+Most of it shows after a Reload, which this offers. The engine paths cannot be
+picked up by a Reload at all, so that case says restart instead of pretending.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> clr
+
+clr.AddReference(<span class="tok-s">&#x27;PyNavis.Runtime&#x27;</span>)
+<span class="tok-k">from</span> PyNavis.Runtime.Forms <span class="tok-k">import</span> SettingsDialog
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> forms, script, toast
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">try</span>:
+        outcome = SettingsDialog.ShowAndSave()
+    <span class="tok-k">except</span> Exception <span class="tok-k">as</span> error:
+        script.get_logger().error(<span class="tok-s">&#x27;settings not saved: %s&#x27;</span> % error)
+        toast.error(<span class="tok-s">&#x27;Could not save your settings&#x27;</span>, str(error))
+        <span class="tok-k">return</span>
+
+    <span class="tok-k">if</span> outcome == SettingsDialog.Outcome.Cancelled:
+        <span class="tok-k">return</span>                                  <span class="tok-c"># cancelled: say nothing</span>
+
+    <span class="tok-k">if</span> outcome == SettingsDialog.Outcome.NeedsRestart:
+        toast.warning(<span class="tok-s">&#x27;Settings saved&#x27;</span>,
+                      <span class="tok-s">&#x27;The engine paths changed, so Navisworks needs restarting&#x27;</span>)
+        <span class="tok-k">return</span>
+
+    <span class="tok-k">if</span> forms.confirm(<span class="tok-s">&#x27;Reload pyNavis now so the changes show?&#x27;</span>, <span class="tok-s">&#x27;Settings saved&#x27;</span>):
+        script.reload_pynavis()
+        <span class="tok-c"># The ribbon rebuilding behind the dialog is easy to miss, and a reload</span>
+        <span class="tok-c"># that says nothing reads as a reload that did not happen.</span>
+        toast.success(<span class="tok-s">&#x27;Settings saved&#x27;</span>, <span class="tok-s">&#x27;pyNavis reloaded, so they show now&#x27;</span>)
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Settings saved&#x27;</span>, <span class="tok-s">&#x27;They show after the next Reload&#x27;</span>)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Settings.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Settings
+<span class="tok-k">tooltip</span>: Theme, ribbon hints, where extensions load from, and the engine paths. Everything pyNavis keeps in config.json that you are meant to change.</code></pre></div>
   <div class="pagenav">
 <span></span>
 <a class="next" href="shortcuts.html"><span class="dir">Next</span><span class="ttl">Shortcuts</span></a>
@@ -172,6 +223,7 @@ script.</p>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

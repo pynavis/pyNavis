@@ -116,6 +116,38 @@ weekly report, without opening Clash Detective and adding the columns up by eye.
   <li>Paste the table into the meeting minutes as the state of play at the time of the
     meeting.</li>
 </ul>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>Clash.panel/Clash_Report.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Report.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Summarizes every Clash Detective test (result counts by status), with CSV export.&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> csv
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> clash, forms, output
+
+STATUSES = [<span class="tok-s">&#x27;New&#x27;</span>, <span class="tok-s">&#x27;Active&#x27;</span>, <span class="tok-s">&#x27;Reviewed&#x27;</span>, <span class="tok-s">&#x27;Approved&#x27;</span>, <span class="tok-s">&#x27;Resolved&#x27;</span>]
+
+summaries = clash.summarize()
+<span class="tok-k">if</span> <span class="tok-k">not</span> summaries:
+    forms.alert(<span class="tok-s">&#x27;This document has no clash tests.&#x27;</span>)
+<span class="tok-k">else</span>:
+    headers = [<span class="tok-s">&#x27;Test&#x27;</span>, <span class="tok-s">&#x27;Total&#x27;</span>] + STATUSES
+    rows = [
+        [s[<span class="tok-s">&#x27;name&#x27;</span>], s[<span class="tok-s">&#x27;total&#x27;</span>]] + [s[<span class="tok-s">&#x27;by_status&#x27;</span>].get(status, <span class="tok-n">0</span>) <span class="tok-k">for</span> status <span class="tok-k">in</span> STATUSES]
+        <span class="tok-k">for</span> s <span class="tok-k">in</span> summaries
+    ]
+    print(output.format_table(rows, headers))
+    total = sum(s[<span class="tok-s">&#x27;total&#x27;</span>] <span class="tok-k">for</span> s <span class="tok-k">in</span> summaries)
+    print(<span class="tok-s">&#x27;\n%d test(s), %d result(s) in total.&#x27;</span> % (len(summaries), total))
+
+    <span class="tok-k">if</span> forms.confirm(<span class="tok-s">&#x27;Export this clash summary to CSV?&#x27;</span>):
+        path = forms.save_file(default_name=<span class="tok-s">&#x27;clash_report.csv&#x27;</span>, title=<span class="tok-s">&#x27;Export clash report&#x27;</span>)
+        <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
+            <span class="tok-k">with</span> open(path, <span class="tok-s">&#x27;w&#x27;</span>) <span class="tok-k">as</span> f:
+                writer = csv.writer(f, lineterminator=<span class="tok-s">&#x27;\n&#x27;</span>)
+                writer.writerow(headers)
+                writer.writerows(rows)
+            print(<span class="tok-s">&#x27;Exported to %s&#x27;</span> % path)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Report.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Clash\nReport</code></pre></div>
   <div class="pagenav">
 <a href="more-menu.html"><span class="dir">Previous</span><span class="ttl">More menu</span></a>
 <a class="next" href="clash-grouper.html"><span class="dir">Next</span><span class="ttl">Clash Grouper</span></a>
@@ -126,6 +158,7 @@ weekly report, without opening Clash Detective and adding the columns up by eye.
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#other-uses">Other uses</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>

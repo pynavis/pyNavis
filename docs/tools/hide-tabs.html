@@ -112,6 +112,74 @@ back where it was.</p>
 <p>The choice is stored in <code>hide_tabs.json</code> by tab id. A tab whose add-in is no
 longer loaded is skipped rather than forgotten, so it is hidden again once the add-in is
 back. Reload does not bring hidden tabs back; the button does.</p>
+<h2 id="source">Source<a class="anchor" href="#source" aria-label="Link to this section">#</a></h2>
+<p>The tool's own files, word for word as shipped in <code>pyNavis.panel/Hide_Tabs.toggle</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
+<div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Hide_Tabs.toggle/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Takes the chosen tabs off the ribbon, or puts them back.
+
+What is off the ribbon decides, not the button&#x27;s own on/off state, so the
+two can never disagree: tabs off means this click puts them back, anything
+else means it takes them off. With no chosen tab on the ribbon, the picker
+opens first (the Shift+Click one). The tabs stay off for the session and
+go back when Navisworks closes (hooks/app-closing.py). See lib/tabhider.py.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> tabhider
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> script, settings, toast
+
+
+<span class="tok-k">def</span> run():
+    <span class="tok-k">if</span> tabhider.hidden():
+        count = tabhider.show()
+        script.set_toggle_state(<span class="tok-k">False</span>)
+        toast.info(tabhider.shown_message(count))
+        <span class="tok-k">return</span>
+
+    chosen = settings.load(tabhider.TOOL, tabhider.DEFAULTS)[<span class="tok-s">&#x27;tabs&#x27;</span>]
+    <span class="tok-k">if</span> <span class="tok-k">not</span> tabhider.to_hide(tabhider.tab_list(), chosen):
+        chosen = tabhider.choose()
+        <span class="tok-k">if</span> chosen <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            script.set_toggle_state(<span class="tok-k">False</span>)
+            <span class="tok-k">return</span>                          <span class="tok-c"># cancelled: say nothing</span>
+    titles = tabhider.hide(chosen)
+    script.set_toggle_state(bool(titles))
+    <span class="tok-k">if</span> titles:
+        title, detail = tabhider.hidden_message(titles)
+        toast.success(title, detail)
+
+
+run()</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Hide_Tabs.toggle/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Chooses which tabs Hide Tabs takes off the ribbon.
+
+Tabs that are off the ribbon cannot be picked, so while they are off they
+go back for the picker and come off again afterwards: with the new choice
+when there is one, with the old one on cancel.
+&quot;&quot;&quot;</span>
+
+<span class="tok-k">import</span> tabhider
+
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> script, settings, toast
+
+was_hidden = tabhider.hidden()
+<span class="tok-k">if</span> was_hidden:
+    tabhider.show()
+
+chosen = tabhider.choose()
+<span class="tok-k">if</span> was_hidden:
+    tabhider.hide(chosen <span class="tok-k">if</span> chosen <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>
+                  <span class="tok-k">else</span> settings.load(tabhider.TOOL, tabhider.DEFAULTS)[<span class="tok-s">&#x27;tabs&#x27;</span>])
+    script.set_toggle_state(tabhider.hidden())
+
+<span class="tok-k">if</span> chosen <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:                     <span class="tok-c"># None means cancelled: say nothing</span>
+    count = <span class="tok-s">&#x27;%d tab%s&#x27;</span> % (len(chosen), <span class="tok-s">&#x27;&#x27;</span> <span class="tok-k">if</span> len(chosen) == <span class="tok-n">1</span> <span class="tok-k">else</span> <span class="tok-s">&#x27;s&#x27;</span>)
+    <span class="tok-k">if</span> was_hidden:
+        toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>, <span class="tok-s">&#x27;The new choice of %s is off the ribbon now.&#x27;</span> % count)
+    <span class="tok-k">else</span>:
+        toast.success(<span class="tok-s">&#x27;Saved&#x27;</span>, <span class="tok-s">&#x27;Click Hide Tabs to take off the %s you chose.&#x27;</span> % count)</code></pre></div>
+<div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/pyNavis.panel/Hide_Tabs.toggle/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Hide\nTabs
+<span class="tok-k">title_on</span>: Show\nTabs
+<span class="tok-k">tooltip</span>: Takes the tabs you choose off the ribbon for a clean screen, a recording or a demo, and puts them back when you click again. Add-in tabs too, which the ribbon&#x27;s own Show Tabs cannot keep hidden. Everything comes back when Navisworks closes. Shift+Click to choose the tabs.
+<span class="tok-k">tooltip_on</span>: Puts the tabs you hid back on the ribbon, each where it was. Shift+Click to change which tabs are hidden.</code></pre></div>
   <div class="pagenav">
 <a href="shortcuts.html"><span class="dir">Previous</span><span class="ttl">Shortcuts</span></a>
 <a class="next" href="console.html"><span class="dir">Next</span><span class="ttl">Console</span></a>
@@ -122,6 +190,7 @@ back. Reload does not bring hidden tabs back; the button does.</p>
 <a href="#how-to-use-it">How to use it</a>
 <a href="#limitations">Limitations</a>
 <a href="#good-to-know">Good to know</a>
+<a href="#source">Source</a>
 </aside>
 </main>
 </div>
