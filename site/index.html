@@ -4,21 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pyNavis</title>
-<meta name="description" content="Python scripting and a folder-driven ribbon for Autodesk Navisworks Manage. Drop a script.py and an icon into a folder, press Reload, and it is a ribbon button.">
+<meta name="description" content="Python tools for Autodesk Navisworks. A folder with a script and an icon becomes a ribbon button. No compiling, no restart.">
 <meta name="color-scheme" content="light dark">
 <meta property="og:title" content="pyNavis">
-<meta property="og:description" content="Python scripting and a folder-driven ribbon for Autodesk Navisworks Manage.">
+<meta property="og:description" content="Python tools for Autodesk Navisworks. A folder with a script and an icon becomes a ribbon button.">
 <meta property="og:image" content="https://pynavis.com/assets/pynavis-mark.256.png">
 <meta property="og:url" content="https://pynavis.com/">
 <link rel="icon" href="/assets/pynavis.ico" sizes="any">
 <link rel="icon" href="/assets/pynavis-mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="/site.css">
 </head>
 <body>
 
 <header class="top">
   <a class="brand" href="/" aria-label="pyNavis home">
-    <img class="mark" src="/assets/pynavis-mark.svg" alt="" width="28" height="28">
+    <img class="mark" src="/assets/pynavis-mark.svg" alt="" width="26" height="26">
     <span>pyNavis</span>
   </a>
   <nav aria-label="Primary">
@@ -30,93 +33,93 @@
 </header>
 
 <main>
-  <section class="hero">
-    <picture>
-      <source srcset="assets/pynavis-logo.dark.svg" media="(prefers-color-scheme: dark)">
-      <img class="logo" src="/assets/pynavis-logo.svg" alt="pyNavis" width="1483" height="512">
-    </picture>
-    <h1>Python scripting and a folder-driven ribbon for Autodesk Navisworks Manage.</h1>
-    <p class="lead">Drop a folder with a <code>script.py</code> and an icon into an extension, press Reload,
-      and it is a ribbon button. No compiling, no restart, no plugin boilerplate. If you have used pyRevit,
-      the layout will feel familiar.</p>
+  <section class="hero rise">
+    <img class="logo" src="/assets/pynavis-mark.svg" alt="" width="128" height="128">
+    <h1>py<b>Navis</b></h1>
+    <p class="tag">Python tools for Autodesk Navisworks.</p>
+    <p class="sub">A folder with a script and an icon becomes a ribbon button. No compiling, no restart.</p>
     <div class="actions">
-      <a class="btn primary" href="https://github.com/pynavis/pyNavis/releases/latest">Download</a>
-      <a class="btn" href="https://docs.pynavis.com/quickstart.html">Read the docs</a>
-    </div>
-    <p class="caption">Windows 10 or 11, Navisworks Manage. Apache-2.0 licence.</p>
-  </section>
-
-  <section class="strip" aria-label="What you get">
-    <div>
-      <h2>A ribbon built from folders</h2>
-      <p>Pushbuttons, stacks, pulldowns, toggles, split buttons and slideouts are folder names.
-        Rename a folder and the button renames. Prefix it <code>03_</code> and it reorders.</p>
-    </div>
-    <div>
-      <h2>Two Python engines, live reload</h2>
-      <p>IronPython 3.4 ships in the box. Set <code>engine: cpython</code> to run on your installed
-        CPython when you need numpy or pandas. Edit a script, click the button again.</p>
-    </div>
-    <div>
-      <h2>Dock panels, hooks, shortcuts</h2>
-      <p>A <code>pane.xaml</code> becomes a native dockable window. Fourteen Navisworks events run
-        scripts with no click. Every button can carry a keyboard chord and a context rule.</p>
+      <a class="btn primary" href="https://github.com/pynavis/pyNavis/releases/latest">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v9M4.5 7 8 10.5 11.5 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11.5v2h11v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Download <span class="chip" id="release-chip">v1.3.0</span>
+      </a>
+      <button class="btn" type="button" id="learn">
+        <span class="play"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0.5v9l8-4.5z"/></svg></span>
+        Learn more <span class="chip">0:30</span>
+      </button>
     </div>
   </section>
 
-  <section class="example" aria-label="Example">
-    <div class="tree">
-      <pre><code>MyTools.extension
-└─ MyTools.tab
-   └─ Clash.panel
-      ├─ bundle.yaml
-      ├─ Group_by_level.pushbutton
-      │  ├─ script.py
-      │  ├─ icon.png
-      │  └─ bundle.yaml
-      └─ Export_report.pushbutton
-         ├─ script.py
-         └─ icon.png</code></pre>
-    </div>
-    <div class="script">
-      <pre><code>from pynavis import forms, selection, sets, toast
-
-items = selection.get_items()
-if not items:
-    toast.warning('Select something first')
-else:
-    name = forms.ask_string('Selection set name')
-    if name:
-        sets.create(name, items, folder='Levels')
-        toast.success('Saved %d items to %s' % (len(items), name))</code></pre>
-    </div>
+  <section class="links rise" aria-label="Project links">
+    <a href="https://github.com/pynavis/pyNavis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.7 11.7 0 0 0-6.2 0C6.5 2.8 5.5 3.1 5.5 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>GitHub</a>
+    <a href="https://docs.pynavis.com/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5V4.5A2.5 2.5 0 0 1 6.5 2H20v15M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Authoring guide</a>
+    <a href="https://tools.pynavis.com/"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Tools guide</a>
+    <a href="https://playground.pynavis.com/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6.5L4.5 19a1.5 1.5 0 0 0 1.3 2.2h12.4a1.5 1.5 0 0 0 1.3-2.2L14 9.5V3"/><path d="M7.5 15h9"/></svg>Playground</a>
+    <a href="https://github.com/pynavis/pyNavis/issues"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M12 15.5V21M3 12h5.5M15.5 12H21"/></svg>Issues</a>
   </section>
 
-  <section class="links" aria-label="Project">
-    <a href="https://github.com/pynavis/pyNavis">
-      <span class="k">Source</span><span class="v">github.com/pynavis/pyNavis</span></a>
-    <a href="https://docs.pynavis.com/">
-      <span class="k">Authoring guide</span><span class="v">docs.pynavis.com</span></a>
-    <a href="https://tools.pynavis.com/">
-      <span class="k">Bundled tools</span><span class="v">What each button does and needs</span></a>
-    <a href="https://playground.pynavis.com/">
-      <span class="k">Playground</span><span class="v">140 experimental tools with honest statuses</span></a>
-    <a href="https://github.com/pynavis/pyNavis/issues">
-      <span class="k">Issues</span><span class="v">Bugs, questions and requests</span></a>
-  </section>
-
-  <section class="badges" aria-label="Status">
-    <a href="https://github.com/pynavis/pyNavis/releases"><img src="https://img.shields.io/github/v/release/pynavis/pyNavis?display_name=tag&amp;style=flat-square&amp;color=005fb8&amp;label=Release" alt="Latest release" height="20"></a>
-    <a href="https://github.com/pynavis/pyNavis/stargazers"><img src="https://img.shields.io/github/stars/pynavis/pyNavis?style=flat-square&amp;color=6b6b6b&amp;label=Stars" alt="GitHub stars" height="20"></a>
-    <a href="https://github.com/pynavis/pyNavis/issues"><img src="https://img.shields.io/github/issues/pynavis/pyNavis?style=flat-square&amp;color=6b6b6b&amp;label=Issues" alt="Open issues" height="20"></a>
-    <a href="https://github.com/pynavis/pyNavis/blob/main/LICENSE"><img src="https://img.shields.io/github/license/pynavis/pyNavis?style=flat-square&amp;color=6b6b6b&amp;label=Licence" alt="Licence" height="20"></a>
+  <section class="stats rise" aria-label="Status">
+    <a class="stat" href="https://github.com/pynavis/pyNavis/releases/latest"><span class="v" id="stat-release">1.3.0</span><span class="k">Release</span></a>
+    <a class="stat" href="https://github.com/pynavis/pyNavis/stargazers"><span class="v" id="stat-stars">12</span><span class="k">Stars</span></a>
+    <a class="stat" href="https://github.com/pynavis/pyNavis/issues"><span class="v" id="stat-issues">0</span><span class="k">Open issues</span></a>
+    <a class="stat" href="https://github.com/pynavis/pyNavis/blob/main/LICENSE"><span class="v">Apache</span><span class="k">Licence 2.0</span></a>
   </section>
 </main>
 
 <footer>
   <p>&copy; 2026 pyNavis. Released under the <a href="https://github.com/pynavis/pyNavis/blob/main/LICENSE">Apache-2.0 licence</a>.</p>
-  <p>pyNavis is an independent project and is not affiliated with or endorsed by Autodesk. Navisworks is a trademark of Autodesk, Inc.</p>
+  <p>Independent project, not affiliated with or endorsed by Autodesk. Navisworks is a trademark of Autodesk, Inc.</p>
 </footer>
 
+<div class="film" id="film" hidden role="dialog" aria-modal="true" aria-label="Thirty-second introduction">
+  <video id="video" playsinline preload="none" poster="/assets/learn-more.jpg" width="1920" height="1080">
+    <source src="/assets/learn-more.mp4" type="video/mp4">
+  </video>
+  <button class="close" type="button" id="close" aria-label="Close">Close</button>
+</div>
+
+<script>
+(function () {
+  var film = document.getElementById('film');
+  var video = document.getElementById('video');
+  var open = document.getElementById('learn');
+  var close = document.getElementById('close');
+  function show() {
+    film.hidden = false;
+    if (film.requestFullscreen) { film.requestFullscreen().catch(function () {}); }
+    video.currentTime = 0;
+    video.play().catch(function () {});
+    close.focus();
+  }
+  function hide() {
+    if (film.hidden) return;
+    film.hidden = true;
+    video.pause();
+    if (document.fullscreenElement && document.exitFullscreen) { document.exitFullscreen().catch(function () {}); }
+    open.focus();
+  }
+  open.addEventListener('click', show);
+  close.addEventListener('click', hide);
+  video.addEventListener('ended', hide);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+  document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement) hide(); });
+
+  // Live numbers from GitHub; the markup carries the values at the last deploy as a fallback.
+  function put(id, value) { var el = document.getElementById(id); if (el && value != null) el.textContent = value; }
+  function get(url) {
+    return fetch(url, { headers: { Accept: 'application/vnd.github+json' } }).then(function (r) { return r.ok ? r.json() : null; });
+  }
+  get('https://api.github.com/repos/pynavis/pyNavis').then(function (repo) {
+    if (!repo) return;
+    put('stat-stars', repo.stargazers_count);
+    put('stat-issues', repo.open_issues_count);
+  }).catch(function () {});
+  get('https://api.github.com/repos/pynavis/pyNavis/releases/latest').then(function (rel) {
+    if (!rel || !rel.tag_name) return;
+    put('stat-release', rel.tag_name.replace(/^v/, ''));
+    put('release-chip', rel.tag_name);
+  }).catch(function () {});
+})();
+</script>
 </body>
 </html>
