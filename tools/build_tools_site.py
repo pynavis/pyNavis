@@ -235,6 +235,7 @@ SHELL = """<!doctype html>
   <div class="side-foot">
     <span>{version}</span>
     <a class="side-link" href="https://docs.pynavis.com/">Authoring guide</a>
+    <a class="side-link" href="https://playground.pynavis.com/">Playground</a>
     <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
       <span>Dark</span></button>
   </div>
