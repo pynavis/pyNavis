@@ -16,3 +16,6 @@ __pycache__/
 
 # Release packaging output (tools/package.ps1)
 dist/
+
+# Private working files live in xWorking (its own private repo) and are never published.
+/xWorking/
