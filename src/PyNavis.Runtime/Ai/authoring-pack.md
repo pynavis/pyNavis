@@ -22,9 +22,13 @@ line, everything after it is the value, indentation is meaningless.
 ```yaml
 title: Isolate Level
 tooltip: Hides everything that is not on the selected items' level.
-shortcut: Ctrl+Shift+L        # optional; needs Ctrl or Alt
-context: selection            # optional; greys the button when false
+# optional; needs Ctrl or Alt
+shortcut: Ctrl+Shift+L
+# optional; greys the button when false
+context: selection
 ```
+
+A `#` comment goes on its own line: after a value it would become part of the value.
 
 `context:` is a boolean expression over `doc`, `selection`, `clash-tests`,
 `clash-results`, `viewpoints`, `selection-sets` and `multi-model`, combined with `&`,
@@ -331,27 +335,36 @@ else:
 
 ### bundle.yaml
 
-Eight keys are read on a pushbutton-shaped bundle. Anything else is parsed and ignored.
+Nine keys are read on a pushbutton-shaped bundle. Anything else is parsed and ignored.
 
 ```yaml
-title: <Button caption>          # a literal \n breaks a long caption onto two lines
+## a literal \n breaks a long caption onto two lines
+title: <Button caption>
 tooltip: <One or two sentences. The shortcut is appended automatically.>
 shortcut: Ctrl+Shift+<K>
 keytip: <XY>
 engine: ironpython
-context: selection & clash-tests    # optional: & | !, & binds tighter, no parens
-min_host_version: 2024              # optional: bare year, either or both
+## optional: & | !, & binds tighter, no parens
+context: selection & clash-tests
+## optional: bare year, either or both
+min_host_version: 2024
 max_host_version: 2026
+status: experimental
 ```
+
+`status: experimental` is optional: it appends a Greek beta to the caption and opens the
+tooltip with `Experimental: `. It is the only accepted value; anything else is reported as a
+bundle problem and ignored. Keep it on its own line with no trailing comment.
 
 Remember it is not real YAML: a trailing `# comment` is kept as part of the value,
 indentation is meaningless, the first colon splits the line, and duplicate keys mean the
 last one wins.
 
-A pulldown, splitbutton or splitpushbutton reads only `title`, `tooltip` and `keytip`. A
-`.stack` folder reads no yaml at all. A urlbutton reads `title`, `tooltip`, `keytip` and
-requires `url`; a linkbutton reads the same three and requires `plugin` (`Id.DeveloperId`
-form). A dockpane reads `title`, `tooltip`, `engine` and `keytip`, and requires `pane.xaml`
+A pulldown, splitbutton or splitpushbutton reads only `title`, `tooltip`, `keytip` and
+`status`. A
+`.stack` folder reads no yaml at all. A urlbutton reads `title`, `tooltip`, `keytip`,
+`status` and requires `url`; a linkbutton reads the same four and requires `plugin` (`Id.DeveloperId`
+form). A dockpane reads `title`, `tooltip`, `engine`, `keytip` and `status`, and requires `pane.xaml`
 in the folder rather than any yaml key; `shortcut:` on a dockpane is parsed but bound to
 nothing in this release.
 

@@ -174,5 +174,28 @@ namespace PyNavis.Tests
             RibbonMarkers.Configure(ConfigFrom("{\"ribbon\": {\"configDot\": true, \"showConfigMarker\": false}}"));
             Assert.Equal("Purge", RibbonMarkers.WithConfigMarker("Purge"));
         }
+        // ---- status: experimental ------------------------------------------
+
+        [Fact]
+        public void TheExperimentalMarker_IsABeta_JoinsTheLastLine_AndIgnoresConfigJson()
+        {
+            Assert.Equal("\u03B2", RibbonMarkers.ExperimentalMarker);
+            Assert.Equal("Clash Grouper \u03B2", RibbonMarkers.WithExperimentalMarker("Clash Grouper"));
+            Assert.Equal("Clash\nGrouper \u03B2", RibbonMarkers.WithExperimentalMarker("Clash\nGrouper"));
+            Assert.Equal("", RibbonMarkers.WithExperimentalMarker(""));
+
+            // It is a statement about the tool, not a hint the user tunes: the
+            // ribbon settings that hide the other two markers leave it alone.
+            RibbonMarkers.Configure(ConfigFrom(
+                "{\"ribbon\": {\"showConfigMarker\": false, \"showShortcutMarker\": false}}"));
+            Assert.Equal("X \u03B2", RibbonMarkers.WithExperimentalMarker("X"));
+        }
+
+        [Fact]
+        public void TheExperimentalMarker_CollidesWithNeitherDefaultGlyph()
+        {
+            Assert.NotEqual(PyNavisConfig.DefaultConfigMarker, RibbonMarkers.ExperimentalMarker);
+            Assert.NotEqual(PyNavisConfig.DefaultShortcutMarker, RibbonMarkers.ExperimentalMarker);
+        }
     }
 }

@@ -161,5 +161,79 @@ namespace PyNavis.Tests
             Assert.Equal("(Ctrl+H)", ButtonCaption.Tooltip(new PushButtonModel { Title = "X" }, false, "Ctrl+H"));
             Assert.Null(ButtonCaption.Tooltip(new PushButtonModel { Title = "X" }, false, null));
         }
+        // ---- status: experimental ------------------------------------------
+
+        private static PushButtonModel Experimental(PushButtonModel model)
+        {
+            model.Status = "experimental";
+            return model;
+        }
+
+        [Fact]
+        public void Text_Carries_The_Experimental_Marker_First_In_Either_State()
+        {
+            var t = Experimental(Toggle(withConfig: true));
+            Assert.Equal("Show\nTabs \u03B2", ButtonCaption.Text(t, small: false, on: true, hasChord: false));
+            Assert.Equal("Hide Tabs \u03B2", ButtonCaption.Text(t, small: true, on: false, hasChord: false));
+            Assert.Equal(RibbonMarkers.WithShortcutMarker(RibbonMarkers.WithConfigMarker("Show\nTabs \u03B2")),
+                ButtonCaption.Text(t, small: false, on: true, hasChord: true));
+        }
+
+        [Fact]
+        public void Tooltip_Is_Prefixed_For_An_Experimental_Button_In_Either_State()
+        {
+            var t = Experimental(Toggle());
+            Assert.Equal("Experimental: Takes them off", ButtonCaption.Tooltip(t, on: false, chord: null));
+            Assert.Equal("Experimental: Puts them back (Ctrl+H)", ButtonCaption.Tooltip(t, on: true, chord: "Ctrl+H"));
+            var bare = Experimental(new PushButtonModel { Title = "X" });
+            Assert.Equal("Experimental", ButtonCaption.Tooltip(bare, false, null));
+            Assert.Equal("Experimental (Ctrl+H)", ButtonCaption.Tooltip(bare, false, "Ctrl+H"));
+        }
+
+        [Fact]
+        public void Every_Captioned_Kind_Gets_The_Marker_And_The_Prefix()
+        {
+            CaptionedPanelItem[] items =
+            {
+                new PulldownModel { Title = @"Clash\nTools", Status = "experimental" },
+                new UrlButtonModel { Title = "Docs", Status = "experimental" },
+                new LinkButtonModel { Title = "Run", Status = "experimental" },
+                new DockPaneModel { Title = "Pane", Status = "experimental" },
+            };
+            Assert.Equal("Clash\nTools \u03B2", ButtonCaption.Caption(items[0]));
+            Assert.Equal("Docs \u03B2", ButtonCaption.Caption(items[1]));
+            Assert.Equal("Picked \u03B2", ButtonCaption.Caption(items[0], "Picked"));
+            Assert.Equal("Picked", ButtonCaption.Caption(new UrlButtonModel { Title = "Docs" }, "Picked"));
+            foreach (var item in items)
+            {
+                Assert.Equal("Experimental: Opens it", ButtonCaption.Tooltip(item, "Opens it"));
+                Assert.Equal("Experimental", ButtonCaption.Tooltip(item, null));
+            }
+        }
+
+        [Fact]
+        public void A_Caption_That_Already_Carries_The_Marker_Is_Not_Marked_Twice()
+        {
+            // A smartbutton reading __button__.Title (which holds the marker and maybe
+            // the other two) and writing it back must not grow a second beta.
+            var pane = new DockPaneModel { Title = "Pane", Status = "experimental" };
+            Assert.Equal("Picked β", ButtonCaption.Caption(pane, "Picked β"));
+            var all = RibbonMarkers.WithShortcutMarker(RibbonMarkers.WithConfigMarker("Picked β"));
+            Assert.Equal(all, ButtonCaption.Caption(pane, all));
+            Assert.Equal("Two\nLines β", ButtonCaption.Caption(pane, "Two\nLines β"));
+            Assert.Equal("Alphaβ β", ButtonCaption.Caption(pane, "Alphaβ"));
+        }
+
+        [Fact]
+        public void Without_A_Status_Nothing_Changes()
+        {
+            var pulldown = new PulldownModel { Title = @"Clash\nTools" };
+            Assert.Equal("Clash\nTools", ButtonCaption.Caption(pulldown));
+            Assert.Equal("Opens it", ButtonCaption.Tooltip(pulldown, "Opens it"));
+            Assert.Null(ButtonCaption.Tooltip(pulldown, null));
+            Assert.Null(ButtonCaption.Tooltip(pulldown, ""));
+            Assert.Equal("Hide\nTabs", ButtonCaption.Text(Toggle(), small: false, on: false, hasChord: false));
+            Assert.Equal("Takes them off", ButtonCaption.Tooltip(Toggle(), on: false, chord: null));
+        }
     }
 }

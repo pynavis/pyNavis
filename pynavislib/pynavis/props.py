@@ -33,11 +33,14 @@ FromDoubleLength paired with IsDisplayString/IsInt32/IsBoolean/... probes) -
 VERIFY ToIdentifierString/ToDateTime/ToPoint3D at smoke if a live category
 ever produces one of those kinds and the coerced value looks wrong.
 
-Any IsDouble* probe True is treated as float via ToDouble(): VariantData has
-several Double subtypes (IsDouble, IsDoubleLength, IsDoubleArea,
-IsDoubleVolume, IsDoubleAngle, and more - see the plan's Global Constraints),
-all of which read back as a plain float regardless of which unit the value
-carries - unit conversion, if a caller needs it, is not this module's job.
+VariantData has five Double kinds (IsDouble, IsDoubleLength, IsDoubleArea,
+IsDoubleVolume, IsDoubleAngle), each with its own reader: ToDouble() works
+only on a plain IsDouble value and raises "Not supported if '!IsDouble'" on
+the other four (found under pynavis run in Navisworks 2026, 2026-10-09), so
+each kind is read through its own ToDoubleLength/ToDoubleArea/
+ToDoubleVolume/ToDoubleAngle (_DOUBLE_READERS). All five read back as a plain
+float in the document's own units - unit conversion, if a caller needs it,
+is not this module's job.
 
 A third half writes custom property tabs (set_custom/get_custom/remove_custom
 plus the pure _plan_custom below them). Reading a custom tab back
@@ -245,10 +248,11 @@ def _variant_to_python(variant):
         IsDateTime         -> datetime.datetime - via ToDateTime() if the
                                variant exposes it, else the ToString() text
                                (see _variant_datetime)
-        any IsDouble*      -> float  (ToDouble) - IsDouble, IsDoubleLength,
-                               IsDoubleArea, IsDoubleVolume, IsDoubleAngle,
-                               and any other IsDouble-prefixed probe the live
-                               VariantData exposes (see _is_double_kind)
+        IsDouble           -> float  (ToDouble)
+        IsDoubleLength     -> float  (ToDoubleLength)
+        IsDoubleArea       -> float  (ToDoubleArea)
+        IsDoubleVolume     -> float  (ToDoubleVolume)
+        IsDoubleAngle      -> float  (ToDoubleAngle)
         IsPoint3D          -> (x, y, z) float tuple (ToPoint3D)
         anything else      -> variant.ToString()
 
@@ -265,26 +269,24 @@ def _variant_to_python(variant):
         return int(variant.ToInt32())
     if getattr(variant, 'IsDateTime', False):
         return _variant_datetime(variant)
-    if _is_double_kind(variant):
-        return float(variant.ToDouble())
+    for probe, reader in _DOUBLE_READERS:
+        if getattr(variant, probe, False):
+            return float(getattr(variant, reader)())
     if getattr(variant, 'IsPoint3D', False):
         return _point3d_tuple(variant.ToPoint3D())
     return variant.ToString()
 
 
-def _is_double_kind(variant):
-    """True if any attribute named IsDouble* is True on variant.
-
-    Checked by scanning dir(variant) for the IsDouble prefix, rather than a
-    hardcoded list of the Double subtypes named in the plan's Global
-    Constraints, so a VariantData exposing a Double probe this module was
-    not written against still reads back as a float instead of falling all
-    the way through to the ToString() text.
-    """
-    for name in dir(variant):
-        if name.startswith('IsDouble') and getattr(variant, name, False):
-            return True
-    return False
+# Each Double kind's probe and the one reader VariantData allows for it
+# (ToDouble() raises on all but the plain IsDouble kind). An explicit list,
+# not a dir() scan, so bulk reads stay cheap.
+_DOUBLE_READERS = (
+    ('IsDouble', 'ToDouble'),
+    ('IsDoubleLength', 'ToDoubleLength'),
+    ('IsDoubleArea', 'ToDoubleArea'),
+    ('IsDoubleVolume', 'ToDoubleVolume'),
+    ('IsDoubleAngle', 'ToDoubleAngle'),
+)
 
 
 def _variant_datetime(variant):

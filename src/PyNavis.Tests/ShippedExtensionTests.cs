@@ -108,17 +108,23 @@ namespace PyNavis.Tests
         }
 
         [Fact]
-        public void PyNavisPanel_Ships_Settings_Shortcuts_HideTabs_Console_Reload_AndPanelSlots()
+        public void PyNavisPanel_Ships_Settings_Shortcuts_HideTabs_Console_Reload_Playground_AndPanelSlots()
         {
             var tab = Assert.Single(ParseShipped().Tabs);
             var general = tab.Panels.Single(p => p.Title == "pyNavis");
 
             // Settings first, the developer tools last: a coordinator should not
             // meet "Console" before anything else.
-            Assert.Equal(new[] { "Settings", "Shortcuts", "Hide Tabs", "Console", "Reload" },
+            Assert.Equal(new[] { "Settings", "Shortcuts", "Hide Tabs", "Console", "Reload", "Playground" },
                 general.Items.OfType<PushButtonModel>().Select(b => b.Title).ToArray());
-            Assert.Equal(new[] { "Console", "Hide Tabs", "Panel slots", "Reload", "Settings", "Shortcuts" },
+            Assert.Equal(new[] { "Console", "Hide Tabs", "Panel slots", "Playground", "Reload", "Settings", "Shortcuts" },
                 general.Buttons.Select(b => b.Title).OrderBy(t => t).ToArray());
+
+            // The Playground browser: Shift+Click sets where the catalog comes from.
+            var playground = general.Items.OfType<PushButtonModel>().Single(b => b.Title == "Playground");
+            Assert.NotNull(playground.ConfigScriptPath);
+            Assert.False(string.IsNullOrWhiteSpace(playground.Tooltip));
+            Assert.Null(playground.ContextRule);
 
             // A toggle, with Shift+Click to choose the tabs, that says what a click
             // does in each state rather than "Hide Tabs" on both.
@@ -152,7 +158,7 @@ namespace PyNavis.Tests
                 i => Assert.Equal("Panel slots", Assert.IsType<PushButtonModel>(i).Title));
             Assert.DoesNotContain(general.Items.OfType<PushButtonModel>(),
                 b => b.Title == "Panel slots");
-            Assert.Equal(new[] { "Console", "Hide Tabs", "Reload", "Settings", "Shortcuts" },
+            Assert.Equal(new[] { "Console", "Hide Tabs", "Playground", "Reload", "Settings", "Shortcuts" },
                 general.Items.OfType<PushButtonModel>().Select(b => b.Title).OrderBy(t => t).ToArray());
         }
 
@@ -205,7 +211,7 @@ namespace PyNavis.Tests
                                 : new[] { ((PushButtonModel)i).Directory })
                 .ToList();
 
-            Assert.Equal(44, bundles.Count);
+            Assert.Equal(45, bundles.Count);
 
             var expected = new[]
             {

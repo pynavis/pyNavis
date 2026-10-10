@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using PyNavis.Runtime.Engine;
 using Execution = PyNavis.Runtime.Execution;
+using PyNavis.Runtime.Execution.Runner;
 using Xunit;
 
 namespace PyNavis.Tests
@@ -788,6 +789,30 @@ namespace PyNavis.Tests
                 "assert pick._hit(cancelled) is None\n");
 
             Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void PickModule_EveryPick_RefusesUnderPynavisRun()
+        {
+            // A pick under the runner would switch the hidden Navisworks to a
+            // pick or Measure tool and wait for a click that never comes (field
+            // report 2026-10-09: a headless batch hung until its timeout). Each
+            // entry point refuses first, with the same message as a dialog.
+            using (RunnerContext.Enter(new StringWriter()))
+            {
+                var r = Run(
+                    "from pynavis import pick\n" +
+                    "for fn in (lambda: pick.point(), lambda: pick.point_then(lambda h: None),\n" +
+                    "           lambda: pick.measure_point(), lambda: pick.measure_points()):\n" +
+                    "    try:\n" +
+                    "        fn()\n" +
+                    "    except Exception as e:\n" +
+                    "        assert 'pynavis run' in str(e), str(e)\n" +
+                    "    else:\n" +
+                    "        raise AssertionError('a pick did not refuse under the runner')\n");
+
+                Assert.True(r.Succeeded, r.ErrorText);
+            }
         }
 
         [Fact]
@@ -1680,7 +1705,6 @@ namespace PyNavis.Tests
                 "assert conv(FakeVariantNoToDateTime(IsDateTime=True)) == 'TOSTRING'\n" +
                 "assert conv(FakeVariant(IsDouble=True, double_value=1.25)) == 1.25\n" +
                 "assert isinstance(conv(FakeVariant(IsDouble=True, double_value=1.25)), float)\n" +
-                "assert conv(FakeVariant(IsDoubleLength=True, double_value=9.5)) == 9.5\n" +
                 "assert conv(FakeVariant(IsPoint3D=True, point_value=(1.0, 2.0, 3.0))) == (1.0, 2.0, 3.0)\n" +
                 "assert conv(FakeVariant()) == 'TOSTRING'\n" +
                 "\n" +
@@ -1693,6 +1717,65 @@ namespace PyNavis.Tests
                 "assert conv(FakeVariant(IsInt32=True, IsDateTime=True, datetime_value=dt)) == 7\n" +
                 "assert conv(FakeVariant(IsDateTime=True, IsDouble=True, datetime_value=dt)) == dt\n" +
                 "assert conv(FakeVariant(IsDouble=True, IsPoint3D=True, double_value=1.25)) == 1.25\n" +
+                "print('all tests passed')",
+                outw);
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Contains("all tests passed", outw.ToString());
+        }
+
+        // A stand-in for VariantData that behaves like the live one on 2026-10-09:
+        // exactly one Is* probe True, and ToDouble() refuses anything but a plain
+        // IsDouble value ("Not supported if '!IsDouble'"); each typed double kind
+        // has its own reader that refuses the other kinds the same way.
+        private const string StrictDoubleVariant =
+            "KINDS = ('IsDouble', 'IsDoubleLength', 'IsDoubleArea', 'IsDoubleVolume', 'IsDoubleAngle',\n" +
+            "         'IsDisplayString', 'IsIdentifierString', 'IsBoolean', 'IsInt32', 'IsDateTime', 'IsPoint3D')\n" +
+            "class StrictVariant(object):\n" +
+            "    def __init__(self, kind, value):\n" +
+            "        for name in KINDS:\n" +
+            "            setattr(self, name, name == kind)\n" +
+            "        self._value = value\n" +
+            "    def _read(self, probe):\n" +
+            "        if not getattr(self, probe):\n" +
+            "            raise SystemError(\"Not supported if '!%s'\" % probe)\n" +
+            "        return self._value\n" +
+            "    def ToDouble(self): return self._read('IsDouble')\n" +
+            "    def ToDoubleLength(self): return self._read('IsDoubleLength')\n" +
+            "    def ToDoubleArea(self): return self._read('IsDoubleArea')\n" +
+            "    def ToDoubleVolume(self): return self._read('IsDoubleVolume')\n" +
+            "    def ToDoubleAngle(self): return self._read('IsDoubleAngle')\n" +
+            "    def ToString(self): return 'TOSTRING'\n" +
+            "def check(conv):\n" +
+            "    for kind, value in (('IsDouble', 1.25), ('IsDoubleLength', 9.5), ('IsDoubleArea', 4),\n" +
+            "                        ('IsDoubleVolume', 2.0), ('IsDoubleAngle', 0.5)):\n" +
+            "        result = conv(StrictVariant(kind, value))\n" +
+            "        assert result == value, (kind, result)\n" +
+            "        assert isinstance(result, float), (kind, type(result))\n";
+
+        [Fact]
+        public void PropsModule_VariantToPython_ReadsTypedDoublesWithTheirOwnReaders()
+        {
+            var outw = new StringWriter();
+            var r = Run(
+                "from pynavis import props\n" +
+                StrictDoubleVariant +
+                "check(props._variant_to_python)\n" +
+                "print('all tests passed')",
+                outw);
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Contains("all tests passed", outw.ToString());
+        }
+
+        [Fact]
+        public void SetsModule_VariantToPython_ReadsTypedDoublesWithTheirOwnReaders()
+        {
+            var outw = new StringWriter();
+            var r = Run(
+                "from pynavis import sets\n" +
+                StrictDoubleVariant +
+                "check(sets._variant_to_python)\n" +
                 "print('all tests passed')",
                 outw);
 

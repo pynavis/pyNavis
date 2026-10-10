@@ -863,8 +863,11 @@ are the ones shown in the Properties window, so <code>get_property(item, 'Elemen
 'Name')</code> reads what you see there.</p>
 
 <p><code>VariantData</code> is not a Python value: read it through its own accessors, for
-example <code>value.ToDisplayString()</code> for text or <code>value.ToDouble()</code> when
-you know the type. Always guard for <code>None</code>, because a missing property is the
+example <code>value.ToDisplayString()</code> for text or <code>value.ToDouble()</code> for a
+plain number. A length, area, volume or angle has its own reader
+(<code>ToDoubleLength()</code>, <code>ToDoubleArea()</code>, <code>ToDoubleVolume()</code>,
+<code>ToDoubleAngle()</code>), and <code>ToDouble()</code> raises on those, so check the
+matching <code>Is*</code> first, or let <code>props.get</code> do it. Always guard for <code>None</code>, because a missing property is the
 normal case across a federated model.</p>
 
 <h2 id="export">export: NWD save, publish and viewpoint images</h2>

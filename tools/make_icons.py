@@ -223,6 +223,21 @@ def ic_panel_slots(c):
         plus(c, 87, 48, 5, 7)
 
 
+def ic_playground(c):
+    """A catalog of tiles, three in ink, the fourth slot an accent arrow coming
+    down into place: pick from the catalog, install the one you want."""
+    if c.small:
+        # Solid tiles: an outline's counter closes up at 16px.
+        for x0, y0 in ((6, 6), (56, 6), (6, 56)):
+            c.rrect(x0, y0, x0 + 34, y0 + 34, rad=7, w=0, fill=c.t['ink'])
+        c.arrow_v(73, 50, 92, w=12, head=24)
+    else:
+        c.rrect(10, 10, 44, 44, rad=7)
+        c.rrect(52, 10, 86, 44, rad=7)
+        c.rrect(10, 52, 44, 86, rad=7)
+        c.arrow_v(69, 52, 88, w=8, head=18)
+
+
 def _ribbon_strip(c, tabs, body=None):
     """A ribbon seen head on: the panel body with tab headers standing on its
     top edge. tabs picks which of the header slots are drawn."""
@@ -1043,6 +1058,7 @@ ICONS = {
     'pyNavis.panel/Reload.pushbutton': ic_reload,
     'pyNavis.panel/Shortcuts.pushbutton': ic_shortcuts,
     'pyNavis.panel/Settings.pushbutton': ic_settings,
+    'pyNavis.panel/Playground.pushbutton': ic_playground,
     'pyNavis.panel/More.slideout/Panel_Slots.pushbutton': ic_panel_slots,
     'Clash.panel/Clash_Report.pushbutton': ic_clash_report,
     'Data.panel/Coordinates.stack/Get_Coordinates.pushbutton': ic_get_coordinates,

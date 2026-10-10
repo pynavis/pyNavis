@@ -710,5 +710,96 @@ namespace PyNavis.Tests
             var titles = ParseSingle().Tabs[0].Panels[0].Buttons.Select(b => b.Title).ToArray();
             Assert.Equal(new[] { "Alpha", "Zeta", "Beta" }, titles);
         }
+        // ---- status: experimental ------------------------------------------
+
+        /// <summary>One bundle of the given kind on its own panel, with the files that
+        /// kind needs to parse and the given bundle.yaml body; returns its folder.</summary>
+        private string MakeKind(string suffix, string yaml)
+        {
+            var dir = Path.Combine(_root, "MyExt.extension", "T.tab", "P.panel", "Thing" + suffix);
+            Directory.CreateDirectory(dir);
+            var extra = "";
+            switch (suffix)
+            {
+                case ".urlbutton": extra = "url: https://example.com\n"; break;
+                case ".linkbutton": extra = "plugin: Some.ADSK\n"; break;
+                case ".dockpane":
+                    File.WriteAllText(Path.Combine(dir, "pane.xaml"),
+                        "<Grid xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" />");
+                    break;
+                case ".pulldown":
+                case ".splitbutton":
+                case ".splitpushbutton":
+                    var child = Path.Combine(dir, "Child.pushbutton");
+                    Directory.CreateDirectory(child);
+                    File.WriteAllText(Path.Combine(child, "script.py"), "x = 1\n");
+                    break;
+                default:
+                    File.WriteAllText(Path.Combine(dir, "script.py"), "x = 1\n");
+                    break;
+            }
+            File.WriteAllText(Path.Combine(dir, "bundle.yaml"), extra + (yaml ?? ""));
+            return dir;
+        }
+
+        public static IEnumerable<object[]> CaptionedKinds() => new[]
+        {
+            ".pushbutton", ".toggle", ".smartbutton", ".nobutton", ".pulldown", ".splitbutton",
+            ".splitpushbutton", ".urlbutton", ".linkbutton", ".dockpane",
+        }.Select(k => new object[] { k });
+
+        private CaptionedPanelItem OnlyItem() =>
+            Assert.IsAssignableFrom<CaptionedPanelItem>(Assert.Single(ParseSingle().Tabs[0].Panels[0].Items));
+
+        [Theory]
+        [MemberData(nameof(CaptionedKinds))]
+        public void Status_Experimental_IsReadOnEveryCaptionedKind(string suffix)
+        {
+            MakeKind(suffix, "status: experimental\n");
+            var item = OnlyItem();
+            Assert.Equal("experimental", item.Status);
+            Assert.True(item.IsExperimental);
+        }
+
+        [Theory]
+        [MemberData(nameof(CaptionedKinds))]
+        public void Status_Absent_LeavesTheItemAlone(string suffix)
+        {
+            MakeKind(suffix, "title: Thing\n");
+            var item = OnlyItem();
+            Assert.Null(item.Status);
+            Assert.False(item.IsExperimental);
+            Assert.Empty(ParseSingle().Problems);
+        }
+
+        [Fact]
+        public void Status_IsCaseInsensitive_AndNormalised()
+        {
+            MakeKind(".pushbutton", "status: Experimental\n");
+            Assert.Equal("experimental", OnlyItem().Status);
+        }
+
+        [Theory]
+        [MemberData(nameof(CaptionedKinds))]
+        public void Status_AnyOtherValue_IsAProblem_AndHasNoEffect(string suffix)
+        {
+            var dir = MakeKind(suffix, "status: beta\n");
+            var ext = ParseSingle();
+            var item = Assert.IsAssignableFrom<CaptionedPanelItem>(Assert.Single(ext.Tabs[0].Panels[0].Items));
+            Assert.Null(item.Status);
+            Assert.False(item.IsExperimental);
+            var problem = Assert.Single(ext.Problems);
+            Assert.Equal($"Bundle '{dir}': status 'beta' is not experimental - ignored.", problem);
+        }
+
+        [Fact]
+        public void Status_OnAChildOfAPulldown_IsReadToo()
+        {
+            var dir = MakeKind(".pulldown", "");
+            File.WriteAllText(Path.Combine(dir, "Child.pushbutton", "bundle.yaml"), "status: experimental\n");
+            var pulldown = Assert.IsType<PulldownModel>(OnlyItem());
+            Assert.False(pulldown.IsExperimental);
+            Assert.True(Assert.Single(pulldown.Buttons).IsExperimental);
+        }
     }
 }

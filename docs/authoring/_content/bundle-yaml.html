@@ -227,7 +227,7 @@ warns you.</p>
 
 <h2>The keys a pushbutton reads</h2>
 
-<p>Exactly eight, and nothing else in the file is looked at. The same eight apply to the three
+<p>Exactly nine, and nothing else in the file is looked at. The same nine apply to the three
 kinds that are parsed as pushbuttons: <code>*.nobutton</code>, <code>*.toggle</code> and
 <code>*.smartbutton</code>, wherever they sit, including inside a <code>*.slideout</code>.
 <code>context:</code> is the one key a nobutton reads to no effect, because greying needs a
@@ -265,6 +265,10 @@ rendered control.</p>
     <td><code>*.toggle</code> only: the caption and tooltip while the toggle is on, so a
         button named for an action can name the other one once pressed. See
         <a href="buttons.html">Buttons</a>.</td></tr>
+<tr><td><code>status</code></td><td>nothing; absent means a finished tool</td>
+    <td><code>experimental</code> marks the tool as one: a &beta; joins the caption and the
+        tooltip opens with <code>Experimental:</code>. Read on every kind that has a
+        caption, pulldowns and dock panes included. See below.</td></tr>
 </tbody>
 </table>
 </div>
@@ -398,24 +402,65 @@ covers only the two runs that go through the script executor, a click or a chord
 <code>*.smartbutton</code>'s build-time run and a <code>*.dockpane</code>'s
 <code>script.py</code> are not version checked.</p>
 
+<h2>status: marking a tool experimental</h2>
+
+<p>One value is accepted, <code>experimental</code>, matched case-insensitively. It says the
+tool works but has not earned the trust of a finished one, and the ribbon says so in two
+places without touching the icon:</p>
+
+<pre data-lang="yaml" data-file="Clash_Grouper.pushbutton\bundle.yaml">
+title: Clash grouper
+tooltip: Groups clash results by the element they share.
+status: experimental
+</pre>
+
+<ul>
+<li>The caption gains a Greek beta after the name: <code>Clash grouper &beta;</code>. It sits
+    on the last line of a wrapped caption and goes before the Shift+Click and shortcut
+    markers, so a caption carrying all three reads <code>Name &beta; &#x1F845; &#x25CF;</code>.
+    Unlike those two it has no switch in <code>config.json</code>: it is the author's
+    statement about the tool, not a hint the user tunes.</li>
+<li>The tooltip opens with <code>Experimental: </code>, so the one above reads
+    <code>Experimental: Groups clash results by the element they share.</code> A bundle with
+    no tooltip shows the bare word <code>Experimental</code>. A shortcut still follows in
+    brackets.</li>
+</ul>
+
+<p>The key works on every kind with a caption: <code>*.pushbutton</code>,
+<code>*.toggle</code> (the <code>title_on</code>/<code>tooltip_on</code> wording is marked
+too), <code>*.smartbutton</code> (a title or tooltip set through <code>__button__</code>
+keeps the mark), <code>*.nobutton</code>, <code>*.pulldown</code>,
+<code>*.splitbutton</code>, <code>*.splitpushbutton</code>, <code>*.urlbutton</code>,
+<code>*.linkbutton</code> and <code>*.dockpane</code>. On a pulldown it marks the header
+only; mark each child in its own <code>bundle.yaml</code>. Nothing else changes: the tool
+runs, binds shortcuts and logs exactly as an unmarked one does.</p>
+
+<p>Any other value is reported as a bundle problem and has no effect:</p>
+
+<pre data-lang="text" data-file="%APPDATA%\pyNavis\logs\pyNavis.log">
+Bundle 'D:\NavisTools\...\Export.pushbutton': status 'beta' is not experimental - ignored.
+</pre>
+
 <h2>The keys a pulldown reads</h2>
 
 <p>A <code>*.pulldown</code> folder may carry its own <code>bundle.yaml</code> describing the
-menu button itself. It reads four keys: <code>title</code>, <code>tooltip</code>,
-<code>keytip</code>, and <code>layout</code>, which orders the menu rows (see
+menu button itself. It reads five keys: <code>title</code>, <code>tooltip</code>,
+<code>keytip</code>, <code>status</code> (see
+<a href="#status-marking-a-tool-experimental">status</a> above), and <code>layout</code>,
+which orders the menu rows (see
 <a href="#layout-ordering-the-folders-inside-a-container">layout</a> below).
 <code>shortcut</code> and <code>engine</code> are ignored there, because a pulldown does not
 run anything; only the pushbuttons inside it do.</p>
 
 <p><code>*.splitbutton</code> and <code>*.splitpushbutton</code> are parsed exactly the same
-way and read the identical four keys. <a href="buttons.html">Buttons, stacks and
+way and read the identical five keys. <a href="buttons.html">Buttons, stacks and
 pulldowns</a> covers what makes their header click different from a plain pulldown's.</p>
 
 <h2>The keys a urlbutton reads</h2>
 
 <p>A <code>*.urlbutton</code> has no <code>script.py</code>, so <code>engine</code> and
 <code>shortcut</code> are not read: there is no code for either of them to apply to. It reads
-four keys, one of them required.</p>
+five keys, one of them required.</p>
 
 <div class="table-scroll">
 <table>
@@ -429,6 +474,9 @@ four keys, one of them required.</p>
     <td>Hover tooltip. There is no docstring to fall back to.</td></tr>
 <tr><td><code>keytip</code></td><td>generated from the title</td>
     <td>Alt-navigation letters.</td></tr>
+<tr><td><code>status</code></td><td>nothing</td>
+    <td><code>experimental</code> marks the caption and prefixes the tooltip; see
+        <a href="#status-marking-a-tool-experimental">status</a> above.</td></tr>
 </tbody>
 </table>
 </div>
@@ -455,6 +503,9 @@ identity Navisworks itself uses to find a registered plugin.</p>
     <td>Hover tooltip. There is no docstring and no fallback.</td></tr>
 <tr><td><code>keytip</code></td><td>generated from the title</td>
     <td>Alt-navigation letters.</td></tr>
+<tr><td><code>status</code></td><td>nothing</td>
+    <td><code>experimental</code> marks the caption and prefixes the tooltip; see
+        <a href="#status-marking-a-tool-experimental">status</a> above.</td></tr>
 </tbody>
 </table>
 </div>
@@ -466,7 +517,7 @@ Linkbutton 'D:\NavisTools\...\Legacy_Tool.linkbutton' has no plugin: in bundle.y
 <h2>The keys a dockpane reads</h2>
 
 <p>A <code>*.dockpane</code> renders as a ribbon toggle rather than a button that runs and
-returns, but its <code>bundle.yaml</code> is parsed by the same reader and reads five keys.
+returns, but its <code>bundle.yaml</code> is parsed by the same reader and reads six keys.
 There is no <code>width</code> or <code>height</code> key: a pane's size belongs to the slot it
 lands in, identical for all five compile-time slots, not to the bundle that borrows one.</p>
 
@@ -488,6 +539,9 @@ lands in, identical for all five compile-time slots, not to the bundle that borr
     <td>Parsed and stored, but not wired to anything: <code>ShortcutManager</code> dispatches
         through <code>ScriptExecutor.Run</code>, which a dockpane click never goes through.
         Treat this key as reserved, not as a working chord, in this release.</td></tr>
+<tr><td><code>status</code></td><td>nothing</td>
+    <td><code>experimental</code> marks the caption and prefixes the tooltip; see
+        <a href="#status-marking-a-tool-experimental">status</a> above.</td></tr>
 </tbody>
 </table>
 </div>
@@ -816,7 +870,9 @@ pyRevit, because several familiar keys have no equivalent here.</p>
 <tr><td><code>min_navis</code>, <code>max_navis</code>, <code>version</code></td>
     <td>Not read. The real keys are <code>min_host_version</code> and
         <code>max_host_version</code>, both a bare year; see above.</td></tr>
-<tr><td><code>highlight</code>, <code>beta</code></td><td>Not read. There are no badges.</td></tr>
+<tr><td><code>highlight</code>, <code>beta</code></td>
+    <td>Not read. The one badge-like key is <code>status: experimental</code>, a caption
+        marker and tooltip prefix rather than a badge on the icon; see above.</td></tr>
 <tr><td><code>layout</code> on a pushbutton</td>
     <td>Not read there. A pushbutton has no children to order; the key is read on containers
         only, as a plain list of folder names. See above.</td></tr>

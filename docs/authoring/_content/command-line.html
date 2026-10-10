@@ -136,8 +136,11 @@ a transcript file, and refuses what would wait for an answer:</p>
 <li>The <code>pynavis.forms</code> prompts and pickers raise instead of waiting for an
     answer: <code>forms.confirm</code>, <code>ask_string</code>, <code>ask_length</code>,
     <code>select_from_list</code>, <code>ask_options</code>, <code>ask_number</code>,
-    <code>pick_folder</code>, <code>save_file</code> and <code>open_file</code>. So does
-    <code>forms.WPFWindow.show_dialog()</code>.</li>
+    <code>pick_folder</code>, <code>save_file</code> and <code>open_file</code>. So do
+    <code>forms.WPFWindow.show_dialog()</code> and every <code>pynavis.pick</code> entry point
+    (<code>pick.point</code>, <code>point_then</code>, <code>measure_point</code> and
+    <code>measure_points</code>): a pick would put the hidden Navisworks on a pick tool and
+    wait for a click nobody can give.</li>
 </ul>
 
 <p>The error those dialogs raise is an <code>InvalidOperationException</code> that reads

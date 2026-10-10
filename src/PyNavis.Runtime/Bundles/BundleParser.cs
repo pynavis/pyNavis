@@ -145,12 +145,12 @@ namespace PyNavis.Runtime.Bundles
                 }
                 else if (itemName.EndsWith(".urlbutton", StringComparison.OrdinalIgnoreCase))
                 {
-                    var url = ParseUrlButton(itemDir);
+                    var url = ParseUrlButton(itemDir, ext);
                     if (url != null) items.Add(url);
                 }
                 else if (itemName.EndsWith(".linkbutton", StringComparison.OrdinalIgnoreCase))
                 {
-                    var link = ParseLinkButton(itemDir);
+                    var link = ParseLinkButton(itemDir, ext);
                     if (link != null) items.Add(link);
                 }
                 else if (itemName.EndsWith(".splitbutton", StringComparison.OrdinalIgnoreCase))
@@ -241,6 +241,7 @@ namespace PyNavis.Runtime.Bundles
                 Title = yaml.TryGetValue("title", out var t) ? t : ToTitle(BaseName(pulldownDir, suffix)),
                 Tooltip = yaml.TryGetValue("tooltip", out var tip) ? tip : null,
                 KeyTipOverride = yaml.TryGetValue("keytip", out var keyTip) ? keyTip : null,
+                Status = ReadStatus(yaml, pulldownDir, ext),
                 IconPath = icons.large,
                 DarkIconPath = icons.dark,
                 SmallIconPath = icons.small,
@@ -289,6 +290,7 @@ namespace PyNavis.Runtime.Bundles
                 Shortcut = yaml.TryGetValue("shortcut", out var chord) ? chord : null,
                 KeyTipOverride = yaml.TryGetValue("keytip", out var keyTip) ? keyTip : null,
                 BundleKey = RelativeKey(ext.Directory, buttonDir),
+                Status = ReadStatus(yaml, buttonDir, ext),
                 IconPath = icons.large,
                 DarkIconPath = icons.dark,
                 SmallIconPath = icons.small,
@@ -353,7 +355,7 @@ namespace PyNavis.Runtime.Bundles
             return button;
         }
 
-        private static UrlButtonModel ParseUrlButton(string dir)
+        private static UrlButtonModel ParseUrlButton(string dir, ExtensionModel ext)
         {
             var yaml = ReadYaml(Path.Combine(dir, "bundle.yaml"));
             if (!yaml.TryGetValue("url", out var url) || string.IsNullOrWhiteSpace(url))
@@ -369,12 +371,13 @@ namespace PyNavis.Runtime.Bundles
                 Title = yaml.TryGetValue("title", out var t) ? t : ToTitle(BaseName(dir, ".urlbutton")),
                 Tooltip = yaml.TryGetValue("tooltip", out var tip) ? tip : url.Trim(),
                 KeyTipOverride = yaml.TryGetValue("keytip", out var keyTip) ? keyTip : null,
+                Status = ReadStatus(yaml, dir, ext),
                 IconPath = icons.large, DarkIconPath = icons.dark,
                 SmallIconPath = icons.small, SmallDarkIconPath = icons.smallDark,
             };
         }
 
-        private static LinkButtonModel ParseLinkButton(string dir)
+        private static LinkButtonModel ParseLinkButton(string dir, ExtensionModel ext)
         {
             var yaml = ReadYaml(Path.Combine(dir, "bundle.yaml"));
             if (!yaml.TryGetValue("plugin", out var plugin) || string.IsNullOrWhiteSpace(plugin))
@@ -390,6 +393,7 @@ namespace PyNavis.Runtime.Bundles
                 Title = yaml.TryGetValue("title", out var t) ? t : ToTitle(BaseName(dir, ".linkbutton")),
                 Tooltip = yaml.TryGetValue("tooltip", out var tip) ? tip : null,
                 KeyTipOverride = yaml.TryGetValue("keytip", out var keyTip) ? keyTip : null,
+                Status = ReadStatus(yaml, dir, ext),
                 IconPath = icons.large, DarkIconPath = icons.dark,
                 SmallIconPath = icons.small, SmallDarkIconPath = icons.smallDark,
             };
@@ -418,6 +422,7 @@ namespace PyNavis.Runtime.Bundles
                 Shortcut = yaml.TryGetValue("shortcut", out var chord) ? chord : null,
                 KeyTipOverride = yaml.TryGetValue("keytip", out var keyTip) ? keyTip : null,
                 BundleKey = RelativeKey(ext.Directory, dir),
+                Status = ReadStatus(yaml, dir, ext),
                 IconPath = icons.large,
                 DarkIconPath = icons.dark,
                 SmallIconPath = icons.small,
@@ -427,6 +432,17 @@ namespace PyNavis.Runtime.Bundles
             pane.SearchPaths.Add(dir);
             if (ext.LibDirectory != null) pane.SearchPaths.Add(ext.LibDirectory);
             return pane;
+        }
+
+        /// <summary>bundle.yaml "status:" normalised to lower case, or null. Absent is
+        /// silent; a value pyNavis does not know is reported and has no effect.</summary>
+        private static string ReadStatus(Dictionary<string, string> yaml, string dir, ExtensionModel ext)
+        {
+            if (!yaml.TryGetValue("status", out var status)) return null;
+            if (string.Equals(status?.Trim(), BundleStatus.Experimental, StringComparison.OrdinalIgnoreCase))
+                return BundleStatus.Experimental;
+            Report(ext, $"Bundle '{dir}': status '{status}' is not experimental - ignored.");
+            return null;
         }
 
         /// <summary>Bundle path relative to its extension folder, forward slashes, with

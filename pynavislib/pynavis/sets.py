@@ -1098,6 +1098,10 @@ def _variant_to_python(variant):
         return bool(variant.ToBoolean())
     if getattr(variant, 'IsInt32', False):
         return int(variant.ToInt32())
-    if getattr(variant, 'IsDouble', False) or getattr(variant, 'IsDoubleLength', False):
-        return float(variant.ToDouble())
+    # Each Double kind through its own reader: ToDouble() raises on a
+    # length, area, volume or angle (see props._DOUBLE_READERS).
+    from pynavis.props import _DOUBLE_READERS
+    for probe, reader in _DOUBLE_READERS:
+        if getattr(variant, probe, False):
+            return float(getattr(variant, reader)())
     return variant.ToString()

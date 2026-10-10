@@ -62,6 +62,20 @@ namespace PyNavis.Runtime.Bundles
 
         /// <summary>The caption as the ribbon draws it, breaks expanded to newlines.</summary>
         public string RibbonTitle { get; private set; }
+
+        /// <summary>bundle.yaml "status:", normalised to lower case; null when absent or
+        /// not a value pyNavis knows. Only "experimental" exists today.</summary>
+        public string Status { get; set; }
+
+        /// <summary>status: experimental. The caption carries a marker and the tooltip
+        /// opens with "Experimental: ".</summary>
+        public bool IsExperimental => Status == BundleStatus.Experimental;
+    }
+
+    /// <summary>The values bundle.yaml "status:" accepts.</summary>
+    public static class BundleStatus
+    {
+        public const string Experimental = "experimental";
     }
 
     public class PanelModel

@@ -7,7 +7,7 @@ a `bundle.yaml` or `config.json` key, a `pynavis` function, a Navisworks year), 
 something existing changes meaning or goes away. The number in each heading is the one that
 `pynavis.__version__`, the Settings window and the installer file name show.
 
-## [Unreleased]
+## [1.3.0] - 2026-10-10
 
 ### Added
 
@@ -20,9 +20,24 @@ something existing changes meaning or goes away. The number in each heading is t
   raise instead of waiting for a click nobody can give. A Navisworks the runner starts skips
   the ribbon, hooks, notices and update check; `"automatedBoot": "full"` in `config.json`
   boots it like a normal session instead.
+- `status: experimental` in `bundle.yaml` marks a tool as experimental on any bundle with a
+  caption, pulldowns and dock panes included: a Greek beta (β) joins the ribbon caption and
+  the tooltip opens with "Experimental:". Any other value is reported as a bundle problem
+  and ignored.
+- Playground on the pyNavis panel browses pyNavis Playground, a separate catalog of
+  experimental tools: search it, filter by status (untested, launched, verified, known issue),
+  read the request behind each tool, and install only the tools you tick into
+  `%APPDATA%\pyNavis\extensions\Playground.extension`, or remove them again. The download is
+  checked against the catalog's SHA-256, and a stack member brings the rest of its stack.
+  `playground.catalog` in `config.json` (set with Shift+Click) points it at another catalog
+  address or a local `catalog.json`.
 
 ### Fixed
 
+- `pynavis.pick` refuses under `pynavis run`, as the dialogs already did: `point`, `point_then`,
+  `measure_point` and `measure_points` raise "Dialogs are not available under pynavis run"
+  instead of putting the hidden Navisworks on a pick tool and waiting for a click until the
+  timeout (found running the Playground tools headless).
 - Lines and labels drawn in the view (`pynavis.overlay`: the True Distance dimension, the Go
   to Coordinates marker) land on their points on every machine and on models far from the
   origin. Before, a label could sit mirrored about the middle of the view, and on a model in
@@ -47,6 +62,10 @@ something existing changes meaning or goes away. The number in each heading is t
 - Uninstalling backs up your own work in `pyNavis.extension` first, as an update does, and
   copies the buttons and panels you added to `My pyNavis.extension`, which uninstall keeps.
 - The installer's check for an old copy in the Navisworks program folder now covers 2027.
+- `pynavis.props.get` and `props.all_of` read length, area, volume and angle properties,
+  which most Revit geometry carries, as floats in document units. Before, they raised
+  "Not supported if '!IsDouble'" on any item with one. `pynavis.sets` reads a search
+  condition's value the same way.
 
 ## [1.2.0] - 2026-09-29
 

@@ -4,14 +4,17 @@ using PyNavis.Runtime.Config;
 namespace PyNavis.Runtime.Ribbon
 {
     /// <summary>
-    /// The two quiet hints a pyNavis button can carry, both appended to its caption:
-    /// a marker when the bundle has a config.py (the Shift+Click secondary action) and
-    /// another when a keyboard chord resolves to it. They live in the caption rather
-    /// than on the icon because a badge drawn over the art covered the glyph it was
-    /// meant to annotate (field report 2026-09-26).
+    /// The quiet hints a pyNavis button can carry, all appended to its caption: a
+    /// marker when the bundle says "status: experimental", one when the bundle has a
+    /// config.py (the Shift+Click secondary action) and another when a keyboard chord
+    /// resolves to it. They live in the caption rather than on the icon because a
+    /// badge drawn over the art covered the glyph it was meant to annotate (field
+    /// report 2026-09-26).
     ///
-    /// Both are read from config.json once per ribbon build, so Reload picks up an
-    /// edit without a restart. Everything here is pure and unit tested.
+    /// The config and shortcut markers are read from config.json once per ribbon
+    /// build, so Reload picks up an edit without a restart. The experimental marker
+    /// is fixed: it is a statement the author makes about the tool, not a hint the
+    /// user tunes. Everything here is pure and unit tested.
     /// </summary>
     public static class RibbonMarkers
     {
@@ -52,6 +55,16 @@ namespace PyNavis.Runtime.Ribbon
             ConfigMarker = DefaultConfigMarker;
             ShortcutMarker = DefaultShortcutMarker;
         }
+
+        /// <summary>What is appended to the caption of a bundle marked "status:
+        /// experimental": a Greek beta. It is a plain Segoe UI letter, so it stays crisp
+        /// at the small row size with no font fallback, its shape shares nothing with the
+        /// shortcut dot or the Shift arrow, and it already reads as "not final".</summary>
+        public const string ExperimentalMarker = "\u03B2";
+
+        /// <summary>The caption an experimental bundle should show. It goes before the
+        /// other two markers, so a caption with all three reads "Name β 🡅 ●".</summary>
+        public static string WithExperimentalMarker(string caption) => Append(caption, ExperimentalMarker);
 
         /// <summary>The caption a button with a config.py should show; see WithShortcutMarker
         /// for how a marker joins a caption. When both hints apply, this one goes first

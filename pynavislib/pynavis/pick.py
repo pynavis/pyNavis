@@ -55,6 +55,7 @@ from System.Windows.Threading import Dispatcher, DispatcherFrame
 # session fails on the API assembly, so it is imported where it is used, the
 # way pynavis.view defers its own Navisworks imports.
 from PyNavis.Runtime.Pick import PickCancelReason, PickSnaps
+from PyNavis.Runtime.Execution.Runner import RunnerContext
 
 from pynavis import toast
 
@@ -92,7 +93,10 @@ class Hit(object):
 
 
 def point(prompt=DEFAULT_PROMPT):
-    """Blocks until the user clicks a point; returns a Hit, or None on cancel."""
+    """Blocks until the user clicks a point; returns a Hit, or None on cancel.
+
+    Raises under pynavis run, where no one could click."""
+    RunnerContext.ThrowIfActive()
     frame = DispatcherFrame()
     answer = []
 
@@ -115,7 +119,8 @@ def point_then(callback, prompt=DEFAULT_PROMPT):
     """Starts a pick and returns at once; calls callback(hit_or_None) later.
 
     Returns the session, which answers session.HasEnded while the user is still
-    lining the click up."""
+    lining the click up. Raises under pynavis run, where no one could click."""
+    RunnerContext.ThrowIfActive()
     def ended(sender, args):
         _LIVE.discard(ended)
         callback(_hit(sender))
@@ -175,7 +180,8 @@ def measure_point(prompt=DEFAULT_PROMPT, notify=None):
 
     Only hit.point is known: a measurement carries no normal, item or snap
     kind, so those are None. Esc, a right-click or picking another tool
-    cancels."""
+    cancels. Raises under pynavis run, where no one could click."""
+    RunnerContext.ThrowIfActive()
     picked = _measure(prompt, measured_click, keep=False, notify=notify)
     return Hit(picked, None, None, None) if picked is not None else None
 
@@ -200,7 +206,9 @@ def measure_points(prompt=DEFAULT_PROMPT, second_prompt=SECOND_PROMPT, notify=No
 
     notify(message, detail) shows each prompt; None means a toast. Pass
     banner.prompt to ask on the bar along the bottom of the window instead;
-    the prompt stays there, so replace it with the result or clear it."""
+    the prompt stays there, so replace it with the result or clear it.
+    Raises under pynavis run, where no one could click."""
+    RunnerContext.ThrowIfActive()
     return _measure(prompt, measured_line, keep=keep, progress=second_prompt, notify=notify)
 
 

@@ -26,7 +26,7 @@ namespace PyNavis.Runtime.Ribbon
                 foreach (var path in model.SearchPaths) request.SearchPaths.Add(path);
                 request.Globals["__file__"] = model.ScriptPath;
                 request.Globals["__selfinit__"] = true;
-                request.Globals["__button__"] = new SmartButtonProxy(item);
+                request.Globals["__button__"] = new SmartButtonProxy(item, model);
                 request.Globals["__pynavis__"] = Execution.PyNavisHost.Instance;
                 request.Globals["__runner__"] = false;   // only pynavis run sets it True
 
@@ -45,13 +45,20 @@ namespace PyNavis.Runtime.Ribbon
     public class SmartButtonProxy
     {
         private readonly RibbonItem _item;
+        private readonly PushButtonModel _model;
 
-        public SmartButtonProxy(RibbonItem item) { _item = item; }
+        /// <summary>With a model, a title or tooltip the script sets keeps the bundle's
+        /// status: an experimental button stays marked whatever selfinit writes.</summary>
+        public SmartButtonProxy(RibbonItem item, PushButtonModel model = null)
+        {
+            _item = item;
+            _model = model;
+        }
 
         public string Title
         {
             get { return _item.Text; }
-            set { _item.Text = value; }
+            set { _item.Text = _model == null ? value : ButtonCaption.Caption(_model, value); }
         }
 
         public bool Enabled
@@ -62,7 +69,7 @@ namespace PyNavis.Runtime.Ribbon
 
         public string Tooltip
         {
-            set { _item.ToolTip = value; }
+            set { _item.ToolTip = _model != null && _model.IsExperimental ? ButtonCaption.Tooltip(_model, value) : value; }
         }
 
         /// <summary>Points both icon slots at the given png (theme handling is the script's business).</summary>

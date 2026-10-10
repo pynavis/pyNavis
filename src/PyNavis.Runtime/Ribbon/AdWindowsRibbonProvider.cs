@@ -137,7 +137,8 @@ namespace PyNavis.Runtime.Ribbon
                         }
                         else if (item is UrlButtonModel urlModel)
                         {
-                            var urlButton = CreateSimpleButton(urlModel.Directory, urlModel.RibbonTitle, urlModel.Tooltip,
+                            var urlButton = CreateSimpleButton(urlModel.Directory,
+                                ButtonCaption.Caption(urlModel), ButtonCaption.Tooltip(urlModel, urlModel.Tooltip),
                                 urlModel.IconPath, urlModel.DarkIconPath, urlModel.SmallIconPath, urlModel.SmallDarkIconPath,
                                 () => OpenUrl(urlModel));
                             source.Items.Add(urlButton);
@@ -146,7 +147,8 @@ namespace PyNavis.Runtime.Ribbon
                         }
                         else if (item is LinkButtonModel linkModel)
                         {
-                            var linkButton = CreateSimpleButton(linkModel.Directory, linkModel.RibbonTitle, linkModel.Tooltip,
+                            var linkButton = CreateSimpleButton(linkModel.Directory,
+                                ButtonCaption.Caption(linkModel), ButtonCaption.Tooltip(linkModel, linkModel.Tooltip),
                                 linkModel.IconPath, linkModel.DarkIconPath, linkModel.SmallIconPath, linkModel.SmallDarkIconPath,
                                 () => RunPlugin(linkModel));
                             source.Items.Add(linkButton);
@@ -261,7 +263,7 @@ namespace PyNavis.Runtime.Ribbon
             var pulldown = new RibbonSplitButton
             {
                 Id = "PYNAVIS_PULL_" + Math.Abs(model.Directory.ToLowerInvariant().GetHashCode()),
-                Text = model.RibbonTitle,
+                Text = ButtonCaption.Caption(model),
                 ShowText = true,
                 Size = RibbonItemSize.Large,
                 Orientation = System.Windows.Controls.Orientation.Vertical,
@@ -272,8 +274,9 @@ namespace PyNavis.Runtime.Ribbon
                 // 16-slot art instead of blowing the large art up in the menu.
                 ListImageSize = RibbonImageSize.Standard,
             };
-            if (!string.IsNullOrEmpty(model.Tooltip))
-                pulldown.ToolTip = model.Tooltip;
+            var pulldownTip = ButtonCaption.Tooltip(model, model.Tooltip);
+            if (pulldownTip != null)
+                pulldown.ToolTip = pulldownTip;
 
             var pulldownDark = Output.PyNavisTheme.IsDark;
             ApplyIcons(pulldown,
@@ -361,13 +364,14 @@ namespace PyNavis.Runtime.Ribbon
             var button = new RibbonButton
             {
                 Id = "PYNAVIS_PANE_" + Math.Abs(model.Directory.ToLowerInvariant().GetHashCode()),
-                Text = model.RibbonTitle,
+                Text = ButtonCaption.Caption(model),
                 ShowText = true,
                 Size = RibbonItemSize.Large,
                 Orientation = System.Windows.Controls.Orientation.Vertical,
                 CommandHandler = new RelayCommand(_ => TogglePane(model)),
             };
-            if (!string.IsNullOrEmpty(model.Tooltip)) button.ToolTip = model.Tooltip;
+            var paneTip = ButtonCaption.Tooltip(model, model.Tooltip);
+            if (paneTip != null) button.ToolTip = paneTip;
 
             var dark = Output.PyNavisTheme.IsDark;
             ApplyIcons(button, dark ? model.DarkIconPath : model.IconPath,
