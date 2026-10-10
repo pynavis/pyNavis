@@ -38,7 +38,11 @@ namespace PyNavis.Runtime.Execution
                     // True when pynavis run starts startup.py (it enters a runner context first).
                     request.Globals["__runner__"] = Runner.RunnerContext.IsActive;
 
-                    var result = EngineManager.GetEngine(ext.DefaultEngineId).Execute(request);
+                    // Not recorded, and a note in it must not reach a click around it
+                    // (Reload runs startup.py from inside its own button's run).
+                    ExecResult result;
+                    using (PyNavisHost.Instance.TelemetryScope(null))
+                        result = EngineManager.GetEngine(ext.DefaultEngineId).Execute(request);
                     if (!result.Succeeded)
                     {
                         Log.Error($"startup.py failed for '{ext.Name}':\n{result.ErrorText}");

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using PyNavis.Runtime.Engine;
 using PyNavis.Runtime.Output;
+using PyNavis.Runtime.Telemetry;
 using PyNavis.Shared;
 
 namespace PyNavis.Runtime.Execution.Runner
@@ -91,6 +92,10 @@ namespace PyNavis.Runtime.Execution.Runner
             var clock = Stopwatch.StartNew();
             var script = request.Script;
             OutputWindowWriter writer = null;
+            // One record per run while telemetry is on, written in the finally.
+            var record = TelemetryHost.ForRun(script, engine?.Id, request.Model);
+            var succeeded = false;
+            string error = null;
             try
             {
                 var directory = Path.GetDirectoryName(script);
@@ -119,8 +124,12 @@ namespace PyNavis.Runtime.Execution.Runner
                 host.SetCommandContext(script, directory, title, null);
                 host.SetCurrentOutput(writer);
 
-                var result = engine.Execute(scriptRequest);
+                ExecResult result;
+                using (host.TelemetryScope(record))
+                    result = engine.Execute(scriptRequest);
                 clock.Stop();
+                succeeded = result.Succeeded;
+                error = result.ErrorText;
 
                 if (!result.Succeeded)
                 {
@@ -139,6 +148,7 @@ namespace PyNavis.Runtime.Execution.Runner
             {
                 // e.g. an engine that cannot start: as much a failed run as a script that raised.
                 clock.Stop();
+                error = ex.Message;
                 Log.Error($"pynavis run of '{script}' could not run", ex);
                 (writer ?? new OutputWindowWriter("pynavis run"))
                     .WriteError("The script could not run: " + ex.Message + Environment.NewLine);
@@ -149,6 +159,8 @@ namespace PyNavis.Runtime.Execution.Runner
                 // The writer goes with its transcript when Execute returns: nothing written
                 // later (a hook, the next ribbon click before its own) may reach it.
                 host.SetCurrentOutput(null);
+                // ms is the response's DurationMs: the clock has stopped on every path.
+                TelemetryHost.Finish(record, clock.ElapsedMilliseconds, succeeded, error);
             }
         }
 
@@ -208,6 +220,13 @@ namespace PyNavis.Runtime.Execution.Runner
                     Log.Error($"pynavis run response '{request.ResponsePath}' could not be written", saveEx);
                 }
                 return 1;
+            }
+            finally
+            {
+                // The CLI closes this Navisworks once the response is written, before the
+                // telemetry worker's next flush and without the app-closing event a ribbon
+                // session stops it on, so the run's record goes out now (briefly bounded).
+                TelemetryHost.FlushWithin(TelemetryService.StopWait);
             }
         }
 

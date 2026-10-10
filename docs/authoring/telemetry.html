@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telemetry - pyNavis authoring</title>
+<meta name="description" content="An opt-in record of every tool run, written only to a share or a URL your firm chooses, so a BIM manager can see which tools the team uses and what fails.">
+<link rel="stylesheet" href="_assets/site.css">
+</head>
+<body data-base="">
+<div class="layout">
+<div class="sidebar">
+  <div class="brand"><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><polygon points="25.7,58.5 112.0,58.5 124.0,74.0 124.0,436.3 37.8,496.6 25.7,481.1" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 149.9,74.0 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,136.1 405.2,110.2 417.3,125.8 417.3,419.0 331.0,444.9 319.0,429.4" fill="#0F5C4E"/><polygon points="319.0,67.1 379.3,15.4 474.2,49.9 486.3,65.4 417.3,125.8 331.0,151.6 319.0,136.1" fill="#0F5C4E"/><polygon points="25.7,58.5 112.0,58.5 112.0,420.7 25.7,481.1" fill="#1FA38A"/><polygon points="112.0,167.2 112.0,222.4 70.6,114.5" fill="#0F5C4E"/><polygon points="25.7,58.5 137.8,58.5 405.2,403.5 319.0,429.4" fill="#178571"/><polygon points="319.0,429.4 298.7,403.5 319.0,317.2" fill="#0F5C4E"/><polygon points="319.0,429.4 319.0,136.1 405.2,110.2 405.2,403.5" fill="#1FA38A"/><polygon points="319.0,136.1 319.0,67.1 379.3,15.4 474.2,49.9 405.2,110.2" fill="#1FA38A"/><polygon points="319.0,136.1 405.2,110.2 370.7,144.7" fill="#0F5C4E"/><polygon points="379.3,58.5 422.5,45.5 409.5,62.8" fill="#1F2E4A"/></svg><span class="brand-name">pyNavis
+    <span class="brand-sub">Tool authoring guide</span></span></a></div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.2 9.2 12.5 12.5" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round"/></svg>
+    <input id="search" type="search" placeholder="Search the docs" autocomplete="off"
+           spellcheck="false" aria-label="Search the documentation">
+    <span class="search-kbd">/</span>
+    <div id="search-results" class="search-results"></div>
+  </div>
+  <nav class="pages">
+<div class="grp">Start</div>
+<a href="overview.html"><span class="num">01</span>How pyNavis works</a>
+<a href="quickstart.html"><span class="num">02</span>Your first button</a>
+<div class="grp">Bundles</div>
+<a href="anatomy.html"><span class="num">03</span>Anatomy of an extension</a>
+<a href="buttons.html"><span class="num">04</span>Buttons, stacks and pulldowns</a>
+<a href="bundle-yaml.html"><span class="num">05</span>The bundle.yaml reference</a>
+<a href="icons.html"><span class="num">06</span>Icons</a>
+<a href="shortcuts.html"><span class="num">07</span>Shortcuts and keytips</a>
+<a href="click-actions.html"><span class="num">08</span>Click actions and config.py</a>
+<a href="hooks.html"><span class="num">09</span>Hooks</a>
+<div class="grp">Scripts</div>
+<a href="script-environment.html"><span class="num">10</span>The script environment</a>
+<a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
+<a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
+<a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
+<a href="telemetry.html" class="active"><span class="num">14</span>Telemetry</a>
+<div class="grp">Reference</div>
+<a href="api-reference.html"><span class="num">15</span>Python API reference</a>
+<div class="grp">Practice</div>
+<a href="cookbook.html"><span class="num">16</span>Cookbook</a>
+<a href="ai-assistant.html"><span class="num">17</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">18</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">19</span>Design rules for tools</a>
+</nav>
+  <div class="side-foot">
+    <span>pynavis 1.3.0</span>
+    <button id="theme-toggle" type="button" aria-label="Toggle colour theme">
+      <span>Dark</span></button>
+  </div>
+</div>
+<main class="main">
+<article>
+  <p class="eyebrow">Scripts</p>
+  <h1>Telemetry</h1>
+  <p class="lead">An opt-in record of every tool run, written only to a share or a URL your firm chooses, so a BIM manager can see which tools the team uses and what fails.</p>
+  <h2 id="what-it-is-for">What it is for<a class="anchor" href="#what-it-is-for" aria-label="Link to this section">#</a></h2>
+
+<p>A firm that rolls out twenty tools rarely knows which five people actually use, which
+models they use them on, or which one has been failing quietly for a week. Telemetry answers
+those questions. When it is on, pyNavis writes one small record for every tool run: who ran
+which button, on which model, how long it took and whether it worked.</p>
+
+<p>Telemetry is <strong>off by default</strong>. It is never sent to the pyNavis developers:
+records go only to the folder or URL your firm sets, and the data is yours. It records tool
+runs and nothing else, so there is no record of what a user does between clicks.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>A run of</th><th>Is recorded as</th></tr></thead>
+<tbody>
+<tr><td>A button's <code>script.py</code></td>
+    <td><code>click</code></td></tr>
+<tr><td>A bundle's <code>config.py</code>, through Shift+Click</td>
+    <td><code>config</code></td></tr>
+<tr><td>A <code>hooks\&lt;event&gt;.py</code> script</td>
+    <td><code>hook</code>, only when <code>includeHooks</code> is on</td></tr>
+<tr><td>A script under <a href="command-line.html"><code>pynavis run</code></a></td>
+    <td><code>run</code></td></tr>
+<tr><td><strong>Send test record</strong> in Settings</td>
+    <td><code>test</code>, which is not a tool run: filter it out before you count anything</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>A keyboard shortcut runs the button's <code>script.py</code>, so it is a <code>click</code>
+too. Some scripts never make a record: a smartbutton's own run at ribbon build (with
+<code>__selfinit__</code> True), a dock panel's <code>script.py</code>, an extension's
+<code>startup.py</code>, and code typed into the console. A click the runtime refuses
+because another tool is still running did not run, so it makes no record either.</p>
+
+<h2 id="what-a-record-holds">What a record holds<a class="anchor" href="#what-a-record-holds" aria-label="Link to this section">#</a></h2>
+
+<p>Each run is one JSON object on a line of its own, a format called JSON Lines. The fields
+always come in this order:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>Type</th><th>Holds</th></tr></thead>
+<tbody>
+<tr><td><code>schema</code></td><td>number</td>
+    <td><code>1</code>, the version of this record format.</td></tr>
+<tr><td><code>time</code></td><td>string</td>
+    <td>When the run happened, in ISO 8601 with the machine's UTC offset:
+        <code>2026-10-10T14:03:22.123+10:00</code>.</td></tr>
+<tr><td><code>session</code></td><td>string</td>
+    <td>A GUID, new each time Navisworks starts. Every run in one Navisworks session shares
+        it.</td></tr>
+<tr><td><code>user</code></td><td>string</td><td>The Windows user name.</td></tr>
+<tr><td><code>machine</code></td><td>string</td><td>The computer name.</td></tr>
+<tr><td><code>navis</code></td><td>string</td>
+    <td>The Navisworks year, such as <code>"2026"</code>.</td></tr>
+<tr><td><code>pynavis</code></td><td>string</td><td>The pyNavis version.</td></tr>
+<tr><td><code>doc</code></td><td>string</td>
+    <td>The open model's file name without its folder, or <code>""</code> when no model is
+        open or it has never been saved.</td></tr>
+<tr><td><code>kind</code></td><td>string</td>
+    <td><code>"click"</code>, <code>"config"</code>, <code>"hook"</code>,
+        <code>"run"</code> or <code>"test"</code>, as in the table above.</td></tr>
+<tr><td><code>key</code></td><td>string</td>
+    <td>The <a href="anatomy.html#bundle-key">bundle key</a>, the extension-relative bundle
+        path that shortcut bindings use too:
+        <code>pyNavis.tab/Clash.panel/Clear_Clash.pushbutton</code>. For a hook and a run,
+        see <a href="#hooks-and-runs">below</a>.</td></tr>
+<tr><td><code>title</code></td><td>string</td><td>The button title, on one line.</td></tr>
+<tr><td><code>extension</code></td><td>string</td><td>The extension's name.</td></tr>
+<tr><td><code>engine</code></td><td>string</td>
+    <td><code>"ironpython"</code> or <code>"cpython"</code>.</td></tr>
+<tr><td><code>ms</code></td><td>number</td><td>How long the run took, in milliseconds.</td></tr>
+<tr><td><code>result</code></td><td>string</td>
+    <td><code>"ok"</code> or <code>"error"</code>.</td></tr>
+<tr><td><code>error</code></td><td>string</td>
+    <td>One line of the error, or <code>""</code> when the run was <code>ok</code>. For a
+        Python exception it is the last line of the traceback, the one that names the
+        exception and its message: <code>ValueError: the clash test has no results</code>.
+        Any other error gives its first line. Either way it stops at 500
+        characters.</td></tr>
+<tr><td><code>results</code></td><td>object</td>
+    <td>The values the script <a href="#add-your-own-values">added itself</a>. Left out
+        when it added none.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Here is one record, spread over several lines to read. On disk it is a single line.</p>
+
+<div class="code"><div class="code-head"><span>One record</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;schema&quot;</span>: <span class="tok-n">1</span>,
+  <span class="tok-f">&quot;time&quot;</span>: <span class="tok-s">&quot;2026-10-10T14:03:22.123+10:00&quot;</span>,
+  <span class="tok-f">&quot;session&quot;</span>: <span class="tok-s">&quot;6f1c2d3e-8a4b-4c5d-9e6f-0a1b2c3d4e5f&quot;</span>,
+  <span class="tok-f">&quot;user&quot;</span>: <span class="tok-s">&quot;jsmith&quot;</span>,
+  <span class="tok-f">&quot;machine&quot;</span>: <span class="tok-s">&quot;BIM-WS-014&quot;</span>,
+  <span class="tok-f">&quot;navis&quot;</span>: <span class="tok-s">&quot;2026&quot;</span>,
+  <span class="tok-f">&quot;pynavis&quot;</span>: <span class="tok-s">&quot;1.4.0&quot;</span>,
+  <span class="tok-f">&quot;doc&quot;</span>: <span class="tok-s">&quot;Level 3 Services.nwd&quot;</span>,
+  <span class="tok-f">&quot;kind&quot;</span>: <span class="tok-s">&quot;click&quot;</span>,
+  <span class="tok-f">&quot;key&quot;</span>: <span class="tok-s">&quot;pyNavis.tab/Clash.panel/Clear_Clash.pushbutton&quot;</span>,
+  <span class="tok-f">&quot;title&quot;</span>: <span class="tok-s">&quot;Clear Clash&quot;</span>,
+  <span class="tok-f">&quot;extension&quot;</span>: <span class="tok-s">&quot;pyNavis&quot;</span>,
+  <span class="tok-f">&quot;engine&quot;</span>: <span class="tok-s">&quot;ironpython&quot;</span>,
+  <span class="tok-f">&quot;ms&quot;</span>: <span class="tok-n">8412</span>,
+  <span class="tok-f">&quot;result&quot;</span>: <span class="tok-s">&quot;ok&quot;</span>,
+  <span class="tok-f">&quot;error&quot;</span>: <span class="tok-s">&quot;&quot;</span>,
+  <span class="tok-f">&quot;results&quot;</span>: { <span class="tok-f">&quot;items&quot;</span>: <span class="tok-n">1</span>, <span class="tok-f">&quot;minutes_saved&quot;</span>: <span class="tok-n">10</span> }
+}</code></pre></div>
+
+<h3 id="hooks-and-runs">Hooks and runs<a class="anchor" href="#hooks-and-runs" aria-label="Link to this section">#</a></h3>
+
+<p>A hook and a script under <code>pynavis run</code> are not buttons, so a few fields hold
+something else:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>A <code>hook</code> record</th><th>A <code>run</code> record</th></tr></thead>
+<tbody>
+<tr><td><code>key</code></td>
+    <td>The extension and the event, <code>pyNavis:doc-opened</code>.</td>
+    <td>The bundle key when the script is a button's <code>script.py</code>, otherwise the
+        script's file name, <code>count_items.py</code>.</td></tr>
+<tr><td><code>title</code></td>
+    <td>The event, <code>doc-opened</code>.</td>
+    <td>That button's title, otherwise the file name without <code>.py</code>, the same
+        <code>__title__</code> the script sees.</td></tr>
+<tr><td><code>extension</code></td>
+    <td>The extension the hook belongs to.</td>
+    <td>That button's extension, otherwise <code>""</code>.</td></tr>
+<tr><td><code>doc</code></td>
+    <td>The open model.</td>
+    <td>The model the run opened.</td></tr>
+<tr><td><code>ms</code></td>
+    <td>How long the hook ran.</td>
+    <td>The same duration <code>pynavis run</code> reports for the script.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>A hidden Navisworks that <code>pynavis run</code> starts closes as soon as its script
+finishes, so pyNavis sends each run's record straight away instead of waiting for the next
+flush, waiting at most two seconds for the destination.</p>
+
+<h2 id="add-your-own-values">Add your own values<a class="anchor" href="#add-your-own-values" aria-label="Link to this section">#</a></h2>
+
+<p>The fields above say that a tool ran. Only the tool knows what the run achieved, so a
+script can add its own values to its record with <code>telemetry.note</code>:</p>
+
+<div class="code"><div class="code-head"><span>script.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">from</span> pynavis <span class="tok-k">import</span> selection, telemetry, toast
+
+items = selection.get_items()
+<span class="tok-k">if</span> <span class="tok-k">not</span> items:
+    toast.warning(<span class="tok-s">&#x27;Select something first.&#x27;</span>)
+<span class="tok-k">else</span>:
+    <span class="tok-c"># ... the tool&#x27;s work ...</span>
+    telemetry.note(items=len(items), minutes_saved=<span class="tok-n">10</span>)
+    toast.success(<span class="tok-s">&#x27;Updated %d items.&#x27;</span> % len(items))</code></pre></div>
+
+<p>Each call merges its names into the current run's <code>results</code>, so a script can
+call it several times and a repeated name replaces the earlier value. With telemetry off,
+or outside a run, the call is ignored, which means library code can call it without first
+checking where it is. It never raises. Strings, numbers, booleans, <code>None</code>, and
+lists and dicts of them are written as they are; anything else is written as its
+<code>str()</code>, and a number JSON cannot hold, such as <code>float('nan')</code>, as
+<code>null</code>. The values are copied when you note them, so changing a list afterwards
+does not change the record.</p>
+
+<p>Only clicks, Shift+Clicks, hooks and runs have a record to add to. A note from
+<code>startup.py</code>, a dock panel's script or a smartbutton's ribbon-build run goes
+nowhere, even when it happens during another tool's run, as <code>startup.py</code> does
+inside the Reload button's. Code typed into the console has no record to add to
+either.</p>
+
+<div class="note tip">
+<span class="note-t">Note what a manager would add up</span>
+<p>Counts and estimates are what make the data useful later: items changed, clashes grouped,
+sheets exported, minutes saved against doing it by hand. A sum of <code>minutes_saved</code>
+across a month is a number a BIM manager can take to a meeting.</p>
+</div>
+
+<div class="note warn">
+<span class="note-t">What you note leaves the machine</span>
+<p>Everything in <code>results</code> goes to the firm's share or URL with the rest of the
+record. Note counts and flags, not element names, property values or anything else from the
+model that should stay in it.</p>
+</div>
+
+<h2 id="turn-it-on">Turn it on<a class="anchor" href="#turn-it-on" aria-label="Link to this section">#</a></h2>
+
+<p>Telemetry is set per user, in a <code>telemetry</code> section of
+<code>%APPDATA%\pyNavis\config.json</code>:</p>
+
+<div class="code"><div class="code-head"><span>%APPDATA%\pyNavis\config.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;telemetry&quot;</span>: {
+    <span class="tok-f">&quot;enabled&quot;</span>: <span class="tok-k">true</span>,
+    <span class="tok-f">&quot;folder&quot;</span>: <span class="tok-s">&quot;\\\\server\\bim\\pynavis-telemetry&quot;</span>,
+    <span class="tok-f">&quot;url&quot;</span>: <span class="tok-s">&quot;https://example.com/pynavis&quot;</span>,
+    <span class="tok-f">&quot;includeHooks&quot;</span>: <span class="tok-k">false</span>
+  }
+}</code></pre></div>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Default</th><th>What it controls</th></tr></thead>
+<tbody>
+<tr><td><code>enabled</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Whether runs are recorded at all.</td></tr>
+<tr><td><code>folder</code></td><td>string</td><td>absent</td>
+    <td>A folder, usually a network share, to write records into.</td></tr>
+<tr><td><code>url</code></td><td>string</td><td>absent</td>
+    <td>An address to post records to.</td></tr>
+<tr><td><code>includeHooks</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Whether hook runs are recorded too. A <code>selection-changed</code> hook runs far
+        more often than any button, so hooks are left out unless you ask.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><code>folder</code> and <code>url</code> are each optional: set either one, or both, and
+each one you set receives every record. With neither set nothing is recorded, even with
+<code>enabled</code> on. JSON writes a backslash twice, so the share
+<code>\\server\bim\pynavis-telemetry</code> is <code>"\\\\server\\bim\\pynavis-telemetry"</code>
+in the file.</p>
+
+<p><strong>Settings</strong> on the pyNavis panel has a <strong>Telemetry</strong> section
+with the same four fields, so nobody has to edit the file by hand. A change saved there
+takes effect at once, without a Reload; an edit to <code>config.json</code> itself takes
+effect on the next Reload. Its <strong>Send test record</strong> button sends one record,
+of kind <code>test</code>, to the destinations the section shows, saved or not, and the
+status line under it tells you how that went. Use it after any change: a delivery that
+fails is never shown to the user, so the button is the quickest way to know the setup
+works.</p>
+
+<h2 id="deploy-it-for-a-firm">Deploy it for a firm<a class="anchor" href="#deploy-it-for-a-firm" aria-label="Link to this section">#</a></h2>
+
+<p>Asking every user to edit their own settings does not scale, and a user could turn
+telemetry off again. A firm deploys one file to each machine instead:</p>
+
+<div class="code"><div class="code-head"><span>%PROGRAMDATA%\pyNavis\telemetry.json</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{
+  <span class="tok-f">&quot;enabled&quot;</span>: <span class="tok-k">true</span>,
+  <span class="tok-f">&quot;folder&quot;</span>: <span class="tok-s">&quot;\\\\fileserver\\bim\\pynavis-telemetry&quot;</span>,
+  <span class="tok-f">&quot;includeHooks&quot;</span>: <span class="tok-k">false</span>
+}</code></pre></div>
+
+<p>It takes the same four keys as the <code>telemetry</code> section. When the file exists
+its values win over the user's own, the Settings window shows them read-only as managed by
+the firm, and the user cannot change them. The file decides every key: one it leaves out
+takes its default, not the user's value. A file that does not parse is logged and ignored,
+so a typo on one machine falls back to that user's own settings rather than switching
+anything on or off. pyNavis reads the file when Navisworks starts and on every Reload.</p>
+
+<p>pyNavis only trusts the file when administrators alone can change it: it must be owned
+by SYSTEM, Administrators or TrustedInstaller, and nobody else may write to it, the same rule
+the loader applies to the machine-wide extensions folder. Any user can create files under
+<code>%PROGRAMDATA%</code>, so a file a user could edit might have been planted by anyone on
+the PC to send everyone's records somewhere of their choosing. Such a file is ignored, with
+one line in the <a href="troubleshooting.html#the-logs">pyNavis log</a> naming it, and each
+user's own settings apply instead.</p>
+
+<p>Deploy it the way your firm deploys anything else to a machine: an Intune script or a
+Group Policy computer startup script. Both run with administrator rights, so the file they
+write is owned by an administrator account and users can read it but not edit it. A login
+script runs as the user, so the file it writes is that user's own, and pyNavis ignores
+it.</p>
+
+<div class="code"><div class="code-head"><span>Intune or startup script</span><button class="copy-btn" type="button">Copy</button></div><pre><code>$dir = Join-Path $env:ProgramData &#x27;pyNavis&#x27;
+New-Item -ItemType Directory -Force $dir | Out-Null
+$json = @&#x27;
+{
+  &quot;enabled&quot;: true,
+  &quot;folder&quot;: &quot;\\\\fileserver\\bim\\pynavis-telemetry&quot;,
+  &quot;includeHooks&quot;: false
+}
+&#x27;@
+[System.IO.File]::WriteAllText((Join-Path $dir &#x27;telemetry.json&#x27;), $json)</code></pre></div>
+
+<h2 id="where-the-data-goes">Where the data goes<a class="anchor" href="#where-the-data-goes" aria-label="Link to this section">#</a></h2>
+
+<p>Recording never slows a tool down. Each record joins a queue in memory, and a background
+worker writes the queue out every few seconds and once more when Navisworks closes. A click
+never waits for the share or the network.</p>
+
+<h3 id="to-a-folder">To a folder<a class="anchor" href="#to-a-folder" aria-label="Link to this section">#</a></h3>
+
+<p>Records are appended to one file per machine, user and day:</p>
+
+<div class="code"><div class="code-head"><span>text</span><button class="copy-btn" type="button">Copy</button></div><pre><code>&lt;folder&gt;\&lt;machine&gt;-&lt;user&gt;-&lt;yyyy-MM-dd&gt;.jsonl
+\\fileserver\bim\pynavis-telemetry\BIM-WS-014-jsmith-2026-10-10.jsonl</code></pre></div>
+
+<p>Because no two people ever write to the same file, a whole office can point at one share.
+Users need permission to create and write files there; only whoever reads the data needs to
+read them.</p>
+
+<h3 id="to-a-url">To a URL<a class="anchor" href="#to-a-url" aria-label="Link to this section">#</a></h3>
+
+<p>The queued records are posted as a JSON array:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Part of the request</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Method</td><td><code>POST</code> to the <code>url</code> exactly as set.</td></tr>
+<tr><td>Body</td><td>A JSON array of records, each one the object described above.</td></tr>
+<tr><td><code>Content-Type</code></td><td><code>application/json</code></td></tr>
+<tr><td><code>User-Agent</code></td><td><code>pyNavis/&lt;version&gt;</code></td></tr>
+<tr><td>Timeout</td><td>10 seconds.</td></tr>
+<tr><td>Proxy</td><td>Signed in with the user's Windows credentials when a proxy asks
+    for them.</td></tr>
+<tr><td>Success</td><td>Any 2xx status. Anything else counts as a failure.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3 id="when-the-destination-is-unreachable">When the destination is unreachable<a class="anchor" href="#when-the-destination-is-unreachable" aria-label="Link to this section">#</a></h3>
+
+<p>Records that cannot be delivered, because the share is offline or the URL fails, are kept
+on the user's machine in <code>%APPDATA%\pyNavis\telemetry\</code>, one file per destination
+(<code>folder.jsonl</code> and <code>http.jsonl</code>), and tried again on later flushes
+and in the next Navisworks session. After repeated failures the retries space out, up to
+five minutes apart, so an unreachable server is not hammered. Each spool file is capped at
+5 MB; past that the oldest records are dropped first, so a laptop that spends a month away
+from the office keeps its most recent runs.</p>
+
+<p>The first failure is written to the <a href="troubleshooting.html#the-logs">pyNavis
+log</a>, and the log then stays quiet about that destination until a delivery to it works
+again. Nothing is shown to the user: no toast, no dialog, no slower click.</p>
+
+<h2 id="privacy">Privacy<a class="anchor" href="#privacy" aria-label="Link to this section">#</a></h2>
+
+<p>Turning telemetry on is the firm's decision, and people should know before it happens.
+This is exactly what the data holds and does not hold.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Recorded</th><th>Never recorded</th></tr></thead>
+<tbody>
+<tr><td>The Windows user name and the computer name, in plain text, not hashed.</td>
+    <td>The model's folder path. Only its file name is kept.</td></tr>
+<tr><td>The model's file name.</td>
+    <td>Script contents.</td></tr>
+<tr><td>Which tool ran, when, for how long, and whether it worked.</td>
+    <td>The selection.</td></tr>
+<tr><td>One line of an error.</td>
+    <td>Geometry.</td></tr>
+<tr><td>The values a script notes itself.</td>
+    <td>Anything between runs: views, navigation, what the user looked at.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The data goes only where the firm points it: the folder, the URL, and the spool file on
+the user's own machine while a delivery is waiting. None of it goes to the pyNavis
+developers.</p>
+
+<div class="note trap">
+<span class="note-t">An error's line says whatever the error says</span>
+<p>pyNavis keeps only one line of an error, the exception and its message, but keeps it as
+written, and an error message can carry a path or a name: Python's own message for a file
+it could not open includes the file's full path. If a tool of yours handles project paths
+or names, word the exceptions it raises so their message does not carry them.</p>
+</div>
+
+<h2 id="read-the-data-in-power-bi">Read the data in Power BI<a class="anchor" href="#read-the-data-in-power-bi" aria-label="Link to this section">#</a></h2>
+
+<p>Power BI reads a folder of JSON Lines files with a short Power Query script. The
+<strong>Combine</strong> button cannot do it on its own, because it expects every file to be
+one CSV, Excel or JSON document, and a JSON Lines file is many JSON documents, one per
+line.</p>
+
+<ol>
+  <li>In Power BI Desktop choose <strong>Get data</strong> &gt; <strong>Folder</strong>, and
+    give it the share, such as <code>\\fileserver\bim\pynavis-telemetry</code>.</li>
+  <li>In the list of files choose <strong>Transform Data</strong>, not
+    <strong>Combine</strong>.</li>
+  <li>In Power Query choose <strong>Advanced Editor</strong> and replace the whole query with
+    the one below. Change the path on its <code>Source</code> line to your share.</li>
+  <li>Choose <strong>Close &amp; Apply</strong>.</li>
+</ol>
+
+<div class="code"><div class="code-head"><span>Power Query (M)</span><button class="copy-btn" type="button">Copy</button></div><pre><code>let
+    Source = Folder.Files(&quot;\\fileserver\bim\pynavis-telemetry&quot;),
+    Files = Table.SelectRows(Source, each [Extension] = &quot;.jsonl&quot;),
+    WithLines = Table.AddColumn(Files, &quot;Line&quot;,
+        each Lines.FromBinary([Content], null, null, 65001)),
+    OneRowPerLine = Table.ExpandListColumn(Table.SelectColumns(WithLines, {&quot;Line&quot;}), &quot;Line&quot;),
+    Parsed = Table.AddColumn(OneRowPerLine, &quot;Record&quot;,
+        each try Json.Document([Line]) otherwise null),
+    Valid = Table.SelectRows(Parsed, each [Record] &lt;&gt; null),
+    Runs = Table.ExpandRecordColumn(Table.RemoveColumns(Valid, {&quot;Line&quot;}), &quot;Record&quot;,
+        {&quot;schema&quot;, &quot;time&quot;, &quot;session&quot;, &quot;user&quot;, &quot;machine&quot;, &quot;navis&quot;, &quot;pynavis&quot;, &quot;doc&quot;,
+         &quot;kind&quot;, &quot;key&quot;, &quot;title&quot;, &quot;extension&quot;, &quot;engine&quot;, &quot;ms&quot;, &quot;result&quot;, &quot;error&quot;,
+         &quot;results&quot;}),
+    Typed = Table.TransformColumnTypes(Runs,
+        {{&quot;schema&quot;, Int64.Type}, {&quot;time&quot;, type datetimezone}, {&quot;ms&quot;, Int64.Type}}),
+    ToolRuns = Table.SelectRows(Typed, each [kind] &lt;&gt; &quot;test&quot;)
+in
+    ToolRuns</code></pre></div>
+
+<p>That gives one row per run. <code>Lines.FromBinary</code> splits each file into lines,
+<code>Json.Document</code> parses each line, and the <code>try</code> skips a blank line or
+one caught half-written while a user's Navisworks was appending to it; that line is read
+whole on the next refresh. The last step drops the records <strong>Send test record</strong>
+made. <code>results</code> stays a record column: expand it in the editor to get one column
+for each name your scripts note.</p>
+
+<p>Some first visuals worth building: runs per <code>title</code>, the proportion of each
+tool's runs whose <code>result</code> is <code>error</code>, the most common
+<code>error</code> lines, runs per <code>doc</code>, and a monthly sum of
+<code>minutes_saved</code>.</p>
+
+<div class="note">
+<span class="note-t">Scheduled refresh needs a gateway</span>
+<p>Power BI Desktop reads the share directly. A report published to the Power BI service
+can only refresh from a file share through an on-premises data gateway, so set one up, or
+refresh from Desktop and publish again.</p>
+</div>
+
+<h3 id="in-excel">In Excel<a class="anchor" href="#in-excel" aria-label="Link to this section">#</a></h3>
+
+<p>Excel has the same Power Query engine. Choose <strong>Data</strong> &gt; <strong>Get
+Data</strong> &gt; <strong>From Other Sources</strong> &gt; <strong>Blank Query</strong>,
+open <strong>Advanced Editor</strong>, paste the same query, and <strong>Close &amp;
+Load</strong> gives a table to pivot. Opening a <code>.jsonl</code> file directly in Excel
+does not give you columns.</p>
+
+<h2 id="a-receiver-for-the-url-route">A receiver for the URL route<a class="anchor" href="#a-receiver-for-the-url-route" aria-label="Link to this section">#</a></h2>
+
+<p>A share is the simplest destination. A URL suits a firm whose offices cannot all reach
+one share, or that wants the records in a database. Whatever answers the URL has one job:
+accept a <code>POST</code> of a JSON array and reply with a 2xx status.</p>
+
+<p>This is a starting point, not a production server. It is Python 3 with the standard
+library only, and it appends every record it receives to <code>telemetry.jsonl</code>
+beside it, so the Power BI query above reads its output too.</p>
+
+<div class="code"><div class="code-head"><span>receiver.py</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;A minimal pyNavis telemetry receiver. A starting point, not a hardened server.&quot;&quot;&quot;</span>
+<span class="tok-k">import</span> json
+<span class="tok-k">from</span> http.server <span class="tok-k">import</span> BaseHTTPRequestHandler, HTTPServer
+
+LOG = <span class="tok-s">&#x27;telemetry.jsonl&#x27;</span>
+PORT = <span class="tok-n">8080</span>
+
+
+<span class="tok-k">class</span> Receiver(BaseHTTPRequestHandler):
+    <span class="tok-k">def</span> do_POST(<span class="tok-k">self</span>):
+        <span class="tok-k">try</span>:
+            length = int(<span class="tok-k">self</span>.headers.get(<span class="tok-s">&#x27;Content-Length&#x27;</span>) <span class="tok-k">or</span> <span class="tok-n">0</span>)
+            records = json.loads(<span class="tok-k">self</span>.rfile.read(length).decode(<span class="tok-s">&#x27;utf-8&#x27;</span>))
+        <span class="tok-k">except</span> ValueError:
+            records = <span class="tok-k">None</span>
+        <span class="tok-k">if</span> <span class="tok-k">not</span> isinstance(records, list) <span class="tok-k">or</span> <span class="tok-k">not</span> all(isinstance(r, dict) <span class="tok-k">for</span> r <span class="tok-k">in</span> records):
+            <span class="tok-k">self</span>.send_error(<span class="tok-n">400</span>, <span class="tok-s">&#x27;Expected a JSON array of records&#x27;</span>)
+            <span class="tok-k">return</span>
+        <span class="tok-k">with</span> open(LOG, <span class="tok-s">&#x27;a&#x27;</span>, encoding=<span class="tok-s">&#x27;utf-8&#x27;</span>) <span class="tok-k">as</span> fh:
+            <span class="tok-k">for</span> record <span class="tok-k">in</span> records:
+                fh.write(json.dumps(record, ensure_ascii=<span class="tok-k">False</span>) + <span class="tok-s">&#x27;\n&#x27;</span>)
+        <span class="tok-k">self</span>.send_response(<span class="tok-n">204</span>)
+        <span class="tok-k">self</span>.end_headers()
+
+
+<span class="tok-k">if</span> __name__ == <span class="tok-s">&#x27;__main__&#x27;</span>:
+    HTTPServer((<span class="tok-s">&#x27;&#x27;</span>, PORT), Receiver).serve_forever()</code></pre></div>
+
+<p>Run it with <code>python receiver.py</code> on a machine your offices can reach, set
+<code>url</code> to that machine and port, and press <strong>Send test record</strong> in
+Settings: a line appears in <code>telemetry.jsonl</code>. Anything that is not a JSON array
+of objects gets a <code>400</code>, which pyNavis counts as a failed delivery.</p>
+
+<div class="note warn">
+<span class="note-t">Before it serves a whole firm</span>
+<p>The script accepts a <code>POST</code> from anyone who can reach it, speaks plain HTTP,
+handles one request at a time and grows one file forever. Keep it on your own network, put it
+behind your web server for HTTPS, and rotate or load the file into a database once it
+matters.</p>
+</div>
+
+<div class="cards">
+  <a href="settings.html"><span class="c-t">Settings and per-tool state</span>
+    <span class="c-d">Every other key pyNavis reads from config.json.</span></a>
+  <a href="anatomy.html#bundle-key"><span class="c-t">Bundle key</span>
+    <span class="c-d">The extension-relative path every record's key field holds.</span></a>
+  <a href="command-line.html"><span class="c-t">Running without the ribbon</span>
+    <span class="c-d">pynavis run, whose scripts are recorded with the kind run.</span></a>
+</div>
+  <div class="pagenav">
+<a href="command-line.html"><span class="dir">Previous</span><span class="ttl">Running without the ribbon</span></a>
+<a class="next" href="api-reference.html"><span class="dir">Next</span><span class="ttl">Python API reference</span></a>
+</div>
+</article>
+<aside class="toc"><div class="toc-head">On this page</div>
+<a href="#what-it-is-for">What it is for</a>
+<a href="#what-a-record-holds">What a record holds</a>
+<a href="#hooks-and-runs" class="h3">Hooks and runs</a>
+<a href="#add-your-own-values">Add your own values</a>
+<a href="#turn-it-on">Turn it on</a>
+<a href="#deploy-it-for-a-firm">Deploy it for a firm</a>
+<a href="#where-the-data-goes">Where the data goes</a>
+<a href="#to-a-folder" class="h3">To a folder</a>
+<a href="#to-a-url" class="h3">To a URL</a>
+<a href="#when-the-destination-is-unreachable" class="h3">When the destination is unreachable</a>
+<a href="#privacy">Privacy</a>
+<a href="#read-the-data-in-power-bi">Read the data in Power BI</a>
+<a href="#in-excel" class="h3">In Excel</a>
+<a href="#a-receiver-for-the-url-route">A receiver for the URL route</a>
+</aside>
+</main>
+</div>
+<script src="_assets/search-index.js"></script>
+<script src="_assets/site.js"></script>
+</body>
+</html>

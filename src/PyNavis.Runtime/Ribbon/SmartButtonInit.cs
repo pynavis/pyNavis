@@ -30,7 +30,10 @@ namespace PyNavis.Runtime.Ribbon
                 request.Globals["__pynavis__"] = Execution.PyNavisHost.Instance;
                 request.Globals["__runner__"] = false;   // only pynavis run sets it True
 
-                var result = EngineManager.GetEngine(model.EngineId).Execute(request);
+                // Not a run telemetry records; a note in it goes nowhere.
+                ExecResult result;
+                using (Execution.PyNavisHost.Instance.TelemetryScope(null))
+                    result = EngineManager.GetEngine(model.EngineId).Execute(request);
                 if (!result.Succeeded)
                     Log.Error($"Smartbutton init failed for {model.BundleKey}:\n{result.ErrorText}");
             }

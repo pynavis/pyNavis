@@ -288,6 +288,21 @@ namespace PyNavis.Tests
             Assert.Equal("Fancy Name", ParseSingle().Name);
         }
 
+        // Telemetry names the extension a click came from, and the key alone cannot say it.
+        [Fact]
+        public void EveryButton_KnowsItsExtensionsName()
+        {
+            MakeButton("MyExt", "T", "P", "A");
+            MakeStackButton("MyExt", "T", "P", "Set", "B");
+            MakeStackButton("MyExt", "T", "P", "Set", "C");
+            File.WriteAllText(Path.Combine(_root, "MyExt.extension", "extension.yaml"), "name: Fancy Name\n");
+
+            var buttons = ParseSingle().Tabs[0].Panels[0].Buttons;
+
+            Assert.Equal(3, buttons.Count);
+            Assert.All(buttons, b => Assert.Equal("Fancy Name", b.ExtensionName));
+        }
+
         [Fact]
         public void Buttons_AreOrderedByFolderName()
         {

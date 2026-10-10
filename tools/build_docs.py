@@ -43,6 +43,7 @@ PAGES = [
     ('user-interface.html',  'Scripts'),
     ('settings.html',        'Scripts'),
     ('command-line.html',    'Scripts'),
+    ('telemetry.html',       'Scripts'),
     ('api-reference.html',   'Reference'),
     ('cookbook.html',        'Practice'),
     ('ai-assistant.html',    'Practice'),

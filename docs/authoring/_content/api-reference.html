@@ -99,6 +99,8 @@ just do not fail at import time.</p>
     <td>Build and run search queries, and read and write search and selection sets.</td><td>No</td></tr>
 <tr><td><a href="#settings"><code>settings</code></a></td>
     <td>Per-tool JSON settings for the Shift+Click convention.</td><td>No</td></tr>
+<tr><td><a href="#telemetry"><code>telemetry</code></a></td>
+    <td>Add the tool's own values to its telemetry record.</td><td>No</td></tr>
 <tr><td><a href="#toast"><code>toast</code></a></td>
     <td>Non-blocking status messages in the corner of the window.</td><td>No</td></tr>
 <tr><td><a href="#banner"><code>banner</code></a></td>
@@ -3258,6 +3260,45 @@ DEFAULTS = {'include_hidden': False, 'decimals': 3}
 values = settings.load(TOOL, DEFAULTS)       # always exactly these two keys
 decimals = int(values['decimals'])
 </pre>
+
+<h2 id="telemetry">telemetry: the tool's own values in its record</h2>
+
+<p><span class="pill pure">Pure</span> at import; needs only the
+<code>PyNavis.Runtime</code> assembly, never the Navisworks API, and behaves the same in
+either engine. When a firm turns <a href="telemetry.html">telemetry</a> on, pyNavis writes
+one record for every tool run: who ran which button, on which model, how long it took and
+whether it worked. This module adds what only the tool knows, what the run achieved.</p>
+
+<h3 id="telemetry-note">telemetry.note</h3>
+
+<div class="sig"><span class="mod">telemetry.</span><span class="fn">note</span>(**values)</div>
+
+<p>Merges <code>values</code> into the current run's record, under <code>results</code>, and
+returns <code>None</code>. A name noted again replaces the earlier value. Strings, numbers,
+booleans, <code>None</code>, and lists and dicts of them are written as they are; anything
+else is written as its <code>str()</code>, and a number JSON cannot hold (NaN, infinity) as
+<code>null</code>. The values are copied at the call, so changing a list afterwards changes
+nothing.</p>
+
+<p><strong>Never raises, and never needs a guard.</strong> With telemetry off, outside a run,
+or in a script that is not recorded (<code>startup.py</code>, a dock panel's script, a
+smartbutton's ribbon-build run, the console), the call does nothing. Clicks, Shift+Clicks,
+hooks and <code>pynavis run</code> scripts have a record to add to.</p>
+
+<pre data-lang="python">
+"""Groups the clashes, and says how many for the firm's telemetry."""
+from pynavis import telemetry, toast
+
+groups = 12   # ... the tool's work ...
+telemetry.note(groups=groups, minutes_saved=groups * 2)
+toast.success('Made %d clash groups' % groups)
+</pre>
+
+<div class="note warn">
+<span class="note-t">What you note leaves the machine</span>
+<p>The values go to the firm's share or URL with the rest of the record. Note counts and
+flags, not element names, property values or anything else from the model.</p>
+</div>
 
 <h2 id="toast">toast: non-blocking status</h2>
 

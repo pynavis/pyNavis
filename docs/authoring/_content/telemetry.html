@@ -1,0 +1,505 @@
+<!-- title: Telemetry -->
+<!-- eyebrow: Scripts -->
+<!-- lead: An opt-in record of every tool run, written only to a share or a URL your firm chooses, so a BIM manager can see which tools the team uses and what fails. -->
+
+<h2>What it is for</h2>
+
+<p>A firm that rolls out twenty tools rarely knows which five people actually use, which
+models they use them on, or which one has been failing quietly for a week. Telemetry answers
+those questions. When it is on, pyNavis writes one small record for every tool run: who ran
+which button, on which model, how long it took and whether it worked.</p>
+
+<p>Telemetry is <strong>off by default</strong>. It is never sent to the pyNavis developers:
+records go only to the folder or URL your firm sets, and the data is yours. It records tool
+runs and nothing else, so there is no record of what a user does between clicks.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>A run of</th><th>Is recorded as</th></tr></thead>
+<tbody>
+<tr><td>A button's <code>script.py</code></td>
+    <td><code>click</code></td></tr>
+<tr><td>A bundle's <code>config.py</code>, through Shift+Click</td>
+    <td><code>config</code></td></tr>
+<tr><td>A <code>hooks\&lt;event&gt;.py</code> script</td>
+    <td><code>hook</code>, only when <code>includeHooks</code> is on</td></tr>
+<tr><td>A script under <a href="command-line.html"><code>pynavis run</code></a></td>
+    <td><code>run</code></td></tr>
+<tr><td><strong>Send test record</strong> in Settings</td>
+    <td><code>test</code>, which is not a tool run: filter it out before you count anything</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>A keyboard shortcut runs the button's <code>script.py</code>, so it is a <code>click</code>
+too. Some scripts never make a record: a smartbutton's own run at ribbon build (with
+<code>__selfinit__</code> True), a dock panel's <code>script.py</code>, an extension's
+<code>startup.py</code>, and code typed into the console. A click the runtime refuses
+because another tool is still running did not run, so it makes no record either.</p>
+
+<h2>What a record holds</h2>
+
+<p>Each run is one JSON object on a line of its own, a format called JSON Lines. The fields
+always come in this order:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>Type</th><th>Holds</th></tr></thead>
+<tbody>
+<tr><td><code>schema</code></td><td>number</td>
+    <td><code>1</code>, the version of this record format.</td></tr>
+<tr><td><code>time</code></td><td>string</td>
+    <td>When the run happened, in ISO 8601 with the machine's UTC offset:
+        <code>2026-10-10T14:03:22.123+10:00</code>.</td></tr>
+<tr><td><code>session</code></td><td>string</td>
+    <td>A GUID, new each time Navisworks starts. Every run in one Navisworks session shares
+        it.</td></tr>
+<tr><td><code>user</code></td><td>string</td><td>The Windows user name.</td></tr>
+<tr><td><code>machine</code></td><td>string</td><td>The computer name.</td></tr>
+<tr><td><code>navis</code></td><td>string</td>
+    <td>The Navisworks year, such as <code>"2026"</code>.</td></tr>
+<tr><td><code>pynavis</code></td><td>string</td><td>The pyNavis version.</td></tr>
+<tr><td><code>doc</code></td><td>string</td>
+    <td>The open model's file name without its folder, or <code>""</code> when no model is
+        open or it has never been saved.</td></tr>
+<tr><td><code>kind</code></td><td>string</td>
+    <td><code>"click"</code>, <code>"config"</code>, <code>"hook"</code>,
+        <code>"run"</code> or <code>"test"</code>, as in the table above.</td></tr>
+<tr><td><code>key</code></td><td>string</td>
+    <td>The <a href="anatomy.html#bundle-key">bundle key</a>, the extension-relative bundle
+        path that shortcut bindings use too:
+        <code>pyNavis.tab/Clash.panel/Clear_Clash.pushbutton</code>. For a hook and a run,
+        see <a href="#hooks-and-runs">below</a>.</td></tr>
+<tr><td><code>title</code></td><td>string</td><td>The button title, on one line.</td></tr>
+<tr><td><code>extension</code></td><td>string</td><td>The extension's name.</td></tr>
+<tr><td><code>engine</code></td><td>string</td>
+    <td><code>"ironpython"</code> or <code>"cpython"</code>.</td></tr>
+<tr><td><code>ms</code></td><td>number</td><td>How long the run took, in milliseconds.</td></tr>
+<tr><td><code>result</code></td><td>string</td>
+    <td><code>"ok"</code> or <code>"error"</code>.</td></tr>
+<tr><td><code>error</code></td><td>string</td>
+    <td>One line of the error, or <code>""</code> when the run was <code>ok</code>. For a
+        Python exception it is the last line of the traceback, the one that names the
+        exception and its message: <code>ValueError: the clash test has no results</code>.
+        Any other error gives its first line. Either way it stops at 500
+        characters.</td></tr>
+<tr><td><code>results</code></td><td>object</td>
+    <td>The values the script <a href="#add-your-own-values">added itself</a>. Left out
+        when it added none.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Here is one record, spread over several lines to read. On disk it is a single line.</p>
+
+<pre data-lang="json" data-file="One record">
+{
+  "schema": 1,
+  "time": "2026-10-10T14:03:22.123+10:00",
+  "session": "6f1c2d3e-8a4b-4c5d-9e6f-0a1b2c3d4e5f",
+  "user": "jsmith",
+  "machine": "BIM-WS-014",
+  "navis": "2026",
+  "pynavis": "1.4.0",
+  "doc": "Level 3 Services.nwd",
+  "kind": "click",
+  "key": "pyNavis.tab/Clash.panel/Clear_Clash.pushbutton",
+  "title": "Clear Clash",
+  "extension": "pyNavis",
+  "engine": "ironpython",
+  "ms": 8412,
+  "result": "ok",
+  "error": "",
+  "results": { "items": 1, "minutes_saved": 10 }
+}
+</pre>
+
+<h3 id="hooks-and-runs">Hooks and runs</h3>
+
+<p>A hook and a script under <code>pynavis run</code> are not buttons, so a few fields hold
+something else:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Field</th><th>A <code>hook</code> record</th><th>A <code>run</code> record</th></tr></thead>
+<tbody>
+<tr><td><code>key</code></td>
+    <td>The extension and the event, <code>pyNavis:doc-opened</code>.</td>
+    <td>The bundle key when the script is a button's <code>script.py</code>, otherwise the
+        script's file name, <code>count_items.py</code>.</td></tr>
+<tr><td><code>title</code></td>
+    <td>The event, <code>doc-opened</code>.</td>
+    <td>That button's title, otherwise the file name without <code>.py</code>, the same
+        <code>__title__</code> the script sees.</td></tr>
+<tr><td><code>extension</code></td>
+    <td>The extension the hook belongs to.</td>
+    <td>That button's extension, otherwise <code>""</code>.</td></tr>
+<tr><td><code>doc</code></td>
+    <td>The open model.</td>
+    <td>The model the run opened.</td></tr>
+<tr><td><code>ms</code></td>
+    <td>How long the hook ran.</td>
+    <td>The same duration <code>pynavis run</code> reports for the script.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>A hidden Navisworks that <code>pynavis run</code> starts closes as soon as its script
+finishes, so pyNavis sends each run's record straight away instead of waiting for the next
+flush, waiting at most two seconds for the destination.</p>
+
+<h2>Add your own values</h2>
+
+<p>The fields above say that a tool ran. Only the tool knows what the run achieved, so a
+script can add its own values to its record with <code>telemetry.note</code>:</p>
+
+<pre data-lang="python" data-file="script.py">
+from pynavis import selection, telemetry, toast
+
+items = selection.get_items()
+if not items:
+    toast.warning('Select something first.')
+else:
+    # ... the tool's work ...
+    telemetry.note(items=len(items), minutes_saved=10)
+    toast.success('Updated %d items.' % len(items))
+</pre>
+
+<p>Each call merges its names into the current run's <code>results</code>, so a script can
+call it several times and a repeated name replaces the earlier value. With telemetry off,
+or outside a run, the call is ignored, which means library code can call it without first
+checking where it is. It never raises. Strings, numbers, booleans, <code>None</code>, and
+lists and dicts of them are written as they are; anything else is written as its
+<code>str()</code>, and a number JSON cannot hold, such as <code>float('nan')</code>, as
+<code>null</code>. The values are copied when you note them, so changing a list afterwards
+does not change the record.</p>
+
+<p>Only clicks, Shift+Clicks, hooks and runs have a record to add to. A note from
+<code>startup.py</code>, a dock panel's script or a smartbutton's ribbon-build run goes
+nowhere, even when it happens during another tool's run, as <code>startup.py</code> does
+inside the Reload button's. Code typed into the console has no record to add to
+either.</p>
+
+<div class="note tip">
+<span class="note-t">Note what a manager would add up</span>
+<p>Counts and estimates are what make the data useful later: items changed, clashes grouped,
+sheets exported, minutes saved against doing it by hand. A sum of <code>minutes_saved</code>
+across a month is a number a BIM manager can take to a meeting.</p>
+</div>
+
+<div class="note warn">
+<span class="note-t">What you note leaves the machine</span>
+<p>Everything in <code>results</code> goes to the firm's share or URL with the rest of the
+record. Note counts and flags, not element names, property values or anything else from the
+model that should stay in it.</p>
+</div>
+
+<h2>Turn it on</h2>
+
+<p>Telemetry is set per user, in a <code>telemetry</code> section of
+<code>%APPDATA%\pyNavis\config.json</code>:</p>
+
+<pre data-lang="json" data-file="%APPDATA%\pyNavis\config.json">
+{
+  "telemetry": {
+    "enabled": true,
+    "folder": "\\\\server\\bim\\pynavis-telemetry",
+    "url": "https://example.com/pynavis",
+    "includeHooks": false
+  }
+}
+</pre>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Default</th><th>What it controls</th></tr></thead>
+<tbody>
+<tr><td><code>enabled</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Whether runs are recorded at all.</td></tr>
+<tr><td><code>folder</code></td><td>string</td><td>absent</td>
+    <td>A folder, usually a network share, to write records into.</td></tr>
+<tr><td><code>url</code></td><td>string</td><td>absent</td>
+    <td>An address to post records to.</td></tr>
+<tr><td><code>includeHooks</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Whether hook runs are recorded too. A <code>selection-changed</code> hook runs far
+        more often than any button, so hooks are left out unless you ask.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><code>folder</code> and <code>url</code> are each optional: set either one, or both, and
+each one you set receives every record. With neither set nothing is recorded, even with
+<code>enabled</code> on. JSON writes a backslash twice, so the share
+<code>\\server\bim\pynavis-telemetry</code> is <code>"\\\\server\\bim\\pynavis-telemetry"</code>
+in the file.</p>
+
+<p><strong>Settings</strong> on the pyNavis panel has a <strong>Telemetry</strong> section
+with the same four fields, so nobody has to edit the file by hand. A change saved there
+takes effect at once, without a Reload; an edit to <code>config.json</code> itself takes
+effect on the next Reload. Its <strong>Send test record</strong> button sends one record,
+of kind <code>test</code>, to the destinations the section shows, saved or not, and the
+status line under it tells you how that went. Use it after any change: a delivery that
+fails is never shown to the user, so the button is the quickest way to know the setup
+works.</p>
+
+<h2>Deploy it for a firm</h2>
+
+<p>Asking every user to edit their own settings does not scale, and a user could turn
+telemetry off again. A firm deploys one file to each machine instead:</p>
+
+<pre data-lang="json" data-file="%PROGRAMDATA%\pyNavis\telemetry.json">
+{
+  "enabled": true,
+  "folder": "\\\\fileserver\\bim\\pynavis-telemetry",
+  "includeHooks": false
+}
+</pre>
+
+<p>It takes the same four keys as the <code>telemetry</code> section. When the file exists
+its values win over the user's own, the Settings window shows them read-only as managed by
+the firm, and the user cannot change them. The file decides every key: one it leaves out
+takes its default, not the user's value. A file that does not parse is logged and ignored,
+so a typo on one machine falls back to that user's own settings rather than switching
+anything on or off. pyNavis reads the file when Navisworks starts and on every Reload.</p>
+
+<p>pyNavis only trusts the file when administrators alone can change it: it must be owned
+by SYSTEM, Administrators or TrustedInstaller, and nobody else may write to it, the same rule
+the loader applies to the machine-wide extensions folder. Any user can create files under
+<code>%PROGRAMDATA%</code>, so a file a user could edit might have been planted by anyone on
+the PC to send everyone's records somewhere of their choosing. Such a file is ignored, with
+one line in the <a href="troubleshooting.html#the-logs">pyNavis log</a> naming it, and each
+user's own settings apply instead.</p>
+
+<p>Deploy it the way your firm deploys anything else to a machine: an Intune script or a
+Group Policy computer startup script. Both run with administrator rights, so the file they
+write is owned by an administrator account and users can read it but not edit it. A login
+script runs as the user, so the file it writes is that user's own, and pyNavis ignores
+it.</p>
+
+<pre data-lang="powershell" data-file="Intune or startup script">
+$dir = Join-Path $env:ProgramData 'pyNavis'
+New-Item -ItemType Directory -Force $dir | Out-Null
+$json = @'
+{
+  "enabled": true,
+  "folder": "\\\\fileserver\\bim\\pynavis-telemetry",
+  "includeHooks": false
+}
+'@
+[System.IO.File]::WriteAllText((Join-Path $dir 'telemetry.json'), $json)
+</pre>
+
+<h2>Where the data goes</h2>
+
+<p>Recording never slows a tool down. Each record joins a queue in memory, and a background
+worker writes the queue out every few seconds and once more when Navisworks closes. A click
+never waits for the share or the network.</p>
+
+<h3>To a folder</h3>
+
+<p>Records are appended to one file per machine, user and day:</p>
+
+<pre data-lang="text">
+&lt;folder&gt;\&lt;machine&gt;-&lt;user&gt;-&lt;yyyy-MM-dd&gt;.jsonl
+\\fileserver\bim\pynavis-telemetry\BIM-WS-014-jsmith-2026-10-10.jsonl
+</pre>
+
+<p>Because no two people ever write to the same file, a whole office can point at one share.
+Users need permission to create and write files there; only whoever reads the data needs to
+read them.</p>
+
+<h3>To a URL</h3>
+
+<p>The queued records are posted as a JSON array:</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Part of the request</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Method</td><td><code>POST</code> to the <code>url</code> exactly as set.</td></tr>
+<tr><td>Body</td><td>A JSON array of records, each one the object described above.</td></tr>
+<tr><td><code>Content-Type</code></td><td><code>application/json</code></td></tr>
+<tr><td><code>User-Agent</code></td><td><code>pyNavis/&lt;version&gt;</code></td></tr>
+<tr><td>Timeout</td><td>10 seconds.</td></tr>
+<tr><td>Proxy</td><td>Signed in with the user's Windows credentials when a proxy asks
+    for them.</td></tr>
+<tr><td>Success</td><td>Any 2xx status. Anything else counts as a failure.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>When the destination is unreachable</h3>
+
+<p>Records that cannot be delivered, because the share is offline or the URL fails, are kept
+on the user's machine in <code>%APPDATA%\pyNavis\telemetry\</code>, one file per destination
+(<code>folder.jsonl</code> and <code>http.jsonl</code>), and tried again on later flushes
+and in the next Navisworks session. After repeated failures the retries space out, up to
+five minutes apart, so an unreachable server is not hammered. Each spool file is capped at
+5 MB; past that the oldest records are dropped first, so a laptop that spends a month away
+from the office keeps its most recent runs.</p>
+
+<p>The first failure is written to the <a href="troubleshooting.html#the-logs">pyNavis
+log</a>, and the log then stays quiet about that destination until a delivery to it works
+again. Nothing is shown to the user: no toast, no dialog, no slower click.</p>
+
+<h2>Privacy</h2>
+
+<p>Turning telemetry on is the firm's decision, and people should know before it happens.
+This is exactly what the data holds and does not hold.</p>
+
+<div class="table-scroll">
+<table>
+<thead><tr><th>Recorded</th><th>Never recorded</th></tr></thead>
+<tbody>
+<tr><td>The Windows user name and the computer name, in plain text, not hashed.</td>
+    <td>The model's folder path. Only its file name is kept.</td></tr>
+<tr><td>The model's file name.</td>
+    <td>Script contents.</td></tr>
+<tr><td>Which tool ran, when, for how long, and whether it worked.</td>
+    <td>The selection.</td></tr>
+<tr><td>One line of an error.</td>
+    <td>Geometry.</td></tr>
+<tr><td>The values a script notes itself.</td>
+    <td>Anything between runs: views, navigation, what the user looked at.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The data goes only where the firm points it: the folder, the URL, and the spool file on
+the user's own machine while a delivery is waiting. None of it goes to the pyNavis
+developers.</p>
+
+<div class="note trap">
+<span class="note-t">An error's line says whatever the error says</span>
+<p>pyNavis keeps only one line of an error, the exception and its message, but keeps it as
+written, and an error message can carry a path or a name: Python's own message for a file
+it could not open includes the file's full path. If a tool of yours handles project paths
+or names, word the exceptions it raises so their message does not carry them.</p>
+</div>
+
+<h2>Read the data in Power BI</h2>
+
+<p>Power BI reads a folder of JSON Lines files with a short Power Query script. The
+<strong>Combine</strong> button cannot do it on its own, because it expects every file to be
+one CSV, Excel or JSON document, and a JSON Lines file is many JSON documents, one per
+line.</p>
+
+<ol>
+  <li>In Power BI Desktop choose <strong>Get data</strong> &gt; <strong>Folder</strong>, and
+    give it the share, such as <code>\\fileserver\bim\pynavis-telemetry</code>.</li>
+  <li>In the list of files choose <strong>Transform Data</strong>, not
+    <strong>Combine</strong>.</li>
+  <li>In Power Query choose <strong>Advanced Editor</strong> and replace the whole query with
+    the one below. Change the path on its <code>Source</code> line to your share.</li>
+  <li>Choose <strong>Close &amp; Apply</strong>.</li>
+</ol>
+
+<pre data-lang="text" data-file="Power Query (M)">
+let
+    Source = Folder.Files("\\fileserver\bim\pynavis-telemetry"),
+    Files = Table.SelectRows(Source, each [Extension] = ".jsonl"),
+    WithLines = Table.AddColumn(Files, "Line",
+        each Lines.FromBinary([Content], null, null, 65001)),
+    OneRowPerLine = Table.ExpandListColumn(Table.SelectColumns(WithLines, {"Line"}), "Line"),
+    Parsed = Table.AddColumn(OneRowPerLine, "Record",
+        each try Json.Document([Line]) otherwise null),
+    Valid = Table.SelectRows(Parsed, each [Record] &lt;&gt; null),
+    Runs = Table.ExpandRecordColumn(Table.RemoveColumns(Valid, {"Line"}), "Record",
+        {"schema", "time", "session", "user", "machine", "navis", "pynavis", "doc",
+         "kind", "key", "title", "extension", "engine", "ms", "result", "error",
+         "results"}),
+    Typed = Table.TransformColumnTypes(Runs,
+        {{"schema", Int64.Type}, {"time", type datetimezone}, {"ms", Int64.Type}}),
+    ToolRuns = Table.SelectRows(Typed, each [kind] &lt;&gt; "test")
+in
+    ToolRuns
+</pre>
+
+<p>That gives one row per run. <code>Lines.FromBinary</code> splits each file into lines,
+<code>Json.Document</code> parses each line, and the <code>try</code> skips a blank line or
+one caught half-written while a user's Navisworks was appending to it; that line is read
+whole on the next refresh. The last step drops the records <strong>Send test record</strong>
+made. <code>results</code> stays a record column: expand it in the editor to get one column
+for each name your scripts note.</p>
+
+<p>Some first visuals worth building: runs per <code>title</code>, the proportion of each
+tool's runs whose <code>result</code> is <code>error</code>, the most common
+<code>error</code> lines, runs per <code>doc</code>, and a monthly sum of
+<code>minutes_saved</code>.</p>
+
+<div class="note">
+<span class="note-t">Scheduled refresh needs a gateway</span>
+<p>Power BI Desktop reads the share directly. A report published to the Power BI service
+can only refresh from a file share through an on-premises data gateway, so set one up, or
+refresh from Desktop and publish again.</p>
+</div>
+
+<h3>In Excel</h3>
+
+<p>Excel has the same Power Query engine. Choose <strong>Data</strong> &gt; <strong>Get
+Data</strong> &gt; <strong>From Other Sources</strong> &gt; <strong>Blank Query</strong>,
+open <strong>Advanced Editor</strong>, paste the same query, and <strong>Close &amp;
+Load</strong> gives a table to pivot. Opening a <code>.jsonl</code> file directly in Excel
+does not give you columns.</p>
+
+<h2>A receiver for the URL route</h2>
+
+<p>A share is the simplest destination. A URL suits a firm whose offices cannot all reach
+one share, or that wants the records in a database. Whatever answers the URL has one job:
+accept a <code>POST</code> of a JSON array and reply with a 2xx status.</p>
+
+<p>This is a starting point, not a production server. It is Python 3 with the standard
+library only, and it appends every record it receives to <code>telemetry.jsonl</code>
+beside it, so the Power BI query above reads its output too.</p>
+
+<pre data-lang="python" data-file="receiver.py">
+"""A minimal pyNavis telemetry receiver. A starting point, not a hardened server."""
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+LOG = 'telemetry.jsonl'
+PORT = 8080
+
+
+class Receiver(BaseHTTPRequestHandler):
+    def do_POST(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+            records = json.loads(self.rfile.read(length).decode('utf-8'))
+        except ValueError:
+            records = None
+        if not isinstance(records, list) or not all(isinstance(r, dict) for r in records):
+            self.send_error(400, 'Expected a JSON array of records')
+            return
+        with open(LOG, 'a', encoding='utf-8') as fh:
+            for record in records:
+                fh.write(json.dumps(record, ensure_ascii=False) + '\n')
+        self.send_response(204)
+        self.end_headers()
+
+
+if __name__ == '__main__':
+    HTTPServer(('', PORT), Receiver).serve_forever()
+</pre>
+
+<p>Run it with <code>python receiver.py</code> on a machine your offices can reach, set
+<code>url</code> to that machine and port, and press <strong>Send test record</strong> in
+Settings: a line appears in <code>telemetry.jsonl</code>. Anything that is not a JSON array
+of objects gets a <code>400</code>, which pyNavis counts as a failed delivery.</p>
+
+<div class="note warn">
+<span class="note-t">Before it serves a whole firm</span>
+<p>The script accepts a <code>POST</code> from anyone who can reach it, speaks plain HTTP,
+handles one request at a time and grows one file forever. Keep it on your own network, put it
+behind your web server for HTTPS, and rotate or load the file into a database once it
+matters.</p>
+</div>
+
+<div class="cards">
+  <a href="settings.html"><span class="c-t">Settings and per-tool state</span>
+    <span class="c-d">Every other key pyNavis reads from config.json.</span></a>
+  <a href="anatomy.html#bundle-key"><span class="c-t">Bundle key</span>
+    <span class="c-d">The extension-relative path every record's key field holds.</span></a>
+  <a href="command-line.html"><span class="c-t">Running without the ribbon</span>
+    <span class="c-d">pynavis run, whose scripts are recorded with the kind run.</span></a>
+</div>

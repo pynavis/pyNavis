@@ -53,6 +53,10 @@ namespace PyNavis.Runtime
             EngineManager.Configure(EngineConfigBuilder.Build(runtimeDir, userConfig, _libraries));
             _extensions = LoadExtensions(userConfig);
 
+            // Here rather than with the interactive stages, which a pynavis run session
+            // skips: runs from the command line are recorded too.
+            StartTelemetry(userConfig);
+
             if (automated && userConfig.AutomatedBootFull)
             {
                 Log.Info("automatedBoot is \"full\" in config.json: booting the interactive stages in this automated session.");
@@ -111,6 +115,9 @@ namespace PyNavis.Runtime
                 Forms.FluentChrome.InvalidateAccent(); // and so may the Windows accent
                 var userConfig = PyNavisConfig.Load(ConfigPath);
                 _extensions = LoadExtensions(userConfig);
+                // Stops the old service (its worker flushes on the way out) and starts one
+                // for the settings now in config.json and the firm file.
+                Telemetry.TelemetryHost.Configure(userConfig.Telemetry);
 
                 var libsNow = LoadLibraries(userConfig);
                 if (!libsNow.OrderBy(l => l).SequenceEqual(_libraries.OrderBy(l => l), StringComparer.OrdinalIgnoreCase))
@@ -168,6 +175,29 @@ namespace PyNavis.Runtime
                 Ribbon.ContextGate.Refresh();
             });
             steps.Run("Keyboard shortcuts", Input.ShortcutManager.InstallHook);
+        }
+
+        private static bool _telemetryClosingWired;
+
+        /// <summary>The telemetry service for this session (Settings > Telemetry), stopped
+        /// on app-closing so its worker flushes what is left. Never throws.</summary>
+        private static void StartTelemetry(PyNavisConfig userConfig)
+        {
+            try
+            {
+                Telemetry.TelemetryHost.Extensions = () => _extensions;
+                Telemetry.TelemetryHost.Configure(userConfig.Telemetry);
+                if (_telemetryClosingWired) return;
+                _telemetryClosingWired = true;
+                Events.NavisEvents.Raised += e =>
+                {
+                    if (e.Event == Events.NavisEvent.AppClosing) Telemetry.TelemetryHost.Stop();
+                };
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Telemetry could not start", ex);
+            }
         }
 
         /// <summary>A failed stage used to be a log line only, so the user saw a missing
