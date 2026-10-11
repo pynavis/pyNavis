@@ -823,7 +823,7 @@ always the `False` singleton, which rules out `is False`.
 | Returns a `Result` describing the failure | `memory.*` action functions, `section.fit_to_selection` / `clear` / `plan_to_selection` |
 | Returns `(count, errors_list_of_str)` | `viewpoints.apply_renames`, `apply_deletes`, `apply_sort`, `apply_moves` |
 | Returns a plan dict with `problems` and `collisions` lists | `viewpoints.plan_renames` |
-| Raises | `clash.Cancelled`, `clash` `ValueError` on a test not in the tree, `clashgroup` `ValueError` on an unknown rule id, `memory.MemoryFormatError` on a corrupt memory file, `viewpoints` `LookupError` from `_index_in`, `ImportError` from the live-Navisworks tier |
+| Raises | `clash.Cancelled`, `clash` `ValueError` on a test not in the tree, `clashgroup` `ValueError` on an unknown rule id, `memory.deserialize` `MemoryFormatError` on bad text (`memory.load` itself swallows it), `viewpoints` `LookupError` from `_index_in`, `ImportError` from the live-Navisworks tier |
 | Never raises, never reports | `settings.load` |
 
 `ProgressScope` is **not** a `pynavis` module. It is the C# type
@@ -1204,7 +1204,9 @@ memory.MemoryFormatError    # Exception subclass
 memory.Result(level, message, detail='', count=0)
 ```
 
-An entry identifies one ModelItem: `{'m': source file name, 'i': model index, 'p': PathId string}`.
+An entry identifies one ModelItem: `{'m': file name, 'f': full name, 'i': model index, 'p': PathId string}`.
+The full name is the model's `SourceFileName`, or its `FileName` when that is empty; `'m'` is its
+last part. Entries saved before full names were kept have no `'f'` and resolve as they always did.
 
 Pure half:
 
@@ -1218,31 +1220,43 @@ memory.path_for(document_path, root)    # -> str. '<sanitised stem, 40 chars>-<s
                                         #    everything derived from the LOWERCASED path so a
                                         #    differently cased path hits the same file.
                                         #    Unsaved documents share the 'untitled' register.
-memory.key(entry)                       # -> (model name lowercased, path id)
+memory.key(entry)                       # -> (full model name lowercased, path id); the file name
+                                        #    for an entry with no 'f'. The set functions also let
+                                        #    such an entry match any entry with its file name and
+                                        #    path id.
 memory.union(a, b)                      # -> list, a then anything new in b, order preserved, deduped
 memory.difference(a, b)                 # -> list, entries of a that b does not contain
 memory.intersection(a, b)               # -> list, present in both, in a's order
 memory.step(cursor, count, delta)       # -> int index, wrapping at both ends. -1 when count <= 0.
 memory.memory_root()                    # -> '%APPDATA%\pyNavis\memory'
-memory.load(document_path, root=None)   # -> state dict, or a fresh empty one when no file exists.
-                                        #    RAISES MemoryFormatError on a corrupt file.
+memory.load(document_path, root=None)   # -> state dict, or a fresh empty one when no file exists
+                                        #    OR when the file is corrupt, undecodable or a wrong
+                                        #    version: then state['ignored'] holds the reason and a
+                                        #    warning is logged. Still raises when the file exists but
+                                        #    cannot be opened (locked), so a good memory is never
+                                        #    overwritten by accident.
+memory.ignored_note(state)              # -> str. One sentence for Show Contents when load ignored
+                                        #    the stored file, else ''. serialize never writes 'ignored'.
 memory.save(state, root=None)           # -> str path. ATOMIC: writes '<path>.tmp' then os.replace.
 memory.apply_entries(state, entries)    # -> state, mutated: replaces items, stamps 'saved', cursor = -1
 ```
 
-**TRAP: `memory.load` propagates `MemoryFormatError`**, and every action function below calls
-it through `_state`. A corrupt memory file therefore raises out of `memorize`, `recall`, `add`
-and the rest. This is the opposite of `settings.load`, which never raises.
+`memory.load` treats a corrupt or incompatible file as empty (like `settings.load`), so the
+action functions below never fail on a bad file; the next `save` replaces it. Only
+`memory.deserialize` raises `MemoryFormatError`, for callers that parse text themselves.
 
 API half. Every action returns a `memory.Result`; none of them raise for user-level problems.
 
 ```python
 memory.encode_items(items, doc)         # -> [entry]. ModelItems to entries.
 memory.resolve_entries(entries, doc)    # -> (ModelItems, missing_count, missing_model_names)
-                                        #    Trusts the stored model index only when the model at
-                                        #    that index still has the recorded source file name;
-                                        #    otherwise finds the model by name, so appending or
-                                        #    reordering models does not break a memory.
+                                        #    Finds the model by the recorded full name, trusting
+                                        #    the stored index only when the model there has it;
+                                        #    when no model has it (files moved, or an old entry)
+                                        #    the file name decides the same way. Appending or
+                                        #    reordering models does not break a memory, and
+                                        #    same-named models in different folders stay apart.
+                                        #    Entries with no model name add to the count only.
 
 memory.memorize(doc=None)               # memory := selection.   'error' when nothing is selected.
 memory.recall(doc=None)                 # selection := memory.   'error' when the memory is empty or
@@ -1556,7 +1570,9 @@ script.get_envvar(name, default=None)   # -> session-scoped value shared by ever
                                         #    script this session, or default if unset.
 script.set_envvar(name, value)          # -> None. value=None removes it. Gone on restart.
 
-script.clipboard_copy(text)             # -> None. Windows clipboard.
+script.clipboard_copy(text)             # -> bool. True when the text reached the Windows clipboard,
+                                        #    False when another app held it open. NEVER raises;
+                                        #    toast an error on False instead of claiming a copy.
 script.clipboard_text()                 # -> str. '' when empty or unreadable. NEVER raises:
                                         #    the clipboard is machine-wide, so another app
                                         #    holding it open must not kill a tool that polls it.
@@ -1926,11 +1942,13 @@ and locations are dropped by the query's own `to_dict`/`from_dict` round trip, a
 every set export/import too. Pass `prune=True` to `sets.run` at the call site instead of
 expecting it to travel with the data. Known gaps, not workaround targets.
 
-**The `'A\/B'` escape is a `find()`-only convention** (plus the `folder` argument of
-`create`/`create_folder`, which is parsed the same way). Every other path is RAW: `export_all`
-emits `folder` and `name` exactly as they read in the tree, unescaped, and `import_dict` reads
-them back the same way - so a set genuinely named `A/B` exports as `A/B` and re-imports as two
-folder levels, not as one slash-carrying name.
+**The `'A\/B'` escape is the path convention everywhere a path is a string**: `find()`, the
+`folder` argument of `create`/`create_folder`, and since the 2026-10-10 fixes also `export_all`
+(its `folder` field is an escaped path built by `sets._join_path`, the inverse of `_split_path`)
+and `import_dict(replace=True)` (which builds its lookup path the same way). Set `name` fields
+stay raw. So a folder genuinely named `A/B` exports as `A\/B` and re-imports as one folder, and
+replace mode finds the existing set instead of creating `Name (2)`. One gap: a name ending in a
+backslash has no spelling in the escape.
 
 GUIDs survive `rename()`/`update()`: both go through create-copy-and-swap (no single-call
 rename/replace on `DocumentSelectionSets`), and the original item's GUID is restored onto the
@@ -2174,11 +2192,16 @@ IronPython 3.4 and CPython alike, and needs neither Excel nor Navisworks install
 xl.write(path, rows, headers=None, sheet='Sheet1')
     # rows: each a list of str/int/float/bool/None.
     # headers, if given, written as a bold first row.
+    #    inf/-inf/nan floats are written as the TEXT 'inf', '-inf', 'nan' (Excel has no number).
+    #    sheet must be an Excel-legal name (1..31 chars, none of [ ] : * ? / \, no leading or
+    #    trailing apostrophe) or ValueError is raised before anything is written.
     # -> None. Writing to a path that already holds a workbook ADDS the named sheet, or
-    #    REPLACES it if that name already exists; every other sheet keeps its name, position
-    #    and cell VALUES only. Implemented by reading the whole workbook back and rebuilding
-    #    the package from scratch, which is a VALUES-ONLY round trip: an untouched sheet loses
-    #    its bold header row and any int written to it comes back as float.
+    #    REPLACES it if that name already exists, matched without regard to case as Excel
+    #    does: sheet='log' replaces 'Log' in place and takes the spelling 'log'. Every
+    #    other sheet keeps its name, position and cell VALUES only. Implemented by reading
+    #    the whole workbook back and rebuilding the package from scratch, which is a
+    #    VALUES-ONLY round trip: an untouched sheet loses its bold header row and any int
+    #    written to it comes back as float.
 
 xl.read(path, sheet=None)
     # sheet=None reads the first sheet.
