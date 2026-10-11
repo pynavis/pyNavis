@@ -95,12 +95,15 @@ def write(path, rows, headers=None, sheet='Sheet1'):
 
 
 def _sheet_position(names, sheet):
-    """Where the sheet to replace sits, or None. Excel holds two names that
-    differ only in case to be the same sheet, and calls a workbook holding both
-    damaged, so the match ignores case. An exact match still wins, which
-    leaves the right sheet replaced in a workbook already holding both."""
+    """Where the named sheet sits, or None; read and write both find a sheet
+    this way. Excel holds two names that differ only in case to be the same
+    sheet, and calls a workbook holding both damaged, so the match ignores
+    case. An exact match still wins, which finds the right sheet in a
+    workbook already holding both."""
     if sheet in names:
         return names.index(sheet)
+    if not isinstance(sheet, str):
+        return None
     folded = sheet.lower()
     for position, name in enumerate(names):
         if name.lower() == folded:
@@ -119,6 +122,11 @@ def sheets(path):
 def read(path, sheet=None):
     """Rows from the named sheet, or the first sheet if sheet is None.
 
+    Names match the way Excel matches them, without regard to case:
+    sheet='log' reads a sheet named 'Log'. A sheet whose name matches
+    exactly still wins, in a workbook holding both spellings. ValueError
+    when no sheet matches.
+
     Numbers come back as float, booleans as True/False, everything else
     (including inline and shared strings) as str. A row's length follows
     the highest column it uses; gaps within that span normalize to ''.
@@ -132,13 +140,10 @@ def read(path, sheet=None):
         if sheet is None:
             target = sheet_elements[0]
         else:
-            target = None
-            for element in sheet_elements:
-                if element.getAttribute('name') == sheet:
-                    target = element
-                    break
-            if target is None:
+            position = _sheet_position([element.getAttribute('name') for element in sheet_elements], sheet)
+            if position is None:
                 raise ValueError('no such sheet %r in %r' % (sheet, path))
+            target = sheet_elements[position]
 
         rid = target.getAttribute('r:id')
         rels_dom = minidom.parseString(archive.read('xl/_rels/workbook.xml.rels').decode('utf-8'))

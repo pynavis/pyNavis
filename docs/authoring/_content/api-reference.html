@@ -3911,12 +3911,15 @@ tripping through a sheet <code>write</code> did not touch this time.</p>
 <div class="sig"><span class="mod">xl.</span><span class="fn">read</span>(path, sheet=None)</div>
 
 <p>Rows from the named sheet, or the first sheet when <code>sheet</code> is <code>None</code>.
+Names match the way Excel matches them, without regard to case, as they do for
+<code>write</code>: <code>sheet='log'</code> reads a sheet named <code>Log</code>. In a workbook
+that holds both spellings, the sheet whose name matches exactly wins.
 Numbers come back as <code>float</code>, booleans as <code>True</code> or <code>False</code>,
 and everything else, inline and shared strings alike, as <code>str</code>. A row's length
 follows the highest column it uses; gaps within that span read back as <code>''</code>.</p>
 
-<p>Raises <code>ValueError</code> when the workbook has no sheets, or when <code>sheet</code>
-names one that is not in it.</p>
+<p>Raises <code>ValueError</code> when the workbook has no sheets, or when no sheet in it
+matches <code>sheet</code>.</p>
 
 <h3 id="xl-sheets">xl.sheets</h3>
 

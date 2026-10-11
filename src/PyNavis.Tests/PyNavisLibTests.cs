@@ -1901,6 +1901,48 @@ assert xl.read(damaged, sheet='log') == [['c']]
         }
 
         [Fact]
+        public void XlModule_Read_FindsASheetWhoseNameDiffersOnlyInCase()
+        {
+            // write() already matched sheet names the way Excel does, but read() did
+            // not, so sheet='log' on a workbook holding 'Log' raised "no such sheet".
+            var r = Run(@"
+from pynavis import xl, _xlsx
+import tempfile, os, zipfile
+folder = tempfile.mkdtemp()
+path = os.path.join(folder, 'cased.xlsx')
+xl.write(path, [['first']], sheet='Summary')
+xl.write(path, [['entry']], headers=['Entry'], sheet='Log')
+
+assert xl.read(path, sheet='log') == [['Entry'], ['entry']], xl.read(path, sheet='log')
+assert xl.read(path, sheet='LOG') == [['Entry'], ['entry']]
+try:
+    xl.read(path, sheet='Missing')
+    raise AssertionError('an unknown sheet must still raise')
+except ValueError as error:
+    assert 'Missing' in str(error), str(error)
+try:
+    xl.read(path, sheet=0)
+    raise AssertionError('a sheet that is not a name must still raise ValueError')
+except ValueError:
+    pass
+
+# a workbook holding both spellings: the exact name wins, and otherwise the
+# first sheet whose name matches without regard to case
+both = os.path.join(folder, 'both.xlsx')
+parts = _xlsx.build_workbook([('Log', [['a']]), ('log', [['b']])])
+archive = zipfile.ZipFile(both, 'w')
+for name, content in parts.items():
+    archive.writestr(name, content)
+archive.close()
+assert xl.read(both, sheet='Log') == [['a']]
+assert xl.read(both, sheet='log') == [['b']]
+assert xl.read(both, sheet='LOG') == [['a']]
+");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
         public void XlModule_WritesInfinityAndNaN_AsText_SoTheWorkbookStaysValid()
         {
             // str(float('inf')) is 'inf', which is no number in a <v> element: Excel
