@@ -28,4 +28,9 @@ the pyNavis loader resolves AdWindows to the copy the host Navisworks process ha
 already loaded (same-simple-name fallback in AssemblyResolver, regression-tested).
 
 Source both DLLs from the root install folder of the matching Navisworks release,
-e.g. `C:\Program Files\Autodesk\Navisworks Manage 2024\`.
+e.g. `C:\Program Files\Autodesk\Navisworks Manage 2024\`. For a release that is not
+installed on the build machine, the NuGet package `Speckle.Navisworks.API` (one version per
+Navisworks year, e.g. `2027.0.0`) carries the same Autodesk-signed `Autodesk.Navisworks.Api.dll`
+and `AdWindows.dll` under `lib\net48`; check the Authenticode signature before using them. This
+folder is not under version control, so after a fresh clone or a machine move it has to be
+filled again before `tools\package.ps1` can build every year.
