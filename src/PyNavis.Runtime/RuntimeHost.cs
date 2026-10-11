@@ -182,7 +182,8 @@ namespace PyNavis.Runtime
         private static bool _telemetryClosingWired;
 
         /// <summary>The telemetry service for this session (Settings > Telemetry), stopped
-        /// on app-closing so its worker flushes what is left. Never throws.</summary>
+        /// on app-closing, after that event's hooks have run, so its worker flushes what is
+        /// left, their records included. Never throws.</summary>
         private static void StartTelemetry(PyNavisConfig userConfig)
         {
             try
@@ -191,10 +192,7 @@ namespace PyNavis.Runtime
                 Telemetry.TelemetryHost.Configure(userConfig.Telemetry);
                 if (_telemetryClosingWired) return;
                 _telemetryClosingWired = true;
-                Events.NavisEvents.Raised += e =>
-                {
-                    if (e.Event == Events.NavisEvent.AppClosing) Telemetry.TelemetryHost.Stop();
-                };
+                Telemetry.TelemetryHost.StopAfterAppClosing(Events.NavisEvents.Hub);
             }
             catch (Exception ex)
             {

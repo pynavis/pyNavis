@@ -142,6 +142,18 @@ namespace PyNavis.Runtime.Telemetry
             }
         }
 
+        /// <summary>Stops the service once <paramref name="hub"/>'s app-closing has been
+        /// handled by every consumer, the hook runner among them: the app-closing hooks run
+        /// synchronously there and queue their records, which this final flush then sends.
+        /// RuntimeHost wires it once, to the session's hub.</summary>
+        internal static void StopAfterAppClosing(Events.EventHub hub)
+        {
+            hub.Handled += e =>
+            {
+                if (e.Event == Events.NavisEvent.AppClosing) Stop();
+            };
+        }
+
         /// <summary>
         /// Flushes now on a thread of its own and waits at most <paramref name="wait"/>.
         /// pynavis run closes its Navisworks straight after the run, before the worker's

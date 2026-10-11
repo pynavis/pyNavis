@@ -14,8 +14,15 @@ namespace PyNavis.Runtime.Events
     {
         public const int DebounceMs = 250;
 
+        /// <summary>The session's one hub; Raise goes through it.</summary>
+        internal static readonly EventHub Hub = new EventHub();
+
         /// <summary>All consumers hang off this one multiplexed event.</summary>
-        public static event Action<NavisEventArgs> Raised;
+        public static event Action<NavisEventArgs> Raised
+        {
+            add { Hub.Raised += value; }
+            remove { Hub.Raised -= value; }
+        }
 
         private static readonly PendingEvents Pending = new PendingEvents();
 
@@ -55,20 +62,13 @@ namespace PyNavis.Runtime.Events
         public static void Raise(NavisEvent evt, string commandKey = null,
             string viewpointName = null, bool fromHook = false)
         {
-            var handlers = Raised;
-            if (handlers == null) return;
-            var args = new NavisEventArgs
+            Hub.Raise(new NavisEventArgs
             {
                 Event = evt,
                 CommandKey = commandKey,
                 ViewpointName = viewpointName,
                 FromHook = fromHook,
-            };
-            foreach (Action<NavisEventArgs> handler in handlers.GetInvocationList())
-            {
-                try { handler(args); }
-                catch (Exception ex) { Log.Error($"Event consumer failed on '{args.Name}'", ex); }
-            }
+            });
         }
 
         /// <summary>

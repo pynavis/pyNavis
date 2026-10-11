@@ -9,6 +9,7 @@ using System.Web.Script.Serialization;
 using PyNavis.Runtime;
 using PyNavis.Runtime.Bundles;
 using PyNavis.Runtime.Engine;
+using PyNavis.Runtime.Events;
 using PyNavis.Runtime.Execution;
 using PyNavis.Runtime.Telemetry;
 using Xunit;
@@ -293,6 +294,29 @@ namespace PyNavis.Tests
             TelemetryHost.Stop();
 
             Assert.Equal(1, held.Lines);
+        }
+
+        [Fact]
+        public void AppClosing_StopsTelemetry_OnlyOnceTheAppClosingHooksHaveReported()
+        {
+            // Field, 2026-10-11: the app-closing hook's record never arrived. Boot wires
+            // telemetry's stop before the hook runner subscribes, so the service stopped
+            // first and the hook's record was queued into a service that had flushed.
+            On(includeHooks: true);
+            var hub = new EventHub();
+            TelemetryHost.StopAfterAppClosing(hub);
+            var hook = new HookModel { EventName = "app-closing", ExtensionName = "Firm", EngineId = "ironpython" };
+            hub.Raised += e =>
+            {
+                if (e.Event == NavisEvent.AppClosing)
+                    TelemetryHost.Finish(TelemetryHost.ForHook(hook), 4, true, null);
+            };
+
+            hub.Raise(new NavisEventArgs { Event = NavisEvent.AppClosing });
+
+            Assert.True(TelemetryHost.Current.IsStopped);
+            var line = Assert.Single(_sink.Records);
+            Assert.Equal("Firm:app-closing", line["key"]);
         }
 
         // ---- the firm file ------------------------------------------------------------
