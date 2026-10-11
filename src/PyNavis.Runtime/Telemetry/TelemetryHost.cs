@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -13,8 +14,9 @@ namespace PyNavis.Runtime.Telemetry
 {
     /// <summary>
     /// The one telemetry service the runtime records into. Boot and Reload build it from
-    /// the settings in force (Configure), the Settings window rebuilds it when its
-    /// telemetry changes, and app-closing stops it, which flushes what is left.
+    /// the settings in force (Configure), which keeps the running one when they have not
+    /// changed, the Settings window rebuilds it when its telemetry changes, and
+    /// app-closing stops it, which flushes what is left.
     /// <see cref="Current"/> is never null: with nothing configured it is a service that
     /// records nothing, so a caller never checks.
     ///
@@ -25,6 +27,10 @@ namespace PyNavis.Runtime.Telemetry
     public static class TelemetryHost
     {
         private static TelemetryService _current = Off();
+
+        /// <summary>Services Install replaced whose final flush may still be under way, for
+        /// app-closing to wait on.</summary>
+        private static readonly List<TelemetryService> Retiring = new List<TelemetryService>();
 
         /// <summary>The service in force; one that records nothing until configured.</summary>
         public static TelemetryService Current => Volatile.Read(ref _current);
@@ -47,8 +53,10 @@ namespace PyNavis.Runtime.Telemetry
 
         /// <summary>
         /// Builds the service for <paramref name="user"/> (config.json's "telemetry"
-        /// section, overridden by a trusted firm file), stops the one it replaces, whose
-        /// worker flushes on its way out, and starts the new one. Never throws.
+        /// section, overridden by a trusted firm file) and installs it in place of the one
+        /// in force. Settings that match the running service's leave it running: Settings'
+        /// Save configures and then asks for a Reload that configures again. Called on the
+        /// UI thread, so it never waits on a destination. Never throws.
         /// </summary>
         public static void Configure(TelemetryConfig user) =>
             Configure(user, FirmPath, SpoolDir, MachineFolderTrust.IsAdminOnlyFile);
@@ -58,6 +66,13 @@ namespace PyNavis.Runtime.Telemetry
             try
             {
                 var settings = InForce(user, firmPath, adminOnly, Log.Error);
+                var current = Current;
+                var inForce = current.Config;
+                if (!current.IsStopped && SameSettings(settings, inForce) && settings.Managed == inForce.Managed)
+                {
+                    Log.Info(Describe(current, firmPath));
+                    return;
+                }
                 var next = TelemetryService.Create(settings, spoolDir, Log.Error);
                 Install(next);
                 Log.Info(Describe(next, firmPath));
@@ -68,35 +83,72 @@ namespace PyNavis.Runtime.Telemetry
             }
         }
 
-        /// <summary>Makes <paramref name="next"/> (null for none) the service in force,
-        /// stops the old one and starts the new one; returns the old one.</summary>
+        /// <summary>
+        /// Makes <paramref name="next"/> (null for none) the service in force and returns
+        /// the old one. The old one is stopped without waiting: its worker flushes what it
+        /// holds and lets go of its sinks on a thread of its own, so a slow or dead
+        /// destination never holds up Save or Reload. The new worker's first flush waits
+        /// for that to finish, because both send the same spool files.
+        /// </summary>
         internal static TelemetryService Install(TelemetryService next)
         {
             var service = next ?? Off();
             var old = Interlocked.Exchange(ref _current, service);
-            if (!ReferenceEquals(old, service))
+            WaitHandle predecessor = null;
+            if (old != null && !ReferenceEquals(old, service))
             {
-                try { old?.Stop(); }
-                catch (Exception ex) { Log.Error("Telemetry: the old service did not stop cleanly", ex); }
+                try
+                {
+                    old.Stop(TimeSpan.Zero);
+                    predecessor = old.Finished;
+                    lock (Retiring)
+                    {
+                        Retiring.RemoveAll(s => s.Finished.WaitOne(0));
+                        Retiring.Add(old);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Telemetry: the old service did not stop cleanly", ex);
+                }
             }
-            try { service.Start(); }
+            try { service.Start(predecessor); }
             catch (Exception ex) { Log.Error("Telemetry: the service did not start", ex); }
             return old;
         }
 
         /// <summary>App-closing: stops the worker, which flushes once more, waiting at most
-        /// TelemetryService.StopWait. Never throws.</summary>
+        /// TelemetryService.StopWait. A service Install replaced moments before may still be
+        /// on its own final flush; it gets what is left of the same wait. Never throws.</summary>
         public static void Stop()
         {
+            var clock = Stopwatch.StartNew();
             try { Current.Stop(); }
             catch (Exception ex) { Log.Error("Telemetry did not stop cleanly", ex); }
+            try
+            {
+                TelemetryService[] retiring;
+                lock (Retiring) retiring = Retiring.ToArray();
+                foreach (var old in retiring)
+                {
+                    var left = TelemetryService.StopWait - clock.Elapsed;
+                    if (left <= TimeSpan.Zero) break;
+                    old.Finished.WaitOne(left);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Telemetry: an earlier service did not stop cleanly", ex);
+            }
         }
 
         /// <summary>
         /// Flushes now on a thread of its own and waits at most <paramref name="wait"/>.
         /// pynavis run closes its Navisworks straight after the run, before the worker's
-        /// next flush and without the app-closing event a ribbon session stops on. True
-        /// when the flush finished in time (or there was nothing to do).
+        /// next flush and without the app-closing event a ribbon session stops on, so the
+        /// flush tries every destination, including one waiting out a retry delay: parked
+        /// for later, the run's record would wait for some other session. True when the
+        /// flush finished in time (or there was nothing to do).
         /// </summary>
         public static bool FlushWithin(TimeSpan wait)
         {
@@ -104,7 +156,7 @@ namespace PyNavis.Runtime.Telemetry
             if (!service.IsActive) return true;
             try
             {
-                var thread = new Thread(() => service.Flush()) { IsBackground = true, Name = "pyNavis telemetry flush" };
+                var thread = new Thread(() => service.FlushNow()) { IsBackground = true, Name = "pyNavis telemetry flush" };
                 thread.Start();
                 return thread.Join(wait);
             }
@@ -311,8 +363,9 @@ namespace PyNavis.Runtime.Telemetry
         /// "Test record sent to &lt;targets&gt;." or "Test record could not be sent to
         /// &lt;target&gt;: &lt;reason&gt;" for each destination that did not take it.
         /// When <paramref name="entered"/> (what the window shows) matches the service in
-        /// force, that service sends it, trying every destination at once even while one
-        /// waits out a retry delay. Settings typed in but not saved yet get a one-off service
+        /// force, that service sends it (SendNow, past its queue, so the worker's own flush
+        /// cannot take it), trying every destination at once even while one waits out a
+        /// retry delay. Settings typed in but not saved yet get a one-off service
         /// of their own, with a spool that is thrown away, so the test answers for what is on
         /// the screen and leaves nothing to retry. Writes to the share or the network on the
         /// calling thread: call it off the UI thread. Never throws.
@@ -329,8 +382,7 @@ namespace PyNavis.Runtime.Telemetry
                 var unsaved = !SameSettings(settings, inForce.Config);
                 if (inForce.IsActive && !unsaved)
                 {
-                    inForce.Record(record);
-                    var sent = inForce.FlushNow();
+                    var sent = inForce.SendNow(record);
                     if (sent.Failures.Count > 0 || sent.Sent == 0) return TestFailure(sent, inForce.Sinks);
                     return "Test record sent to " + string.Join(" and ", inForce.Sinks.Select(s => s.Target)) + ".";
                 }
@@ -343,8 +395,7 @@ namespace PyNavis.Runtime.Telemetry
                 {
                     if (!string.IsNullOrWhiteSpace(settings.Url) && probe.Sinks.All(s => s.Name != "http"))
                         return "The URL must start with http:// or https://.";
-                    probe.Record(record);
-                    var result = probe.FlushNow();
+                    var result = probe.SendNow(record);
                     if (result.Failures.Count > 0 || result.Sent == 0) return TestFailure(result, probe.Sinks);
                     if (!(entered?.Enabled ?? true))
                         return inForce.Config.Managed && !unsaved

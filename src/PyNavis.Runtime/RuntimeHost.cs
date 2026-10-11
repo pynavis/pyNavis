@@ -115,8 +115,10 @@ namespace PyNavis.Runtime
                 Forms.FluentChrome.InvalidateAccent(); // and so may the Windows accent
                 var userConfig = PyNavisConfig.Load(ConfigPath);
                 _extensions = LoadExtensions(userConfig);
-                // Stops the old service (its worker flushes on the way out) and starts one
-                // for the settings now in config.json and the firm file.
+                // Keeps the running service when the settings in force have not changed
+                // (Settings' Save has usually just applied them); otherwise starts one for
+                // the settings now in config.json and the firm file, and the old one
+                // flushes on its way out without holding up the Reload.
                 Telemetry.TelemetryHost.Configure(userConfig.Telemetry);
 
                 var libsNow = LoadLibraries(userConfig);

@@ -421,6 +421,55 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void SendNow_DeliversItsRecord_WhichTheWorkersFlushCannotTake()
+        {
+            // Record then FlushNow is a race with the worker: its own flush can take the
+            // queued record first, and FlushNow then has nothing to send.
+            var sink = new FakeSink();
+            var service = Service(On(), sink);
+            service.Interval = TimeSpan.FromMilliseconds(10);
+            service.Start();
+            try
+            {
+                service.Record(Click("Clear Clash"));
+                var clock = Stopwatch.StartNew();
+                while (sink.Lines.Count == 0 && clock.Elapsed < TimeSpan.FromSeconds(10)) Thread.Sleep(5);
+                Assert.Equal(0, service.FlushNow().Sent);                       // the worker got there first
+
+                var result = service.SendNow(Click("Test record", kind: "test"));
+
+                Assert.Equal(1, result.Sent);
+                Assert.Empty(result.Failures);
+                Assert.Equal(new[] { "Clear Clash", "Test record" }, sink.Titles);
+            }
+            finally
+            {
+                service.Stop();
+            }
+        }
+
+        [Fact]
+        public void SendNow_ToASinkThatFails_SpoolsTheRecord_SaysWhy_AndLeavesTheQueueAlone()
+        {
+            var good = new FakeSink("folder");
+            var bad = new FakeSink("http") { Fail = true };
+            var service = Service(On(), good, bad);
+            service.Record(Click("Clear Clash"));                               // for the worker's next flush
+
+            var result = service.SendNow(Click("Test record", kind: "test"));
+
+            Assert.Equal(1, result.Sent);
+            Assert.Equal(1, result.Spooled);
+            var failure = Assert.Single(result.Failures);
+            Assert.Equal("the http target", failure.Target);
+            Assert.Equal("the share is offline.", failure.Reason);
+            Assert.Equal(new[] { "Test record" }, good.Titles);
+            Assert.Equal(1, Spooled("http"));
+            Assert.StartsWith("Last sent 10 Oct 2026 14:05:00. 1 record waiting, 1 in the spool.", service.Status());
+            Assert.Equal(0, service.SendNow(null).Sent);
+        }
+
+        [Fact]
         public void AFlush_SaysWhichSinksFailedAndWhy()
         {
             var good = new FakeSink("folder");
@@ -670,6 +719,52 @@ namespace PyNavis.Tests
             Assert.True(service.Stop());
 
             Assert.Equal(new[] { "send 1", "dispose" }, sink.Events);
+        }
+
+        [Fact]
+        public void Stop_FlushesAtOnce_EvenWhileTheWorkerWaitsForTheServiceBeforeIt()
+        {
+            // The worker's first flush waits for the service it replaced to finish its
+            // last one; app-closing does not wait for that.
+            var sink = new DisposableSink();
+            var service = Service(On(), sink);
+            service.Start(new ManualResetEvent(false));                         // never finishes
+            service.Record(Click("Clear Clash"));
+
+            Assert.True(service.Stop());
+
+            Assert.Equal(new[] { "send 1", "dispose" }, sink.Events);
+            Assert.True(service.IsStopped);
+            Assert.True(service.Finished.WaitOne(0));
+        }
+
+        [Fact]
+        public void Stop_WithoutWaiting_ReturnsAtOnce_AndFinishedSaysWhenTheLastFlushIsOver()
+        {
+            var release = new ManualResetEventSlim();
+            var sink = new WatchingSink(SpoolPath("fake")) { DuringSend = () => release.Wait(TimeSpan.FromSeconds(10)) };
+            var service = Service(On(), sink);
+            service.Record(Click("Clear Clash"));
+
+            var clock = Stopwatch.StartNew();
+            Assert.False(service.Stop(TimeSpan.Zero));
+
+            Assert.True(clock.Elapsed < TimeSpan.FromMilliseconds(500));
+            Assert.True(service.IsStopped);
+            Assert.False(service.Finished.WaitOne(0));
+            release.Set();
+            Assert.True(service.Finished.WaitOne(TimeSpan.FromSeconds(10)));
+            Assert.Equal(new[] { "Clear Clash" }, sink.Lines.Select(TitleOf));
+        }
+
+        [Fact]
+        public void AnInactiveService_IsFinishedAsSoonAsItStops()
+        {
+            var service = Service(new TelemetryConfig());
+
+            Assert.False(service.IsStopped);
+            Assert.True(service.Stop(TimeSpan.Zero));
+            Assert.True(service.Finished.WaitOne(0));
         }
 
         [Fact]

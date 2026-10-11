@@ -79,7 +79,9 @@ namespace PyNavis.Runtime.Telemetry
     /// refusals from that sink until it takes a flush's records without refusing any.
     ///
     /// Stop is the end of a service: after its final flush it disposes the sinks that
-    /// hold something (HttpSink's HttpClient), and it sends nothing more.
+    /// hold something (HttpSink's HttpClient), and it sends nothing more. Finished is set
+    /// once that is over, and a service started after it (Start with that handle) holds
+    /// its worker's first flush until then, because both send the same spool files.
     /// </summary>
     public sealed class TelemetryService
     {
@@ -115,7 +117,9 @@ namespace PyNavis.Runtime.Telemetry
         private Thread _worker;
         private ManualResetEvent _workerStop;
 
+        private readonly ManualResetEvent _finished = new ManualResetEvent(false);
         private volatile bool _released;
+        private volatile bool _stopped;
         private long _overflowSeen;
         private bool _spoolErrorLogged;
         private bool _otherErrorLogged;
@@ -206,14 +210,28 @@ namespace PyNavis.Runtime.Telemetry
         /// <summary>Sends the queued records and every spooled line to each sink not
         /// waiting out a retry delay; whatever a sink does not take goes to its spool,
         /// except a batch the server refuses, which is dropped. Never throws.</summary>
-        public FlushResult Flush() => Flush(force: false);
+        public FlushResult Flush() => Flush(force: false, only: null);
 
         /// <summary>Flush, with every sink tried now, including one waiting out a retry
-        /// delay: Send test record answers for the destinations as they are at that
-        /// moment. Never throws.</summary>
-        public FlushResult FlushNow() => Flush(force: true);
+        /// delay: pynavis run's last flush, just before its Navisworks closes. Never
+        /// throws.</summary>
+        public FlushResult FlushNow() => Flush(force: true, only: null);
 
-        private FlushResult Flush(bool force)
+        /// <summary>
+        /// Sends <paramref name="record"/> to every sink now, including one waiting out a
+        /// retry delay, without the queue or the spool's backlog: Send test record answers
+        /// for that one record and the destinations as they are at that moment. Queued, the
+        /// record could be taken by the worker's own flush, leaving the flush that was to
+        /// report on it with nothing to send. A sink that fails gets the record in its spool
+        /// and a refusal drops it, as in a flush. Does nothing while inactive or once
+        /// stopped; never throws.
+        /// </summary>
+        public FlushResult SendNow(TelemetryRecord record) =>
+            record == null ? FlushResult.None : Flush(force: true, only: record);
+
+        /// <param name="only">Null to send the queue and each spool's backlog; otherwise
+        /// this record alone.</param>
+        private FlushResult Flush(bool force, TelemetryRecord only)
         {
             if (!IsActive) return FlushResult.None;
             lock (_flushGate)
@@ -227,7 +245,7 @@ namespace PyNavis.Runtime.Telemetry
                 {
                     var now = _clock();
                     var fresh = new List<string>();
-                    foreach (var record in _queue.Drain(int.MaxValue))
+                    foreach (var record in only != null ? new List<TelemetryRecord> { only } : _queue.Drain(int.MaxValue))
                     {
                         try { fresh.Add(record.ToJsonLine()); }
                         catch (Exception ex)
@@ -236,9 +254,12 @@ namespace PyNavis.Runtime.Telemetry
                             ReportOnce(ref _otherErrorLogged, "Telemetry: a record could not be written and was dropped: " + ex.Message);
                         }
                     }
-                    var overflow = _queue.Dropped;
-                    dropped += (int)(overflow - _overflowSeen);
-                    _overflowSeen = overflow;
+                    if (only == null)
+                    {
+                        var overflow = _queue.Dropped;
+                        dropped += (int)(overflow - _overflowSeen);
+                        _overflowSeen = overflow;
+                    }
 
                     string failure = null;
                     var waiting = false;
@@ -253,12 +274,15 @@ namespace PyNavis.Runtime.Telemetry
                         }
 
                         // The spool's lines stay in its file until the sink has them.
-                        List<string> backlog;
-                        try { backlog = target.Spool.PeekAll(); }
-                        catch (Exception ex)
+                        var backlog = new List<string>();
+                        if (only == null)
                         {
-                            backlog = new List<string>();       // they stay in the file for next time
-                            ReportOnce(ref _spoolErrorLogged, $"Telemetry: could not read {target.Spool.Path}: {ex.Message}");
+                            try { backlog = target.Spool.PeekAll(); }
+                            catch (Exception ex)
+                            {
+                                // They stay in the file for next time.
+                                ReportOnce(ref _spoolErrorLogged, $"Telemetry: could not read {target.Spool.Path}: {ex.Message}");
+                            }
                         }
                         var pending = new List<string>(backlog.Count + fresh.Count);
                         pending.AddRange(backlog);
@@ -378,15 +402,21 @@ namespace PyNavis.Runtime.Telemetry
         /// <summary>Starts the background worker that flushes every Interval. Does nothing
         /// while inactive or already started. A dedicated background thread, not the
         /// thread pool, so a busy pool can never hold up the flush on close.</summary>
-        public void Start()
+        public void Start() => Start(null);
+
+        /// <summary>Start, with the worker's first flush held until
+        /// <paramref name="after"/> is set: the Finished of the service this one replaces,
+        /// whose final flush reads and empties the same spool files. A Stop meanwhile ends
+        /// the wait, so app-closing still gets its final flush.</summary>
+        internal void Start(WaitHandle after)
         {
-            if (!IsActive || _released) return;
+            if (!IsActive || _stopped || _released) return;
             lock (_lifeGate)
             {
                 if (_worker != null) return;
                 var stop = new ManualResetEvent(false);     // one per worker: a quick Stop and Start never cross
                 _workerStop = stop;
-                _worker = new Thread(() => Loop(stop)) { IsBackground = true, Name = "pyNavis telemetry" };
+                _worker = new Thread(() => Loop(stop, after)) { IsBackground = true, Name = "pyNavis telemetry" };
                 _worker.Start();
             }
         }
@@ -397,8 +427,13 @@ namespace PyNavis.Runtime.Telemetry
         /// final flush gets a thread of its own. Whichever thread flushes last then disposes
         /// the sinks, however long that flush takes, so a send is never cut off. Later
         /// calls, Start and Flush do nothing. True when the final flush finished in time.</summary>
-        public bool Stop()
+        public bool Stop() => Stop(StopWait);
+
+        /// <summary>Stop, waiting at most <paramref name="wait"/>. TimeSpan.Zero returns at
+        /// once and leaves the final flush to its own thread; Finished says when it is over.</summary>
+        internal bool Stop(TimeSpan wait)
         {
+            _stopped = true;
             if (!IsActive)
             {
                 ReleaseSinks();
@@ -419,18 +454,26 @@ namespace PyNavis.Runtime.Telemetry
                     if (_released) return true;
                     worker = new Thread(() =>
                     {
-                        Flush();
-                        ReleaseSinks();
+                        try { Flush(); }
+                        finally { ReleaseSinks(); }
                     }) { IsBackground = true, Name = "pyNavis telemetry final flush" };
                     worker.Start();
                 }
-                return worker.Join(StopWait);
+                return worker.Join(wait);
             }
             catch (Exception)
             {
                 return false;
             }
         }
+
+        /// <summary>Stop has been called: the service sends nothing more once its final
+        /// flush is over.</summary>
+        internal bool IsStopped => _stopped;
+
+        /// <summary>Set once a stopped service's final flush is over and its sinks are
+        /// released (at once for one that is inactive). Never set before Stop.</summary>
+        internal WaitHandle Finished => _finished;
 
         /// <summary>"The last send to X failed: reason." while the last attempt failed, or
         /// "The last send to X was refused, so N records were dropped: reason." after a
@@ -466,23 +509,28 @@ namespace PyNavis.Runtime.Telemetry
 
         // ---- helpers ------------------------------------------------------------------
 
-        private void Loop(WaitHandle stop)
+        private void Loop(WaitHandle stop, WaitHandle after)
         {
             try
             {
+                // Never side by side with the service this one replaced: they share the spool.
+                if (after != null) WaitHandle.WaitAny(new[] { stop, after });
                 while (!stop.WaitOne(Interval))
                     Flush();
                 Flush();                                    // the final one, for Stop
-                ReleaseSinks();
             }
             catch (Exception ex)
             {
                 ReportOnce(ref _otherErrorLogged, "Telemetry: the worker stopped: " + ex.Message);
             }
+            finally
+            {
+                ReleaseSinks();
+            }
         }
 
-        /// <summary>Disposes every sink that holds something, once, after the final flush;
-        /// waits for a flush under way on another thread to finish first.</summary>
+        /// <summary>Disposes every sink that holds something, once, after the final flush,
+        /// then sets Finished; waits for a flush under way on another thread to finish first.</summary>
         private void ReleaseSinks()
         {
             lock (_flushGate)
@@ -497,6 +545,7 @@ namespace PyNavis.Runtime.Telemetry
                         ReportOnce(ref _otherErrorLogged, $"Telemetry: {target.Sink.Target} did not close cleanly: {ex.Message}");
                     }
                 }
+                _finished.Set();
             }
         }
 

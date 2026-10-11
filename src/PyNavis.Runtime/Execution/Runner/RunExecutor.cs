@@ -225,7 +225,8 @@ namespace PyNavis.Runtime.Execution.Runner
             {
                 // The CLI closes this Navisworks once the response is written, before the
                 // telemetry worker's next flush and without the app-closing event a ribbon
-                // session stops it on, so the run's record goes out now (briefly bounded).
+                // session stops it on, so the run's record goes out now, even to a
+                // destination waiting out a retry delay (briefly bounded).
                 TelemetryHost.FlushWithin(TelemetryService.StopWait);
             }
         }

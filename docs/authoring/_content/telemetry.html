@@ -149,7 +149,8 @@ something else:</p>
 
 <p>A hidden Navisworks that <code>pynavis run</code> starts closes as soon as its script
 finishes, so pyNavis sends each run's record straight away instead of waiting for the next
-flush, waiting at most two seconds for the destination.</p>
+flush. It tries every destination, even one it is waiting to retry after a failure, and
+waits at most two seconds for them.</p>
 
 <h2>Add your own values</h2>
 
@@ -241,12 +242,13 @@ in the file.</p>
 <p><strong>Settings</strong> on the pyNavis panel has a <strong>Telemetry</strong> section
 with the same four fields, so nobody has to edit the file by hand. A change saved there
 takes effect at once, without a Reload; an edit to <code>config.json</code> itself takes
-effect on the next Reload. Its <strong>Send test record</strong> button sends one record,
-of kind <code>test</code>, to the destinations the section shows, saved or not. It tries
-every destination at once, even one pyNavis is waiting to retry after a failure, and the
-status line under it says where the record went, or, for each destination that did not take
-it, why. Use it after any change: a delivery that fails is never shown to the user, so the
-button is the quickest way to know the setup works.</p>
+effect on the next Reload. Saving or reloading never waits for a slow destination: records
+the old settings still held go out in the background. Its <strong>Send test record</strong>
+button sends one record, of kind <code>test</code>, to the destinations the section shows,
+saved or not. It tries every destination at once, even one pyNavis is waiting to retry
+after a failure, and the status line under it says where the record went, or, for each
+destination that did not take it, why. Use it after any change: a delivery that fails is
+never shown to the user, so the button is the quickest way to know the setup works.</p>
 
 <h2>Deploy it for a firm</h2>
 

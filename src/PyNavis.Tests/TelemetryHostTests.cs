@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Web.Script.Serialization;
 using PyNavis.Runtime;
 using PyNavis.Runtime.Bundles;
@@ -114,9 +116,11 @@ namespace PyNavis.Tests
             TelemetryHost.Finish(TelemetryHost.ForButton(Button(), "click"), 12, true, null);
 
             // Turning it off stops the old service, whose last flush writes the queued click.
+            var on = TelemetryHost.Current;
             TelemetryHost.Configure(new TelemetryConfig(), null, spool, _ => false);
 
             Assert.False(TelemetryHost.Current.IsActive);
+            Assert.True(on.Finished.WaitOne(TimeSpan.FromSeconds(10)));
             var file = Assert.Single(Directory.GetFiles(share, "*.jsonl"));
             Assert.Contains("\"title\":\"Clear Clash\"", File.ReadAllText(file));
         }
@@ -128,8 +132,9 @@ namespace PyNavis.Tests
             TelemetryHost.Install(new TelemetryService(new TelemetryConfig { Enabled = true },
                 new ITelemetrySink[] { sink }, Path.Combine(_dir, "spool"), () => DateTime.Now, _ => { }));
 
-            TelemetryHost.Install(null);
+            var old = TelemetryHost.Install(null);
 
+            Assert.True(old.Finished.WaitOne(TimeSpan.FromSeconds(10)));
             Assert.Equal(new[] { "dispose" }, sink.Events);
         }
 
@@ -152,6 +157,142 @@ namespace PyNavis.Tests
 
             Assert.True(TelemetryHost.FlushWithin(TimeSpan.FromSeconds(5)));
             Assert.Single(_sink.Records);
+        }
+
+        [Fact]
+        public void FlushWithin_TriesASinkThatIsWaitingOutARetryDelay()
+        {
+            // pynavis run closes its Navisworks straight afterwards: a record parked for a
+            // later retry would wait for some other session to send it.
+            var sink = new SwitchSink("http") { Fail = true };
+            var service = WithSinks(sink);                                      // its clock never moves on
+            service.Record(TelemetryHost.NewRecord("click", "k", "Clear Clash", "", "", ""));
+            service.Flush();
+            service.Flush();                                                    // a 10 s wait now
+            sink.Fail = false;
+            service.Record(TelemetryHost.NewRecord("run", "count_items.py", "count_items", "", "", ""));
+            TelemetryHost.Install(service);
+
+            Assert.True(TelemetryHost.FlushWithin(TimeSpan.FromSeconds(5)));
+
+            Assert.Equal(3, sink.Attempts);
+            Assert.Contains("0 in the spool", service.Status());
+        }
+
+        [Fact]
+        public void Configure_WithTheSettingsAlreadyInForce_KeepsTheRunningService()
+        {
+            // Settings' Save configures, then asks for the Reload that configures again.
+            var spool = Path.Combine(_dir, "spool");
+            var user = new TelemetryConfig { Enabled = true, Folder = Path.Combine(_dir, "share") };
+            TelemetryHost.Configure(user, null, spool, _ => false);
+            var running = TelemetryHost.Current;
+
+            TelemetryHost.Configure(user.Clone(), null, spool, _ => false);
+            Assert.Same(running, TelemetryHost.Current);
+
+            // The same values from the firm's file: the window now shows them read-only.
+            var firm = FirmFile("{\"enabled\": true, \"folder\": " + new JavaScriptSerializer().Serialize(user.Folder) + "}");
+            TelemetryHost.Configure(user, firm, spool, _ => true);
+            Assert.NotSame(running, TelemetryHost.Current);
+            Assert.True(TelemetryHost.Current.Config.Managed);
+
+            // A service app-closing stopped is replaced, whatever its settings.
+            var managed = TelemetryHost.Current;
+            TelemetryHost.Stop();
+            TelemetryHost.Configure(user, firm, spool, _ => true);
+            Assert.NotSame(managed, TelemetryHost.Current);
+        }
+
+        /// <summary>A sink whose sends wait until the test lets them go, like a dead
+        /// endpoint or a share that hangs.</summary>
+        private sealed class HeldSink : ITelemetrySink
+        {
+            private int _lines;
+            public readonly ManualResetEventSlim Sending = new ManualResetEventSlim();
+            public readonly ManualResetEventSlim Release = new ManualResetEventSlim();
+            public string Name => "held";
+            public string Target => "a held target";
+            public int Lines => Volatile.Read(ref _lines);
+
+            public void Send(IReadOnlyList<string> lines)
+            {
+                Sending.Set();
+                Release.Wait(TimeSpan.FromSeconds(10));
+                Interlocked.Add(ref _lines, lines.Count);
+            }
+        }
+
+        private static void WaitFor(Func<bool> condition)
+        {
+            var clock = Stopwatch.StartNew();
+            while (!condition() && clock.Elapsed < TimeSpan.FromSeconds(10)) Thread.Sleep(10);
+        }
+
+        [Fact]
+        public void Install_DoesNotWaitForTheServiceItReplaces_ToFinishItsLastFlush()
+        {
+            // Save and Reload configure on the UI thread: a dead endpoint must not freeze
+            // Navisworks while the old service's final flush waits on it.
+            var held = new HeldSink();
+            var old = WithSinks(held);
+            TelemetryHost.Install(old);
+            old.Record(TelemetryHost.NewRecord("click", "k", "Clear Clash", "", "", ""));
+
+            var clock = Stopwatch.StartNew();
+            TelemetryHost.Install(null);
+            var took = clock.Elapsed;
+
+            Assert.True(held.Sending.Wait(TimeSpan.FromSeconds(10)));         // its final flush is under way
+            held.Release.Set();
+            Assert.True(took < TimeSpan.FromMilliseconds(500), "Install took " + took);
+            WaitFor(() => held.Lines > 0);
+            Assert.Equal(1, held.Lines);                                        // and still delivers
+        }
+
+        [Fact]
+        public void TheNewWorker_FlushesOnlyOnceTheServiceItReplaced_HasFinishedItsLastFlush()
+        {
+            // Both read and empty the same spool files, one per kind of destination:
+            // flushing side by side they could both send a spooled record.
+            var held = new HeldSink();
+            var old = WithSinks(held);
+            TelemetryHost.Install(old);
+            old.Record(TelemetryHost.NewRecord("click", "k", "Clear Clash", "", "", ""));
+            var next = _sink.Service(_dir);
+            next.Interval = TimeSpan.FromMilliseconds(10);
+            next.Record(TelemetryHost.NewRecord("click", "k", "Set Gap", "", "", ""));
+
+            TelemetryHost.Install(next);
+            Assert.True(held.Sending.Wait(TimeSpan.FromSeconds(10)));
+            Thread.Sleep(200);                                                  // twenty of its intervals
+            Assert.Empty(_sink.Records);
+
+            held.Release.Set();
+            WaitFor(() => _sink.Records.Count > 0);
+            Assert.Equal("Set Gap", Assert.Single(_sink.Records)["title"]);
+        }
+
+        [Fact]
+        public void Stop_AtAppClosing_AlsoWaitsForAServiceInstallJustReplaced()
+        {
+            // Settings saved moments before Navisworks closes: the old service's records
+            // still get the same bounded wait they had when Install waited for them.
+            var held = new HeldSink();
+            var old = WithSinks(held);
+            TelemetryHost.Install(old);
+            old.Record(TelemetryHost.NewRecord("click", "k", "Clear Clash", "", "", ""));
+            TelemetryHost.Install(null);
+            Assert.True(held.Sending.Wait(TimeSpan.FromSeconds(10)));
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                Thread.Sleep(200);
+                held.Release.Set();
+            });
+
+            TelemetryHost.Stop();
+
+            Assert.Equal(1, held.Lines);
         }
 
         // ---- the firm file ------------------------------------------------------------
@@ -424,6 +565,47 @@ namespace PyNavis.Tests
 
             Assert.Equal(3, sink.Attempts);
             Assert.Equal("Test record sent to the folder target.", status);
+        }
+
+        [Fact]
+        public void SendTestRecord_IsNotTakenByTheWorkersOwnFlush()
+        {
+            // Queued and then flushed, the test record could be taken by the worker's flush
+            // in between: the flush that was to send it found nothing, and the window said
+            // it was not sent although it had arrived. The clock is read inside the flush
+            // lock, so it holds the worker's first flush there until the test's own send is
+            // waiting for the lock, then lets the worker drain whatever is queued.
+            var tester = Thread.CurrentThread;
+            var inFlush = new ManualResetEventSlim();
+            var go = new ManualResetEventSlim();
+            var held = 0;
+            Func<DateTime> clock = () =>
+            {
+                if (Thread.CurrentThread != tester && Interlocked.Exchange(ref held, 1) == 0)
+                {
+                    inFlush.Set();
+                    go.Wait(TimeSpan.FromSeconds(10));
+                    WaitFor(() => (tester.ThreadState & System.Threading.ThreadState.WaitSleepJoin) != 0);
+                }
+                return DateTime.Now;
+            };
+            var service = new TelemetryService(new TelemetryConfig { Enabled = true }, new ITelemetrySink[] { _sink },
+                Path.Combine(_dir, "spool"), clock, _ => { }) { Interval = TimeSpan.FromMilliseconds(1) };
+            service.Start();
+            try
+            {
+                Assert.True(inFlush.Wait(TimeSpan.FromSeconds(10)));
+                go.Set();
+
+                var status = TelemetryHost.SendTestRecord(service.Config, service, _dir);
+
+                Assert.Equal("Test record sent to the test sink.", status);
+                Assert.Equal("test", Assert.Single(_sink.Records)["kind"]);
+            }
+            finally
+            {
+                service.Stop();
+            }
         }
 
         [Fact]
