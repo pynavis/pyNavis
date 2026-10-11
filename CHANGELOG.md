@@ -7,7 +7,7 @@ a `bundle.yaml` or `config.json` key, a `pynavis` function, a Navisworks year), 
 something existing changes meaning or goes away. The number in each heading is the one that
 `pynavis.__version__`, the Settings window and the installer file name show.
 
-## [Unreleased]
+## [1.4.0] - 2026-10-11
 
 ### Added
 
@@ -23,6 +23,72 @@ something existing changes meaning or goes away. The number in each heading is t
   administrators can change it.
 - `pynavis.telemetry.note(**values)` adds a tool's own values, such as items changed or
   minutes saved, to its run's record. Outside a run, or with telemetry off, it does nothing.
+- `pynavis run` results.json carries `cancelled: true` when Ctrl+C ended the run, and models
+  that never started say so instead of blaming an earlier model.
+- Memory entries record the model's full file path beside its file name, so two appended
+  models with the same name stay distinct through Remember, Add, Subtract, Intersect and
+  Recall. Memory files written before this release still load and resolve as before.
+
+### Changed
+
+- `pynavis.xl.write` refuses a sheet name Excel would reject (empty, over 31 characters,
+  containing `[ ] : * ? / \`, or starting or ending with an apostrophe) with a `ValueError`
+  before writing anything, writes infinite and NaN numbers as the text `inf`, `-inf` and `nan`
+  instead of producing a workbook Excel has to repair, and replaces or reads a sheet whose
+  name differs only in case, as Excel does.
+- `pynavis.script.clipboard_copy` returns `True` or `False` instead of raising when another
+  program holds the clipboard, and the tools that copy text toast the failure.
+- `pynavis.memory.load` treats a corrupt, truncated or newer-version memory file as empty,
+  logs why, and lets Show Contents say the file was ignored, instead of failing every memory
+  button until the file is deleted.
+- `pynavis extensions add` refuses to touch a `config.json` it cannot read and writes the file
+  atomically, instead of replacing a hand-edited or damaged file with only the extension list.
+- Selection-set folders whose names contain a slash export with the slash escaped as `\/`, so
+  Excel Sets round-trips them to one folder instead of two.
+
+### Fixed
+
+- The uninstaller's backup path carried a stray control character, which made the backup
+  step fail for anyone who had edited the shipped extension; a test now scans every script
+  under `tools` for control characters.
+- `install.ps1` backs up and keeps user additions to `pyNavis.extension` the way the setup
+  program does, and writes the manifest, instead of deleting the folder.
+- Clash Grouper: Shift+Click failed with a NameError once a custom rule chain had been saved;
+  an invalid cluster distance now blocks Preview and Apply instead of silently using 2 m;
+  closing the window stops its background counting; a failed preview is logged with its
+  traceback; Ungroup reports through toasts.
+- The viewpoint Deleter, Reset, Renamer and Manager dialogs and the Clash Grouper refuse to
+  open under `pynavis run` instead of hanging the hidden Navisworks on an invisible window.
+- Viewpoint dialogs: selecting a whole folder raises one change instead of one per row, and
+  the folder rail refreshes in one pass, roughly ten times faster on large viewpoint trees.
+- Export Viewpoints CSV and Clash Report write UTF-8 with a byte order mark, so names outside
+  the Windows code page no longer stop the export part way through.
+- A script that calls `script.reload_pynavis()` on IronPython keeps its own search path and
+  output window after the Reload; before, a nested run reset both.
+- Dock pane slots survive a satellite DLL that fails to load, instead of being reassigned and
+  the original claims lost.
+- Printing tens of thousands of lines no longer slows the output transcript quadratically.
+- Update check: Windows credentials go to the proxy rather than to GitHub, superseded
+  installers are deleted from the updates folder, and Check now waits for a check already
+  running instead of showing stale text.
+- A hooks folder that cannot be listed costs only its hooks, not the whole extension root;
+  a non-string shortcut binding in `config.json` is reported instead of silently disabling
+  the tool.
+- Settings saves `config.json` before the API key, so a failed save cannot leave the key
+  bound to settings that were never written.
+- Ask AI: a server that never answers is reported as a failure and keeps your question,
+  instead of being treated as a cancel; Send last error can be retried after a failed send;
+  the pane follows a theme or accent change on Reload.
+- Toasts and banners no longer leave a timer running after a click dismissed them; message
+  dialogs with long text scroll instead of pushing their buttons off screen; relative image
+  paths in bundle XAML resolve against the bundle folder; nested progress scopes keep
+  Navisworks disabled until the outer one ends; the output window's Copy and Save report a
+  failure instead of raising on the Navisworks thread.
+- Markdown in the output window keeps asterisks inside inline code and escapes quotes in
+  link URLs; `pynavis.xl.write` and `_query.validate` report a bad value instead of raising
+  a TypeError; several strings move to sentence case.
+- `deploy-dev.ps1` merges extension roots instead of overwriting the list; the installer no
+  longer ships `__pycache__` folders.
 
 ## [1.3.0] - 2026-10-10
 

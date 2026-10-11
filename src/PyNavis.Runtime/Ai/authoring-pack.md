@@ -2204,7 +2204,8 @@ xl.write(path, rows, headers=None, sheet='Sheet1')
     #    written to it comes back as float.
 
 xl.read(path, sheet=None)
-    # sheet=None reads the first sheet.
+    # sheet=None reads the first sheet. A named sheet matches exactly first, then ignoring
+    #    case (as Excel does); a non-string sheet raises ValueError.
     # -> [[cell, ...], ...]. Numbers as float, booleans as True/False, everything else
     #    (inline AND shared strings) as str. Row length follows the highest column used;
     #    gaps within that span normalise to ''.
