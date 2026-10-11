@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Web.Script.Serialization;
 
 namespace PyNavis.Runtime.Telemetry
@@ -21,6 +22,10 @@ namespace PyNavis.Runtime.Telemetry
         public const int MaxErrorLength = 500;
 
         public const string TimeFormat = "yyyy-MM-ddTHH:mm:ss.fffK";
+
+        /// <summary>The largest line a record makes, in UTF-8 bytes. Only "results" can
+        /// grow past it (every other field is short or capped), and then they are left out.</summary>
+        public const int MaxLineBytes = 64 * 1024;
 
         /// <summary>One per Navisworks session (this process), so a reader can group the
         /// clicks of one sitting.</summary>
@@ -57,8 +62,17 @@ namespace PyNavis.Runtime.Telemetry
         /// <summary>Values the script reports for itself; omitted from the line when empty.</summary>
         public Dictionary<string, object> Results { get; set; }
 
-        /// <summary>The record as one line of JSON (no line end). Results that are not
-        /// plain JSON values are written as their text, so they never make this throw.</summary>
+        /// <summary>
+        /// The record as one line of JSON (no line end). Results that are not plain JSON
+        /// values are written as their text, so they never make this throw.
+        ///
+        /// The cap: when "results" would take the line past MaxLineBytes, or cannot be
+        /// written at all (past the serializer's own limit), the line is written again
+        /// without them and ends with "results_dropped": true instead, so a reader can tell
+        /// a run that noted nothing from one whose notes were too big. One huge note would
+        /// otherwise make a record a server refuses, or fill the spool in place of hundreds
+        /// of others.
+        /// </summary>
         public string ToJsonLine()
         {
             var result = string.IsNullOrWhiteSpace(Result) ? "ok" : Result.Trim();
@@ -81,9 +95,19 @@ namespace PyNavis.Runtime.Telemetry
                 ["result"] = result,
                 ["error"] = result == "ok" ? "" : ErrorSummary(Error),
             };
-            if (Results != null && Results.Count > 0)
-                data["results"] = Plain(Results, 0);
-            return new JavaScriptSerializer().Serialize(data);
+            var serializer = new JavaScriptSerializer();
+            if (Results == null || Results.Count == 0) return serializer.Serialize(data);
+
+            data["results"] = Plain(Results, 0);
+            string line = null;
+            try { line = serializer.Serialize(data); }
+            catch (InvalidOperationException) { }           // longer than the serializer's MaxJsonLength
+            catch (ArgumentException) { }                   // nested deeper than its RecursionLimit
+            if (line != null && Encoding.UTF8.GetByteCount(line) <= MaxLineBytes) return line;
+
+            data.Remove("results");
+            data["results_dropped"] = true;
+            return serializer.Serialize(data);
         }
 
         /// <summary>Marks the Python traceback that both engines hand back for a script

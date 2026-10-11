@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Web.Script.Serialization;
 using PyNavis.Runtime.Telemetry;
 using Xunit;
@@ -195,6 +196,49 @@ namespace PyNavis.Tests
             Assert.DoesNotContain("results", record.ToJsonLine());
             record.Results = null;
             Assert.DoesNotContain("results", record.ToJsonLine());
+        }
+
+        [Fact]
+        public void ARecordPast64KB_LeavesItsResultsOut_AndSaysSo()
+        {
+            // One huge note must not make a record a server refuses, or that a spool holds
+            // instead of hundreds of others.
+            var record = Sample();
+            record.Results = new Dictionary<string, object> { ["names"] = new string('x', 70 * 1024), ["items"] = 3 };
+
+            var line = record.ToJsonLine();
+
+            Assert.True(Encoding.UTF8.GetByteCount(line) <= TelemetryRecord.MaxLineBytes);
+            Assert.Equal(64 * 1024, TelemetryRecord.MaxLineBytes);
+            var data = Parse(line);
+            Assert.False(data.ContainsKey("results"));
+            Assert.Equal(true, data["results_dropped"]);
+            Assert.Equal("results_dropped", data.Keys.Last());
+            Assert.Equal("Clear Clash", data["title"]);
+        }
+
+        [Fact]
+        public void ResultsTooBigToWriteAtAll_AreLeftOut_NotTheRecord()
+        {
+            var record = Sample();
+            record.Results = new Dictionary<string, object> { ["blob"] = new string('x', 3 * 1024 * 1024) };
+
+            var data = Parse(record.ToJsonLine());
+
+            Assert.False(data.ContainsKey("results"));
+            Assert.Equal(true, data["results_dropped"]);
+        }
+
+        [Fact]
+        public void ARecordWithinTheCap_KeepsItsResults_AndCarriesNoFlag()
+        {
+            var record = Sample();
+            record.Results = new Dictionary<string, object> { ["names"] = new string('x', 60 * 1024) };
+
+            var data = Parse(record.ToJsonLine());
+
+            Assert.Equal(60 * 1024, ((string)((Dictionary<string, object>)data["results"])["names"]).Length);
+            Assert.False(data.ContainsKey("results_dropped"));
         }
 
         [Fact]

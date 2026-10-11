@@ -42,7 +42,8 @@ namespace PyNavis.Tests
 
         private string Written() => File.ReadAllText(_path);
 
-        private TelemetryConfig Resolve(TelemetryConfig user) => TelemetryConfig.Resolve(user, _firm, _logged.Add);
+        // Trusted: whether a firm file may be trusted is TelemetryHostTests' subject.
+        private TelemetryConfig Resolve(TelemetryConfig user) => TelemetryConfig.Resolve(user, _firm, _ => true, _logged.Add);
 
         [Fact]
         public void Defaults_AreOff_WithNowhereToSend()

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Web.Script.Serialization;
 
 namespace PyNavis.Runtime.Telemetry
@@ -50,32 +51,68 @@ namespace PyNavis.Runtime.Telemetry
         };
 
         /// <summary>
-        /// The settings in force: the firm file's when it exists and parses (Managed),
-        /// otherwise a copy of the user's. A firm file that cannot be read or parsed is
-        /// logged and ignored, so a typo on one machine does not switch anything on or off.
+        /// The settings in force: the firm file's when it exists, is trusted and parses
+        /// (Managed), otherwise a copy of the user's.
+        ///
+        /// Trusted means <paramref name="trusted"/> passes the open file; in production
+        /// that is MachineFolderTrust.IsAdminOnlyFile, the rule the loader applies to the
+        /// machine extensions folder: only administrators can change it. A file anyone else
+        /// can write could have been planted by any user of the PC to send everyone's
+        /// records where they chose, so it is ignored with one log line naming it.
+        ///
+        /// One handle: the file is opened once, sharing only reads, and that handle is both
+        /// checked and parsed, so nobody can swap the file between the check and the read.
+        /// A firm file that cannot be read or parsed is logged and ignored, so a typo on one
+        /// machine does not switch anything on or off.
         /// </summary>
-        public static TelemetryConfig Resolve(TelemetryConfig user, string firmFilePath, Action<string> logError = null)
+        public static TelemetryConfig Resolve(TelemetryConfig user, string firmFilePath, Func<FileStream, bool> trusted,
+            Action<string> logError = null)
         {
+            var log = logError ?? Log.Error;
             var fallback = user?.Clone() ?? new TelemetryConfig();
             fallback.Managed = false;
-            if (string.IsNullOrEmpty(firmFilePath) || !File.Exists(firmFilePath)) return fallback;
+            if (string.IsNullOrWhiteSpace(firmFilePath) || !File.Exists(firmFilePath)) return fallback;
 
             try
             {
-                var text = File.ReadAllText(firmFilePath);
-                if (string.IsNullOrWhiteSpace(text))
-                    throw new InvalidDataException("the file is empty");
-                if (!(new JavaScriptSerializer().DeserializeObject(text) is Dictionary<string, object> section))
-                    throw new InvalidDataException("the file is not a JSON object");
-                var firm = FromSection(section);
-                firm.Managed = true;
-                return firm;
+                using (var stream = new FileStream(firmFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    if (!IsTrusted(trusted, stream))
+                    {
+                        log($"Telemetry: ignoring the firm settings in '{firmFilePath}': users other than administrators "
+                            + "can change that file, so anyone on this PC could have written it. Deploy it from an "
+                            + "administrator account so that Users can only read it.");
+                        return fallback;
+                    }
+
+                    stream.Position = 0;                    // whatever the check read, the parse reads it all
+                    string text;
+                    using (var reader = new StreamReader(stream, Encoding.UTF8, true, 4096, leaveOpen: true))
+                        text = reader.ReadToEnd();
+                    if (string.IsNullOrWhiteSpace(text))
+                        throw new InvalidDataException("the file is empty");
+                    if (!(new JavaScriptSerializer().DeserializeObject(text) is Dictionary<string, object> section))
+                        throw new InvalidDataException("the file is not a JSON object");
+                    var firm = FromSection(section);
+                    firm.Managed = true;
+                    return firm;
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                return fallback;                            // gone since File.Exists: no firm file
             }
             catch (Exception ex)
             {
-                (logError ?? Log.Error)($"Telemetry: ignoring the firm settings in '{firmFilePath}': {ex.Message}");
+                log($"Telemetry: ignoring the firm settings in '{firmFilePath}': {ex.Message}");
                 return fallback;
             }
+        }
+
+        private static bool IsTrusted(Func<FileStream, bool> trusted, FileStream stream)
+        {
+            try { return trusted != null && trusted(stream); }
+            catch (Exception) { return false; }
         }
 
         // ---- config.json shape --------------------------------------------------------

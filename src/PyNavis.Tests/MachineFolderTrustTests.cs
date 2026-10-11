@@ -147,5 +147,23 @@ namespace PyNavis.Tests
                 File.Delete(path);
             }
         }
+
+        [Fact]
+        public void AnOpenFileThisUserJustWrote_IsNotTrusted_CheckedOnItsHandle()
+        {
+            // The firm telemetry file is checked through the handle it is then read from.
+            var path = Path.Combine(Path.GetTempPath(), "pynavis-trust-" + Guid.NewGuid() + ".json");
+            File.WriteAllText(path, "{}");
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    Assert.False(MachineFolderTrust.IsAdminOnlyFile(stream));
+                Assert.False(MachineFolderTrust.IsAdminOnlyFile((FileStream)null));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
     }
 }

@@ -83,6 +83,22 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void FolderSink_WritesAlone_SoTwoWindowsNeverInterleaveTheirLines()
+        {
+            // Two Navisworks windows of one user append to the same day file. Each send
+            // waits briefly for the other's write to finish, then throws, and the service
+            // keeps the lines to retry.
+            var sink = new FolderSink(_dir, "amol", "WS-042", () => _now);
+            sink.Send(new[] { Line(1) });
+
+            using (new FileStream(sink.CurrentFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                Assert.ThrowsAny<IOException>(() => sink.Send(new[] { Line(2) }));
+
+            sink.Send(new[] { Line(3) });
+            Assert.Equal(new[] { Line(1), Line(3) }, File.ReadAllLines(sink.CurrentFile));
+        }
+
+        [Fact]
         public void FolderSink_MakesUserAndMachineSafeForAFileName()
         {
             var sink = new FolderSink(_dir, @"corp\a:b*c", "  ", () => _now);
@@ -124,15 +140,34 @@ namespace PyNavis.Tests
 
         [Theory]
         [InlineData(HttpStatusCode.InternalServerError)]
-        [InlineData(HttpStatusCode.Unauthorized)]
-        [InlineData(HttpStatusCode.NotFound)]
-        public void HttpSink_TreatsAnythingButSuccessAsAFailure(HttpStatusCode status)
+        [InlineData(HttpStatusCode.ServiceUnavailable)]
+        [InlineData(HttpStatusCode.RequestTimeout)]                 // 408: the server asks for it again
+        [InlineData((HttpStatusCode)429)]                           // too many requests: later
+        [InlineData(HttpStatusCode.ProxyAuthenticationRequired)]    // 407: the proxy said no, not the server
+        public void HttpSink_TreatsAFailureThatMayPass_AsOneToRetry(HttpStatusCode status)
         {
             var handler = new FakeHttpHandler(status, "nope", "text/plain");
             var sink = new HttpSink("https://telemetry.example.test/pynavis", handler, TimeSpan.FromSeconds(5));
 
             var ex = Assert.Throws<HttpRequestException>(() => sink.Send(new[] { Line(1) }));
             Assert.Contains(((int)status).ToString(), ex.Message);
+        }
+
+        [Theory]
+        [InlineData(HttpStatusCode.BadRequest)]
+        [InlineData(HttpStatusCode.Unauthorized)]
+        [InlineData(HttpStatusCode.NotFound)]
+        [InlineData(HttpStatusCode.RequestEntityTooLarge)]
+        [InlineData((HttpStatusCode)422)]
+        public void HttpSink_TreatsAClientError_AsARefusal(HttpStatusCode status)
+        {
+            // The server read the batch and will not take it: sending it again cannot help.
+            var handler = new FakeHttpHandler(status, "nope", "text/plain");
+            var sink = new HttpSink("https://telemetry.example.test/pynavis", handler, TimeSpan.FromSeconds(5));
+
+            var ex = Assert.Throws<TelemetryRejectedException>(() => sink.Send(new[] { Line(1) }));
+            Assert.Equal((int)status, ex.Status);
+            Assert.StartsWith("the server answered " + (int)status, ex.Message);
         }
 
         [Theory]
@@ -148,18 +183,36 @@ namespace PyNavis.Tests
         // ---- spool -----------------------------------------------------------------
 
         [Fact]
-        public void Spool_TakeAll_ReturnsTheLinesInOrder_AndEmptiesTheFile()
+        public void Spool_PeekAll_ReturnsTheLinesInOrder_AndLeavesThemInTheFile()
         {
             var spool = new TelemetrySpool(Path.Combine(_dir, "spool", "http.jsonl"));
-            Assert.Empty(spool.TakeAll());                                     // nothing yet, no file needed
+            Assert.Empty(spool.PeekAll());                                     // nothing yet, no file needed
 
             spool.Append(new[] { Line(1), Line(2) });
             spool.Append(new[] { Line(3) });
             Assert.Equal(3, spool.Count());
 
-            Assert.Equal(new[] { Line(1), Line(2), Line(3) }, spool.TakeAll());
-            Assert.Empty(spool.TakeAll());
-            Assert.Equal(0, spool.Count());
+            Assert.Equal(new[] { Line(1), Line(2), Line(3) }, spool.PeekAll());
+            Assert.Equal(new[] { Line(1), Line(2), Line(3) }, spool.PeekAll());
+            Assert.Equal(3, spool.Count());
+        }
+
+        [Fact]
+        public void Spool_Discard_TakesOutTheLinesSent_AndKeepsEveryOther()
+        {
+            var spool = new TelemetrySpool(Path.Combine(_dir, "http.jsonl"));
+            spool.Append(new[] { Line(1), Line(2), Line(3) });
+            var sent = spool.PeekAll().Take(2).ToList();
+            new TelemetrySpool(spool.Path).Append(new[] { Line(4) });          // the other window, meanwhile
+
+            Assert.Equal(2, spool.Discard(sent));
+            Assert.Equal(new[] { Line(3), Line(4) }, spool.PeekAll());
+            Assert.Equal(2, spool.Count());
+
+            // The other window sent them too and took them out first: nothing else goes.
+            Assert.Equal(0, spool.Discard(sent));
+            Assert.Equal(new[] { Line(3), Line(4) }, File.ReadAllLines(spool.Path));
+            Assert.Equal(0, new TelemetrySpool(Path.Combine(_dir, "none.jsonl")).Discard(sent));
         }
 
         [Fact]
@@ -169,7 +222,21 @@ namespace PyNavis.Tests
             File.WriteAllText(path, Line(1) + "\n{\"n\":2, \"tit");
             var spool = new TelemetrySpool(path);
 
-            Assert.Equal(new[] { Line(1) }, spool.TakeAll());
+            Assert.Equal(new[] { Line(1) }, spool.PeekAll());
+        }
+
+        [Fact]
+        public void Spool_AppendsAfterATornLine_OnALineOfItsOwn()
+        {
+            // Otherwise the torn end and the new record would read as one line that looks
+            // whole but is not JSON, and a server would refuse the batch that carries it.
+            var path = Path.Combine(_dir, "http.jsonl");
+            File.WriteAllText(path, Line(1) + "\n{\"n\":2, \"tit");
+            var spool = new TelemetrySpool(path);
+
+            spool.Append(new[] { Line(3) });
+
+            Assert.Equal(new[] { Line(1), Line(3) }, spool.PeekAll());
         }
 
         // The rule: when an append takes the file past maxBytes, the oldest lines go
@@ -187,7 +254,8 @@ namespace PyNavis.Tests
 
             Assert.Equal(15, dropped);
             Assert.True(new FileInfo(spool.Path).Length <= 750);
-            Assert.Equal(Enumerable.Range(16, 15).Select(Padded), spool.TakeAll());
+            Assert.Equal(Enumerable.Range(16, 15).Select(Padded), spool.PeekAll());
+            Assert.Equal(15, spool.Count());
         }
     }
 }

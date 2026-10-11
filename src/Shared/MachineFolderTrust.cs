@@ -58,6 +58,22 @@ namespace PyNavis.Runtime.Install
             }
         }
 
+        /// <summary>The same rule for a file already open, read from its handle: whoever
+        /// then reads through that handle reads exactly the file that was checked, even if
+        /// someone renames or replaces the path in between. False for null or a handle
+        /// whose security cannot be read.</summary>
+        public static bool IsAdminOnlyFile(FileStream stream)
+        {
+            try
+            {
+                return stream != null && IsAdminOnly(stream.GetAccessControl());
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static bool IsAdminOnly(FileSystemSecurity security)
         {
             if (!(security.GetOwner(typeof(SecurityIdentifier)) is SecurityIdentifier owner) || !IsAdmin(owner))

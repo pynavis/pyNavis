@@ -10,6 +10,28 @@ using Xunit;
 
 namespace PyNavis.Tests
 {
+    /// <summary>A sink that owns something to let go of, like HttpSink's HttpClient,
+    /// and notes the order of its sends and its disposal.</summary>
+    internal sealed class DisposableSink : ITelemetrySink, IDisposable
+    {
+        private readonly List<string> _events = new List<string>();
+
+        public string Name => "disposable";
+        public string Target => "a disposable target";
+
+        public List<string> Events { get { lock (_events) return _events.ToList(); } }
+
+        public void Send(IReadOnlyList<string> lines)
+        {
+            lock (_events) _events.Add("send " + lines.Count);
+        }
+
+        public void Dispose()
+        {
+            lock (_events) _events.Add("dispose");
+        }
+    }
+
     /// <summary>
     /// The queue and the service around it: what gets recorded, what a flush sends,
     /// what happens when a sink fails, and how quietly it says so. A fake clock and
@@ -69,7 +91,33 @@ namespace PyNavis.Tests
         private TelemetryService Service(TelemetryConfig config, params ITelemetrySink[] sinks) =>
             new TelemetryService(config, sinks, Path.Combine(_dir, "spool"), () => _now, _logged.Add);
 
-        private int Spooled(string name) => new TelemetrySpool(Path.Combine(_dir, "spool", name + ".jsonl")).Count();
+        private int Spooled(string name) => new TelemetrySpool(SpoolPath(name)).Count();
+
+        private string SpoolPath(string name) => Path.Combine(_dir, "spool", name + ".jsonl");
+
+        /// <summary>A sink that, while it is handed the lines, counts what its spool file
+        /// holds: what a Navisworks that exits mid-send would leave on disk.</summary>
+        private sealed class WatchingSink : ITelemetrySink
+        {
+            private readonly string _spool;
+
+            public WatchingSink(string spool) { _spool = spool; }
+
+            public string Name => "fake";
+            public string Target => "the fake target";
+            public bool Fail;
+            public Action DuringSend;
+            public readonly List<int> SpooledDuringSend = new List<int>();
+            public readonly List<string> Lines = new List<string>();
+
+            public void Send(IReadOnlyList<string> lines)
+            {
+                SpooledDuringSend.Add(new TelemetrySpool(_spool).Count());
+                DuringSend?.Invoke();
+                if (Fail) throw new TimeoutException("no answer within 10 seconds");
+                Lines.AddRange(lines);
+            }
+        }
 
         // ---- the queue -------------------------------------------------------------
 
@@ -221,6 +269,175 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void TheSpool_KeepsItsLines_WhileTheyAreBeingSent_AndAfterASendFails()
+        {
+            // HttpSink waits up to 10 s and Stop only 2 s: a Navisworks that closes during
+            // the send must find the backlog still on disk next time.
+            var sink = new WatchingSink(SpoolPath("fake")) { Fail = true };
+            var service = Service(On(), sink);
+            service.Record(Click("Clear Clash"));
+            service.Record(Click("Set Gap"));
+            service.Flush();
+            var before = File.ReadAllBytes(SpoolPath("fake"));
+
+            _now = _now.AddMinutes(10);
+            var result = service.Flush();
+
+            Assert.Equal(new[] { 0, 2 }, sink.SpooledDuringSend);
+            Assert.Equal(0, result.Spooled);                                    // already there, not written again
+            Assert.Equal(before, File.ReadAllBytes(SpoolPath("fake")));
+        }
+
+        [Fact]
+        public void ASendThatWorks_EmptiesTheSpool_ButKeepsLinesAddedMeanwhile()
+        {
+            var sink = new WatchingSink(SpoolPath("fake")) { Fail = true };
+            var service = Service(On(), sink);
+            service.Record(Click("Clear Clash"));
+            service.Flush();
+
+            // Another Navisworks of the same user parks a record while this one sends.
+            sink.Fail = false;
+            sink.DuringSend = () => new TelemetrySpool(SpoolPath("fake")).Append(new[] { "{\"title\":\"Other window\"}" });
+            _now = _now.AddMinutes(10);
+            var result = service.Flush();
+
+            Assert.Equal(1, result.Sent);
+            Assert.Equal(new[] { "Clear Clash" }, sink.Lines.Select(TitleOf));
+            Assert.Equal(new[] { "{\"title\":\"Other window\"}" }, File.ReadAllLines(SpoolPath("fake")));
+        }
+
+        // ---- a batch the server refuses ----------------------------------------------
+
+        /// <summary>A sink whose answer to each batch the test decides: null takes it.</summary>
+        private sealed class ScriptedSink : ITelemetrySink
+        {
+            public string Name => "http";
+            public string Target => "https://telemetry.example.test/t";
+            public Func<IReadOnlyList<string>, Exception> Answer = _ => null;
+            public int Attempts;
+            public readonly List<string> Lines = new List<string>();
+
+            public void Send(IReadOnlyList<string> lines)
+            {
+                Attempts++;
+                var error = Answer(lines);
+                if (error != null) throw error;
+                Lines.AddRange(lines);
+            }
+        }
+
+        private static Exception Refusal(int status = 400) =>
+            new TelemetryRejectedException(status, "the server answered " + status + " Bad Request");
+
+        [Fact]
+        public void ABatchTheServerRefuses_IsDropped_NotRetried_AndLoggedOnce()
+        {
+            var sink = new ScriptedSink { Answer = _ => Refusal() };
+            var service = Service(On(), sink);
+            service.Record(Click("Clear Clash"));
+            service.Record(Click("Set Gap"));
+
+            var result = service.Flush();
+
+            Assert.Equal(0, result.Sent);
+            Assert.Equal(0, result.Spooled);
+            Assert.Equal(2, result.Dropped);
+            Assert.Equal(0, Spooled("http"));
+            var failure = Assert.Single(result.Failures);
+            Assert.True(failure.Refused);
+            Assert.Equal("https://telemetry.example.test/t", failure.Target);
+            Assert.Equal("the server answered 400 Bad Request.", failure.Reason);
+            var line = Assert.Single(_logged);
+            Assert.Contains("https://telemetry.example.test/t", line);
+            Assert.Contains("400", line);
+            Assert.Contains("2 records", line);
+
+            // No retry delay, and the log stays quiet about further refusals.
+            service.Record(Click("Third"));
+            service.Flush();
+            service.Record(Click("Fourth"));
+            service.Flush();
+            Assert.Equal(3, sink.Attempts);
+            Assert.Single(_logged);
+            Assert.Equal("Nothing sent yet. 0 records waiting, 0 in the spool. The last send to "
+                         + "https://telemetry.example.test/t was refused, so 1 record was dropped: "
+                         + "the server answered 400 Bad Request.", service.Status());
+        }
+
+        [Fact]
+        public void ARefusedBatch_DoesNotHoldUpTheRecordsBehindIt()
+        {
+            var sink = new ScriptedSink { Answer = lines => lines.Any(l => l.Contains("Poison")) ? Refusal(413) : null };
+            var service = Service(On(), sink);
+            for (var n = 0; n < TelemetryService.BatchSize; n++) service.Record(Click("Poison " + n));
+            service.Record(Click("Clear Clash"));
+
+            var result = service.Flush();
+
+            Assert.Equal(1, result.Sent);
+            Assert.Equal(TelemetryService.BatchSize, result.Dropped);
+            Assert.Equal(new[] { "Clear Clash" }, sink.Lines.Select(TitleOf));
+            Assert.DoesNotContain("refused", service.Status());                 // the last send worked
+        }
+
+        [Fact]
+        public void ARefusedBacklog_LeavesTheSpool()
+        {
+            var sink = new ScriptedSink { Answer = _ => new IOException("the server is down") };
+            var service = Service(On(), sink);
+            service.Record(Click("Clear Clash"));
+            service.Flush();
+            Assert.Equal(1, Spooled("http"));
+
+            sink.Answer = _ => Refusal();
+            var result = service.Flush();
+
+            Assert.Equal(1, result.Dropped);
+            Assert.Equal(0, Spooled("http"));
+        }
+
+        // ---- Send test record's flush ------------------------------------------------
+
+        [Fact]
+        public void FlushNow_TriesASinkThatIsWaitingOutARetryDelay()
+        {
+            var sink = new FakeSink { Fail = true };
+            var service = Service(On(), sink);
+            service.Record(Click("Clear Clash"));
+            service.Flush();
+            service.Flush();                                                    // second failure: wait 10 s
+            service.Record(Click("Set Gap"));
+            Assert.Equal(0, service.Flush().Sent);
+            Assert.Equal(2, sink.Attempts);
+
+            sink.Fail = false;
+            var result = service.FlushNow();
+
+            Assert.Equal(3, sink.Attempts);
+            Assert.Equal(2, result.Sent);
+            Assert.Empty(result.Failures);
+            Assert.Equal(new[] { "Clear Clash", "Set Gap" }, sink.Titles);
+        }
+
+        [Fact]
+        public void AFlush_SaysWhichSinksFailedAndWhy()
+        {
+            var good = new FakeSink("folder");
+            var bad = new FakeSink("http") { Fail = true };
+            var service = Service(On(), good, bad);
+            service.Record(Click("Clear Clash"));
+
+            var result = service.FlushNow();
+
+            var failure = Assert.Single(result.Failures);
+            Assert.Equal("the http target", failure.Target);
+            Assert.Equal("the share is offline.", failure.Reason);
+            Assert.False(failure.Refused);
+            Assert.Empty(FlushResult.None.Failures);
+        }
+
+        [Fact]
         public void OnlyTheFirstFailure_IsLogged_UntilASendWorksAgain()
         {
             var sink = new FakeSink { Fail = true };
@@ -338,6 +555,31 @@ namespace PyNavis.Tests
             Assert.DoesNotContain("failed", service.Status());
         }
 
+        [Fact]
+        public void Status_CountsTheSpoolInMemory_WithoutReadingTheFile()
+        {
+            var service = Service(On(), new FakeSink { Fail = true });
+            service.Record(Click("Clear Clash"));
+            service.Record(Click("Set Gap"));
+            service.Flush();
+
+            File.Delete(SpoolPath("fake"));
+
+            Assert.Equal("Nothing sent yet. 0 records waiting, 2 in the spool. "
+                         + "The last send to the fake target failed: the share is offline.", service.Status());
+        }
+
+        [Fact]
+        public void Status_ReadsASpoolLeftByAnEarlierSession_OnceOnly()
+        {
+            new TelemetrySpool(SpoolPath("fake")).Append(new[] { "{\"n\":1}", "{\"n\":2}", "{\"n\":3}" });
+            var service = Service(On(), new FakeSink());
+
+            Assert.Contains("3 in the spool", service.Status());
+            File.Delete(SpoolPath("fake"));
+            Assert.Contains("3 in the spool", service.Status());
+        }
+
         // ---- building from settings ------------------------------------------------
 
         [Fact]
@@ -396,6 +638,38 @@ namespace PyNavis.Tests
 
             Assert.Equal(new[] { "Clear Clash" }, sink.Titles);
             Assert.True(service.Stop());                                        // twice is harmless
+        }
+
+        [Fact]
+        public void Stop_DisposesTheSinks_AfterTheFinalFlush_AndOnlyOnce()
+        {
+            // A Reload builds a new service each time: the old one's HttpClient must go.
+            var sink = new DisposableSink();
+            var service = Service(On(), sink);
+            service.Interval = TimeSpan.FromHours(1);
+            service.Start();
+            service.Record(Click("Clear Clash"));
+
+            Assert.True(service.Stop());
+            Assert.Equal(new[] { "send 1", "dispose" }, sink.Events);
+
+            Assert.True(service.Stop());
+            service.Record(Click("Set Gap"));
+            Assert.Equal(0, service.Flush().Sent);                              // a stopped service sends no more
+            service.Start();
+            Assert.Equal(new[] { "send 1", "dispose" }, sink.Events);
+        }
+
+        [Fact]
+        public void Stop_WithoutAWorker_FlushesThenDisposesTheSinks()
+        {
+            var sink = new DisposableSink();
+            var service = Service(On(), sink);
+            service.Record(Click("Clear Clash"));
+
+            Assert.True(service.Stop());
+
+            Assert.Equal(new[] { "send 1", "dispose" }, sink.Events);
         }
 
         [Fact]

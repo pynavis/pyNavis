@@ -122,6 +122,18 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void Install_DisposesTheSinksOfTheServiceItReplaces()
+        {
+            var sink = new DisposableSink();
+            TelemetryHost.Install(new TelemetryService(new TelemetryConfig { Enabled = true },
+                new ITelemetrySink[] { sink }, Path.Combine(_dir, "spool"), () => DateTime.Now, _ => { }));
+
+            TelemetryHost.Install(null);
+
+            Assert.Equal(new[] { "dispose" }, sink.Events);
+        }
+
+        [Fact]
         public void Stop_FlushesWhatIsQueued()
         {
             On();
@@ -144,13 +156,19 @@ namespace PyNavis.Tests
 
         // ---- the firm file ------------------------------------------------------------
 
+        private string FirmFile(string json)
+        {
+            var path = Path.Combine(_dir, "telemetry.json");
+            File.WriteAllText(path, json);
+            return path;
+        }
+
         [Fact]
         public void AFirmFileOnlyAdministratorsCanChange_IsTrusted()
         {
-            var path = Path.Combine(_dir, "telemetry.json");
-            File.WriteAllText(path, "{}");
+            var path = FirmFile("{\"enabled\": true}");
 
-            Assert.Equal(path, TelemetryHost.TrustedFirmFile(path, File.Exists, _ => true, _logged.Add));
+            Assert.True(TelemetryHost.InForce(new TelemetryConfig(), path, _ => true, _logged.Add).Managed);
             Assert.Empty(_logged);
         }
 
@@ -159,10 +177,12 @@ namespace PyNavis.Tests
         {
             // Anyone on the PC could have written it, and it would send everyone's records
             // wherever they chose.
-            var path = Path.Combine(_dir, "telemetry.json");
-            File.WriteAllText(path, "{}");
+            var path = FirmFile("{\"enabled\": true}");
 
-            Assert.Null(TelemetryHost.TrustedFirmFile(path, File.Exists, _ => false, _logged.Add));
+            var settings = TelemetryHost.InForce(new TelemetryConfig { Url = "https://mine.example" }, path, _ => false, _logged.Add);
+
+            Assert.False(settings.Managed);
+            Assert.Equal("https://mine.example", settings.Url);
             var line = Assert.Single(_logged);
             Assert.Contains(path, line);
             Assert.Contains("administrators", line);
@@ -173,9 +193,34 @@ namespace PyNavis.Tests
         {
             var path = Path.Combine(_dir, "telemetry.json");
 
-            Assert.Null(TelemetryHost.TrustedFirmFile(path, File.Exists, _ => throw new InvalidOperationException("not asked"), _logged.Add));
-            Assert.Null(TelemetryHost.TrustedFirmFile(null, File.Exists, _ => true, _logged.Add));
+            Assert.False(TelemetryHost.InForce(new TelemetryConfig(), path,
+                _ => throw new InvalidOperationException("not asked"), _logged.Add).Managed);
+            Assert.False(TelemetryHost.InForce(new TelemetryConfig(), null, _ => true, _logged.Add).Managed);
             Assert.Empty(_logged);
+        }
+
+        [Fact]
+        public void TheFirmFile_IsCheckedAndReadThroughOneHandle()
+        {
+            // Checked by its path and then read by its path again, the file could be swapped
+            // in between. The check is handed the open file, and nobody can change or replace
+            // it until it has been read from that same handle.
+            var path = FirmFile("{\"enabled\": true, \"folder\": \"\\\\\\\\firm\\\\share\"}");
+            FileStream checkedFile = null;
+            Exception swap = null;
+
+            var settings = TelemetryHost.InForce(new TelemetryConfig(), path, stream =>
+            {
+                checkedFile = stream;
+                try { File.WriteAllText(path, "{\"enabled\": true, \"folder\": \"C:\\\\planted\"}"); }
+                catch (Exception ex) { swap = ex; }
+                return true;
+            }, _logged.Add);
+
+            Assert.Equal(path, checkedFile.Name);
+            Assert.IsAssignableFrom<IOException>(swap);
+            Assert.True(settings.Managed);
+            Assert.Equal(@"\\firm\share", settings.Folder);
         }
 
         [Fact]
@@ -281,6 +326,19 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void AClick_OfAButtonThatDoesNotNameItsExtension_RecordsNoExtension()
+        {
+            // The bundle key starts with the tab folder, which is not the extension.
+            On();
+            var button = Button();
+            button.ExtensionName = null;
+
+            TelemetryHost.Finish(TelemetryHost.ForButton(button, "click"), 3, true, null);
+
+            Assert.Equal("", OnlyRecord()["extension"]);
+        }
+
+        [Fact]
         public void TheTitle_IsOneLine()
         {
             Assert.Equal("Export Viewpoints", TelemetryHost.OneLine("Export\nViewpoints"));
@@ -289,11 +347,11 @@ namespace PyNavis.Tests
         }
 
         [Fact]
-        public void TheExtension_FallsBackToTheKeysFirstSegment()
+        public void TheExtension_IsTheModelsOwnName_OrNothing()
         {
-            Assert.Equal("pyNavis", TelemetryHost.ExtensionOf("pyNavis", "Tab.tab/P.panel/A.pushbutton"));
-            Assert.Equal("Tab.tab", TelemetryHost.ExtensionOf(null, "Tab.tab/P.panel/A.pushbutton"));
-            Assert.Equal("", TelemetryHost.ExtensionOf(" ", null));
+            Assert.Equal("pyNavis", TelemetryHost.ExtensionOf(" pyNavis "));
+            Assert.Equal("", TelemetryHost.ExtensionOf(null));
+            Assert.Equal("", TelemetryHost.ExtensionOf(" "));
         }
 
         [Fact]
@@ -327,7 +385,61 @@ namespace PyNavis.Tests
             Assert.Equal("test", line["kind"]);
             Assert.Equal("test", line["key"]);
             Assert.Equal("Test record", line["title"]);
-            Assert.StartsWith("Last sent ", status);
+            Assert.Equal("Test record sent to the test sink.", status);
+        }
+
+        /// <summary>A sink the test switches between failing and working.</summary>
+        private sealed class SwitchSink : ITelemetrySink
+        {
+            public SwitchSink(string name) { Name = name; }
+            public string Name { get; }
+            public string Target => "the " + Name + " target";
+            public bool Fail;
+            public int Attempts;
+            public void Send(IReadOnlyList<string> lines)
+            {
+                Attempts++;
+                if (Fail) throw new IOException("the share is offline");
+            }
+        }
+
+        private TelemetryService WithSinks(params ITelemetrySink[] sinks)
+        {
+            var now = new DateTime(2026, 10, 10, 14, 5, 0);
+            return new TelemetryService(new TelemetryConfig { Enabled = true }, sinks,
+                Path.Combine(_dir, "spool"), () => now, _ => { });
+        }
+
+        [Fact]
+        public void SendTestRecord_IsSentAtOnce_EvenWhileTheServiceWaitsToRetry()
+        {
+            var sink = new SwitchSink("folder") { Fail = true };
+            var service = WithSinks(sink);
+            service.Record(TelemetryHost.NewRecord("click", "k", "Clear Clash", "", "", ""));
+            service.Flush();
+            service.Flush();                                                    // a 10 s wait now
+            sink.Fail = false;
+
+            var status = TelemetryHost.SendTestRecord(service.Config, service, _dir);
+
+            Assert.Equal(3, sink.Attempts);
+            Assert.Equal("Test record sent to the folder target.", status);
+        }
+
+        [Fact]
+        public void SendTestRecord_ThatFails_SaysWhereAndWhy_AndWhereItDidGo()
+        {
+            var folder = new SwitchSink("folder");
+            var http = new SwitchSink("http") { Fail = true };
+
+            Assert.Equal("Test record could not be sent to the http target: the share is offline. "
+                         + "It reached the folder target.",
+                TelemetryHost.SendTestRecord(new TelemetryConfig { Enabled = true }, WithSinks(folder, http), _dir));
+
+            folder.Fail = true;
+            Assert.Equal("Test record could not be sent to the folder target: the share is offline. "
+                         + "Test record could not be sent to the http target: the share is offline.",
+                TelemetryHost.SendTestRecord(new TelemetryConfig { Enabled = true }, WithSinks(folder, http), _dir));
         }
 
         [Fact]
@@ -386,7 +498,7 @@ namespace PyNavis.Tests
             File.WriteAllText(blocked, "");
             var status = TelemetryHost.SendTestRecord(
                 new TelemetryConfig { Enabled = true, Folder = Path.Combine(blocked, "share") }, off, _dir);
-            Assert.StartsWith("The last send to ", status);
+            Assert.StartsWith("Test record could not be sent to " + Path.Combine(blocked, "share") + ": ", status);
         }
 
         /// <summary>

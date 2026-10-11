@@ -143,6 +143,9 @@ always come in this order:</p>
 <tr><td><code>results</code></td><td>object</td>
     <td>The values the script <a href="#add-your-own-values">added itself</a>. Left out
         when it added none.</td></tr>
+<tr><td><code>results_dropped</code></td><td>boolean</td>
+    <td><code>true</code> when the values the script added would have made the record larger
+        than 64 KB, so they were left out. Absent otherwise.</td></tr>
 </tbody>
 </table>
 </div>
@@ -225,7 +228,9 @@ checking where it is. It never raises. Strings, numbers, booleans, <code>None</c
 lists and dicts of them are written as they are; anything else is written as its
 <code>str()</code>, and a number JSON cannot hold, such as <code>float('nan')</code>, as
 <code>null</code>. The values are copied when you note them, so changing a list afterwards
-does not change the record.</p>
+does not change the record. A record is capped at 64 KB: when the noted values would make
+it larger, they are left out and the record carries <code>"results_dropped": true</code>
+instead, so keep notes to counts and short values.</p>
 
 <p>Only clicks, Shift+Clicks, hooks and runs have a record to add to. A note from
 <code>startup.py</code>, a dock panel's script or a smartbutton's ribbon-build run goes
@@ -288,10 +293,11 @@ in the file.</p>
 with the same four fields, so nobody has to edit the file by hand. A change saved there
 takes effect at once, without a Reload; an edit to <code>config.json</code> itself takes
 effect on the next Reload. Its <strong>Send test record</strong> button sends one record,
-of kind <code>test</code>, to the destinations the section shows, saved or not, and the
-status line under it tells you how that went. Use it after any change: a delivery that
-fails is never shown to the user, so the button is the quickest way to know the setup
-works.</p>
+of kind <code>test</code>, to the destinations the section shows, saved or not. It tries
+every destination at once, even one pyNavis is waiting to retry after a failure, and the
+status line under it says where the record went, or, for each destination that did not take
+it, why. Use it after any change: a delivery that fails is never shown to the user, so the
+button is the quickest way to know the setup works.</p>
 
 <h2 id="deploy-it-for-a-firm">Deploy it for a firm<a class="anchor" href="#deploy-it-for-a-firm" aria-label="Link to this section">#</a></h2>
 
@@ -350,8 +356,9 @@ never waits for the share or the network.</p>
 \\fileserver\bim\pynavis-telemetry\BIM-WS-014-jsmith-2026-10-10.jsonl</code></pre></div>
 
 <p>Because no two people ever write to the same file, a whole office can point at one share.
-Users need permission to create and write files there; only whoever reads the data needs to
-read them.</p>
+Two Navisworks windows of one user share that day's file, but they write to it in turn, so
+their lines never mix. Users need permission to create and write files there; only whoever
+reads the data needs to read them.</p>
 
 <h3 id="to-a-url">To a URL<a class="anchor" href="#to-a-url" aria-label="Link to this section">#</a></h3>
 
@@ -368,10 +375,21 @@ read them.</p>
 <tr><td>Timeout</td><td>10 seconds.</td></tr>
 <tr><td>Proxy</td><td>Signed in with the user's Windows credentials when a proxy asks
     for them.</td></tr>
-<tr><td>Success</td><td>Any 2xx status. Anything else counts as a failure.</td></tr>
+<tr><td>Success</td><td>Any 2xx status.</td></tr>
+<tr><td>Refused</td><td>Any 4xx status except 407, 408 and 429. The records in that request
+    are dropped, not retried.</td></tr>
+<tr><td>Failure</td><td>Anything else, including no answer. The records are kept and
+    retried.</td></tr>
 </tbody>
 </table>
 </div>
+
+<p>A 4xx answer means the server read the request and will not take it, so sending the same
+records again would only be refused again and hold up every record behind them. pyNavis drops
+that request's records, writes one line to the log with the status and how many records went,
+and carries on with the rest. The exceptions are the answers that may pass later: 407 (the
+proxy wants credentials), 408 (the server timed out waiting) and 429 (too many requests),
+which are retried like any other failure.</p>
 
 <h3 id="when-the-destination-is-unreachable">When the destination is unreachable<a class="anchor" href="#when-the-destination-is-unreachable" aria-label="Link to this section">#</a></h3>
 
@@ -381,7 +399,9 @@ on the user's machine in <code>%APPDATA%\pyNavis\telemetry\</code>, one file per
 and in the next Navisworks session. After repeated failures the retries space out, up to
 five minutes apart, so an unreachable server is not hammered. Each spool file is capped at
 5 MB; past that the oldest records are dropped first, so a laptop that spends a month away
-from the office keeps its most recent runs.</p>
+from the office keeps its most recent runs. A record leaves the spool only once its
+destination has taken it, so closing Navisworks in the middle of a slow delivery loses
+nothing that was waiting there.</p>
 
 <p>The first failure is written to the <a href="troubleshooting.html#the-logs">pyNavis
 log</a>, and the log then stays quiet about that destination until a delivery to it works
@@ -451,7 +471,7 @@ line.</p>
     Runs = Table.ExpandRecordColumn(Table.RemoveColumns(Valid, {&quot;Line&quot;}), &quot;Record&quot;,
         {&quot;schema&quot;, &quot;time&quot;, &quot;session&quot;, &quot;user&quot;, &quot;machine&quot;, &quot;navis&quot;, &quot;pynavis&quot;, &quot;doc&quot;,
          &quot;kind&quot;, &quot;key&quot;, &quot;title&quot;, &quot;extension&quot;, &quot;engine&quot;, &quot;ms&quot;, &quot;result&quot;, &quot;error&quot;,
-         &quot;results&quot;}),
+         &quot;results&quot;, &quot;results_dropped&quot;}),
     Typed = Table.TransformColumnTypes(Runs,
         {{&quot;schema&quot;, Int64.Type}, {&quot;time&quot;, type datetimezone}, {&quot;ms&quot;, Int64.Type}}),
     ToolRuns = Table.SelectRows(Typed, each [kind] &lt;&gt; &quot;test&quot;)
@@ -526,7 +546,8 @@ PORT = <span class="tok-n">8080</span>
 <p>Run it with <code>python receiver.py</code> on a machine your offices can reach, set
 <code>url</code> to that machine and port, and press <strong>Send test record</strong> in
 Settings: a line appears in <code>telemetry.jsonl</code>. Anything that is not a JSON array
-of objects gets a <code>400</code>, which pyNavis counts as a failed delivery.</p>
+of objects gets a <code>400</code>, which pyNavis takes as a refusal: it drops those records
+and logs it rather than retrying them.</p>
 
 <div class="note warn">
 <span class="note-t">Before it serves a whole firm</span>

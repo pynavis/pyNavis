@@ -53,7 +53,7 @@ namespace PyNavis.Runtime.Telemetry
         public static void Configure(TelemetryConfig user) =>
             Configure(user, FirmPath, SpoolDir, MachineFolderTrust.IsAdminOnlyFile);
 
-        internal static void Configure(TelemetryConfig user, string firmPath, string spoolDir, Func<string, bool> adminOnly)
+        internal static void Configure(TelemetryConfig user, string firmPath, string spoolDir, Func<FileStream, bool> adminOnly)
         {
             try
             {
@@ -127,31 +127,16 @@ namespace PyNavis.Runtime.Telemetry
         // ---- the firm file -----------------------------------------------------------
 
         /// <summary>The settings in force for <paramref name="user"/>: the firm file's when
-        /// it is trusted and parses, otherwise the user's own.</summary>
+        /// only administrators can change it and it parses, otherwise the user's own. The
+        /// file is checked and read through one handle (TelemetryConfig.Resolve).</summary>
         public static TelemetryConfig InForce(TelemetryConfig user) =>
             InForce(user, FirmPath, MachineFolderTrust.IsAdminOnlyFile, Log.Error);
 
+        /// <param name="adminOnly">Whether the open firm file may be trusted; tests pass
+        /// their own, production MachineFolderTrust.IsAdminOnlyFile.</param>
         internal static TelemetryConfig InForce(TelemetryConfig user, string firmPath,
-            Func<string, bool> adminOnly, Action<string> logError) =>
-            TelemetryConfig.Resolve(user, TrustedFirmFile(firmPath, File.Exists, adminOnly, logError), logError);
-
-        /// <summary>
-        /// <paramref name="path"/> when the firm file exists and only administrators can
-        /// change it, the rule the loader applies to the machine extensions folder; null
-        /// otherwise. A file anyone else can write could have been planted by any user of
-        /// the PC to send everyone's records where they chose, so it is ignored with one
-        /// log line naming it.
-        /// </summary>
-        internal static string TrustedFirmFile(string path, Func<string, bool> exists,
-            Func<string, bool> adminOnly, Action<string> logError)
-        {
-            if (string.IsNullOrWhiteSpace(path) || !exists(path)) return null;
-            if (adminOnly(path)) return path;
-            logError?.Invoke($"Telemetry: ignoring the firm settings in '{path}': users other than administrators "
-                + "can change that file, so anyone on this PC could have written it. Deploy it from an "
-                + "administrator account so that Users can only read it.");
-            return null;
-        }
+            Func<FileStream, bool> adminOnly, Action<string> logError) =>
+            TelemetryConfig.Resolve(user, firmPath, adminOnly, logError);
 
         // ---- runs into records ------------------------------------------------------
 
@@ -181,7 +166,7 @@ namespace PyNavis.Runtime.Telemetry
             {
                 if (button == null || !Wants(kind)) return null;
                 return NewRecord(kind, button.BundleKey, button.Title,
-                    ExtensionOf(button.ExtensionName, button.BundleKey), button.EngineId, ActiveDocumentFileName());
+                    ExtensionOf(button.ExtensionName), button.EngineId, ActiveDocumentFileName());
             }
             catch (Exception)
             {
@@ -272,15 +257,11 @@ namespace PyNavis.Runtime.Telemetry
         internal static string OneLine(string text) =>
             text == null ? "" : Regex.Replace(text, @"\s*[\r\n]+\s*", " ").Trim();
 
-        /// <summary>The extension's name, or when a model does not carry it the first
-        /// segment of the bundle key.</summary>
-        internal static string ExtensionOf(string extensionName, string key)
-        {
-            if (!string.IsNullOrWhiteSpace(extensionName)) return extensionName.Trim();
-            if (string.IsNullOrWhiteSpace(key)) return "";
-            var slash = key.IndexOf('/');
-            return slash < 0 ? key.Trim() : key.Substring(0, slash).Trim();
-        }
+        /// <summary>The extension's name, trimmed; "" when the model does not carry one. The
+        /// bundle key is no stand-in: it is extension-relative, so its first segment is the
+        /// tab folder, not the extension.</summary>
+        internal static string ExtensionOf(string extensionName) =>
+            string.IsNullOrWhiteSpace(extensionName) ? "" : extensionName.Trim();
 
         /// <summary>Key, title and extension for a pynavis run: those of the button whose
         /// script.py it is, else the script's file name, its name without ".py" (the
@@ -296,7 +277,7 @@ namespace PyNavis.Runtime.Telemetry
                 if (string.IsNullOrEmpty(button.ScriptPath)) continue;
                 if (string.Equals(FullPathOrSame(button.ScriptPath), full, StringComparison.OrdinalIgnoreCase))
                     return (button.BundleKey ?? "", OneLine(button.Title),
-                        ExtensionOf(button.ExtensionName ?? extension.Name, button.BundleKey));
+                        ExtensionOf(string.IsNullOrWhiteSpace(button.ExtensionName) ? extension.Name : button.ExtensionName));
             }
             return (TelemetryRecord.FileNameOnly(script), Path.GetFileNameWithoutExtension(TelemetryRecord.FileNameOnly(script)), "");
         }
@@ -326,13 +307,15 @@ namespace PyNavis.Runtime.Telemetry
         // ---- Settings' Send test record ---------------------------------------------
 
         /// <summary>
-        /// Sends one record of kind "test" now and returns the line for the status bar.
+        /// Sends one record of kind "test" now and returns the line for the status bar:
+        /// "Test record sent to &lt;targets&gt;." or "Test record could not be sent to
+        /// &lt;target&gt;: &lt;reason&gt;" for each destination that did not take it.
         /// When <paramref name="entered"/> (what the window shows) matches the service in
-        /// force, that service sends it and its status line answers. Settings typed in but
-        /// not saved yet get a one-off service of their own, with a spool that is thrown
-        /// away, so the test answers for what is on the screen and leaves nothing to retry.
-        /// Writes to the share or the network on the calling thread: call it off the UI
-        /// thread. Never throws.
+        /// force, that service sends it, trying every destination at once even while one
+        /// waits out a retry delay. Settings typed in but not saved yet get a one-off service
+        /// of their own, with a spool that is thrown away, so the test answers for what is on
+        /// the screen and leaves nothing to retry. Writes to the share or the network on the
+        /// calling thread: call it off the UI thread. Never throws.
         /// </summary>
         public static string SendTestRecord(TelemetryConfig entered) =>
             SendTestRecord(entered, Current, Path.GetTempPath());
@@ -347,8 +330,9 @@ namespace PyNavis.Runtime.Telemetry
                 if (inForce.IsActive && !unsaved)
                 {
                     inForce.Record(record);
-                    inForce.Flush();
-                    return inForce.Status();
+                    var sent = inForce.FlushNow();
+                    if (sent.Failures.Count > 0 || sent.Sent == 0) return TestFailure(sent, inForce.Sinks);
+                    return "Test record sent to " + string.Join(" and ", inForce.Sinks.Select(s => s.Target)) + ".";
                 }
 
                 if (!settings.HasTarget) return "Name a folder or a URL first.";
@@ -360,9 +344,8 @@ namespace PyNavis.Runtime.Telemetry
                     if (!string.IsNullOrWhiteSpace(settings.Url) && probe.Sinks.All(s => s.Name != "http"))
                         return "The URL must start with http:// or https://.";
                     probe.Record(record);
-                    var result = probe.Flush();
-                    if (probe.LastError != null) return probe.LastError;
-                    if (result.Sent == 0) return "The test record was not sent.";
+                    var result = probe.FlushNow();
+                    if (result.Failures.Count > 0 || result.Sent == 0) return TestFailure(result, probe.Sinks);
                     if (!(entered?.Enabled ?? true))
                         return inForce.Config.Managed && !unsaved
                             ? "Test record sent. Your firm has telemetry turned off."
@@ -381,6 +364,17 @@ namespace PyNavis.Runtime.Telemetry
                 Log.Error("Telemetry: the test record failed", ex);
                 return "The test failed: " + ex.Message;
             }
+        }
+
+        /// <summary>The answer for a test record a flush did not get everywhere: one
+        /// sentence per destination that did not take it, then the ones that did.</summary>
+        private static string TestFailure(FlushResult result, IReadOnlyList<ITelemetrySink> sinks)
+        {
+            if (result.Failures.Count == 0) return "The test record was not sent.";
+            var failed = new HashSet<string>(result.Failures.Select(f => f.Target), StringComparer.Ordinal);
+            var text = string.Join(" ", result.Failures.Select(f => $"Test record could not be sent to {f.Target}: {f.Reason}"));
+            var reached = sinks.Select(s => s.Target).Where(t => !failed.Contains(t)).ToList();
+            return reached.Count == 0 ? text : text + " It reached " + string.Join(" and ", reached) + ".";
         }
 
         /// <summary>The four settings a person can change, compared the way they are

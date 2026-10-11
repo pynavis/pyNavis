@@ -12,8 +12,10 @@ namespace PyNavis.Runtime.Telemetry
 {
     /// <summary>
     /// Somewhere records go. Send delivers every line (each one JSON object, no line
-    /// end) or throws; the service decides what a failure means (it spools and retries).
-    /// Called only from the telemetry worker, never on the UI thread.
+    /// end) or throws; the service decides what a failure means: it spools and retries,
+    /// except after a TelemetryRejectedException, when it drops the batch. Called only
+    /// from background threads (the telemetry worker, or a flush's own thread), never on
+    /// the UI thread.
     /// </summary>
     public interface ITelemetrySink
     {
@@ -29,9 +31,12 @@ namespace PyNavis.Runtime.Telemetry
     /// <summary>
     /// Appends to &lt;folder&gt;\&lt;machine&gt;-&lt;user&gt;-&lt;yyyy-MM-dd&gt;.jsonl: one
     /// file per machine, user and day, so nobody writes into anyone else's file and a
-    /// firm can collect a day by its name. UTF-8 without a BOM, "\n" line ends, opened
-    /// for append with read and write sharing so a collector reading the file never
-    /// blocks it. Each send is one write.
+    /// firm can collect a day by its name. UTF-8 without a BOM, "\n" line ends. Each send
+    /// is one write, made alone: two Navisworks windows of one user share the day's file,
+    /// so the file is opened for append with read sharing only, and a send that finds the
+    /// other window writing waits briefly (as the spool does) and then throws, which the
+    /// service treats like any failure: it spools the lines and retries. Anyone may read
+    /// the file while a send writes to it.
     /// </summary>
     public sealed class FolderSink : ITelemetrySink
     {
@@ -64,7 +69,7 @@ namespace PyNavis.Runtime.Telemetry
             var bytes = Utf8.GetBytes(text.ToString());
 
             Directory.CreateDirectory(_folder);
-            using (var stream = new FileStream(CurrentFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+            using (var stream = TelemetrySpool.OpenWithRetry(CurrentFile, FileMode.Append, FileAccess.Write, FileShare.Read))
                 stream.Write(bytes, 0, bytes.Length);
         }
 
@@ -80,10 +85,28 @@ namespace PyNavis.Runtime.Telemetry
     }
 
     /// <summary>
+    /// A sink's answer that the server read the batch and will not take it: sending the
+    /// same lines again would only be refused again, and would hold up every record
+    /// behind them. The service drops the batch instead of keeping it to retry.
+    /// </summary>
+    public sealed class TelemetryRejectedException : HttpRequestException
+    {
+        public TelemetryRejectedException(int status, string message) : base(message)
+        {
+            Status = status;
+        }
+
+        /// <summary>The HTTP status the server answered, 400 to 499.</summary>
+        public int Status { get; }
+    }
+
+    /// <summary>
     /// POSTs records to the firm's endpoint as one JSON array per batch
-    /// (application/json, User-Agent pyNavis/&lt;version&gt;). Any answer but a 2xx is a
-    /// failure. The production handler goes through the corporate proxy as the user,
-    /// like the update check.
+    /// (application/json, User-Agent pyNavis/&lt;version&gt;). A 2xx answer is success.
+    /// A client error (4xx) is a refusal of the batch, a TelemetryRejectedException,
+    /// except the ones that say to try again or that come from the proxy rather than the
+    /// server: 407, 408 and 429. Anything else is a failure to retry. The production
+    /// handler goes through the corporate proxy as the user, like the update check.
     /// </summary>
     public sealed class HttpSink : ITelemetrySink, IDisposable
     {
@@ -124,8 +147,12 @@ namespace PyNavis.Runtime.Telemetry
                 using (var response = _client.PostAsync(_url, content).GetAwaiter().GetResult())
                 {
                     if (!response.IsSuccessStatusCode)
-                        throw new HttpRequestException(
-                            $"the server answered {(int)response.StatusCode} {response.ReasonPhrase}".TrimEnd());
+                    {
+                        var status = (int)response.StatusCode;
+                        var answer = $"the server answered {status} {response.ReasonPhrase}".TrimEnd();
+                        if (IsRefusal(status)) throw new TelemetryRejectedException(status, answer);
+                        throw new HttpRequestException(answer);
+                    }
                 }
             }
             catch (TaskCanceledException ex)
@@ -141,6 +168,12 @@ namespace PyNavis.Runtime.Telemetry
         }
 
         public void Dispose() => _client.Dispose();
+
+        /// <summary>A 4xx that refuses this batch for good. Not 407 (the proxy wants
+        /// credentials: nothing about the batch), 408 (the server timed out waiting for
+        /// it) or 429 (too many requests): those may pass later.</summary>
+        internal static bool IsRefusal(int status) =>
+            status >= 400 && status <= 499 && status != 407 && status != 408 && status != 429;
 
         private static HttpMessageHandler ProductionHandler()
         {

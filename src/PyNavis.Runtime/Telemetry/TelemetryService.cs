@@ -7,16 +7,38 @@ using System.Threading;
 
 namespace PyNavis.Runtime.Telemetry
 {
-    /// <summary>What one flush did, for the status line and the tests.</summary>
+    /// <summary>One sink that did not take the last of a flush's lines, and why.</summary>
+    public sealed class FlushFailure
+    {
+        public FlushFailure(string target, string reason, bool refused)
+        {
+            Target = target ?? "";
+            Reason = reason ?? "";
+            Refused = refused;
+        }
+
+        /// <summary>Where the sink sends: a folder or a URL.</summary>
+        public string Target { get; }
+
+        /// <summary>Why, as a sentence that ends in a full stop: "no answer within 10 seconds."</summary>
+        public string Reason { get; }
+
+        /// <summary>The server refused the lines (TelemetryRejectedException), so they were
+        /// dropped; otherwise the send failed and they are kept to retry.</summary>
+        public bool Refused { get; }
+    }
+
+    /// <summary>What one flush did, for the status line, Send test record and the tests.</summary>
     public sealed class FlushResult
     {
         public static readonly FlushResult None = new FlushResult(0, 0, 0);
 
-        public FlushResult(int sent, int spooled, int dropped)
+        public FlushResult(int sent, int spooled, int dropped, IReadOnlyList<FlushFailure> failures = null)
         {
             Sent = sent;
             Spooled = spooled;
             Dropped = dropped;
+            Failures = failures ?? new FlushFailure[0];
         }
 
         /// <summary>Lines delivered, counted once per sink that took them.</summary>
@@ -26,8 +48,13 @@ namespace PyNavis.Runtime.Telemetry
         public int Spooled { get; }
 
         /// <summary>Records lost: pushed out of a full queue, trimmed by a spool's cap,
-        /// or not storable at all.</summary>
+        /// refused by a server, or not storable at all.</summary>
         public int Dropped { get; }
+
+        /// <summary>The sinks that did not take the newest of this flush's lines, and why:
+        /// a send that failed (what was left is kept to retry), or a last batch the server
+        /// refused. Empty when every sink that was tried took the last of its lines.</summary>
+        public IReadOnlyList<FlushFailure> Failures { get; }
 
         public override string ToString() => $"{Sent} sent, {Spooled} spooled, {Dropped} dropped";
     }
@@ -41,7 +68,18 @@ namespace PyNavis.Runtime.Telemetry
     /// is retried: at the next flush after a first failure, then after 10 s, 20 s and so
     /// on up to 5 minutes, so an unreachable server is not hammered and closing
     /// Navisworks does not wait on it. The first failure is logged once; the log stays
-    /// quiet about that sink until a send to it works again.
+    /// quiet about that sink until a send to it works again. Spooled lines leave the
+    /// spool file only once a sink has taken them, so a send cut short by Navisworks
+    /// closing loses nothing that was already on disk.
+    ///
+    /// A batch the server refuses (TelemetryRejectedException, such as a 400) is dropped,
+    /// not spooled: sent again it would only be refused again and hold up every record
+    /// behind it. A refusal is no reason to wait before the next send. The first one is
+    /// logged with its status and how many records went; the log then stays quiet about
+    /// refusals from that sink until it takes a flush's records without refusing any.
+    ///
+    /// Stop is the end of a service: after its final flush it disposes the sinks that
+    /// hold something (HttpSink's HttpClient), and it sends nothing more.
     /// </summary>
     public sealed class TelemetryService
     {
@@ -62,6 +100,7 @@ namespace PyNavis.Runtime.Telemetry
             public int Failures;
             public DateTime NextAttempt = DateTime.MinValue;
             public bool Logged;
+            public bool RefusalLogged;
         }
 
         private readonly TelemetryConfig _config;
@@ -76,6 +115,7 @@ namespace PyNavis.Runtime.Telemetry
         private Thread _worker;
         private ManualResetEvent _workerStop;
 
+        private volatile bool _released;
         private long _overflowSeen;
         private bool _spoolErrorLogged;
         private bool _otherErrorLogged;
@@ -164,16 +204,25 @@ namespace PyNavis.Runtime.Telemetry
         }
 
         /// <summary>Sends the queued records and every spooled line to each sink not
-        /// waiting out a retry delay; whatever a sink does not take goes to its spool.
-        /// Never throws.</summary>
-        public FlushResult Flush()
+        /// waiting out a retry delay; whatever a sink does not take goes to its spool,
+        /// except a batch the server refuses, which is dropped. Never throws.</summary>
+        public FlushResult Flush() => Flush(force: false);
+
+        /// <summary>Flush, with every sink tried now, including one waiting out a retry
+        /// delay: Send test record answers for the destinations as they are at that
+        /// moment. Never throws.</summary>
+        public FlushResult FlushNow() => Flush(force: true);
+
+        private FlushResult Flush(bool force)
         {
             if (!IsActive) return FlushResult.None;
             lock (_flushGate)
             {
+                if (_released) return FlushResult.None;
                 var sent = 0;
                 var spooled = 0;
                 var dropped = 0;
+                var failures = new List<FlushFailure>();
                 try
                 {
                     var now = _clock();
@@ -196,41 +245,96 @@ namespace PyNavis.Runtime.Telemetry
                     var delivered = false;
                     foreach (var target in _targets)
                     {
-                        if (now < target.NextAttempt)
+                        if (!force && now < target.NextAttempt)
                         {
                             waiting = true;
                             Park(target, fresh, ref spooled, ref dropped);
                             continue;
                         }
 
-                        List<string> pending;
-                        try { pending = target.Spool.TakeAll(); }
+                        // The spool's lines stay in its file until the sink has them.
+                        List<string> backlog;
+                        try { backlog = target.Spool.PeekAll(); }
                         catch (Exception ex)
                         {
-                            pending = new List<string>();       // they stay in the file for next time
+                            backlog = new List<string>();       // they stay in the file for next time
                             ReportOnce(ref _spoolErrorLogged, $"Telemetry: could not read {target.Spool.Path}: {ex.Message}");
                         }
+                        var pending = new List<string>(backlog.Count + fresh.Count);
+                        pending.AddRange(backlog);
                         pending.AddRange(fresh);
                         if (pending.Count == 0) continue;
 
-                        var done = 0;
-                        try
+                        var done = 0;                           // lines the sink took or refused
+                        var unspooled = 0;                      // of those, spool lines taken out of its file
+                        var took = 0;
+                        var refused = 0;
+                        TelemetryRejectedException refusal = null;  // set while the latest batch was refused
+                        TelemetryRejectedException firstRefusal = null;
+                        Exception error = null;
+                        while (done < pending.Count)
                         {
-                            while (done < pending.Count)
+                            var batch = pending.GetRange(done, Math.Min(BatchSize, pending.Count - done));
+                            try
                             {
-                                var batch = pending.GetRange(done, Math.Min(BatchSize, pending.Count - done));
                                 target.Sink.Send(batch);
-                                done += batch.Count;
+                                took += batch.Count;
+                                refusal = null;
                             }
+                            catch (TelemetryRejectedException ex)
+                            {
+                                refused += batch.Count;         // dropped: sent again it would be refused again
+                                refusal = ex;
+                                firstRefusal = firstRefusal ?? ex;
+                            }
+                            catch (Exception ex)
+                            {
+                                error = ex;
+                                break;
+                            }
+                            done += batch.Count;
+                            unspooled = Unspool(target, backlog, unspooled, Math.Min(done, backlog.Count));
+                        }
+                        dropped += refused;
+
+                        if (refused > 0)
+                        {
+                            if (!target.RefusalLogged)
+                            {
+                                target.RefusalLogged = true;
+                                var why = firstRefusal.Message.Trim().TrimEnd('.');
+                                SafeLog($"Telemetry: {target.Sink.Target} refused {Records(refused)} ({why}), so "
+                                        + (refused == 1 ? "it was" : "they were") + " dropped rather than kept to retry. "
+                                        + "This is not logged again until a send there works.");
+                            }
+                            if (refusal != null && error == null)
+                            {
+                                failures.Add(new FlushFailure(target.Sink.Target, Sentence(refusal.Message), refused: true));
+                                failure = $"The last send to {target.Sink.Target} was refused, so {Records(refused)} "
+                                          + (refused == 1 ? "was" : "were") + $" dropped: {Sentence(refusal.Message)}";
+                            }
+                        }
+                        else if (took > 0)
+                        {
+                            target.RefusalLogged = false;
+                        }
+
+                        if (error == null)
+                        {
+                            // Everything reached the sink, taken or refused: no retry delay.
                             target.Failures = 0;
                             target.NextAttempt = DateTime.MinValue;
                             target.Logged = false;
                         }
-                        catch (Exception ex)
+                        else
                         {
+                            var ex = error;
                             target.Failures++;
                             target.NextAttempt = now + RetryDelay(target.Failures);
-                            Park(target, pending.GetRange(done, pending.Count - done), ref spooled, ref dropped);
+                            // The spool's unsent lines are still in its file; only fresh ones join them.
+                            var freshDone = Math.Min(fresh.Count, Math.Max(0, done - backlog.Count));
+                            Park(target, fresh.GetRange(freshDone, fresh.Count - freshDone), ref spooled, ref dropped);
+                            failures.Add(new FlushFailure(target.Sink.Target, Sentence(ex.Message), refused: false));
                             failure = $"The last send to {target.Sink.Target} failed: {Sentence(ex.Message)}";
                             if (!target.Logged)
                             {
@@ -239,24 +343,28 @@ namespace PyNavis.Runtime.Telemetry
                                         + "The records are kept and retried; this is not logged again until a send works.");
                             }
                         }
-                        sent += done;
-                        delivered |= done > 0;
+                        sent += took;
+                        delivered |= took > 0;
                     }
 
                     lock (_statusGate)
                     {
                         if (delivered) _lastSent = now;
+                        // A failure or refusal stays on the status line until a send gets
+                        // through, not merely until a flush finds nothing to send.
                         if (failure != null) _lastError = failure;
-                        else if (!waiting) _lastError = null;
+                        else if (delivered && !waiting) _lastError = null;
                     }
                 }
                 catch (Exception ex)
                 {
                     ReportOnce(ref _otherErrorLogged, "Telemetry: a flush failed: " + ex.Message);
                 }
-                return new FlushResult(sent, spooled, dropped);
+                return new FlushResult(sent, spooled, dropped, failures);
             }
         }
+
+        private static string Records(int count) => count == 1 ? "1 record" : count + " records";
 
         /// <summary>How long a sink rests after <paramref name="failures"/> failures in a
         /// row: none after the first, then 10 s, doubling, up to MaxRetryDelay.</summary>
@@ -272,7 +380,7 @@ namespace PyNavis.Runtime.Telemetry
         /// thread pool, so a busy pool can never hold up the flush on close.</summary>
         public void Start()
         {
-            if (!IsActive) return;
+            if (!IsActive || _released) return;
             lock (_lifeGate)
             {
                 if (_worker != null) return;
@@ -284,12 +392,18 @@ namespace PyNavis.Runtime.Telemetry
         }
 
         /// <summary>Stops the worker, which flushes what is left on its way out, and waits
-        /// for that at most StopWait (records a slow sink has not taken by then are lost
-        /// with the process). Without a worker the final flush gets a thread of its own.
-        /// True when the final flush finished in time.</summary>
+        /// for that at most StopWait (fresh records a slow sink has not taken by then are
+        /// lost with the process; spooled ones stay in their file). Without a worker the
+        /// final flush gets a thread of its own. Whichever thread flushes last then disposes
+        /// the sinks, however long that flush takes, so a send is never cut off. Later
+        /// calls, Start and Flush do nothing. True when the final flush finished in time.</summary>
         public bool Stop()
         {
-            if (!IsActive) return true;
+            if (!IsActive)
+            {
+                ReleaseSinks();
+                return true;
+            }
             Thread worker;
             lock (_lifeGate)
             {
@@ -302,7 +416,12 @@ namespace PyNavis.Runtime.Telemetry
             {
                 if (worker == null)
                 {
-                    worker = new Thread(() => Flush()) { IsBackground = true, Name = "pyNavis telemetry final flush" };
+                    if (_released) return true;
+                    worker = new Thread(() =>
+                    {
+                        Flush();
+                        ReleaseSinks();
+                    }) { IsBackground = true, Name = "pyNavis telemetry final flush" };
                     worker.Start();
                 }
                 return worker.Join(StopWait);
@@ -313,15 +432,17 @@ namespace PyNavis.Runtime.Telemetry
             }
         }
 
-        /// <summary>"The last send to X failed: reason." while the last attempt failed;
-        /// null once a flush gets everything through.</summary>
+        /// <summary>"The last send to X failed: reason." while the last attempt failed, or
+        /// "The last send to X was refused, so N records were dropped: reason." after a
+        /// refusal; null once a flush delivers and nothing failed or waits.</summary>
         public string LastError
         {
             get { lock (_statusGate) return _lastError; }
         }
 
         /// <summary>One line for the Settings window: when records last went out, how many
-        /// wait in memory and in the spool, and the last failure.</summary>
+        /// wait in memory and in the spool, and the last failure. Reads no file: each spool
+        /// keeps its count in memory (TelemetrySpool.Count) after a first look.</summary>
         public string Status()
         {
             if (!IsActive)
@@ -352,10 +473,50 @@ namespace PyNavis.Runtime.Telemetry
                 while (!stop.WaitOne(Interval))
                     Flush();
                 Flush();                                    // the final one, for Stop
+                ReleaseSinks();
             }
             catch (Exception ex)
             {
                 ReportOnce(ref _otherErrorLogged, "Telemetry: the worker stopped: " + ex.Message);
+            }
+        }
+
+        /// <summary>Disposes every sink that holds something, once, after the final flush;
+        /// waits for a flush under way on another thread to finish first.</summary>
+        private void ReleaseSinks()
+        {
+            lock (_flushGate)
+            {
+                if (_released) return;
+                _released = true;
+                foreach (var target in _targets)
+                {
+                    try { (target.Sink as IDisposable)?.Dispose(); }
+                    catch (Exception ex)
+                    {
+                        ReportOnce(ref _otherErrorLogged, $"Telemetry: {target.Sink.Target} did not close cleanly: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>Takes the spool's lines from <paramref name="from"/> up to
+        /// <paramref name="to"/> out of its file now that the sink has them, and returns how
+        /// far that got. When the file cannot be written they stay, the next batch's call
+        /// tries again, and at worst they are sent twice later; they are never lost.</summary>
+        private int Unspool(Target target, List<string> backlog, int from, int to)
+        {
+            if (to <= from) return from;
+            try
+            {
+                target.Spool.Discard(backlog.GetRange(from, to - from));
+                return to;
+            }
+            catch (Exception ex)
+            {
+                ReportOnce(ref _spoolErrorLogged,
+                    $"Telemetry: could not take sent records out of {target.Spool.Path}, so they may be sent again: {ex.Message}");
+                return from;
             }
         }
 
