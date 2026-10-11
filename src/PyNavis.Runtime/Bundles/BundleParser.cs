@@ -61,8 +61,7 @@ namespace PyNavis.Runtime.Bundles
             var hooksDir = Path.Combine(extensionDir, "hooks");
             if (Directory.Exists(hooksDir))
             {
-                foreach (var file in Directory.GetFiles(hooksDir, "*.py")
-                             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                foreach (var file in HookFiles(hooksDir, ext))
                 {
                     var eventName = Path.GetFileNameWithoutExtension(file);
                     if (!Events.EventNames.TryParse(eventName, out var evt))
@@ -473,6 +472,22 @@ namespace PyNavis.Runtime.Bundles
                     Find("icon.dark.png") ?? large,
                     Find("icon.small.png") ?? large,
                     Find("icon.small.dark.png") ?? large);
+        }
+
+        /// <summary>The hooks folder's *.py files in name order. A folder that cannot be
+        /// listed (no permission, a broken reparse point, a cloud placeholder gone offline)
+        /// costs only its hooks: reported, and the rest of the extension still loads.</summary>
+        private static IEnumerable<string> HookFiles(string hooksDir, ExtensionModel ext)
+        {
+            try
+            {
+                return Directory.GetFiles(hooksDir, "*.py").OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Report(ext, $"Could not list '{hooksDir}' - its hooks are skipped. {ex.Message}");
+                return Enumerable.Empty<string>();
+            }
         }
 
         // A folder the user cannot list (ACL, over-long path, a network or cloud root that

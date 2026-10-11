@@ -38,6 +38,10 @@ namespace PyNavis.Runtime.Config
         public Dictionary<string, string> ShortcutBindings { get; } =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>What Load skipped and why, one line each (also logged), for whoever
+        /// shows the user what is wrong with their config.json.</summary>
+        public List<string> Problems { get; } = new List<string>();
+
         /// <summary>"panes.assignments": dockpane bundle key -> 1-based slot.</summary>
         public Dictionary<string, int> PaneAssignments { get; } =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -427,7 +431,16 @@ namespace PyNavis.Runtime.Config
                         // same tool: normalise on the way in, and the next save writes
                         // the clean form.
                         foreach (var pair in bindings)
-                            config.ShortcutBindings[Bundles.BundleKeys.Normalize(pair.Key)] = pair.Value as string; // null stays null = disabled
+                        {
+                            // null is "disabled"; anything else that is not a chord string is
+                            // a hand edit gone wrong, and reading it as null would silently
+                            // take the tool's default chord away.
+                            if (pair.Value == null || pair.Value is string)
+                                config.ShortcutBindings[Bundles.BundleKeys.Normalize(pair.Key)] = (string)pair.Value;
+                            else
+                                config.Report($"The shortcut for '{pair.Key}' in config.json is neither a chord "
+                                              + "in quotes nor null - ignored, so the tool keeps its default.");
+                        }
                     }
                 }
                 if (data != null && data.TryGetValue("panes", out var panes)
@@ -507,6 +520,12 @@ namespace PyNavis.Runtime.Config
                 Log.Error($"Failed to load config '{path}' - using defaults.", ex);
             }
             return config;
+        }
+
+        private void Report(string problem)
+        {
+            Log.Error(problem);
+            Problems.Add(problem);
         }
     }
 }

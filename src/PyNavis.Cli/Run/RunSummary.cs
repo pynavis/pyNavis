@@ -24,38 +24,56 @@ namespace PyNavis.Cli
         /// <summary>When the run finished, ISO 8601.</summary>
         public string FinishedAt { get; set; }
 
+        /// <summary>True when Ctrl+C ended the run, saved as <c>cancelled</c>.</summary>
+        public bool Cancelled { get; set; }
+
         /// <summary>One outcome per model, in run order: a model Ctrl+C cut off is
         /// <c>cancelled</c>, and models the run never reached are <c>not-run</c>.</summary>
         public List<ModelOutcome> Models { get; } = new List<ModelOutcome>();
 
+        // How deep a result may nest and still be embedded as JSON (the serializer's own default).
+        private const int ResultDepthLimit = 100;
+
+        // The levels above a result in the file: the root, the models list, the model's entry.
+        private const int LevelsAboveResult = 3;
+
         /// <summary>Writes the summary as UTF-8 JSON, replacing any file at <paramref name="path"/>.</summary>
         public void Save(string path)
         {
-            var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+            var reader = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = ResultDepthLimit };
+            // Deeper than the reader by the levels above a result, so every result the reader
+            // took in is written too: one at its limit would otherwise throw here and lose the file.
+            var writer = new JavaScriptSerializer
+            {
+                MaxJsonLength = int.MaxValue,
+                RecursionLimit = ResultDepthLimit + LevelsAboveResult,
+            };
             var json = new Dictionary<string, object>
             {
                 ["script"] = Script,
                 ["year"] = Year,
                 ["startedAt"] = StartedAt,
                 ["finishedAt"] = FinishedAt,
+                ["cancelled"] = Cancelled,
                 ["models"] = Models.Select(m => new Dictionary<string, object>
                 {
                     ["model"] = m.Model,
                     ["status"] = m.Status,
                     ["durationMs"] = m.DurationMs,
                     ["error"] = m.Error,
-                    ["result"] = Embed(serializer, m.ResultJson),
+                    ["result"] = Embed(reader, m.ResultJson),
                 }).ToArray(),
             };
-            File.WriteAllText(path, serializer.Serialize(json), new UTF8Encoding(false));
+            File.WriteAllText(path, writer.Serialize(json), new UTF8Encoding(false));
         }
 
-        // Parsed back into objects so the serializer writes it as JSON, not as a string;
-        // text that is not JSON (the add-in never writes any) is kept as the string.
-        private static object Embed(JavaScriptSerializer serializer, string resultJson)
+        // Parsed back into objects so the serializer writes it as JSON, not as a string.
+        // Text the reader refuses is kept as the string: text that is not JSON (the add-in
+        // never writes any), and JSON nested deeper than ResultDepthLimit.
+        private static object Embed(JavaScriptSerializer reader, string resultJson)
         {
             if (resultJson == null) return null;
-            try { return serializer.DeserializeObject(resultJson); }
+            try { return reader.DeserializeObject(resultJson); }
             catch (System.ArgumentException) { return resultJson; }
         }
     }

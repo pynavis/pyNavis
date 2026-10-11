@@ -138,6 +138,56 @@ namespace PyNavis.Tests
             Assert.Equal(lenBefore, outw.ToString().Length);
         }
 
+        // A script calling script.reload_pynavis() runs Reload on its own thread, and
+        // Reload runs dock pane, startup and smartbutton scripts through this same engine.
+        // When that nested run ends, the outer script must get its own bundle folder on
+        // sys.path and its own writers back, not the engine's baseline.
+        [Fact]
+        public void NestedRun_HandsTheOuterRunBackItsSearchPathAndWriters()
+        {
+            File.WriteAllText(Path.Combine(_modDir, "m_outer.py"), "VALUE = 'outer'\n");
+            var innerDir = Path.Combine(_modDir, "inner");
+            Directory.CreateDirectory(innerDir);
+            var outerOut = new StringWriter();
+            var outerErr = new StringWriter();
+            var innerOut = new StringWriter();
+            var innerErr = new StringWriter();
+            ExecResult inner = null;
+
+            var outer = new ScriptRequest
+            {
+                Code = "import sys\n" +
+                       "__nested__()\n" +
+                       "import m_outer\n" +
+                       "print('outer after: ' + m_outer.VALUE)\n" +
+                       "sys.stderr.write('outer error after\\n')\n",
+                Output = outerOut,
+                ErrorOutput = outerErr,
+            };
+            outer.SearchPaths.Add(_modDir);
+            outer.Globals["__nested__"] = new Action(() =>
+            {
+                var request = new ScriptRequest
+                {
+                    Code = "import sys\nprint('inner ran')\nsys.stderr.write('inner error\\n')\n",
+                    Output = innerOut,
+                    ErrorOutput = innerErr,
+                };
+                request.SearchPaths.Add(innerDir);
+                inner = _engine.Execute(request);
+            });
+
+            var result = _engine.Execute(outer);
+
+            Assert.True(inner != null && inner.Succeeded, inner?.ErrorText);
+            Assert.True(result.Succeeded, result.ErrorText);
+            Assert.Contains("outer after: outer", outerOut.ToString());
+            Assert.Contains("outer error after", outerErr.ToString());
+            Assert.Contains("inner ran", innerOut.ToString());
+            Assert.DoesNotContain("outer", innerOut.ToString());
+            Assert.DoesNotContain("outer", innerErr.ToString());
+        }
+
         [Fact]
         public void ModuleEdits_ArePickedUp_OnNextRun_ForSearchPathModules()
         {

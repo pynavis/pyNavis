@@ -57,6 +57,30 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void A_Claim_On_A_Configured_Slot_That_Did_Not_Load_Is_Held_Not_Reassigned()
+        {
+            // Config asks for 8 slots but only the shipped 5 registered (the satellite
+            // failed to load). Slot 7 is still the bundle's for life: rehoming it onto a
+            // free low slot would lose its claim and its saved dock layout for good.
+            var result = PaneSlotMap.Resolve(new[] { "a", "new" }, Map(("a", 7)), 5, 8);
+
+            var held = result.Single(r => r.BundleKey == "a");
+            Assert.Equal(0, held.Slot);
+            Assert.Equal(7, held.HeldSlot);
+            Assert.Equal(1, result.Single(r => r.BundleKey == "new").Slot);
+        }
+
+        [Fact]
+        public void A_Claim_Beyond_The_Configured_Slots_Is_Still_Stale()
+        {
+            // Slots really removed (Panel slots lowered the count): reassign as before.
+            var result = PaneSlotMap.Resolve(new[] { "a" }, Map(("a", 9)), 5, 8);
+            var assignment = result.Single(r => r.BundleKey == "a");
+            Assert.Equal(1, assignment.Slot);
+            Assert.Equal(0, assignment.HeldSlot);
+        }
+
+        [Fact]
         public void Config_Round_Trips_Assignments_And_Extra_Slots()
         {
             var path = Path.Combine(Path.GetTempPath(), "pynavis_tests",

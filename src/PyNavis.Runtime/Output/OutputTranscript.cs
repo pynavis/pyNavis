@@ -16,7 +16,35 @@ namespace PyNavis.Runtime.Output
     /// </summary>
     public class OutputTranscript
     {
-        private readonly List<(string Kind, string Content)> _fragments = new List<(string, string)>();
+        private readonly List<Fragment> _fragments = new List<Fragment>();
+
+        /// <summary>
+        /// One recorded entry. A text or error run grows in a StringBuilder and becomes a
+        /// string only when the transcript is rendered: every IronPython print arrives as
+        /// separate unbuffered writes (the line, then its newline), and rebuilding the
+        /// whole run as a new string on each one made long outputs quadratic on the UI
+        /// thread. Html stays the string it arrived as, since it never grows.
+        /// </summary>
+        private sealed class Fragment
+        {
+            private readonly StringBuilder _run;
+            private readonly string _content;
+
+            public Fragment(string kind, string content, bool extendable)
+            {
+                Kind = kind;
+                if (extendable) _run = new StringBuilder(content);
+                else _content = content;
+            }
+
+            public string Kind { get; }
+
+            public bool Extendable => _run != null;
+
+            public void Append(string content) => _run.Append(content);
+
+            public string Content => _run != null ? _run.ToString() : _content;
+        }
 
         /// <summary>
         /// Appends one fragment; kind is "text", "error", or "html". Adjacent
@@ -31,16 +59,17 @@ namespace PyNavis.Runtime.Output
         /// </summary>
         public void Record(string kind, string content)
         {
-            if ((kind == "text" || kind == "error") && _fragments.Count > 0)
+            var coalesces = kind == "text" || kind == "error";
+            if (coalesces && _fragments.Count > 0)
             {
                 var last = _fragments[_fragments.Count - 1];
-                if (last.Kind == kind)
+                if (last.Kind == kind && last.Extendable)
                 {
-                    _fragments[_fragments.Count - 1] = (kind, last.Content + content);
+                    last.Append(content);
                     return;
                 }
             }
-            _fragments.Add((kind, content));
+            _fragments.Add(new Fragment(kind, content, coalesces));
         }
 
         /// <summary>

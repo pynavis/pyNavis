@@ -1,6 +1,6 @@
 """Summarizes every Clash Detective test (result counts by status), with CSV export."""
 
-import csv
+import csvexport
 
 from pynavis import clash, forms, output
 
@@ -22,8 +22,5 @@ else:
     if forms.confirm('Export this clash summary to CSV?'):
         path = forms.save_file(default_name='clash_report.csv', title='Export clash report')
         if path is not None:
-            with open(path, 'w') as f:
-                writer = csv.writer(f, lineterminator='\n')
-                writer.writerow(headers)
-                writer.writerows(rows)
+            csvexport.write_rows(path, headers, rows)
             print('Exported to %s' % path)

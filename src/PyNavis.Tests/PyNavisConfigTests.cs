@@ -56,6 +56,33 @@ namespace PyNavis.Tests
             Assert.Null(c.ShortcutBindings["pyNavis.tab/Selection.panel/Remember.pushbutton"]);
         }
 
+        // A binding that is not a chord string (a number, a list, an object: a hand edit
+        // gone wrong) used to load as null, which means "disabled": the tool silently lost
+        // its default chord. It must be reported and skipped, so the default still applies.
+        [Fact]
+        public void A_NonString_Binding_Is_Reported_And_Skipped_Not_Read_As_Disabled()
+        {
+            var c = PyNavisConfig.Load(WriteConfig(@"{
+                ""shortcuts"": {
+                    ""bindings"": {
+                        ""T.tab/P.panel/Number.pushbutton"": 5,
+                        ""T.tab/P.panel/Object.pushbutton"": { ""chord"": ""Ctrl+Alt+O"" },
+                        ""T.tab/P.panel/Off.pushbutton"": null,
+                        ""T.tab/P.panel/Chord.pushbutton"": ""Ctrl+Alt+C""
+                    }
+                }
+            }"));
+
+            Assert.False(c.ShortcutBindings.ContainsKey("T.tab/P.panel/Number.pushbutton"));
+            Assert.False(c.ShortcutBindings.ContainsKey("T.tab/P.panel/Object.pushbutton"));
+            Assert.True(c.ShortcutBindings.ContainsKey("T.tab/P.panel/Off.pushbutton"));
+            Assert.Null(c.ShortcutBindings["T.tab/P.panel/Off.pushbutton"]);
+            Assert.Equal("Ctrl+Alt+C", c.ShortcutBindings["T.tab/P.panel/Chord.pushbutton"]);
+            Assert.Equal(2, c.Problems.Count);
+            Assert.Contains(c.Problems, p => p.Contains("T.tab/P.panel/Number.pushbutton"));
+            Assert.Contains(c.Problems, p => p.Contains("T.tab/P.panel/Object.pushbutton"));
+        }
+
         // A config.json written before the shipped folders lost their NN_ prefixes names
         // tools by the old prefixed keys. They must land on the same tools after the
         // upgrade, so the installer needs no migration step of its own.

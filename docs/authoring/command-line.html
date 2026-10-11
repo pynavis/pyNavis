@@ -226,8 +226,9 @@ made for the ribbon: guard any call into them with <code>__runner__</code>, and 
 <code>-3</code> and so on after it.</p>
 
 <p><code>results.json</code> holds the script, the Navisworks year, the start and end time,
-and one entry per model: the model path, its status, how long the script took, the last line
-of the error, and the script's <code>__result__</code>. The status is one of these:</p>
+<code>cancelled</code> (true when Ctrl+C ended the run), and one entry per model: the model
+path, its status, how long the script took, the last line of the error, and the script's
+<code>__result__</code>. The status is one of these:</p>
 
 <div class="table-scroll">
 <table>
@@ -249,7 +250,8 @@ of the error, and the script's <code>__result__</code>. The status is one of the
     before the script ran.&rdquo; or &ldquo;Cancelled before the model opened.&rdquo;</td></tr>
 <tr><td><code>not-run</code></td><td>The run ended (a timeout or Ctrl+C) before it reached
     this model. Its error reads &ldquo;Not run: the run ended after an earlier
-    model.&rdquo;</td></tr>
+    model.&rdquo;, or &ldquo;Not run: the run was cancelled before this model
+    started.&rdquo; when Ctrl+C landed before the first model began.</td></tr>
 </tbody>
 </table>
 </div>
@@ -261,6 +263,7 @@ of the error, and the script's <code>__result__</code>. The status is one of the
   <span class="tok-f">&quot;year&quot;</span>: <span class="tok-s">&quot;2026&quot;</span>,
   <span class="tok-f">&quot;startedAt&quot;</span>: <span class="tok-s">&quot;2026-10-04T09:30:00+01:00&quot;</span>,
   <span class="tok-f">&quot;finishedAt&quot;</span>: <span class="tok-s">&quot;2026-10-04T09:31:10+01:00&quot;</span>,
+  <span class="tok-f">&quot;cancelled&quot;</span>: <span class="tok-k">false</span>,
   <span class="tok-f">&quot;models&quot;</span>: [
     {
       <span class="tok-f">&quot;model&quot;</span>: <span class="tok-s">&quot;C:\\Jobs\\Level 1.nwd&quot;</span>,
@@ -316,8 +319,9 @@ fresh install. Run again with <code>--show</code> to see which one it is. Withou
 one that timed out are listed in <code>results.json</code> as <code>not-run</code>.</p>
 
 <p>Ctrl+C closes the hidden Navisworks, ends the run with exit code 1 and still writes
-<code>results.json</code>, which still lists every model: the one whose script was running
-is <code>cancelled</code>, and the models after it are <code>not-run</code>. A save is
+<code>results.json</code>, with <code>cancelled</code> set to true. It still lists every
+model: the one whose script was running is <code>cancelled</code>, and the models after it
+are <code>not-run</code>. A save is
 different, because a save cut off
 halfway can leave a broken file: the runner says it is waiting for the save, then waits up
 to <code>--timeout</code> seconds for it, or 60 seconds without <code>--timeout</code>. A save

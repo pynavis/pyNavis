@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using PyNavis.Runtime.Ai;
 using PyNavis.Runtime.Config;
@@ -123,6 +124,83 @@ namespace PyNavis.Tests
 
                 Assert.Contains("any assistant", SettingsDialog.AiSectionTextForTest(window), StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("beta", SettingsDialog.AiSectionTextForTest(window), StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        private static PyNavisConfig.UserSettings OpenAiAt(string baseUrl)
+        {
+            var settings = new PyNavisConfig.UserSettings();
+            settings.Ai.Provider = AiProvider.OpenAiCompatible;
+            settings.Ai.BaseUrl = baseUrl;
+            return settings;
+        }
+
+        private static void InTempFolder(Action<string> body)
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "pynavis_tests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try { body(dir); }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        // The key used to be written first: when config.json then refused the save (not
+        // valid JSON, locked), the key was already bound to the new provider while the
+        // config still named the old one. A failed save must leave the key where it was.
+        [Fact]
+        public void AConfigSaveThatFails_LeavesTheSavedKeyWhereItWas()
+        {
+            InTempFolder(dir =>
+            {
+                var path = Path.Combine(dir, "config.json");
+                File.WriteAllText(path, "{ not json");
+                var secrets = new SecretStore(Path.Combine(dir, "secrets.json"));
+                ApiKeys.Save(secrets, "old-key", new AiSettings { Provider = AiProvider.Anthropic });
+
+                Assert.ThrowsAny<Exception>(() => SettingsDialog.SaveEdited(path, new PyNavisConfig.UserSettings(),
+                    OpenAiAt("https://api.openai.com/v1"), secrets, "new-key", removeKey: false));
+
+                Assert.Equal("old-key", secrets.Get(SecretStore.AiKeyName));
+                Assert.Equal("https://api.anthropic.com", ApiKeys.SavedFor(secrets));
+                Assert.Equal("{ not json", File.ReadAllText(path));
+            });
+        }
+
+        // Saved in the other order, a key that cannot be written (secrets.json locked,
+        // its folder unusable) must still be reported, saying the rest was saved.
+        [Fact]
+        public void AKeyThatCannotBeSaved_IsReported_AfterTheConfigWasSaved()
+        {
+            InTempFolder(dir =>
+            {
+                var path = Path.Combine(dir, "config.json");
+                var blocker = Path.Combine(dir, "not-a-folder");
+                File.WriteAllText(blocker, "");
+                var secrets = new SecretStore(Path.Combine(blocker, "secrets.json"));
+
+                var error = Assert.ThrowsAny<Exception>(() => SettingsDialog.SaveEdited(path,
+                    new PyNavisConfig.UserSettings(), OpenAiAt("https://api.openai.com/v1"), secrets,
+                    "new-key", removeKey: false));
+
+                Assert.Contains("API key", error.Message);
+                Assert.Equal(AiProvider.OpenAiCompatible, PyNavisConfig.Load(path).Ai.Provider);
+            });
+        }
+
+        [Fact]
+        public void ASave_WritesTheConfigAndTheKeyForTheNewEndpoint()
+        {
+            InTempFolder(dir =>
+            {
+                var path = Path.Combine(dir, "config.json");
+                var secrets = new SecretStore(Path.Combine(dir, "secrets.json"));
+
+                var outcome = SettingsDialog.SaveEdited(path, new PyNavisConfig.UserSettings(),
+                    OpenAiAt("https://api.openai.com/v1"), secrets, "new-key", removeKey: false);
+
+                Assert.Equal(SettingsDialog.Outcome.NeedsReload, outcome);
+                Assert.Equal(AiProvider.OpenAiCompatible, PyNavisConfig.Load(path).Ai.Provider);
+                Assert.Equal("new-key", secrets.Get(SecretStore.AiKeyName));
+                Assert.Equal("https://api.openai.com", ApiKeys.SavedFor(secrets));
             });
         }
     }

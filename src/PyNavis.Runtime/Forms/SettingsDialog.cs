@@ -98,15 +98,31 @@ namespace PyNavis.Runtime.Forms
             var parts = PartsOf(window);
             Live.Remove(window);
             if (!parts.Saved) return Outcome.Cancelled;
-            var edited = Collect(parts);
-            ApiKeys.Apply(secrets, EnteredKey(parts), parts.AiKeyRemove, edited.Ai ?? new AiSettings());
+            return SaveEdited(path, current, Collect(parts), secrets, EnteredKey(parts), parts.AiKeyRemove);
+        }
 
+        /// <summary>What Save writes: config.json, then the API key to the secret store.</summary>
+        internal static Outcome SaveEdited(string path, PyNavisConfig.UserSettings current,
+            PyNavisConfig.UserSettings edited, SecretStore secrets, string enteredKey, bool removeKey)
+        {
             // Compared before the write, because afterwards there is nothing left to
             // compare against and the restart notice would be a guess.
             var restart = !SameText(edited.PyNavisLibPath, current.PyNavisLibPath)
                           || !SameText(edited.CPythonPath, current.CPythonPath);
 
+            // config.json first: when it refuses the save (not valid JSON, locked), nothing
+            // has changed, instead of the key being bound to a provider the config does not
+            // name. The key goes only once the config is written.
             PyNavisConfig.SaveUserSettings(path, edited);
+            try
+            {
+                ApiKeys.Apply(secrets, enteredKey, removeKey, edited.Ai ?? new AiSettings());
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Settings saved, but the API key could not be written to " + secrets.FilePath, ex);
+                throw new InvalidOperationException("Everything else was saved, but not the API key: " + ex.Message, ex);
+            }
             return restart ? Outcome.NeedsRestart : Outcome.NeedsReload;
         }
 

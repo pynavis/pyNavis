@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using PyNavis.Runtime.Engine;
 using PyNavis.Runtime.Execution;
@@ -201,6 +202,49 @@ namespace PyNavis.Tests
 
             using (RunnerContext.Enter(new StringWriter()))
                 Assert.Equal(DialogsUnavailable, Assert.Throws<InvalidOperationException>(call).Message);
+        }
+
+        public static TheoryData<string> ViewpointDialogEntryPoints => new TheoryData<string>
+        {
+            "Deleter", "Reset", "Renamer", "Manager",
+        };
+
+        /// <summary>The viewpoint tools are modal too: under a run each must refuse before
+        /// building anything. xunit runs MTA, so a dialog that got as far as building its
+        /// window would fail with WPF's STA error instead of the dialogs message.</summary>
+        [Theory]
+        [MemberData(nameof(ViewpointDialogEntryPoints))]
+        public void ViewpointDialogs_InsideRun_Throw(string entryPoint)
+        {
+            var rows = new List<ViewpointRow>
+            {
+                new ViewpointRow { Guid = "a", Key = "0", ParentKey = "", Folder = "", Name = "North", Kind = "viewpoint" },
+            };
+            Action call;
+            switch (entryPoint)
+            {
+                case "Deleter": call = () => ViewpointDeleterDialog.Show(rows); break;
+                case "Reset": call = () => ViewpointResetDialog.Show(rows, "30 m/s"); break;
+                case "Renamer": call = () => ViewpointRenamerDialog.Show(rows, request => new ViewpointRenamerDialog.RenamePreview()); break;
+                case "Manager": call = () => ViewpointManagerDialog.Show(rows, action => new ViewpointManagerDialog.ManagerResult()); break;
+                default: throw new ArgumentOutOfRangeException(nameof(entryPoint));
+            }
+
+            using (RunnerContext.Enter(new StringWriter()))
+                Assert.Equal(DialogsUnavailable, Assert.Throws<InvalidOperationException>(call).Message);
+        }
+
+        [Fact]
+        public void ClashGrouper_InsideRun_Throws_InsteadOfWaitingOnAnInvisibleDialog()
+        {
+            // The grouper is modal like the pickers: under pynavis run nobody can
+            // click Apply or Cancel, so it must fail loudly, not hang the host.
+            using (RunnerContext.Enter(new StringWriter()))
+                Assert.Equal(DialogsUnavailable, Assert.Throws<InvalidOperationException>(() =>
+                    ClashGrouperDialog.Show(
+                        new System.Collections.Generic.List<ClashGrouperDialog.TestRow>(),
+                        new System.Collections.Generic.List<ClashGrouperDialog.RuleChoice>(),
+                        null)).Message);
         }
 
         [Fact]

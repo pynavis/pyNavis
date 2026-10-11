@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -146,6 +147,101 @@ namespace PyNavis.Tests
                 browser.ScopeForTest("Coordination");
 
                 Assert.Equal(10, browser.VisibleCount);
+            });
+        }
+
+        // Level 1 holds a nested Deck folder; Level 10 is a prefix sibling that a
+        // match without the separator would fold into Level 1.
+        private static List<ViewpointRow> Nested() => new List<ViewpointRow>
+        {
+            new ViewpointRow { Guid = "f0", Key = "0", ParentKey = "", Folder = "", Name = "Level 1", Kind = "folder", IsFolder = true },
+            new ViewpointRow { Guid = "a", Key = "0/0", ParentKey = "0", Folder = "Level 1", Name = "North", Kind = "viewpoint", Depth = 1 },
+            new ViewpointRow { Guid = "b", Key = "0/1", ParentKey = "0", Folder = "Level 1", Name = "South", Kind = "viewpoint", Depth = 1 },
+            new ViewpointRow { Guid = "f1", Key = "0/2", ParentKey = "0", Folder = "Level 1", Name = "Deck", Kind = "folder", IsFolder = true, Depth = 1 },
+            new ViewpointRow { Guid = "c", Key = "0/2/0", ParentKey = "0/2", Folder = "Level 1/Deck", Name = "East", Kind = "viewpoint", Depth = 2 },
+            new ViewpointRow { Guid = "f2", Key = "1", ParentKey = "", Folder = "", Name = "Level 10", Kind = "folder", IsFolder = true },
+            new ViewpointRow { Guid = "d", Key = "1/0", ParentKey = "1", Folder = "Level 10", Name = "Roof", Kind = "animation", Depth = 1 },
+            new ViewpointRow { Guid = "f3", Key = "2", ParentKey = "", Folder = "", Name = "Empty", Kind = "folder", IsFolder = true },
+        };
+
+        [Fact]
+        public void SelectEverythingInside_TakesTheFolderAndItsSubfolders_InOneGesture()
+        {
+            OnSta(() =>
+            {
+                var browser = new ViewpointBrowser(Nested(), DesignSystem.Tokens.For(false));
+                var fired = 0;
+                browser.SelectionChanged += () => fired++;
+
+                browser.SelectEverythingInside("Level 1");
+
+                Assert.Equal(1, fired);
+                Assert.Equal(new[] { "a", "b", "c" },
+                    browser.Selection.SelectedLeaves().ConvertAll(r => r.Guid));
+            });
+        }
+
+        [Fact]
+        public void SelectAllInFolder_TakesThatFolderOnly_InOneGesture()
+        {
+            OnSta(() =>
+            {
+                var browser = new ViewpointBrowser(Nested(), DesignSystem.Tokens.For(false));
+                var fired = 0;
+                browser.SelectionChanged += () => fired++;
+
+                browser.SelectAllInFolder("Level 1");
+
+                Assert.Equal(1, fired);
+                Assert.Equal(new[] { "a", "b" },
+                    browser.Selection.SelectedLeaves().ConvertAll(r => r.Guid));
+            });
+        }
+
+        [Fact]
+        public void Rail_CountsLeavesBelowEachFolder_AndWhatIsSelectedThere()
+        {
+            OnSta(() =>
+            {
+                var browser = new ViewpointBrowser(Nested(), DesignSystem.Tokens.For(false));
+                Assert.Equal(new[]
+                {
+                    ("All viewpoints", 4, 0, false),
+                    ("Level 1", 3, 0, true),
+                    ("Deck", 1, 0, true),
+                    ("Level 10", 1, 0, true),
+                    ("Empty", 0, 0, false),
+                }, browser.RailForTest);
+
+                // Ticking Deck carries East with it, and both sit under Level 1.
+                browser.Selection.Set("f1", true);
+
+                Assert.Equal(new[]
+                {
+                    ("All viewpoints", 4, 0, false),
+                    ("Level 1", 3, 2, true),
+                    ("Deck", 1, 1, true),
+                    ("Level 10", 1, 0, true),
+                    ("Empty", 0, 0, false),
+                }, browser.RailForTest);
+
+                // A collapsed folder hides what is under it; a re-snapshot recounts.
+                browser.CollapseAll();
+                Assert.Equal(new[] { "All viewpoints", "Level 1", "Level 10", "Empty" },
+                    browser.RailForTest.Select(r => r.Label));
+
+                var fewer = Nested();
+                fewer.RemoveAll(r => r.Guid == "b");
+                browser.SetRows(fewer);
+                browser.ExpandAll();
+                Assert.Equal(new[]
+                {
+                    ("All viewpoints", 3, 0, false),
+                    ("Level 1", 2, 0, true),
+                    ("Deck", 1, 0, true),
+                    ("Level 10", 1, 0, true),
+                    ("Empty", 0, 0, false),
+                }, browser.RailForTest);
             });
         }
 

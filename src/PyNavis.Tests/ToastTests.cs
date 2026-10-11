@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using PyNavis.Runtime.Forms;
 using Xunit;
@@ -146,6 +147,60 @@ namespace PyNavis.Tests
         public void CloseAll_WithNoToasts_IsSafe()
         {
             Toast.CloseAll(); // reload path must never throw, toasts or not
+        }
+
+        internal static void Raise(UIElement element, RoutedEvent routedEvent)
+        {
+            var args = routedEvent == UIElement.MouseLeftButtonDownEvent
+                ? new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+                : new MouseEventArgs(Mouse.PrimaryDevice, 0);
+            args.RoutedEvent = routedEvent;
+            element.RaiseEvent(args);
+        }
+
+        [Fact]
+        public void Hovering_Holds_A_Live_Toast_And_Leaving_Resumes_Its_Timer()
+        {
+            OnSta(() =>
+            {
+                try
+                {
+                    var window = Toast.Build(ToastLevel.Info, "m", null);
+                    var timer = Toast.Track(window, TimeSpan.FromSeconds(4));
+                    timer.Start();
+
+                    Raise(window, UIElement.MouseEnterEvent);
+                    Assert.False(timer.IsEnabled);
+                    Raise(window, UIElement.MouseLeaveEvent);
+                    Assert.True(timer.IsEnabled);
+                }
+                finally { Toast.CloseAll(); }
+            });
+        }
+
+        [Fact]
+        public void Leaving_A_Dismissed_Toast_Does_Not_Restart_Its_Timer()
+        {
+            // Hover, click to dismiss, then the mouse leaves during the fade. Restarting
+            // the timer here left it ticking forever: each Tick calls Dismiss, which
+            // returns early for a toast no longer live, so nothing stops it again and
+            // the closed window stays rooted.
+            OnSta(() =>
+            {
+                try
+                {
+                    var window = Toast.Build(ToastLevel.Info, "m", null);
+                    var timer = Toast.Track(window, TimeSpan.FromSeconds(4));
+                    timer.Start();
+
+                    Raise(window, UIElement.MouseEnterEvent);
+                    Raise(window, UIElement.MouseLeftButtonDownEvent);   // click dismisses
+                    Raise(window, UIElement.MouseLeaveEvent);
+
+                    Assert.False(timer.IsEnabled);
+                }
+                finally { Toast.CloseAll(); }
+            });
         }
     }
 }

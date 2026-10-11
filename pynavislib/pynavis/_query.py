@@ -129,12 +129,14 @@ def validate(query):
             if cond.op != 'has_category' and not cond.prop:
                 problems.append(prefix + 'prop must not be empty (except for has_category)')
 
-            # Check op is known
-            if cond.op not in OPS:
-                problems.append(prefix + 'unknown op: ' + cond.op)
+            # Check op is known. %r, not concatenation: an op read from an Excel
+            # cell can be None or a number, which must be reported, not raised.
+            known = isinstance(cond.op, str) and cond.op in OPS
+            if not known:
+                problems.append(prefix + 'unknown op: %r' % (cond.op,))
 
             # Check value presence if required by op
-            if OPS.get(cond.op, False) and cond.value is None:
+            elif OPS[cond.op] and cond.value is None:
                 problems.append(prefix + 'op ' + cond.op + ' requires a value')
 
     return problems

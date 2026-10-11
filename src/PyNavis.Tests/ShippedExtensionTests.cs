@@ -327,6 +327,212 @@ namespace PyNavis.Tests
             }
         }
 
+        // Shipped scripts build their UI top to bottom at module level, so a
+        // function called there can read a global the module only binds further
+        // down. Compiling cannot see that; it fails as a NameError at click time,
+        // and only on the branch that makes the call (Clash Grouper's Shift+Click
+        // died that way, but only for users with a saved custom rule chain).
+        // This walks each module with Python's own ast: for every module-level
+        // call of a module-level function, every module global that function
+        // reads, directly or through the module functions it calls, must already
+        // be bound. Function and lambda bodies run later, so they are skipped.
+        private const string ModuleOrderChecker = @"
+import ast
+
+SCOPES = tuple(getattr(ast, n) for n in ('FunctionDef', 'AsyncFunctionDef', 'Lambda', 'ClassDef')
+               if hasattr(ast, n))
+FUNCS = tuple(getattr(ast, n) for n in ('FunctionDef', 'AsyncFunctionDef') if hasattr(ast, n))
+
+
+def here(nodes):
+    stack = list(nodes)
+    while stack:
+        node = stack.pop()
+        yield node
+        if not isinstance(node, SCOPES):
+            stack.extend(ast.iter_child_nodes(node))
+
+
+def binds(nodes):
+    names = set()
+    for node in here(nodes):
+        if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Load):
+            names.add(node.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                names.add((alias.asname or alias.name).split('.')[0])
+        elif isinstance(node, SCOPES) and hasattr(node, 'name'):
+            names.add(node.name)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+    return names
+
+
+def reads_and_calls(func):
+    args = func.args
+    params = set()
+    for arg in list(args.args) + list(args.kwonlyargs) + [args.vararg, args.kwarg]:
+        if arg is not None:
+            params.add(getattr(arg, 'arg', arg))
+    declared = set()
+    loaded = set()
+    calls = set()
+    for node in here(func.body):
+        if isinstance(node, ast.Global):
+            declared.update(node.names)
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            loaded.add(node.id)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            calls.add(node.func.id)
+    local = (params | binds(func.body)) - declared
+    return loaded - local, calls - local
+
+
+def check(source, name):
+    tree = ast.parse(source, name)
+    funcs = dict((s.name, s) for s in tree.body if isinstance(s, FUNCS))
+    info = dict((n, reads_and_calls(f)) for n, f in funcs.items())
+
+    def needs(n, seen):
+        if n in seen:
+            return set()
+        seen.add(n)
+        reads, calls = info[n]
+        out = set(reads)
+        for callee in calls:
+            if callee in funcs:
+                out |= needs(callee, seen)
+        return out
+
+    module_names = binds(tree.body)
+    bound = set()
+    problems = []
+    for stmt in tree.body:
+        own = binds([stmt])
+        for node in here([stmt]):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id in funcs):
+                for late in sorted((needs(node.func.id, set()) & module_names) - bound - own):
+                    problems.append('%s line %d: %s() reads %s before the module binds it'
+                                    % (name, node.lineno, node.func.id, late))
+        bound |= own
+    return problems
+
+
+canary = check('def paint():\n    button.Visible = True\n\npaint()\nbutton = 1\n', 'canary')
+assert len(canary) == 1 and 'button' in canary[0], canary
+
+found = []
+for path in __paths__:
+    with open(path) as f:
+        found.extend(check(f.read(), path))
+print('\n'.join(found))
+";
+
+        [Fact]
+        public void ShippedPython_NeverCallsAFunctionBeforeTheGlobalsItReadsAreBound()
+        {
+            var paths = Directory.GetFiles(ShippedExtensionDir(), "*.py", SearchOption.AllDirectories)
+                .Concat(Directory.GetFiles(PyNavisLibTests.PyNavisLibDir, "*.py", SearchOption.AllDirectories))
+                .ToList();
+            Assert.Contains(paths, p => p.EndsWith(
+                Path.Combine("Clash_Grouper.pushbutton", "config.py"), StringComparison.OrdinalIgnoreCase));
+
+            var engine = new Runtime.Engine.IronPythonEngine();
+            var config = new Runtime.Engine.EngineConfig();
+            var stdlib = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lib");
+            if (Directory.Exists(stdlib)) config.SearchPaths.Add(stdlib);
+            engine.Initialize(config);
+
+            var output = new StringWriter();
+            var req = new Runtime.Engine.ScriptRequest { Code = ModuleOrderChecker, Output = output };
+            req.Globals["__paths__"] = paths;
+            var r = engine.Execute(req);
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.True(output.ToString().Trim().Length == 0,
+                "Module-level calls that read globals bound later:\n" + output);
+        }
+
+        private static Runtime.Engine.IronPythonEngine NewEngine()
+        {
+            var engine = new Runtime.Engine.IronPythonEngine();
+            var config = new Runtime.Engine.EngineConfig();
+            var stdlib = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lib");
+            if (Directory.Exists(stdlib)) config.SearchPaths.Add(stdlib);
+            engine.Initialize(config);
+            return engine;
+        }
+
+        [Fact]
+        public void NoShippedPython_OpensATextFileForWriting_WithoutAnEncoding()
+        {
+            // open(path, 'w') with no encoding writes the ANSI code page under
+            // IronPython on .NET Framework, with strict errors: one non-Latin name
+            // raises UnicodeEncodeError halfway through and leaves a truncated file
+            // behind. Walked with ast, so a call quoted in a comment or docstring
+            // does not count; a mode held in a variable is not judged.
+            var files = Directory.GetFiles(ShippedExtensionDir(), "*.py", SearchOption.AllDirectories)
+                .Concat(Directory.GetFiles(PyNavisLibTests.PyNavisLibDir, "*.py", SearchOption.AllDirectories))
+                .ToList();
+            Assert.NotEmpty(files);
+
+            var outw = new StringWriter();
+            var req = new Runtime.Engine.ScriptRequest
+            {
+                Code =
+                    "import ast, io\n" +
+                    "def literal(node):\n" +
+                    "    for attr in ('s', 'value'):\n" +
+                    "        value = getattr(node, attr, None)\n" +
+                    "        if isinstance(value, str):\n" +
+                    "            return value\n" +
+                    "    return None\n" +
+                    "def is_open(func):\n" +
+                    "    if isinstance(func, ast.Name):\n" +
+                    "        return func.id == 'open'\n" +
+                    "    return (isinstance(func, ast.Attribute) and func.attr == 'open'\n" +
+                    "            and isinstance(func.value, ast.Name) and func.value.id == 'io')\n" +
+                    "def offenders_in(source, name):\n" +
+                    "    found = []\n" +
+                    "    for node in ast.walk(ast.parse(source, name)):\n" +
+                    "        if not isinstance(node, ast.Call) or not is_open(node.func):\n" +
+                    "            continue\n" +
+                    "        keywords = dict((k.arg, k.value) for k in node.keywords)\n" +
+                    "        mode_node = node.args[1] if len(node.args) > 1 else keywords.get('mode')\n" +
+                    "        mode = 'r' if mode_node is None else literal(mode_node)\n" +
+                    "        if mode is None or 'b' in mode or not any(c in mode for c in 'wax+'):\n" +
+                    "            continue\n" +
+                    "        if 'encoding' in keywords or len(node.args) > 3:\n" +
+                    "            continue\n" +
+                    "        found.append('%s:%d' % (name, node.lineno))\n" +
+                    "    return found\n" +
+                    // the checker has to catch what it is for, or an empty result means nothing
+                    "sample = ('open(p, \"w\")\\n'\n" +
+                    "          'io.open(p, mode=\"a\")\\n'\n" +
+                    "          'open(p, \"w\", encoding=\"utf-8\")\\n'\n" +
+                    "          'io.open(p, \"w\", encoding=\"utf-8-sig\", newline=\"\")\\n'\n" +
+                    "          'open(p, \"wb\")\\n'\n" +
+                    "          'open(p)\\n'\n" +
+                    "          '# open(p, \"w\")\\n'\n" +
+                    "          'x = \"open(p, 1)\"\\n')\n" +
+                    "assert offenders_in(sample, 'sample') == ['sample:1', 'sample:2'], offenders_in(sample, 'sample')\n" +
+                    "offenders = []\n" +
+                    "for path in __paths__.split('|'):\n" +
+                    "    with io.open(path, 'r', encoding='utf-8-sig') as f:\n" +
+                    "        offenders.extend(offenders_in(f.read(), path))\n" +
+                    "print('offenders: ' + '; '.join(offenders))\n",
+                Output = outw,
+            };
+            req.Globals["__paths__"] = string.Join("|", files);
+
+            var r = NewEngine().Execute(req);
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            var report = outw.ToString().Trim();
+            Assert.True(report == "offenders:", report);
+        }
+
         [Fact]
         public void ViewpointsPanel_Ships_TheManageSectionStateAndSpeedsStacks()
         {

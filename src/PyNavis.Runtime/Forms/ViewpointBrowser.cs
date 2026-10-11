@@ -39,12 +39,31 @@ namespace PyNavis.Runtime.Forms
         private string _query = "", _scope = "", _chip;
         private int _anchor = -1;
         private bool _muted;
+        private readonly List<(string Label, int Count, int Selected, bool HasKids)> _railDrawn =
+            new List<(string Label, int Count, int Selected, bool HasKids)>();
+
+        // What the rail shows that only the row set decides, worked out once per
+        // row set (IndexRows). The rail redraws on every selection change, and
+        // rescanning every row for every folder made a click on a large document
+        // take a visible fraction of a second.
+        private sealed class RailFolder
+        {
+            public ViewpointRow Row;
+            public string Path;
+            public bool HasKids;
+            public int Leaves;
+        }
+
+        private List<RailFolder> _railFolders = new List<RailFolder>();
+        private HashSet<string> _parentKeys = new HashSet<string>(StringComparer.Ordinal);
+        private int _leafTotal;
 
         public ViewpointBrowser(IList<ViewpointRow> rows, Tokens t)
         {
             _t = t;
             _rows = rows;
             ViewpointFilter.MarkDuplicates(_rows);
+            IndexRows();
             Selection = new ViewpointSelection(_rows);
             Selection.Changed += () =>
             {
@@ -131,6 +150,7 @@ namespace PyNavis.Runtime.Forms
         {
             _rows = rows;
             ViewpointFilter.MarkDuplicates(_rows);
+            IndexRows();
             // Rebind rather than replace, so subscribers keep their handler.
             Selection.Rebind(_rows);
             _anchor = -1;
@@ -160,6 +180,11 @@ namespace PyNavis.Runtime.Forms
         public void ScopeForTest(string scope) { _scope = scope ?? ""; Recompute(); }
 
         public void ChipForTest(string chip) { _chip = chip; Recompute(); }
+
+        /// <summary>The rail as last drawn: label, leaves below, how many of
+        /// those are selected, and whether the row has a twist.</summary>
+        internal IReadOnlyList<(string Label, int Count, int Selected, bool HasKids)> RailForTest =>
+            _railDrawn;
 
         /// <summary>Drains the dispatcher so layout and container generation
         /// finish before a test inspects them.</summary>
@@ -578,8 +603,7 @@ namespace PyNavis.Runtime.Forms
 
         private IEnumerable<ViewpointRow> Folders => _rows.Where(r => r.IsFolder);
 
-        private bool HasChildren(ViewpointRow folder) =>
-            _rows.Any(r => r.ParentKey == folder.Key);
+        private bool HasChildren(ViewpointRow folder) => _parentKeys.Contains(folder.Key);
 
         private bool FolderVisible(ViewpointRow folder)
         {
@@ -639,7 +663,7 @@ namespace PyNavis.Runtime.Forms
             _anchor = -1;
             if (_showing != null)
                 _showing.Text = string.Format("Showing {0:n0} of {1:n0}",
-                    _visible.Count, _rows.Count(r => !r.IsFolder));
+                    _visible.Count, _leafTotal);
             RefreshRail();
         }
 
@@ -656,19 +680,57 @@ namespace PyNavis.Runtime.Forms
         {
             if (_railList == null) return;
             _railList.Children.Clear();
-            _railList.Children.Add(RailRow(null, "All viewpoints", 0, false,
-                _rows.Count(r => !r.IsFolder), 0));
+            _railDrawn.Clear();
+            _railList.Children.Add(RailRow(null, "", "All viewpoints", 0, false, _leafTotal, 0));
 
-            foreach (var folder in Folders)
+            var selectedUnder = Selection.SelectedUnderEach();
+            foreach (var folder in _railFolders)
             {
-                if (!FolderVisible(folder)) continue;
-                var count = _rows.Count(r => !r.IsFolder &&
-                    (r.Folder == FolderPathOf(folder) ||
-                     (r.Folder ?? "").StartsWith(FolderPathOf(folder) + "/", StringComparison.Ordinal)));
-                _railList.Children.Add(RailRow(folder, folder.Name, folder.Depth,
-                    HasChildren(folder), count, Selection.SelectedUnder(folder.Key)));
+                if (!FolderVisible(folder.Row)) continue;
+                var selected = folder.Row.Key != null
+                    && selectedUnder.TryGetValue(folder.Row.Key, out var n) ? n : 0;
+                _railList.Children.Add(RailRow(folder.Row, folder.Path, folder.Row.Name,
+                    folder.Row.Depth, folder.HasKids, folder.Leaves, selected));
             }
         }
+
+        /// <summary>Works out, in one pass over the rows, each folder's path, whether
+        /// it has children, and how many leaves sit in it or below it. A leaf in
+        /// "A/B/C" counts toward "A/B/C", "A/B" and "A": the same folders the old
+        /// per-folder test (equal, or starts with the path plus "/") matched.</summary>
+        private void IndexRows()
+        {
+            _parentKeys = new HashSet<string>(_rows.Select(r => r.ParentKey), StringComparer.Ordinal);
+            var leavesUnder = new Dictionary<string, int>(StringComparer.Ordinal);
+            _leafTotal = 0;
+            foreach (var row in _rows)
+            {
+                if (row.IsFolder) continue;
+                _leafTotal++;
+                var folder = row.Folder;
+                if (folder == null) continue;
+                Bump(leavesUnder, folder);
+                for (var cut = folder.IndexOf('/'); cut >= 0; cut = folder.IndexOf('/', cut + 1))
+                    Bump(leavesUnder, folder.Substring(0, cut));
+            }
+
+            _railFolders = new List<RailFolder>();
+            foreach (var row in _rows)
+            {
+                if (!row.IsFolder) continue;
+                var path = FolderPathOf(row);
+                _railFolders.Add(new RailFolder
+                {
+                    Row = row,
+                    Path = path,
+                    HasKids = HasChildren(row),
+                    Leaves = path != null && leavesUnder.TryGetValue(path, out var n) ? n : 0,
+                });
+            }
+        }
+
+        private static void Bump(Dictionary<string, int> counts, string key) =>
+            counts[key] = counts.TryGetValue(key, out var n) ? n + 1 : 1;
 
         private static string FolderPathOf(ViewpointRow folder) =>
             string.IsNullOrEmpty(folder.Folder) ? folder.Name : folder.Folder + "/" + folder.Name;
@@ -691,10 +753,10 @@ namespace PyNavis.Runtime.Forms
         private static readonly Geometry DoubleChevronDown =
             Geometry.Parse("M 0,0 L 4.5,4 L 9,0 M 0,5.5 L 4.5,9.5 L 9,5.5");
 
-        private FrameworkElement RailRow(ViewpointRow folder, string label, int depth,
+        private FrameworkElement RailRow(ViewpointRow folder, string path, string label, int depth,
             bool hasKids, int count, int selected)
         {
-            var path = folder == null ? "" : FolderPathOf(folder);
+            _railDrawn.Add((label, count, selected, hasKids));
             var row = new DockPanel
             {
                 Height = 28,
@@ -786,16 +848,31 @@ namespace PyNavis.Runtime.Forms
             menu.Items.Add(new Separator());
             AddItem(menu, path == null ? "Show all viewpoints" : "Show only this folder",
                 () => ScopeTo(path ?? ""));
-            AddItem(menu, "Select everything inside", () =>
-            {
-                var prefix = path + "/";
-                foreach (var row in _rows)
-                    if (!row.IsFolder && (row.Folder == path
-                        || (row.Folder ?? "").StartsWith(prefix, StringComparison.Ordinal)))
-                        Selection.Set(row.Guid, true);
-                RefreshRows();
-            }, path != null);
+            AddItem(menu, "Select everything inside",
+                () => SelectEverythingInside(path), path != null);
             menu.IsOpen = true;
+        }
+
+        /// <summary>Adds every leaf in the folder at <paramref name="path"/> and
+        /// in its subfolders to the selection.</summary>
+        internal void SelectEverythingInside(string path)
+        {
+            var prefix = path + "/";
+            Selection.SetMany(_rows
+                .Where(row => !row.IsFolder && (row.Folder == path
+                    || (row.Folder ?? "").StartsWith(prefix, StringComparison.Ordinal)))
+                .Select(row => row.Guid), true);
+            RefreshRows();
+        }
+
+        /// <summary>Adds the leaves directly in <paramref name="folder"/>, not its
+        /// subfolders, to the selection.</summary>
+        internal void SelectAllInFolder(string folder)
+        {
+            Selection.SetMany(_rows
+                .Where(other => !other.IsFolder && other.Folder == folder)
+                .Select(other => other.Guid), true);
+            RefreshRows();
         }
 
         private string FolderPathAt(DependencyObject source)
@@ -820,13 +897,8 @@ namespace PyNavis.Runtime.Forms
             var menu = new ContextMenu();
             AddItem(menu, "Go to this viewpoint", () => Activated?.Invoke(row), row != null);
             menu.Items.Add(new Separator());
-            AddItem(menu, "Select all in this folder", () =>
-            {
-                foreach (var other in _rows)
-                    if (!other.IsFolder && other.Folder == row.Folder)
-                        Selection.Set(other.Guid, true);
-                RefreshRows();
-            }, row != null);
+            AddItem(menu, "Select all in this folder",
+                () => SelectAllInFolder(row.Folder), row != null);
             AddItem(menu, "Show this folder in the tree",
                 () => ScopeTo(row.Folder), row != null);
             menu.Items.Add(new Separator());

@@ -5,7 +5,8 @@
 #      and merges a <Components> block for this year into the bundle's PackageContents.xml,
 #      leaving any other year's block alone.
 #   3. Writes %APPDATA%\pyNavis\config.json pointing the runtime at this repo's bin folder,
-#      so C#/python changes only need a rebuild (+ Navisworks restart for C#), never a redeploy.
+#      so C#/python changes only need a rebuild (+ Navisworks restart for C#), never a redeploy,
+#      and adds this repo's extensions folder to the extension roots already listed there.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File tools\deploy-dev.ps1 [-Version 2026] [-NavisDir <path>]
 # Run with Navisworks CLOSED (the loader DLL is locked while it runs).
@@ -195,7 +196,17 @@ if (Test-Path $configPath) {
     }
 }
 $config["runtime$Version"] = $runtimeDir
-$config["extensions"] = @(Join-Path $repo 'extensions')
+# The roots already listed (a shared office folder, another checkout) stay, and this repo's
+# extensions folder is added when it is missing: a deploy never drops a root.
+$repoExtensions = Join-Path $repo 'extensions'
+$roots = New-Object System.Collections.Generic.List[string]
+foreach ($item in @($config['extensions'])) {
+    if ($item -is [string] -and $item.Trim()) { $roots.Add($item) }
+}
+$listed = @($roots | Where-Object { $_.TrimEnd('\', '/') -eq $repoExtensions.TrimEnd('\', '/') })
+if ($listed.Count -eq 0) { $roots.Add($repoExtensions) }
+# A plain string array, so ConvertTo-Json writes a JSON array even for a single root.
+$config['extensions'] = [string[]]$roots.ToArray()
 $config["pynavislib"] = Join-Path $repo 'pynavislib'
 
 # -Depth: the default of 2 flattens anything nested deeper into a type-name string.

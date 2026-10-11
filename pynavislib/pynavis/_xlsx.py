@@ -10,6 +10,7 @@ rather than a shared-strings table, so a workbook this module writes never
 needs ``xl/sharedStrings.xml``. Reading still understands shared strings,
 since files written by Excel itself use that table.
 """
+import math
 import re
 from xml.dom import minidom
 
@@ -189,11 +190,21 @@ def _cols_xml(rows):
 
 
 def _cell_xml(ref, value, style_attr):
+    """One cell's XML: None is no cell, a bool a boolean cell, an int or a finite
+    float a number cell, anything else a text cell.
+
+    An infinite or NaN float is written as the text 'inf', '-inf' or 'nan': a
+    number cell has no way to hold it, and str(value) in a <v> element makes
+    Excel call the whole workbook corrupt. It reads back as that text."""
     if value is None:
         return ''
     if isinstance(value, bool):
         return '<c r="%s"%s t="b"><v>%d</v></c>' % (ref, style_attr, 1 if value else 0)
-    if isinstance(value, (int, float)):
+    if isinstance(value, float) and math.isnan(value):
+        value = 'nan'
+    elif isinstance(value, float) and math.isinf(value):
+        value = 'inf' if value > 0 else '-inf'
+    elif isinstance(value, (int, float)):
         return '<c r="%s"%s><v>%s</v></c>' % (ref, style_attr, str(value))
     text = value if isinstance(value, str) else str(value)
     return '<c r="%s"%s t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>' % (
@@ -214,9 +225,32 @@ def _sheet_xml(rows, header_row_count):
     return SHEET_TEMPLATE % (_cols_xml(rows), ''.join(row_parts))
 
 
+# Excel refuses these anywhere in a sheet name.
+_SHEET_NAME_FORBIDDEN = '[]:*?/\\'
+_SHEET_NAME_MAX = 31
+
+
+def check_sheet_name(name):
+    """Raise ValueError when Excel would refuse ``name`` as a sheet name: empty,
+    longer than 31 characters, holding any of [ ] : * ? / \\, or starting or
+    ending with an apostrophe. A workbook with such a name opens as corrupt."""
+    if not name:
+        raise ValueError('A sheet name cannot be empty.')
+    if len(name) > _SHEET_NAME_MAX:
+        raise ValueError('Sheet name %r is %d characters long; Excel allows at most %d.'
+                         % (name, len(name), _SHEET_NAME_MAX))
+    bad = [ch for ch in _SHEET_NAME_FORBIDDEN if ch in name]
+    if bad:
+        raise ValueError('Sheet name %r cannot contain %s: Excel forbids [ ] : * ? / \\ in sheet names.'
+                         % (name, ' '.join(bad)))
+    if name.startswith("'") or name.endswith("'"):
+        raise ValueError('Sheet name %r cannot start or end with an apostrophe.' % (name,))
+
+
 def build_workbook(sheets, header_rows=None):
     """Ordered [(sheet_name, rows), ...] -> {arcname: xml_string} for the
-    whole package.
+    whole package. Every name must pass ``check_sheet_name``, or this raises
+    ValueError before building anything.
 
     Sheets land in the workbook in the order given, so the caller owns
     sheet order outright: this used to sort names alphabetically, which
@@ -230,6 +264,8 @@ def build_workbook(sheets, header_rows=None):
     header_rows = header_rows or {}
     pairs = list(sheets)
     names = [pair[0] for pair in pairs]
+    for name in names:
+        check_sheet_name(name)
 
     parts = {}
     sheet_entries = []

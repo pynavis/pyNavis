@@ -44,8 +44,11 @@ def _keep_aside_if_corrupt(path):
             return
     except Exception:
         pass
-    from pynavis import _atomic
-    _atomic.write_text(path + '.corrupt', text)
+    # A byte-for-byte copy: writing the decoded text back would re-encode it,
+    # and the point of the copy is the user's original bytes. A failed copy
+    # raises, so store() stops before it overwrites them.
+    import shutil
+    shutil.copyfile(path, path + '.corrupt')
 
 
 def store(path, key, value):

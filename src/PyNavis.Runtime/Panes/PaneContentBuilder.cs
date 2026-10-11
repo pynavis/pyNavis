@@ -1,7 +1,5 @@
 using System;
-using System.IO;
 using System.Windows;
-using System.Windows.Markup;
 using PyNavis.Runtime.Bundles;
 using PyNavis.Runtime.Engine;
 using PyNavis.Runtime.Execution;
@@ -57,20 +55,18 @@ namespace PyNavis.Runtime.Panes
 
         private static UIElement LoadXaml(string path)
         {
-            using (var stream = File.OpenRead(path))
+            // Relative URIs in pane.xaml (Image Source="icon.png") resolve beside it.
+            var root = Forms.XamlHost.Read(path);
+            // A bundle may ship a <Window> by habit; a Window cannot be a child, so
+            // take its content instead of failing.
+            var window = root as Window;
+            if (window != null)
             {
-                var root = XamlReader.Load(stream);
-                // A bundle may ship a <Window> by habit; a Window cannot be a child, so
-                // take its content instead of failing.
-                var window = root as Window;
-                if (window != null)
-                {
-                    var inner = window.Content as UIElement;
-                    window.Content = null;
-                    return inner;
-                }
-                return (UIElement)root;
+                var inner = window.Content as UIElement;
+                window.Content = null;
+                return inner;
             }
+            return (UIElement)root;
         }
 
         private static void RunScript(DockPaneModel model, UIElement content)

@@ -75,6 +75,25 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void TheAnimationsShortcut_IsOneGesture_SoTheSelectionChangesOnce()
+        {
+            OnSta(() =>
+            {
+                var rows = Rows();
+                rows.Add(new ViewpointRow { Guid = "d", Key = "2", ParentKey = "", Folder = "", Name = "Fly", Kind = "animation" });
+                rows.Add(new ViewpointRow { Guid = "e", Key = "3", ParentKey = "", Folder = "", Name = "Orbit", Kind = "animation" });
+                var window = ViewpointResetDialog.Build(rows, Summary);
+                var fired = 0;
+                ViewpointResetDialog.SelectionOf(window).Changed += () => fired++;
+
+                ViewpointResetDialog.SelectAnimationsForTest(window);
+
+                Assert.Equal(1, fired);
+                Assert.Equal(3, ViewpointResetDialog.SelectedCountOf(window));
+            });
+        }
+
+        [Fact]
         public void ASummaryOfNothing_StillBuilds_SoTheDialogNeverThrowsOnEmptySettings()
         {
             // The script refuses to open the dialog when all three toggles are off,

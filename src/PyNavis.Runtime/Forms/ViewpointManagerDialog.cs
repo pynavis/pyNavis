@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using PyNavis.Runtime.Execution.Runner;
 using PyNavis.Runtime.Output;
 using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
 
@@ -51,6 +52,7 @@ namespace PyNavis.Runtime.Forms
 
         public static void Show(IList<ViewpointRow> rows, Func<ManagerAction, ManagerResult> execute)
         {
+            RunnerContext.ThrowIfActive();
             var window = Build(rows, execute);
             window.ShowDialog();
             Live.Remove(window);

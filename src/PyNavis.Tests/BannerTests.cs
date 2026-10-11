@@ -115,5 +115,72 @@ namespace PyNavis.Tests
         {
             Banner.CloseAll(); // reload path must never throw, banner or not
         }
+
+        [Fact]
+        public void Hovering_Holds_The_Live_Banner_And_Leaving_Resumes_Its_Timer()
+        {
+            OnSta(() =>
+            {
+                try
+                {
+                    var window = Banner.Build(ToastLevel.Info, "m", null);
+                    var timer = Banner.Track(window, TimeSpan.FromSeconds(8));
+                    timer.Start();
+
+                    ToastTests.Raise(window, UIElement.MouseEnterEvent);
+                    Assert.False(timer.IsEnabled);
+                    ToastTests.Raise(window, UIElement.MouseLeaveEvent);
+                    Assert.True(timer.IsEnabled);
+                }
+                finally { Banner.CloseAll(); }
+            });
+        }
+
+        [Fact]
+        public void Leaving_A_Dismissed_Banner_Does_Not_Restart_Its_Timer()
+        {
+            // Hover, click to dismiss, then the mouse leaves during the fade: a restarted
+            // timer would tick forever, since Dismiss returns early once the banner is
+            // no longer the live one.
+            OnSta(() =>
+            {
+                try
+                {
+                    var window = Banner.Build(ToastLevel.Info, "m", null);
+                    var timer = Banner.Track(window, TimeSpan.FromSeconds(8));
+                    timer.Start();
+
+                    ToastTests.Raise(window, UIElement.MouseEnterEvent);
+                    ToastTests.Raise(window, UIElement.MouseLeftButtonDownEvent);   // click dismisses
+                    ToastTests.Raise(window, UIElement.MouseLeaveEvent);
+
+                    Assert.False(timer.IsEnabled);
+                }
+                finally { Banner.CloseAll(); }
+            });
+        }
+
+        [Fact]
+        public void Leaving_A_Replaced_Banner_Does_Not_Restart_Its_Timer()
+        {
+            // A new banner replaces the hovered one through CloseAll; the old window's
+            // MouseLeave must not bring its timer back.
+            OnSta(() =>
+            {
+                try
+                {
+                    var window = Banner.Build(ToastLevel.Info, "m", null);
+                    var timer = Banner.Track(window, TimeSpan.FromSeconds(8));
+                    timer.Start();
+
+                    ToastTests.Raise(window, UIElement.MouseEnterEvent);
+                    Banner.CloseAll();
+                    ToastTests.Raise(window, UIElement.MouseLeaveEvent);
+
+                    Assert.False(timer.IsEnabled);
+                }
+                finally { Banner.CloseAll(); }
+            });
+        }
     }
 }

@@ -1,5 +1,9 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Web.Script.Serialization;
 using PyNavis.Cli;
 using PyNavis.Runtime.Config;
 using Xunit;
@@ -151,6 +155,87 @@ namespace PyNavis.Tests
             Assert.Equal(new[] { @"D:\existing", extDir }, config.ExtensionPaths);
             Assert.Contains("runtime2026", File.ReadAllText(_configPath));
         }
+
+        // A config.json edited by hand and left with a stray comma must not be replaced
+        // by one holding only the extension list: the runtime key the loader boots from,
+        // the shortcut bindings and the for-life pane slots would all go with it.
+        [Fact]
+        public void ExtensionsAdd_RefusesToOverwriteAConfigThatIsNotValidJson()
+        {
+            const string broken = "{ \"runtime2026\": \"D:\\\\r\", \"extensions\": [\"D:\\\\existing\"], }";
+            File.WriteAllText(_configPath, broken);
+            var extDir = Path.Combine(_dir, "MyTools");
+            Directory.CreateDirectory(extDir);
+
+            Assert.NotEqual(0, _cli.ExtensionsAdd(extDir));
+
+            Assert.Equal(broken, File.ReadAllText(_configPath));
+            Assert.Contains("nothing was changed", _out.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(_configPath + ".tmp"));
+        }
+
+        [Fact]
+        public void ExtensionsList_ReportsAConfigThatIsNotValidJson_InsteadOfAnEmptyList()
+        {
+            File.WriteAllText(_configPath, "{ \"extensions\": [\"D:\\existing\"], }");
+
+            Assert.NotEqual(0, _cli.ExtensionsList());
+
+            Assert.DoesNotContain("No extension roots configured", _out.ToString());
+            Assert.Contains(_configPath, _out.ToString());
+        }
+
+        [Fact]
+        public void ExtensionsAdd_KeepsEveryOtherKey_NestedOnesIncluded()
+        {
+            File.WriteAllText(_configPath,
+                "{ \"runtime2026\": \"D:\\\\r\"," +
+                "  \"shortcuts\": { \"bindings\": { \"pyNavis.extension/Clash.tab/Grouper.pushbutton\": \"Ctrl+Shift+G\", \"off\": null } }," +
+                "  \"panes\": { \"assignments\": { \"pyNavis.extension/Ask.dockpane\": 2 }, \"extraSlots\": 3 }," +
+                "  \"layout\": { \"settings\": { \"width\": 640.5 } }," +
+                "  \"telemetry\": { \"enabled\": true }," +
+                "  \"extensions\": [] }");
+            var extDir = Path.Combine(_dir, "MyTools");
+            Directory.CreateDirectory(extDir);
+
+            Assert.Equal(0, _cli.ExtensionsAdd(extDir));
+
+            var data = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(File.ReadAllText(_configPath));
+            Assert.Equal(@"D:\r", data["runtime2026"]);
+            var bindings = Map(Map(data["shortcuts"])["bindings"]);
+            Assert.Equal("Ctrl+Shift+G", bindings["pyNavis.extension/Clash.tab/Grouper.pushbutton"]);
+            Assert.True(bindings.ContainsKey("off"));
+            Assert.Null(bindings["off"]);
+            var panes = Map(data["panes"]);
+            Assert.Equal(2, Convert.ToInt32(Map(panes["assignments"])["pyNavis.extension/Ask.dockpane"]));
+            Assert.Equal(3, Convert.ToInt32(panes["extraSlots"]));
+            Assert.Equal(640.5, Convert.ToDouble(Map(Map(data["layout"])["settings"])["width"]));
+            Assert.Equal(true, Map(data["telemetry"])["enabled"]);
+            Assert.Equal(new[] { extDir }, ((IEnumerable)data["extensions"]).Cast<string>());
+            Assert.False(File.Exists(_configPath + ".tmp"));
+        }
+
+        // JavaScriptSerializer stops at 2,097,152 characters by default. A config past
+        // that read as empty and was replaced by the extension list alone.
+        [Fact]
+        public void ExtensionsAdd_ReadsAndKeepsAConfigPastTheSerializersDefaultLength()
+        {
+            var notes = new string('x', 2200000);
+            File.WriteAllText(_configPath,
+                "{ \"runtime2026\": \"D:\\\\r\", \"notes\": \"" + notes + "\", \"extensions\": [\"D:\\\\existing\"] }");
+            var extDir = Path.Combine(_dir, "MyTools");
+            Directory.CreateDirectory(extDir);
+
+            Assert.Equal(0, _cli.ExtensionsAdd(extDir));
+
+            var data = new JavaScriptSerializer { MaxJsonLength = int.MaxValue }
+                .Deserialize<Dictionary<string, object>>(File.ReadAllText(_configPath));
+            Assert.Equal(@"D:\r", data["runtime2026"]);
+            Assert.Equal(notes.Length, ((string)data["notes"]).Length);
+            Assert.Equal(new[] { @"D:\existing", extDir }, ((IEnumerable)data["extensions"]).Cast<string>());
+        }
+
+        private static Dictionary<string, object> Map(object node) => (Dictionary<string, object>)node;
 
         [Fact]
         public void Env_ReportsVersionAndAttachmentState()

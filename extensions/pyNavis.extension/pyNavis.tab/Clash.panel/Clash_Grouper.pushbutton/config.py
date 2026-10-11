@@ -175,13 +175,16 @@ def renumber():
         rule_rows.Children[index].Children[0].Text = '%d.' % (index + 1)
 
 
-for saved_id in values['rules']:
-    if saved_id in RULE_IDS:
-        add_rule_row(saved_id)
-
+# Before the saved rows below: add_rule_row paints the mode, which shows or
+# hides this button, so it has to exist first. The rows go into rule_rows,
+# which is already in place above it, so the layout is unchanged.
 add_btn = DesignSystem.Quiet(T, 'Add rule', lambda: add_rule_row())
 add_btn.HorizontalAlignment = HorizontalAlignment.Left
 body.Children.Add(add_btn)
+
+for saved_id in values['rules']:
+    if saved_id in RULE_IDS:
+        add_rule_row(saved_id)
 
 section('Cluster distance')
 tolerance_box = TextBox()

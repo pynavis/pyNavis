@@ -70,5 +70,44 @@ namespace PyNavis.Tests
             MakeHook(ext, "doc-saved.py");
             Assert.Equal("MyExt:doc-saved", BundleParser.ParseExtension(ext).Hooks[0].Id);
         }
+
+        // A hooks folder that cannot be listed (no permission, a broken reparse point, a
+        // cloud placeholder that went offline) used to throw out of ParseExtension, and
+        // the whole extension root was skipped: no ribbon. It must cost only the hooks,
+        // and say so.
+        [Fact]
+        public void An_Unlistable_Hooks_Folder_Costs_Only_The_Hooks_And_Is_Reported()
+        {
+            var ext = ExtDir();
+            MakeHook(ext, "doc-opened.py");
+            var button = Path.Combine(ext, "Tools.tab", "General.panel", "Hello.pushbutton");
+            Directory.CreateDirectory(button);
+            File.WriteAllText(Path.Combine(button, "script.py"), "print(1)");
+            var hooks = Path.Combine(ext, "hooks");
+
+            var user = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+            var deny = new System.Security.AccessControl.FileSystemAccessRule(user,
+                System.Security.AccessControl.FileSystemRights.ListDirectory,
+                System.Security.AccessControl.AccessControlType.Deny);
+            var security = Directory.GetAccessControl(hooks);
+            security.AddAccessRule(deny);
+            Directory.SetAccessControl(hooks, security);
+            try
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => Directory.GetFiles(hooks, "*.py")); // the premise
+
+                var model = BundleParser.ParseExtension(ext);
+
+                Assert.Empty(model.Hooks);
+                Assert.Single(model.Tabs);
+                var problem = Assert.Single(model.Problems);
+                Assert.Contains(hooks, problem);
+            }
+            finally
+            {
+                security.RemoveAccessRule(deny);
+                Directory.SetAccessControl(hooks, security);
+            }
+        }
     }
 }

@@ -195,6 +195,27 @@ namespace PyNavis.Tests
             });
         }
 
+        /// <summary>double.TryParse takes "NaN" and "Infinity", and NaN slips past
+        /// both range checks because every comparison with it is false. AskNumber
+        /// promises a real number in [min, max], so neither may enable OK.</summary>
+        [Theory]
+        [InlineData("NaN", 0.0, 10.0)]
+        [InlineData("NaN", null, null)]
+        [InlineData("Infinity", null, null)]
+        [InlineData("-Infinity", null, null)]
+        [InlineData("Infinity", 0.0, null)]
+        [InlineData("-Infinity", null, 10.0)]
+        public void AskNumber_Rejects_NonFinite_Numbers(string text, double? min, double? max)
+        {
+            OnSta(() =>
+            {
+                var window = Pickers.BuildAskNumber("Tolerance", min, max, initial: 5);
+                Assert.True(Pickers.OkEnabledOf(window));
+                Pickers.SetNumberTextForTest(window, text);
+                Assert.False(Pickers.OkEnabledOf(window));
+            });
+        }
+
         /// <summary>
         /// The row template binds Label and Checked, and WPF binding resolves CLR
         /// PROPERTIES only: a public field renders as nothing at all, silently, which

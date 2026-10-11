@@ -223,14 +223,23 @@ namespace PyNavis.Cli
                 var built = File.Exists(Path.Combine(_binRoot, year, "PyNavis.dll")) ? "built" : "no build";
                 _out.WriteLine($"  NW{year} : {state} ({built})");
             }
-            foreach (var path in ReadConfig().Extensions)
+            var config = ReadConfig();
+            if (config.Error != null)
+                _out.WriteLine($"Warning: could not read {_configPath} ({config.Error}), so its extension roots are not shown.");
+            foreach (var path in config.Extensions)
                 _out.WriteLine($"  extension root : {path}");
             return 0;
         }
 
         public int ExtensionsList()
         {
-            var extensions = ReadConfig().Extensions;
+            var config = ReadConfig();
+            if (config.Error != null)
+            {
+                _out.WriteLine($"Could not read {_configPath} ({config.Error}). Fix the file or delete it.");
+                return 1;
+            }
+            var extensions = config.Extensions;
             if (extensions.Count == 0)
                 _out.WriteLine("No extension roots configured.");
             foreach (var path in extensions)
@@ -248,6 +257,14 @@ namespace PyNavis.Cli
             }
 
             var config = ReadConfig();
+            if (config.Error != null)
+            {
+                // The whole tree goes back into the file, so carrying on from an empty read
+                // would replace the runtime key, the shortcut bindings and the for-life pane
+                // slots with the extension list alone. Same refusal as the runtime's saves.
+                _out.WriteLine($"Could not read {_configPath} ({config.Error}), so nothing was changed. Fix the file or delete it, then try again.");
+                return 1;
+            }
             if (config.Extensions.Contains(full, StringComparer.OrdinalIgnoreCase))
             {
                 _out.WriteLine($"Already configured: {full}");
@@ -256,18 +273,29 @@ namespace PyNavis.Cli
 
             config.Extensions.Add(full);
             config.Data["extensions"] = config.Extensions.ToArray();
-            Directory.CreateDirectory(Path.GetDirectoryName(_configPath));
-            File.WriteAllText(_configPath, new JavaScriptSerializer().Serialize(config.Data));
+            WriteConfig(config.Data);
             _out.WriteLine($"Added extension root: {full}");
             return 0;
         }
+
+        // JavaScriptSerializer stops at 2,097,152 characters unless told otherwise, and a
+        // config past that must still read and write whole rather than fail half way.
+        private static JavaScriptSerializer Serializer() =>
+            new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
 
         private sealed class ConfigState
         {
             public Dictionary<string, object> Data = new Dictionary<string, object>();
             public List<string> Extensions = new List<string>();
+            /// <summary>Why config.json could not be read, or null when it was (or is absent).</summary>
+            public string Error;
         }
 
+        /// <summary>
+        /// config.json as a tree, plus its extension roots. A missing or empty file is an
+        /// empty tree. A file that exists but cannot be read or parsed sets Error instead,
+        /// and a caller that writes must then refuse: saving the empty tree would wipe it.
+        /// </summary>
         private ConfigState ReadConfig()
         {
             var state = new ConfigState();
@@ -275,14 +303,16 @@ namespace PyNavis.Cli
             {
                 if (File.Exists(_configPath))
                 {
-                    state.Data = new JavaScriptSerializer()
-                        .Deserialize<Dictionary<string, object>>(File.ReadAllText(_configPath))
-                        ?? new Dictionary<string, object>();
+                    var text = File.ReadAllText(_configPath);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        state.Data = Serializer().Deserialize<Dictionary<string, object>>(text)
+                            ?? new Dictionary<string, object>();
                 }
             }
             catch (Exception ex)
             {
-                _out.WriteLine($"Warning: could not parse {_configPath} ({ex.Message}) - treating as empty.");
+                state.Error = ex.Message;
+                return state;
             }
 
             if (state.Data.TryGetValue("extensions", out var raw) && raw is IEnumerable list && !(raw is string))
@@ -290,6 +320,26 @@ namespace PyNavis.Cli
                     if (item is string s && !string.IsNullOrWhiteSpace(s))
                         state.Extensions.Add(s);
             return state;
+        }
+
+        /// <summary>
+        /// Writes beside config.json and swaps it in, as the runtime does, so a crash or a
+        /// scan mid-write can never leave a truncated file for the loader to boot from.
+        /// </summary>
+        private void WriteConfig(Dictionary<string, object> data)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_configPath));
+            var temp = _configPath + ".tmp";
+            try
+            {
+                File.WriteAllText(temp, Serializer().Serialize(data));
+                if (File.Exists(_configPath)) File.Replace(temp, _configPath, null);
+                else File.Move(temp, _configPath);
+            }
+            finally
+            {
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+            }
         }
     }
 }

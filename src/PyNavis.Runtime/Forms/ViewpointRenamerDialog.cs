@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using PyNavis.Runtime.Execution.Runner;
 using PyNavis.Runtime.Output;
 using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
 
@@ -78,6 +79,7 @@ namespace PyNavis.Runtime.Forms
         public static RenameRequest Show(
             IList<ViewpointRow> rows, Func<RenameRequest, RenamePreview> preview)
         {
+            RunnerContext.ThrowIfActive();
             var window = Build(rows, preview);
             window.ShowDialog();
             var parts = PartsOf(window);
@@ -115,6 +117,11 @@ namespace PyNavis.Runtime.Forms
             PartsOf(window).Shell.Primary.IsEnabled;
 
         public static string MessageOf(Window window) => PartsOf(window).Message.Text;
+
+        /// <summary>The lines of one diff row, top to bottom.</summary>
+        internal static string[] DiffTextsOf(Window window, int row) =>
+            ((Panel)PartsOf(window).DiffRows.Children[row]).Children
+                .OfType<TextBlock>().Select(text => text.Text).ToArray();
 
         public static RenameRequest RequestOf(Window window) => RequestOf(PartsOf(window));
 
@@ -403,7 +410,7 @@ namespace PyNavis.Runtime.Forms
             next.TextTrimming = TextTrimming.CharacterEllipsis;
             stack.Children.Add(next);
             if (item.Collision)
-                stack.Children.Add(DesignSystem.Text("collides with a sibling", 11, t.Error));
+                stack.Children.Add(DesignSystem.Text("Collides with a sibling", 11, t.Error));
             return stack;
         }
     }

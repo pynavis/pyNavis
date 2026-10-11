@@ -46,6 +46,14 @@ namespace PyNavis.Runtime.Forms
             Raise();
         }
 
+        /// <summary>Ticks or clears every guid given, folders carrying their
+        /// descendants, as one gesture: Changed fires once however many match.</summary>
+        public void SetMany(IEnumerable<string> guids, bool on)
+        {
+            foreach (var guid in guids) Apply(guid, on);
+            Raise();
+        }
+
         public void SetRange(IList<int> visible, int from, int to, bool on)
         {
             var lo = Math.Max(0, Math.Min(from, to));
@@ -89,6 +97,26 @@ namespace PyNavis.Runtime.Forms
                     && row.Key.StartsWith(prefix, StringComparison.Ordinal)) n++;
             }
             return n;
+        }
+
+        /// <summary>SelectedUnder for every folder at once, keyed by folder key:
+        /// one pass over the selection crediting each row to each ancestor, so the
+        /// rail can redraw without a scan per folder. Folders with nothing
+        /// selected below are absent.</summary>
+        public Dictionary<string, int> SelectedUnderEach()
+        {
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var guid in _selected)
+            {
+                if (!_byGuid.TryGetValue(guid, out var row) || row.Key == null) continue;
+                var key = row.Key;
+                for (var cut = key.IndexOf('/'); cut >= 0; cut = key.IndexOf('/', cut + 1))
+                {
+                    var ancestor = key.Substring(0, cut);
+                    counts[ancestor] = counts.TryGetValue(ancestor, out var n) ? n + 1 : 1;
+                }
+            }
+            return counts;
         }
 
         /// <summary>"412 viewpoints, 3 animations, 2 folders", empty at zero.

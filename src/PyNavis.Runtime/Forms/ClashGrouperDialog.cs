@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
+using PyNavis.Runtime.Execution.Runner;
 using PyNavis.Runtime.Output;
 using PyNavis.Runtime.Units;
 using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
@@ -96,6 +97,9 @@ namespace PyNavis.Runtime.Forms
             Func<GrouperConfig, PreviewProgress, PreviewData> preview,
             Func<int, TestCounts> counts = null, GrouperConfig defaults = null)
         {
+            // Modal and waiting on a click: under pynavis run nobody is there to
+            // give one, so fail loudly rather than hang the hidden host.
+            RunnerContext.ThrowIfActive();
             var window = Build(tests, rules, preview, counts, defaults);
             window.ShowDialog();
             var config = PartsOf(window).Result;
@@ -136,7 +140,7 @@ namespace PyNavis.Runtime.Forms
 
         private enum PreviewState
         {
-            NoTests, NeedsSelection, NeedsRule, Ready, Working, Done, Stale, Failed
+            NoTests, NeedsSelection, NeedsRule, NeedsTolerance, Ready, Working, Done, Stale, Failed
         }
 
         // Drawn chevrons: font glyphs carry baseline offsets that render
@@ -238,6 +242,11 @@ namespace PyNavis.Runtime.Forms
             public int CountIndex;
             public bool CountPaused;
             public bool SelectionTouched;
+            /// <summary>Set once the window has closed. The counting pass checks
+            /// it on every tick: each one calls the script's counts delegate on
+            /// the main thread, which must not go on after the dialog is gone.
+            /// </summary>
+            public bool Closed;
         }
 
         private static Parts PartsOf(Window window) => (Parts)window.Tag;
@@ -298,6 +307,11 @@ namespace PyNavis.Runtime.Forms
                 live.CancelRequested = true;
                 e.Cancel = true;
             };
+            // Only a close that really happened gets here (a vetoed one above
+            // does not), and it ends the counting pass: Apply's write and
+            // anything else that pumps the dispatcher would otherwise drain the
+            // queued ticks and walk the remaining tests for nobody.
+            window.Closed += (s, e) => PartsOf(window).Closed = true;
 
             var body = new Grid();
             body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -1195,7 +1209,7 @@ namespace PyNavis.Runtime.Forms
             // Shown and typed in the document's units, the way every pyNavis length
             // field reads (Lengths); ConfigFrom hands it back in metres.
             var units = UnitsOf(parts);
-            var meters = parts.Defaults != null ? parts.Defaults.ToleranceMeters : 2.0;
+            var meters = DefaultToleranceMeters(parts);
             parts.Tolerance = new TextBox
             {
                 Text = Lengths.FormatInput(Lengths.Convert(meters, "Meters", units), units),
@@ -1415,13 +1429,32 @@ namespace PyNavis.Runtime.Forms
                     config.TestIndexes.Add(row.Index);
             foreach (UIElement row in parts.RuleRows.Children)
                 config.RuleIds.Add(DropdownOf(row).SelectedId);
-            var tolerance = ToleranceMetersOf(parts);
-            if (tolerance.HasValue)
-                config.ToleranceMeters = tolerance.Value;
+            // A distance that does not read never reaches a plan that shows the
+            // field: ToleranceBlocks holds Preview and Apply until it is fixed.
+            // Smart still clusters but hides the field, so there the bad text
+            // falls back to the saved distance the field opened with, never to
+            // a number the user did not choose.
+            config.ToleranceMeters = ToleranceMetersOf(parts) ?? DefaultToleranceMeters(parts);
             return config;
         }
 
         private static string UnitsOf(Parts parts) => parts.Defaults?.Units ?? "Meters";
+
+        /// <summary>The saved cluster distance (bundle settings), or the shipped
+        /// 2 m when there is none or it is not a usable distance.</summary>
+        private static double DefaultToleranceMeters(Parts parts) =>
+            parts.Defaults != null && parts.Defaults.ToleranceMeters > 0
+                ? parts.Defaults.ToleranceMeters
+                : 2.0;
+
+        /// <summary>True when the plan would use the cluster distance field and
+        /// it does not read as a length greater than zero. Only a proximity rule
+        /// in a custom chain shows the field; Smart hides it and a chain without
+        /// proximity never reads it, so neither may be blocked by it.</summary>
+        private static bool ToleranceBlocks(Parts parts, GrouperConfig config) =>
+            !config.Smart
+            && config.RuleIds.Contains("proximity")
+            && !ToleranceMetersOf(parts).HasValue;
 
         /// <summary>The typed cluster distance in metres, or null when it does not read
         /// as a length greater than zero.</summary>
@@ -1450,7 +1483,7 @@ namespace PyNavis.Runtime.Forms
             // reporting the truth while one is active.
             var ticked = config.TestIndexes.Count;
             parts.TestsDisc.Summary.Text = parts.Tests.Count == 0
-                ? "none found"
+                ? "None found"
                 : string.Format(CultureInfo.InvariantCulture,
                     "{0} of {1} selected", ticked, parts.TestRows.Count);
             parts.ModeDisc.Summary.Text = config.Smart

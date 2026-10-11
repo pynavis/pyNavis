@@ -225,7 +225,6 @@ namespace PyNavis.Runtime.Forms
             while (Live.Count >= MaxVisible) Dismiss(Live[Live.Count - 1]);
 
             var window = Build(level, message, detail);
-            var parts = PartsOf(window);
 
             window.SourceInitialized += (s, e) =>
             {
@@ -234,20 +233,35 @@ namespace PyNavis.Runtime.Forms
                 Reposition();
             };
 
-            parts.Timer = new DispatcherTimer { Interval = DurationFor(level) };
-            parts.Timer.Tick += (s, e) => Dismiss(window);
-
-            // Hovering holds the toast open long enough to read it.
-            window.MouseEnter += (s, e) => parts.Timer.Stop();
-            window.MouseLeave += (s, e) => parts.Timer.Start();
-
-            Live.Insert(0, window);
+            var timer = Track(window, DurationFor(level));
             window.Opacity = 0;
             window.Show();
             window.BeginAnimation(UIElement.OpacityProperty,
                 new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(120)));
-            parts.Timer.Start();
+            timer.Start();
             Reposition();
+        }
+
+        /// <summary>
+        /// Makes a built toast live and arms its auto-dismiss timer and hover hold,
+        /// without showing it or starting the timer: the test seam for the dismiss
+        /// lifecycle. Returns the timer.
+        /// </summary>
+        internal static DispatcherTimer Track(Window window, TimeSpan stay)
+        {
+            var parts = PartsOf(window);
+            parts.Timer = new DispatcherTimer { Interval = stay };
+            parts.Timer.Tick += (s, e) => Dismiss(window);
+
+            // Hovering holds the toast open long enough to read it. Leaving resumes the
+            // countdown only while the toast is still live: once dismissed (a click, or
+            // pushed out by a newer toast) its timer is done, and restarting it would
+            // tick forever, since Dismiss returns early for a toast no longer live.
+            window.MouseEnter += (s, e) => parts.Timer.Stop();
+            window.MouseLeave += (s, e) => { if (Live.Contains(window)) parts.Timer.Start(); };
+
+            Live.Insert(0, window);
+            return parts.Timer;
         }
 
         private static void Dismiss(Window window)

@@ -26,7 +26,11 @@ def run():
 
     units = str(doc.Units)
     text = coords.format_point(hit.point)
-    script.clipboard_copy(text)
+    if not script.clipboard_copy(text):
+        log.warning('could not copy %s (%s): the clipboard is busy' % (text, units))
+        toast.error('Could not copy the coordinates',
+                    'Another application is using the clipboard. Try again.')
+        return
     log.info('copied %s (%s)' % (text, units))
     toast.success('Coordinates copied', '%s %s' % (text, units))
 

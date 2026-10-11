@@ -2,9 +2,12 @@
 root-cause element, or chain custom rules (level, grid, proximity, model,
 status), with a live preview before anything is written."""
 
+# Everything above the guard at the bottom imports without Navisworks, so the
+# pure reporting can be tested (src/PyNavis.Tests/ClashGrouperScriptTests.cs).
+
 import clr
 
-from pynavis import app, clashgroup, forms, output, settings
+from pynavis import clashgroup, forms, output, settings, toast
 from pynavis._markdown import escape as _escape
 
 try:
@@ -41,8 +44,11 @@ def saved_defaults():
     defaults = GrouperConfig()
     defaults.Smart = bool(prefs['smart'])
     defaults.KeepExisting = bool(prefs['keep_existing'])
-    # The cluster distance is shown and typed in the document's units.
+    # The cluster distance is shown and typed in the document's units. The
+    # import lives here, not at the top: pynavis.app needs the Navisworks API,
+    # and the rest of this file must import without it.
     try:
+        from pynavis import app
         defaults.Units = str(app.get_doc().Units)
     except Exception:
         pass
@@ -352,18 +358,34 @@ def run_ungroup(tests, config):
     finally:
         scope.Dispose()
 
-    removed_total = 0
-    for name, removed in removed_by_test:
-        removed_total += removed
-        if removed:
-            print('%s: removed %d group(s).' % (name, removed))
-    if not removed_total:
-        print('No groups created by this tool were found in the selected tests. '
-              'Hand-made groups are never touched.')
+    level, message, detail, lines = ungroup_summary(removed_by_test)
+    for line in lines:
+        print(line)
+    toast.show(level, message, detail)
 
 
-if clash is None:
-    forms.alert('Clash Detective is not available in this Navisworks edition.\n'
-                'Clash Grouper needs Navisworks Manage.')
-else:
-    run()
+def ungroup_summary(removed_by_test):
+    """What Ungroup reports, from [(test name, groups removed)]: a toast as
+    (level, message, detail), plus the per-test lines for the output window.
+    Those only come when groups came out of more than one test; one test is a
+    single line, and the toast already says it."""
+    removed = [(name, count) for name, count in removed_by_test if count]
+    total = sum(count for _, count in removed)
+    if not total:
+        return ('info', 'No groups to remove',
+                'None of the selected tests has groups this tool made. '
+                'Hand-made groups are never touched.', [])
+    message = 'Removed %d group(s)' % total
+    if len(removed) == 1:
+        return ('success', message, 'From %s.' % removed[0][0], [])
+    lines = ['%s: removed %d group(s).' % pair for pair in removed]
+    return ('success', message,
+            'From %d tests; see the output window.' % len(removed), lines)
+
+
+if '__commandpath__' in globals():
+    if clash is None:
+        forms.alert('Clash Detective is not available in this Navisworks edition.\n'
+                    'Clash Grouper needs Navisworks Manage.')
+    else:
+        run()

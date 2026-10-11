@@ -21,11 +21,19 @@ from . import _xlsx
 
 def write(path, rows, headers=None, sheet='Sheet1'):
     """Write rows (each a list of str/int/float/bool/None) to path as an
-    .xlsx workbook. headers, if given, is written as a bold first row.
+    .xlsx workbook. headers, if given, is written as a bold first row. An
+    infinite or NaN float is written as the text 'inf', '-inf' or 'nan'.
+
+    sheet must be a name Excel accepts: 1 to 31 characters, none of
+    [ ] : * ? / \\, and no apostrophe at either end. Any other name raises
+    ValueError before anything is written.
 
     Writing to a path that already holds a workbook adds the named sheet
     at the end, or replaces it in place if a sheet by that name already
-    exists; the existing sheet order is preserved. This is implemented by
+    exists; the existing sheet order is preserved. Names match the way
+    Excel matches them, without regard to case: writing sheet='log' to a
+    workbook holding 'Log' replaces 'Log' in its position and the sheet
+    takes the spelling passed here, 'log'. This is implemented by
     reading the whole existing workbook back and rebuilding the package
     from scratch, which is simple and correct at the sizes pynavis
     scripts deal with, but it is a VALUES-ONLY round trip: every other
@@ -39,6 +47,7 @@ def write(path, rows, headers=None, sheet='Sheet1'):
     only once it is complete, so a crash mid-write leaves the previous
     workbook intact rather than a truncated one.
     """
+    _xlsx.check_sheet_name(sheet)
     if headers is not None:
         combined = [list(headers)] + [list(row) for row in rows]
         header_row_count = 1
@@ -51,12 +60,11 @@ def write(path, rows, headers=None, sheet='Sheet1'):
         for name in sheets(path):
             ordered.append((name, read(path, sheet=name)))
 
-    for position, pair in enumerate(ordered):
-        if pair[0] == sheet:
-            ordered[position] = (sheet, combined)
-            break
-    else:
+    position = _sheet_position([name for name, _rows in ordered], sheet)
+    if position is None:
         ordered.append((sheet, combined))
+    else:
+        ordered[position] = (sheet, combined)
 
     header_rows = {}
     if header_row_count:
@@ -84,6 +92,20 @@ def write(path, rows, headers=None, sheet='Sheet1'):
         except OSError:
             pass
         raise
+
+
+def _sheet_position(names, sheet):
+    """Where the sheet to replace sits, or None. Excel holds two names that
+    differ only in case to be the same sheet, and calls a workbook holding both
+    damaged, so the match ignores case. An exact match still wins, which
+    leaves the right sheet replaced in a workbook already holding both."""
+    if sheet in names:
+        return names.index(sheet)
+    folded = sheet.lower()
+    for position, name in enumerate(names):
+        if name.lower() == folded:
+            return position
+    return None
 
 
 def sheets(path):

@@ -158,14 +158,14 @@ namespace PyNavis.Cli
                 DisposeSession();
             }
             // Every model the run never reached is still listed, so results.json names them all.
+            // None reached means Ctrl+C landed before the first model: no earlier model ran.
+            var notRun = reached == 0 && _cancel.IsSet
+                ? "Not run: the run was cancelled before this model started."
+                : "Not run: the run ended after an earlier model.";
             for (var j = reached; j < entries.Length; j++)
-                summary.Models.Add(new ModelOutcome
-                {
-                    Model = entries[j],
-                    Status = NotRun,
-                    Error = "Not run: the run ended after an earlier model.",
-                });
-            if (_cancel.IsSet) _console.WriteLine("Cancelled.");
+                summary.Models.Add(new ModelOutcome { Model = entries[j], Status = NotRun, Error = notRun });
+            summary.Cancelled = _cancel.IsSet;
+            if (summary.Cancelled) _console.WriteLine("Cancelled.");
 
             summary.FinishedAt = Iso(_now());
             var resultsPath = Path.Combine(runDir, "results.json");

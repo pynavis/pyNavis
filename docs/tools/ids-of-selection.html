@@ -136,13 +136,19 @@ importable module for tests (src/PyNavis.Tests/IdsOfSelectionScriptTests.cs).
 _MAX_ANCESTORS = <span class="tok-n">8</span>
 
 
-<span class="tok-k">def</span> summary(ids, without):
+<span class="tok-k">def</span> summary(ids, without, copied=<span class="tok-k">True</span>):
     <span class="tok-s">&quot;&quot;&quot;(level, message, detail) for the toast. One id is named rather than
     counted, and items that carry no id at all are always reported, so the
-    tool never finishes looking like it did nothing.&quot;&quot;&quot;</span>
+    tool never finishes looking like it did nothing. copied is False when the
+    clipboard refused the list (another application holding it open), and
+    the toast then says so instead of claiming a copy.&quot;&quot;&quot;</span>
     <span class="tok-k">if</span> <span class="tok-k">not</span> ids:
         <span class="tok-k">return</span> (<span class="tok-s">&#x27;warning&#x27;</span>, <span class="tok-s">&#x27;No element IDs found&#x27;</span>,
                 <span class="tok-s">&#x27;None of the %d selected item(s) carry an element ID.&#x27;</span> % without)
+
+    <span class="tok-k">if</span> <span class="tok-k">not</span> copied:
+        <span class="tok-k">return</span> (<span class="tok-s">&#x27;error&#x27;</span>, <span class="tok-s">&#x27;Could not copy the element IDs&#x27;</span>,
+                <span class="tok-s">&#x27;Another application is using the clipboard. Try again.&#x27;</span>)
 
     <span class="tok-k">if</span> len(ids) == <span class="tok-n">1</span>:
         message = <span class="tok-s">&#x27;Element ID %s copied&#x27;</span> % ids[<span class="tok-n">0</span>]
@@ -221,9 +227,8 @@ _MAX_ANCESTORS = <span class="tok-n">8</span>
             seen[found] = <span class="tok-k">True</span>
             ids.append(found)
 
-    <span class="tok-k">if</span> ids:
-        script.clipboard_copy(elementids.format_id_list(ids))
-    toast.show(*summary(ids, without))
+    copied = script.clipboard_copy(elementids.format_id_list(ids)) <span class="tok-k">if</span> ids <span class="tok-k">else</span> <span class="tok-k">True</span>
+    toast.show(*summary(ids, without, copied))
 
 
 <span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():

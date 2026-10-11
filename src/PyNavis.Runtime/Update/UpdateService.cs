@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Threading;
@@ -31,8 +32,17 @@ namespace PyNavis.Runtime.Update
         private static readonly object Gate = new object();
         private static string _appData;
         private static Dispatcher _ui;
-        private static bool _checking;
+        private static Task _inflight;
         private static bool _wired;
+
+        /// <summary>What every request goes through: CreateHandler, or a fake in tests.</summary>
+        internal static Func<HttpMessageHandler> HandlerFactory = CreateHandler;
+
+        /// <summary>Where Settings' "Check now" reads config.json from; a fixed config in tests.</summary>
+        internal static Func<PyNavisConfig> LoadConfig = () => PyNavisConfig.Load(RuntimeHost.UserConfigPath);
+
+        /// <summary>Tests: the folder standing in for %APPDATA%\pyNavis.</summary>
+        internal static void UseAppData(string appData) => _appData = appData;
 
         /// <summary>The last failure, for Settings; null when the last check worked.</summary>
         public static string LastError { get; private set; }
@@ -88,17 +98,34 @@ namespace PyNavis.Runtime.Update
                 };
             }
             if (config.UpdatesCheck && UpdateCheck.Due(DateTime.UtcNow, state.LastCheckUtc))
-                Task.Run(() => Check(config, manual: false));
+                CheckInBackground(config);
         }
 
+        /// <summary>The scheduled check, off the UI thread.</summary>
+        internal static Task CheckInBackground(PyNavisConfig config) => CheckAsync(config, manual: false);
+
         /// <summary>Settings' "Check now": checks whatever the schedule says, and answers
-        /// with the status line instead of a toast.</summary>
-        public static Task<string> CheckNowAsync() => Task.Run(() =>
+        /// with the status line instead of a toast. When a check is already running (the
+        /// one at startup) it waits for that one, whose answer is the fresh one.</summary>
+        public static async Task<string> CheckNowAsync()
         {
-            var config = PyNavisConfig.Load(RuntimeHost.UserConfigPath);
-            Check(config, manual: true);
+            var load = LoadConfig;
+            var config = await Task.Run(() => load()).ConfigureAwait(false);
+            await CheckAsync(config, manual: true).ConfigureAwait(false);
             return Status(config.UpdatesSkip);
-        });
+        }
+
+        /// <summary>Starts a check, or hands back the one already running, so two never
+        /// race over state.json and the download.</summary>
+        private static Task CheckAsync(PyNavisConfig config, bool manual)
+        {
+            lock (Gate)
+            {
+                if (_inflight == null || _inflight.IsCompleted)
+                    _inflight = Task.Run(() => Check(config, manual));
+                return _inflight;
+            }
+        }
 
         /// <summary>The line Settings shows, given the version the user skipped (if any).</summary>
         public static string Status(string skipped)
@@ -122,13 +149,10 @@ namespace PyNavis.Runtime.Update
         public static string ReleasePage() =>
             ReadState().Page ?? "https://github.com/pynavis/pyNavis/releases/latest";
 
+        /// <summary>One check; never throws (a failure is LastError and a log line).
+        /// Only CheckAsync calls it, so only one runs at a time.</summary>
         private static void Check(PyNavisConfig config, bool manual)
         {
-            lock (Gate)
-            {
-                if (_checking) return;
-                _checking = true;
-            }
             try
             {
                 var release = UpdateCheck.ParseRelease(Fetch());
@@ -165,10 +189,6 @@ namespace PyNavis.Runtime.Update
                 LastError = ex is HttpRequestException || ex is TaskCanceledException || ex is WebException
                     ? "GitHub could not be reached." : ex.Message;
                 Log.Error("Update check failed", ex);
-            }
-            finally
-            {
-                lock (Gate) _checking = false;
             }
         }
 
@@ -226,16 +246,20 @@ namespace PyNavis.Runtime.Update
 
         // ---- network ------------------------------------------------------------------
 
+        /// <summary>Windows credentials go to the proxy only, for a corporate proxy that
+        /// asks who the user is. UseDefaultCredentials would offer them to the server
+        /// itself, and GitHub never asks for them.</summary>
+        internal static HttpClientHandler CreateHandler() => new HttpClientHandler
+        {
+            DefaultProxyCredentials = CredentialCache.DefaultCredentials,
+            AllowAutoRedirect = true,              // downloads redirect to GitHub's CDN
+        };
+
         private static HttpClient Client(TimeSpan timeout)
         {
             // Navisworks may leave the process on older TLS defaults; GitHub needs 1.2.
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-            var handler = new HttpClientHandler
-            {
-                UseDefaultCredentials = true,          // the corporate proxy, as the user
-                AllowAutoRedirect = true,              // downloads redirect to GitHub's CDN
-            };
-            var client = new HttpClient(handler) { Timeout = timeout };
+            var client = new HttpClient(HandlerFactory(), disposeHandler: true) { Timeout = timeout };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("pyNavis/" + PyNavisVersion.Product);
             return client;
         }
@@ -272,7 +296,29 @@ namespace PyNavis.Runtime.Update
             TryDelete(target);
             File.Move(part, target);
             Log.Info($"Update: downloaded and verified {target}.");
+            DeleteSuperseded(target);
             return target;
+        }
+
+        private static readonly Regex InstallerFile =
+            new Regex(@"^pyNavis-\d+\.\d+\.\d+-setup\.exe(\.part)?$", RegexOptions.IgnoreCase);
+
+        /// <summary>Deletes every other installer in the updates folder, and any download
+        /// left half done, so a release that supersedes one downloaded but never installed
+        /// does not leave the older exe behind for ever.</summary>
+        private static void DeleteSuperseded(string keep)
+        {
+            string[] files;
+            try { files = Directory.GetFiles(UpdatesDir); }
+            catch (Exception ex)
+            {
+                Log.Error("Update: could not list " + UpdatesDir, ex);
+                return;
+            }
+            foreach (var file in files)
+                if (InstallerFile.IsMatch(Path.GetFileName(file))
+                    && !string.Equals(file, keep, StringComparison.OrdinalIgnoreCase))
+                    TryDelete(file);
         }
 
         // ---- state --------------------------------------------------------------------

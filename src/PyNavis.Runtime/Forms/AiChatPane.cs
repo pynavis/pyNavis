@@ -24,7 +24,8 @@ namespace PyNavis.Runtime.Forms
     ///
     /// One instance lives for the Navisworks session (see LiveContent): a Reload rebuilds
     /// the pane's content, and losing the conversation on the very Reload that Create
-    /// triggers would make the feature unusable.
+    /// triggers would make the feature unusable. A Reload after a theme or accent change
+    /// lays the same conversation out again in the new palette.
     /// </summary>
     public static class AiChatPane
     {
@@ -41,7 +42,10 @@ namespace PyNavis.Runtime.Forms
         {
             public Grid Root;
             public Tokens T;
+            public Color Accent;
             public AiSession Session;
+            public Action<string> OnStreamed;
+            public List<Entry> History = new List<Entry>();
             public Func<bool> HasKey;
             public Action OpenSettings;
             public TextBlock ToolLabel;
@@ -79,51 +83,119 @@ namespace PyNavis.Runtime.Forms
             public DispatcherTimer Waiting;
         }
 
+        /// <summary>One line of the visible transcript, kept so a rebuild in a new
+        /// theme can lay the same conversation out again.</summary>
+        private sealed class Entry
+        {
+            public EntryKind Kind;
+            public string Text;
+            public bool AuthFailure;
+        }
+
+        private enum EntryKind { User, Assistant, Note, Error, ErrorButton }
+
         private static readonly Dictionary<UIElement, Parts> Live = new Dictionary<UIElement, Parts>();
         private static Parts _session;          // the one instance kept across Reloads
 
         private static Parts PartsOf(UIElement root) => Live[root];
 
+        /// <summary>Where Build reads the theme. Tests swap them; nothing else should.</summary>
+        internal static Func<Tokens> ThemeTokens = () => Tokens.Current;
+        internal static Func<Color> ThemeAccent = () => DesignSystem.Accent;
+
         // ---- entry points ----------------------------------------------------------
 
         /// <summary>The pane content for the running Navisworks: built once, reused on
-        /// every Reload (detached from the old pane first).</summary>
-        public static UIElement LiveContent()
+        /// every Reload (detached from the old pane first). When the theme or the
+        /// Windows accent has changed since it was built, the pane is built again
+        /// around the same session, so the conversation carries over in the new
+        /// palette; while a reply is streaming that waits for a later call, because
+        /// the turn in flight writes into the pane it started in.</summary>
+        public static UIElement LiveContent() =>
+            LiveContent(() => Build(AiSession.Live(), LiveHasKey, LiveOpenSettings));
+
+        internal static UIElement LiveContent(Func<UIElement> buildFirst)
         {
-            if (_session == null)
-            {
-                _session = PartsOf(Build(AiSession.Live(),
-                    () => ApiKeys.ForSaved(SecretStore.Default,
-                        Config.PyNavisConfig.Load(RuntimeHost.UserConfigPath).Ai) != null,
-                    () =>
-                    {
-                        try
-                        {
-                            var outcome = SettingsDialog.ShowAndSave("ai");
-                            if (outcome != SettingsDialog.Outcome.Cancelled)
-                                Toast.Show("success", "Settings saved", null);
-                        }
-                        catch (Exception ex)
-                        {
-                            Toast.Show("error", "Could not save your settings", ex.Message);
-                        }
-                    }));
-            }
+            if (_session == null) _session = PartsOf(buildFirst());
+            else if (!_session.Session.IsBusy && BuiltInAnotherTheme(_session)) _session = Rethemed(_session);
             var root = _session.Root;
-            if (root.Parent is Panel parent) parent.Children.Remove(root);
-            else if (root.Parent is ContentControl holder) holder.Content = null;
-            else if (root.Parent is Decorator decorator) decorator.Child = null;
+            Detach(root);
             RefreshKeyState(_session);
             FillPicker(_session);
             return root;
         }
 
+        private static void Detach(UIElement root)
+        {
+            var parent = (root as FrameworkElement)?.Parent;
+            if (parent is Panel panel) panel.Children.Remove(root);
+            else if (parent is ContentControl holder) holder.Content = null;
+            else if (parent is Decorator decorator) decorator.Child = null;
+        }
+
+        private static bool BuiltInAnotherTheme(Parts p) =>
+            p.Accent != ThemeAccent() || !SamePalette(p.T, ThemeTokens());
+
+        private static bool SamePalette(Tokens a, Tokens b) =>
+            typeof(Tokens).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                .All(field => Equals(field.GetValue(a), field.GetValue(b)));
+
+        /// <summary>A new pane in the current theme over the same session: the
+        /// transcript replayed, the tool label, an unapplied proposal and the
+        /// composer's draft carried across. The old pane is let go.</summary>
+        private static Parts Rethemed(Parts old)
+        {
+            var p = PartsOf(Build(old.Session, old.HasKey, old.OpenSettings));
+            foreach (var entry in old.History) Replay(p, entry);
+            p.ToolLabel.Text = old.ToolLabel.Text;
+            ShowEmptyState(p, old.EmptyPanel.Visibility == Visibility.Visible);
+            if (old.Card.Visibility == Visibility.Visible && old.Session.CanApply)
+                ShowCard(p, old.Session.LastProposal);
+            p.Composer.Text = old.Composer.Text;
+            p.Attach.IsChecked = old.Attach.IsChecked;
+
+            old.Session.TextStreamed -= old.OnStreamed;
+            Live.Remove(old.Root);
+            Detach(old.Root);
+            return p;
+        }
+
+        private static void Replay(Parts p, Entry entry)
+        {
+            switch (entry.Kind)
+            {
+                case EntryKind.User: AddUserBubble(p, entry.Text); break;
+                case EntryKind.Assistant: RenderAssistant(AssistantRow(p), entry.Text, p); break;
+                case EntryKind.Note: AddSystemLine(p, entry.Text); break;
+                case EntryKind.Error: AddError(p, entry.Text, entry.AuthFailure); break;
+                case EntryKind.ErrorButton: ShowErrorButton(p); break;
+            }
+        }
+
+        private static bool LiveHasKey() =>
+            ApiKeys.ForSaved(SecretStore.Default, Config.PyNavisConfig.Load(RuntimeHost.UserConfigPath).Ai) != null;
+
+        private static void LiveOpenSettings()
+        {
+            try
+            {
+                var outcome = SettingsDialog.ShowAndSave("ai");
+                if (outcome != SettingsDialog.Outcome.Cancelled)
+                    Toast.Show("success", "Settings saved", null);
+            }
+            catch (Exception ex)
+            {
+                Toast.Show("error", "Could not save your settings", ex.Message);
+            }
+        }
+
         public static UIElement Build(AiSession session, Func<bool> hasKey, Action openSettings)
         {
-            var t = Tokens.Current;
+            var t = ThemeTokens();
             var p = new Parts
             {
-                T = t, Session = session, HasKey = hasKey ?? (() => true), OpenSettings = openSettings ?? (() => { }),
+                T = t, Accent = ThemeAccent(), Session = session,
+                HasKey = hasKey ?? (() => true), OpenSettings = openSettings ?? (() => { }),
             };
             var root = new Grid { Background = DesignSystem.Brush(t.Paper) };
             TextElement.SetFontFamily(root, new FontFamily("Segoe UI Variable Text, Segoe UI"));
@@ -141,8 +213,9 @@ namespace PyNavis.Runtime.Forms
             root.Children.Add(Place(ComposerArea(p), 3));
             root.Children.Add(Place(FooterArea(p), 4));
 
-            session.TextStreamed += delta => root.Dispatcher.BeginInvoke(
+            p.OnStreamed = delta => root.Dispatcher.BeginInvoke(
                 DispatcherPriority.Background, new Action(() => AppendToStreaming(p, delta)));
+            session.TextStreamed += p.OnStreamed;
 
             FillPicker(p);
             RefreshKeyState(p);
@@ -239,7 +312,7 @@ namespace PyNavis.Runtime.Forms
             if (string.Equals(tool.Directory, p.Session.CurrentBundleDir, StringComparison.OrdinalIgnoreCase)) return;
 
             p.Session.OpenTool(tool);
-            p.Transcript.Children.Clear();
+            ClearTranscript(p);
             p.Card.Visibility = Visibility.Collapsed;
             p.ToolLabel.Text = "Editing " + tool.Title;
             ShowEmptyState(p, false);
@@ -317,7 +390,7 @@ namespace PyNavis.Runtime.Forms
             var rail = new Border
             {
                 Width = 3,
-                Background = DesignSystem.Brush(DesignSystem.Accent),
+                Background = DesignSystem.Brush(p.Accent),
                 CornerRadius = new CornerRadius(2, 0, 0, 2),
             };
             var grid = new Grid();
@@ -420,7 +493,7 @@ namespace PyNavis.Runtime.Forms
             stack.Children.Add(bar);
 
             shell.Child = stack;
-            p.Composer.GotKeyboardFocus += (s, e) => shell.BorderBrush = DesignSystem.Brush(DesignSystem.Accent);
+            p.Composer.GotKeyboardFocus += (s, e) => shell.BorderBrush = DesignSystem.Brush(p.Accent);
             p.Composer.LostKeyboardFocus += (s, e) => shell.BorderBrush = DesignSystem.Brush(t.LineStrong);
             UpdatePlaceholder(p);
             return shell;
@@ -546,20 +619,17 @@ namespace PyNavis.Runtime.Forms
             if (outcome.Error != null)
             {
                 p.Transcript.Children.Remove(streaming.Container);
-                var error = AddErrorLine(p, outcome.Error);
-                if (outcome.IsAuthFailure)
-                {
-                    var fix = DesignSystem.Secondary(p.T, "Open AI settings", () => { p.OpenSettings(); RefreshKeyState(p); });
-                    fix.Margin = new Thickness(0, 8, 0, 0);
-                    fix.HorizontalAlignment = HorizontalAlignment.Left;
-                    error.Children.Add(fix);
-                }
+                AddError(p, outcome.Error, outcome.IsAuthFailure);
                 return;
             }
             if (outcome.Cancelled)
             {
                 if (streaming.Text.Length == 0) p.Transcript.Children.Remove(streaming.Container);
-                else AddSystemLine(p, "Cut short: you cancelled.");
+                else
+                {
+                    p.History.Add(new Entry { Kind = EntryKind.Assistant, Text = streaming.Text });
+                    AddSystemLine(p, "Cut short: you cancelled.");
+                }
                 return;
             }
             RenderAssistant(streaming, outcome.Text, p);
@@ -606,7 +676,7 @@ namespace PyNavis.Runtime.Forms
             catch (Exception ex)
             {
                 Log.Error("Could not write the generated tool", ex);
-                AddErrorLine(p, "Could not write the tool: " + ex.Message);
+                AddError(p, "Could not write the tool: " + ex.Message, false);
                 return;
             }
             p.Card.Visibility = Visibility.Collapsed;
@@ -631,6 +701,7 @@ namespace PyNavis.Runtime.Forms
             var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 6) };
             line.Children.Add(DesignSystem.Secondary(p.T, "Send last error to AI", () => SendErrorClicked(p)));
             p.Transcript.Children.Add(line);
+            p.History.Add(new Entry { Kind = EntryKind.ErrorButton });
         }
 
         /// <summary>Called when the pane is shown again: a failed run since the last
@@ -656,7 +727,7 @@ namespace PyNavis.Runtime.Forms
         {
             if (p.Session.IsBusy) return;
             p.Session.Reset();
-            p.Transcript.Children.Clear();
+            ClearTranscript(p);
             p.Card.Visibility = Visibility.Collapsed;
             p.ToolLabel.Text = "New tool";
             ShowEmptyState(p, true);
@@ -691,6 +762,12 @@ namespace PyNavis.Runtime.Forms
         private static void ShowEmptyState(Parts p, bool visible) =>
             p.EmptyPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
 
+        private static void ClearTranscript(Parts p)
+        {
+            p.Transcript.Children.Clear();
+            p.History.Clear();
+        }
+
         /// <summary>You, on the right, in a bubble on the surface tint.</summary>
         private static void AddUserBubble(Parts p, string text)
         {
@@ -710,12 +787,22 @@ namespace PyNavis.Runtime.Forms
             };
             p.Transcript.Children.Add(bubble);
             p.LastUser = bubble;
+            p.History.Add(new Entry { Kind = EntryKind.User, Text = text });
             ScrollToEnd(p);
         }
 
         /// <summary>The model, on the left: a small AI mark beside plain text, its code in
         /// monospace cards. Starts as the waiting line until the first token lands.</summary>
         private static MessageView AddAssistant(Parts p)
+        {
+            var view = AssistantRow(p);
+            p.Streaming = view;
+            StartWaiting(p, view);
+            ScrollToEnd(p);
+            return view;
+        }
+
+        private static MessageView AssistantRow(Parts p)
         {
             var t = p.T;
             var row = new Grid { Margin = new Thickness(0, 4, 24, 6), HorizontalAlignment = HorizontalAlignment.Left };
@@ -744,9 +831,6 @@ namespace PyNavis.Runtime.Forms
             body.Children.Add(view.Live);
             p.Transcript.Children.Add(row);
             p.LastAssistant = row;
-            p.Streaming = view;
-            StartWaiting(p, view);
-            ScrollToEnd(p);
             return view;
         }
 
@@ -792,6 +876,7 @@ namespace PyNavis.Runtime.Forms
         /// out separately, the code in a monospace card.</summary>
         private static void RenderAssistant(MessageView view, string text, Parts p)
         {
+            p.History.Add(new Entry { Kind = EntryKind.Assistant, Text = text });
             view.Text = text;
             view.Body.Children.Remove(view.Live);
             view.Live = null;
@@ -854,10 +939,12 @@ namespace PyNavis.Runtime.Forms
             line.HorizontalAlignment = HorizontalAlignment.Center;
             line.Margin = new Thickness(24, 6, 24, 6);
             p.Transcript.Children.Add(line);
+            p.History.Add(new Entry { Kind = EntryKind.Note, Text = text });
             ScrollToEnd(p);
         }
 
-        private static StackPanel AddErrorLine(Parts p, string text)
+        /// <summary>A failed turn or write; a rejected key earns the settings button.</summary>
+        private static void AddError(Parts p, string text, bool authFailure)
         {
             var t = p.T;
             var body = new StackPanel();
@@ -874,9 +961,16 @@ namespace PyNavis.Runtime.Forms
                 Padding = new Thickness(10, 8, 10, 8),
                 Margin = new Thickness(0, 4, 24, 6),
             };
+            if (authFailure)
+            {
+                var fix = DesignSystem.Secondary(t, "Open AI settings", () => { p.OpenSettings(); RefreshKeyState(p); });
+                fix.Margin = new Thickness(0, 8, 0, 0);
+                fix.HorizontalAlignment = HorizontalAlignment.Left;
+                body.Children.Add(fix);
+            }
             p.Transcript.Children.Add(box);
+            p.History.Add(new Entry { Kind = EntryKind.Error, Text = text, AuthFailure = authFailure });
             ScrollToEnd(p);
-            return body;
         }
 
         private static void ScrollToEnd(Parts p) => p.Scroll?.ScrollToEnd();
@@ -896,5 +990,12 @@ namespace PyNavis.Runtime.Forms
         public static string LastAssistantTextOf(UIElement root) => PartsOf(root).Streaming?.Live?.Text;
         public static FrameworkElement LastUserBubbleOf(UIElement root) => PartsOf(root).LastUser;
         public static FrameworkElement LastAssistantBubbleOf(UIElement root) => PartsOf(root).LastAssistant;
+        public static AiSession SessionOf(UIElement root) => PartsOf(root).Session;
+        public static StackPanel TranscriptOf(UIElement root) => PartsOf(root).Transcript;
+        public static Border ProposalCardOf(UIElement root) => PartsOf(root).Card;
+        public static StackPanel EmptyPanelOf(UIElement root) => PartsOf(root).EmptyPanel;
+
+        /// <summary>Drops the kept pane so the next LiveContent builds afresh.</summary>
+        internal static void ForgetLiveForTest() => _session = null;
     }
 }

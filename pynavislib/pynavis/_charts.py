@@ -72,7 +72,7 @@ def _no_data_svg(width, height, title):
     parts = [_svg_open(width, height), _title_text(width, title)]
     parts.append('<rect x="8" y="8" width="%d" height="%d" fill="none" '
                   'stroke="var(--line)" rx="4"/>' % (width - 16, height - 16))
-    parts.append(_label_text(width / 2.0, height / 2.0 + 4, 'no data'))
+    parts.append(_label_text(width / 2.0, height / 2.0 + 4, 'No data'))
     parts.append(_svg_close())
     return ''.join(parts)
 

@@ -82,11 +82,34 @@ namespace PyNavis.Tests
             {
                 var recorder = new ChordRecorder(allowBareKeys: false);
                 Assert.Null(recorder.ChordText);
-                Assert.Equal("press keys", recorder.DisplayText);
+                Assert.Equal("Press keys", recorder.DisplayText);
 
                 recorder.ChordText = "Ctrl+Alt+K";
                 Assert.Equal("Ctrl+Alt+K", recorder.DisplayText);
             });
+        }
+
+        [Fact]
+        public void A_Chord_Without_Ctrl_Or_Alt_Says_So_In_Sentence_Case()
+        {
+            ChordRecorder.ChordFromKey(Key.M, ModifierKeys.None, false, out var error);
+
+            Assert.Equal("Needs Ctrl or Alt", ChordRecorder.DisplayFor(error, null));
+        }
+
+        [Fact]
+        public void An_Unsupported_Key_Says_So_In_Sentence_Case()
+        {
+            ChordRecorder.ChordFromKey(Key.OemComma, ModifierKeys.Control, false, out var error);
+
+            Assert.Equal("Unsupported key", ChordRecorder.DisplayFor(error, "Ctrl+K"));
+        }
+
+        [Fact]
+        public void Without_An_Error_The_Field_Shows_The_Chord_Or_The_Placeholder()
+        {
+            Assert.Equal("Ctrl+Alt+K", ChordRecorder.DisplayFor(null, "Ctrl+Alt+K"));
+            Assert.Equal("Press keys", ChordRecorder.DisplayFor(null, null));
         }
 
         private static void OnSta(Action action)

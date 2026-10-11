@@ -200,6 +200,9 @@ namespace PyNavis.Runtime.Forms
             var parts = PartsOf(window);
             if (parts.Busy) return;
             var config = ConfigFrom(parts);
+            // The panel already says why (NeedsTolerance); a plan built on a
+            // distance the user did not type is the one thing never to show.
+            if (ToleranceBlocks(parts, config)) return;
 
             parts.Busy = true;
             parts.CancelRequested = false;
@@ -258,6 +261,9 @@ namespace PyNavis.Runtime.Forms
             }
             catch (Exception ex)
             {
+                // The panel only has room for the message; the log keeps the
+                // whole thing, Python traceback included.
+                Log.Error("Clash Grouper preview failed", ex);
                 parts.Data = null;
                 parts.State = PreviewState.Failed;
                 parts.StaleNote = ex.Message;
@@ -286,7 +292,7 @@ namespace PyNavis.Runtime.Forms
         private static void BeginCounting(Window window)
         {
             var parts = PartsOf(window);
-            if (parts.Counts == null || parts.CountIndex >= parts.Tests.Count) return;
+            if (parts.Closed || parts.Counts == null || parts.CountIndex >= parts.Tests.Count) return;
             if (parts.Busy)
             {
                 // Never fight a running preview for the main thread; RunPreview
@@ -296,6 +302,11 @@ namespace PyNavis.Runtime.Forms
             }
             window.Dispatcher.BeginInvoke(DispatcherPriority.Background, (Action)(() =>
             {
+                // A tick posted before the window closed still runs whenever
+                // anything pumps the dispatcher next (Apply's progress scope
+                // does), so the close has to be checked here, not only when
+                // posting. Each tick calls into the script on the main thread.
+                if (parts.Closed) return;
                 // BeginCounting above only guards *posting* while Busy. This
                 // item can still have been posted before a preview started and
                 // then get drained by Report's own dispatcher pump while the
@@ -472,6 +483,7 @@ namespace PyNavis.Runtime.Forms
             if (parts.Tests.Count == 0) parts.State = PreviewState.NoTests;
             else if (config.TestIndexes.Count == 0) parts.State = PreviewState.NeedsSelection;
             else if (!config.Smart && config.RuleIds.Count == 0) parts.State = PreviewState.NeedsRule;
+            else if (ToleranceBlocks(parts, config)) parts.State = PreviewState.NeedsTolerance;
             else if (parts.State == PreviewState.Failed) { /* keep showing why */ }
             else if (parts.Data == null)
             {
@@ -528,6 +540,9 @@ namespace PyNavis.Runtime.Forms
                     break;
                 case PreviewState.NeedsRule:
                     ShowMessage(parts, "Add at least one rule to group by.");
+                    break;
+                case PreviewState.NeedsTolerance:
+                    ShowMessage(parts, "Enter a cluster distance greater than 0 to see a preview.");
                     break;
                 case PreviewState.Ready:
                     ShowAction(parts, "Preview grouping");

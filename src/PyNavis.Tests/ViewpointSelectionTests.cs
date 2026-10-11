@@ -76,6 +76,25 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void SelectedUnderEach_AgreesWithSelectedUnder_ForEveryFolder()
+        {
+            var rows = Rows();
+            rows.Add(new ViewpointRow { Guid = "g6", Key = "1/2", Folder = "Level 1", Name = "Deck", Kind = "folder", IsFolder = true });
+            rows.Add(new ViewpointRow { Guid = "g7", Key = "1/2/0", Folder = "Level 1/Deck", Name = "D", Kind = "viewpoint" });
+            var sel = new ViewpointSelection(rows);
+            sel.SetMany(new[] { "g6", "g1", "g4" }, true);
+
+            var each = sel.SelectedUnderEach();
+
+            foreach (var folder in rows.Where(r => r.IsFolder))
+                Assert.Equal(sel.SelectedUnder(folder.Key),
+                    each.TryGetValue(folder.Key, out var n) ? n : 0);
+            Assert.Equal(3, each["1"]);           // Deck, D and A; not C under "10"
+            Assert.Equal(1, each["1/2"]);
+            Assert.Equal(1, each["10"]);
+        }
+
+        [Fact]
         public void Summary_BreaksDownByKind_AndIsEmptyAtZero()
         {
             var sel = new ViewpointSelection(Rows());
@@ -98,6 +117,29 @@ namespace PyNavis.Tests
             sel.SetAll(new List<int> { 1, 2, 4 }, true);
 
             Assert.Equal(2, fired);
+        }
+
+        [Fact]
+        public void SetMany_TicksEachGuid_CascadesFolders_AndFiresChangedOnce()
+        {
+            var sel = new ViewpointSelection(Rows());
+            var fired = 0;
+            sel.Changed += () => fired++;
+
+            sel.SetMany(new[] { "g0", "g4", "g5" }, true);
+
+            Assert.Equal(1, fired);
+            Assert.True(sel.IsSelected("g1"));    // carried by the folder g0
+            Assert.True(sel.IsSelected("g2"));
+            Assert.True(sel.IsSelected("g4"));
+            Assert.True(sel.IsSelected("g5"));
+            Assert.False(sel.IsSelected("g3"));
+            Assert.Equal(5, sel.Count);
+
+            sel.SetMany(new[] { "g4", "g5" }, false);
+
+            Assert.Equal(2, fired);
+            Assert.Equal(3, sel.Count);
         }
 
         [Fact]

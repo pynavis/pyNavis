@@ -155,20 +155,36 @@ namespace PyNavis.Runtime.Forms
         public static ProgressScope Begin(string title, string label, bool canCancel)
         {
             var window = Build(title, label, canCancel);
-            var parts = (Parts)window.Tag;
             var host = IntPtr.Zero;
             try
             {
                 FluentChrome.OwnByHost(window);
                 window.Show();
                 host = HostHandle();
-                if (host != IntPtr.Zero) EnableWindow(host, false);
             }
             catch (Exception ex)
             {
                 Log.Error("Could not show the progress window.", ex);
             }
-            var scope = new ProgressScope(window, parts, host);
+            return Hold(window, host);
+        }
+
+        /// <summary>
+        /// Takes input away from <paramref name="host"/> for the life of a scope around
+        /// <paramref name="window"/>, without showing anything: the test seam for the
+        /// input bookkeeping. Zero for no host.
+        /// </summary>
+        internal static ProgressScope Hold(Window window, IntPtr host)
+        {
+            try
+            {
+                if (host != IntPtr.Zero) EnableWindow(host, false);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not disable the Navisworks window.", ex);
+            }
+            var scope = new ProgressScope(window, (Parts)window.Tag, host);
             Live.Add(scope);
             return scope;
         }
@@ -219,9 +235,27 @@ namespace PyNavis.Runtime.Forms
             Live.Remove(this);
             try
             {
-                // Re-enable BEFORE closing: closing the active window while its
-                // owner is still disabled lets focus land outside the process.
-                if (_host != IntPtr.Zero) EnableWindow(_host, true);
+                // Scopes nest (forms.progress() inside forms.progress()) and every one
+                // disables the same host, so only the last one out hands input back:
+                // an inner scope ending must not free Navisworks mid-way through the
+                // outer write.
+                if (_host != IntPtr.Zero)
+                {
+                    var stillHeld = Live.FindLast(s => s._host == _host);
+                    // Re-enable BEFORE closing: closing the active window while its
+                    // owner is still disabled lets focus land outside the process.
+                    if (stillHeld == null) EnableWindow(_host, true);
+                    // The owner stays disabled, so activation goes to the scope still
+                    // running instead.
+                    else stillHeld._window.Activate();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not hand input back to Navisworks.", ex);
+            }
+            try
+            {
                 _window.Close();
             }
             catch (Exception ex)

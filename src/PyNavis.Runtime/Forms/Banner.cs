@@ -177,7 +177,6 @@ namespace PyNavis.Runtime.Forms
             CloseAll();                                   // one banner at a time
 
             var window = Build(level, message, detail);
-            var parts = PartsOf(window);
 
             window.SourceInitialized += (s, e) =>
             {
@@ -187,23 +186,42 @@ namespace PyNavis.Runtime.Forms
             };
             window.SizeChanged += (s, e) => Reposition(window);
 
+            var timer = Track(window, stay);
+            window.Opacity = 0;
+            window.Show();
+            window.BeginAnimation(UIElement.OpacityProperty,
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(120)));
+            timer?.Start();
+            Reposition(window);
+        }
+
+        /// <summary>
+        /// Makes a built banner the live one and, for a positive stay, arms its
+        /// auto-dismiss timer and hover hold, without showing it or starting the
+        /// timer: the test seam for the dismiss lifecycle. Returns the timer, or
+        /// null for a banner that stays until dismissed.
+        /// </summary>
+        internal static DispatcherTimer Track(Window window, TimeSpan stay)
+        {
+            var parts = PartsOf(window);
             if (stay > TimeSpan.Zero)
             {
                 parts.Timer = new DispatcherTimer { Interval = stay };
                 parts.Timer.Tick += (s, e) => Dismiss(window);
 
-                // Hovering holds the banner open long enough to read it.
+                // Hovering holds the banner open long enough to read it. Leaving resumes
+                // the countdown only while it is still the live banner: once dismissed or
+                // replaced its timer is done, and restarting it would tick forever, since
+                // Dismiss returns early for a banner that is no longer live.
                 window.MouseEnter += (s, e) => parts.Timer.Stop();
-                window.MouseLeave += (s, e) => parts.Timer.Start();
+                window.MouseLeave += (s, e) =>
+                {
+                    if (ReferenceEquals(_live, window)) parts.Timer.Start();
+                };
             }
 
             _live = window;
-            window.Opacity = 0;
-            window.Show();
-            window.BeginAnimation(UIElement.OpacityProperty,
-                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(120)));
-            parts.Timer?.Start();
-            Reposition(window);
+            return parts.Timer;
         }
 
         private static void Dismiss(Window window)

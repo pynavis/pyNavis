@@ -75,8 +75,12 @@ namespace PyNavis.Runtime.Panes
         public static void Configure(IReadOnlyList<ExtensionModel> extensions,
             PyNavisConfig config, string configPath)
         {
-            SlotCount = VerifiedSlotCount(
-                ShippedSlots + (config != null ? config.ExtraPaneSlots : 0));
+            var configuredSlots = ShippedSlots + (config != null ? config.ExtraPaneSlots : 0);
+            SlotCount = VerifiedSlotCount(configuredSlots);
+            // Claims up to here are kept even when their slot did not register this
+            // session: a satellite that failed to load is expected back, and its slots
+            // with it.
+            var keptThrough = Math.Max(SlotCount, configuredSlots);
             PaneSatellite.ReconcileManifest();
 
             var models = (extensions ?? new List<ExtensionModel>())
@@ -104,29 +108,52 @@ namespace PyNavis.Runtime.Panes
                 ? (IReadOnlyDictionary<string, int>)config.PaneAssignments
                 : new Dictionary<string, int>();
             var resolved = PaneSlotMap.Resolve(
-                models.Select(m => m.BundleKey).ToList(), existing, SlotCount);
+                models.Select(m => m.BundleKey).ToList(), existing, SlotCount, keptThrough);
 
             Claims.Clear();
             var overflow = new List<DockPaneModel>();
+            var held = new List<string>();
             var assignments = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (var i = 0; i < models.Count; i++)
             {
                 var slot = resolved[i].Slot;
-                if (slot == 0) { overflow.Add(models[i]); continue; }
+                if (slot == 0)
+                {
+                    // Held: unplaced this session (no pane), but the claim is saved
+                    // unchanged. Rehoming it onto a free shipped slot would be persisted,
+                    // and the next boot with the satellite loaded would then find the
+                    // low slot in config and lose the original for good.
+                    var heldSlot = resolved[i].HeldSlot;
+                    if (heldSlot > 0)
+                    {
+                        assignments[models[i].BundleKey] = heldSlot;
+                        held.Add(models[i].Title + " (slot " + heldSlot + ")");
+                    }
+                    else
+                        overflow.Add(models[i]);
+                    continue;
+                }
                 Claims[slot] = models[i];
                 assignments[models[i].BundleKey] = slot;
             }
+
+            if (held.Count > 0)
+                Log.Error($"{held.Count} dockpane(s) keep their slot but have no panel this session, " +
+                          $"because only {SlotCount} of {configuredSlots} slots registered: " +
+                          string.Join(", ", held));
 
             if (overflow.Count > 0)
                 Log.Error($"{overflow.Count} dockpane(s) have no free slot ({SlotCount} available): " +
                           string.Join(", ", overflow.Select(m => m.Title)));
 
             // Claims that vanished stay in config so a reinstalled extension gets its
-            // slot (and its docked layout) back; merge rather than replace.
+            // slot (and its docked layout) back; merge rather than replace. Bounded by
+            // the configured slots, not the registered ones, for the same reason as the
+            // held claims above.
             foreach (var pair in existing)
                 if (!assignments.ContainsKey(pair.Key)
                     && !assignments.ContainsValue(pair.Value)
-                    && pair.Value <= SlotCount)
+                    && pair.Value <= keptThrough)
                     assignments[pair.Key] = pair.Value;
 
             try

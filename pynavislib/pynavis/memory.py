@@ -6,10 +6,16 @@ lazily, inside the functions that need it, so this module stays importable
 anywhere.
 
 An entry identifies one ModelItem as a ModelItemPathId:
-    {'m': source file name, 'i': model index, 'p': PathId string}
+    {'m': model file name, 'f': model full name, 'i': model index,
+     'p': PathId string}
+The full name is the model's SourceFileName, or its FileName when that is
+empty, and 'm' is that name's last part. Entries written before 'f' was kept
+carry only 'm' (SourceFileName's last part); they still load and resolve as
+they always did.
 """
 
 import hashlib
+import io
 import json
 import os
 
@@ -17,7 +23,8 @@ VERSION = 1
 
 
 class MemoryFormatError(Exception):
-    """A memory file could not be understood; the caller treats it as empty."""
+    """A memory file could not be understood. deserialize raises it; load
+    catches it and reads the file as empty (see load)."""
 
 
 class Result(object):
@@ -44,7 +51,10 @@ def new_state(document='', items=None, saved=''):
 
 
 def serialize(state):
-    return json.dumps(state, indent=2, sort_keys=True)
+    """The state as JSON. 'ignored' (see load) describes one read of the file,
+    not the memory, so it is never written back."""
+    kept = dict((k, v) for k, v in state.items() if k != 'ignored')
+    return json.dumps(kept, indent=2, sort_keys=True)
 
 
 def deserialize(text):
@@ -94,44 +104,73 @@ def _sanitize(name):
 
 
 def key(entry):
-    """Identity of an entry: model name (case-insensitive) plus path id."""
+    """Identity of an entry: its model (the full name when the entry has one,
+    else the file name; case-insensitive) plus its path id."""
+    return (str(entry.get('f') or entry.get('m', '')).lower(), str(entry.get('p', '')))
+
+
+def _short_key(entry):
     return (str(entry.get('m', '')).lower(), str(entry.get('p', '')))
+
+
+class _Members(object):
+    """Entries matched the way key() says, except that an entry with no full
+    name (written before full names were kept) cannot tell same-named models
+    apart, so it matches any entry with its file name and path id."""
+
+    def __init__(self, entries=()):
+        self._keys = set()      # key() of every entry
+        self._short = set()     # (file name, path id) of every entry
+        self._legacy = set()    # (file name, path id) of entries with no full name
+        for entry in entries:
+            self.add(entry)
+
+    def add(self, entry):
+        self._keys.add(key(entry))
+        short = _short_key(entry)
+        self._short.add(short)
+        if not entry.get('f'):
+            self._legacy.add(short)
+
+    def __contains__(self, entry):
+        if key(entry) in self._keys:
+            return True
+        if not entry.get('f'):
+            return _short_key(entry) in self._short
+        return _short_key(entry) in self._legacy
 
 
 def union(a, b):
     """Everything in a then everything new in b, order preserved, deduped."""
-    out, seen = [], set()
+    out, seen = [], _Members()
     for entry in list(a) + list(b):
-        k = key(entry)
-        if k in seen:
+        if entry in seen:
             continue
-        seen.add(k)
+        seen.add(entry)
         out.append(entry)
     return out
 
 
 def difference(a, b):
     """Entries of a that b does not contain."""
-    drop = set(key(e) for e in b)
-    out, seen = [], set()
+    drop = _Members(b)
+    out, seen = [], _Members()
     for entry in a:
-        k = key(entry)
-        if k in drop or k in seen:
+        if entry in drop or entry in seen:
             continue
-        seen.add(k)
+        seen.add(entry)
         out.append(entry)
     return out
 
 
 def intersection(a, b):
     """Entries present in both, in a's order."""
-    keep = set(key(e) for e in b)
-    out, seen = [], set()
+    keep = _Members(b)
+    out, seen = [], _Members()
     for entry in a:
-        k = key(entry)
-        if k not in keep or k in seen:
+        if entry not in keep or entry in seen:
             continue
-        seen.add(k)
+        seen.add(entry)
         out.append(entry)
     return out
 
@@ -157,15 +196,48 @@ def memory_root():
 
 
 def load(document_path, root=None):
-    """The stored state for a document, or a fresh empty one."""
+    """The stored state for a document, or a fresh empty one.
+
+    A file that is there but cannot be used (not JSON, not an object, another
+    format version, no item list, bytes that are not text) also reads as a
+    fresh empty state: every memory button reads through here, and one bad
+    file must not break them all. The reason is logged and kept under
+    state['ignored'] for Show Contents (see ignored_note); serialize never
+    writes it back, and the next save replaces the bad file.
+    """
     path = path_for(document_path, root or memory_root())
     if not os.path.exists(path):
         return new_state(document_path)
-    handle = open(path, 'r')
     try:
-        return deserialize(handle.read())
-    finally:
-        handle.close()
+        with io.open(path, 'r', encoding='utf-8-sig') as handle:
+            return deserialize(handle.read())
+    except (MemoryFormatError, ValueError) as error:
+        if isinstance(error, MemoryFormatError):
+            reason = str(error)
+        else:       # UnicodeDecodeError, a ValueError: bytes that are not UTF-8
+            reason = 'memory file is not readable text'
+        _log_ignored(path, reason)
+        state = new_state(document_path)
+        state['ignored'] = reason
+        return state
+
+
+def _log_ignored(path, reason):
+    """Best effort: outside a command there may be no logger to write to, and
+    a failed log line must not undo the recovery it reports."""
+    try:
+        from pynavis import script
+        script.get_logger().warning('Ignored memory file %s: %s' % (path, reason))
+    except Exception:
+        pass
+
+
+def ignored_note(state):
+    """One sentence for Show Contents when load ignored the stored file, else ''."""
+    reason = state.get('ignored')
+    if not reason:
+        return ''
+    return 'The stored memory for this document could not be read and was ignored (%s).' % reason
 
 
 def save(state, root=None):
@@ -176,11 +248,8 @@ def save(state, root=None):
 
     path = path_for(state.get('document', ''), root)
     temp = path + '.tmp'
-    handle = open(temp, 'w')
-    try:
+    with io.open(temp, 'w', encoding='utf-8') as handle:
         handle.write(serialize(state))
-    finally:
-        handle.close()
 
     try:
         os.replace(temp, path)
@@ -221,8 +290,19 @@ def _state(doc):
 
 
 def _source_name(models, index):
+    """The model's SourceFileName, last part only: all an entry recorded before
+    full names were kept."""
     try:
         return os.path.basename(models[index].SourceFileName or '')
+    except Exception:
+        return ''
+
+
+def _full_name(models, index):
+    """The model's SourceFileName, or its FileName when that is empty."""
+    try:
+        model = models[index]
+        return model.SourceFileName or model.FileName or ''
     except Exception:
         return ''
 
@@ -230,35 +310,43 @@ def _source_name(models, index):
 def encode_items(items, doc):
     """ModelItems -> entries."""
     models = doc.Models
+    names = {}
     out = []
     for item in items:
         path_id = models.CreatePathId(item)
         index = path_id.ModelIndex
-        out.append({'m': _source_name(models, index), 'i': index, 'p': path_id.PathId})
+        if index not in names:
+            names[index] = _full_name(models, index)
+        full = names[index]
+        out.append({'m': os.path.basename(full), 'f': full, 'i': index, 'p': path_id.PathId})
     return out
+
+
+def _path_id_type():
+    from pynavis import _api  # noqa: F401  loads the API with a clear error outside Navisworks
+    from Autodesk.Navisworks.Api.DocumentParts import ModelItemPathId
+    return ModelItemPathId
 
 
 def resolve_entries(entries, doc):
     """entries -> (ModelItems, missing count, missing model names).
 
-    The stored model index is only trusted when the model at that index still
-    has the recorded source file name; otherwise the model is found by name, so
-    appending or reordering models does not break a memory.
+    An entry resolves in the model with its recorded full name, the one at the
+    stored index first. When no model has that name (the files moved, or the
+    entry predates full names) the recorded file name decides instead, again
+    the stored index first. So appending or reordering models does not break a
+    memory, and same-named models in different folders stay apart.
     """
-    from pynavis import _api  # loads the API with a clear error outside Navisworks
-    from Autodesk.Navisworks.Api.DocumentParts import ModelItemPathId
-
+    path_id_type = _path_id_type()
     models = doc.Models
-    by_name = {}
-    for i in range(models.Count):
-        by_name.setdefault(_source_name(models, i).lower(), []).append(i)
+    lookup = _ModelLookup(models)
 
     items, missing, missing_models = [], 0, []
     for entry in entries:
         item = None
-        index = _index_for(entry, models, by_name)
+        index = _index_for(entry, lookup)
         if index is not None:
-            path_id = ModelItemPathId()
+            path_id = path_id_type()
             path_id.ModelIndex = index
             path_id.PathId = str(entry.get('p', ''))
             try:
@@ -276,14 +364,42 @@ def resolve_entries(entries, doc):
     return items, missing, missing_models
 
 
-def _index_for(entry, models, by_name):
-    name = str(entry.get('m', '')).lower()
-    index = entry.get('i', -1)
-    if isinstance(index, int) and 0 <= index < models.Count:
-        if _source_name(models, index).lower() == name:
+class _ModelLookup(object):
+    """The open models' names, read once per resolve, three ways: the full
+    name, its file part, and the file part entries without a full name were
+    keyed by (SourceFileName's alone). All lowercased."""
+
+    FULL, FILE, LEGACY = 0, 1, 2
+
+    def __init__(self, models):
+        self.rows = []
+        self.first = ({}, {}, {})
+        for i in range(models.Count):
+            full = _full_name(models, i).lower()
+            row = (full, os.path.basename(full), _source_name(models, i).lower())
+            self.rows.append(row)
+            for column, name in enumerate(row):
+                self.first[column].setdefault(name, i)
+
+    def find(self, column, name, index):
+        """The stored index when its model has the name, else the first that does."""
+        if index is not None and self.rows[index][column] == name:
             return index
-    candidates = by_name.get(name) or []
-    return candidates[0] if candidates else None
+        return self.first[column].get(name)
+
+
+def _index_for(entry, lookup):
+    index = entry.get('i', -1)
+    if not (isinstance(index, int) and 0 <= index < len(lookup.rows)):
+        index = None
+    name = str(entry.get('m', '')).lower()
+    full = str(entry.get('f') or '').lower()
+    if not full:
+        return lookup.find(lookup.LEGACY, name, index)
+    found = lookup.find(lookup.FULL, full, index)
+    if found is None:
+        found = lookup.find(lookup.FILE, name, index)
+    return found
 
 
 def _selected_entries(doc):
@@ -293,6 +409,14 @@ def _selected_entries(doc):
 
 def _plural(count):
     return 'item' if count == 1 else 'items'
+
+
+def _missing_detail(missing, model_names):
+    """'3 not found in A.nwc, B.nwc.', or '3 not found.' when no model was named."""
+    if not model_names:
+        return '%d not found.' % missing
+    named = [name or 'an unnamed model' for name in model_names]
+    return '%d not found in %s.' % (missing, ', '.join(named))
 
 
 def memorize(doc=None):
@@ -327,7 +451,7 @@ def recall(doc=None):
     set_items(items, doc)
     if missing:
         return Result('info', 'Recalled %d of %d' % (len(items), len(entries)),
-                      '%d not found in %s.' % (missing, ', '.join(missing_models)),
+                      _missing_detail(missing, missing_models),
                       count=len(items))
     return Result('success', 'Recalled %d %s' % (len(items), _plural(len(items))),
                   count=len(items))
@@ -484,12 +608,12 @@ def contents_html(rows, state):
             body.append('<tr><td>%s</td><td>%s</td></tr>' % (escape(model), link))
         else:
             body.append('<tr><td class="muted">%s</td>'
-                        '<td class="muted">not in this model</td></tr>' % escape(model))
+                        '<td class="muted">Not in this model</td></tr>' % escape(model))
 
     total = len(state['items'])
     footer = ''
     if total > len(rows):
-        footer = '<p class="muted">showing %d of %d</p>' % (len(rows), total)
+        footer = '<p class="muted">Showing %d of %d</p>' % (len(rows), total)
 
     return ('%s<table class="pynavis"><thead><tr><th>Model</th><th>Item</th></tr></thead>'
             '<tbody>%s</tbody></table>%s' % (header, ''.join(body), footer))

@@ -294,7 +294,7 @@ begin
   Params := 'protect-extension' +
     ' --extension "' + Ext + '"' +
     ' --manifests "' + Manifest + '"' +
-    ' --backup-root "' + ExpandConstant('{app}ackups') + '"' +
+    ' --backup-root "' + ExpandConstant('{app}\backups') + '"' +
     ' --user-extension "' + ExpandConstant('{app}\extensions\My pyNavis.extension') + '"' +
     ' --version uninstall' +
     ' --report "' + Report + '"';
@@ -307,7 +307,7 @@ begin
       mbError, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES
   else if FileExists(Report) then
     SuppressibleMsgBox('Your own work in pyNavis.extension was kept: buttons and panels you had added are ' +
-      'now in My pyNavis.extension, and a copy of everything is in ' + ExpandConstant('{app}ackups') + '.',
+      'now in My pyNavis.extension, and a copy of everything is in ' + ExpandConstant('{app}\backups') + '.',
       mbInformation, MB_OK, IDOK);
   DeleteFile(Report);
 end;

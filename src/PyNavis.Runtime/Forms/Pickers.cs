@@ -467,6 +467,9 @@ namespace PyNavis.Runtime.Forms
         {
             if (!double.TryParse(parts.Input.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
                 return false;
+            // TryParse accepts "NaN" and "Infinity", and NaN passes both range
+            // checks below (every comparison with it is false).
+            if (double.IsNaN(value) || double.IsInfinity(value)) return false;
             if (parts.Min.HasValue && value < parts.Min.Value) return false;
             if (parts.Max.HasValue && value > parts.Max.Value) return false;
             return true;

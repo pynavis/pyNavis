@@ -180,11 +180,31 @@ namespace PyNavis.Runtime.Output
         private string FullText() =>
             string.Concat(_paragraph.Inlines.OfType<Run>().Select(r => r.Text));
 
-        private void CopyToClipboard()
+        /// <summary>Where Copy puts its text: the clipboard, or a stand-in under test.</summary>
+        internal System.Action<string> SetClipboardText { get; set; } = Clipboard.SetText;
+
+        /// <summary>How a failed Copy or Save is reported (message, detail): an error
+        /// toast, or a recorder under test.</summary>
+        internal System.Action<string, string> ReportFailure { get; set; } =
+            (message, detail) => Toast.Show("error", message, detail);
+
+        /// <summary>Copies the selection, or everything when nothing is selected. Another
+        /// process holding the clipboard makes SetText throw; that is reported, since an
+        /// exception here would escape onto the Navisworks UI thread.</summary>
+        internal void CopyToClipboard()
         {
             var selection = _box.Selection;
             var text = selection != null && !selection.IsEmpty ? selection.Text : FullText();
-            if (text.Length > 0) Clipboard.SetText(text);
+            if (text.Length == 0) return;
+            try
+            {
+                SetClipboardText(text);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Error("Could not copy the output to the clipboard", ex);
+                ReportFailure("Could not copy the output", ex.Message);
+            }
         }
 
         private void SaveToFile()
@@ -194,8 +214,25 @@ namespace PyNavis.Runtime.Output
                 Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
                 FileName = "pynavis-output.txt",
             };
-            if (dialog.ShowDialog(this) == true)
-                System.IO.File.WriteAllText(dialog.FileName, FullText());
+            if (dialog.ShowDialog(this) == true) SaveTo(dialog.FileName);
+        }
+
+        /// <summary>Writes all output to <paramref name="path"/>; true when it was written.
+        /// A failed write (read-only folder, file open elsewhere, disk full) is reported,
+        /// not thrown.</summary>
+        internal bool SaveTo(string path)
+        {
+            try
+            {
+                System.IO.File.WriteAllText(path, FullText());
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                Log.Error($"Could not save the output to '{path}'", ex);
+                ReportFailure("Could not save the output", ex.Message);
+                return false;
+            }
         }
 
         private void FindNext()

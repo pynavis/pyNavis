@@ -83,10 +83,20 @@ def set_envvar(name, value):
 
 
 def clipboard_copy(text):
-    """Puts text on the Windows clipboard."""
+    """Puts text on the Windows clipboard; True when it got there, else False.
+
+    Never raises. The clipboard is shared with every other process on the
+    machine, so a copy can fail simply because another application is holding
+    it open (CLIPBRD_E_CANT_OPEN). Tell the user with a toast when it returns
+    False, rather than claiming a copy that did not happen.
+    """
     clr.AddReference('PresentationCore')
     from System.Windows import Clipboard
-    Clipboard.SetText(str(text))
+    try:
+        Clipboard.SetText(str(text))
+        return True
+    except Exception:
+        return False
 
 
 def clipboard_text():

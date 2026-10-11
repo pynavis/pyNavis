@@ -308,6 +308,45 @@ namespace PyNavis.Tests
             Assert.NotEqual(3, saved.PaneAssignments["T.tab/P.panel/Live.dockpane"]);
         }
 
+        [Fact]
+        public void A_Satellite_Load_Failure_Then_A_Good_Boot_Keeps_The_Original_Slots()
+        {
+            // Slots 6 and 8 come from the satellite. One boot where it fails to load must
+            // not rehome their bundles onto shipped slots and save that, or the next good
+            // boot finds the low slots in config and the for-life claims (and the dock
+            // layouts Navisworks keyed by the old plugin ids) are gone for good. Ghost's
+            // bundle is uninstalled; its claim on slot 7 must survive the bad boot too.
+            const string six = "T.tab/P.panel/Six.dockpane";
+            const string eight = "T.tab/P.panel/Eight.dockpane";
+            const string ghost = "T.tab/P.panel/Ghost.dockpane";
+            File.WriteAllText(_configPath,
+                "{\"panes\":{\"extraSlots\":3,\"assignments\":{" +
+                "\"" + six + "\":6,\"" + eight + "\":8,\"" + ghost + "\":7}}}");
+            var ext = Extension("Six", "Eight");
+
+            PaneRegistry.SlotProbe = slot => false;
+            PaneRegistry.Configure(new[] { ext }, PyNavisConfig.Load(_configPath), _configPath);
+
+            Assert.Equal(PaneRegistry.ShippedSlots, PaneRegistry.SlotCount);
+            Assert.Equal(0, PaneRegistry.SlotFor(six));     // unplaced this session
+            Assert.Equal(0, PaneRegistry.SlotFor(eight));
+            var afterFailure = PyNavisConfig.Load(_configPath);
+            Assert.Equal(6, afterFailure.PaneAssignments[six]);
+            Assert.Equal(8, afterFailure.PaneAssignments[eight]);
+            Assert.Equal(7, afterFailure.PaneAssignments[ghost]);
+            Assert.Equal(3, afterFailure.ExtraPaneSlots);
+
+            PaneRegistry.SlotProbe = slot => true;
+            PaneRegistry.Configure(new[] { ext }, PyNavisConfig.Load(_configPath), _configPath);
+
+            Assert.Equal(6, PaneRegistry.SlotFor(six));
+            Assert.Equal(8, PaneRegistry.SlotFor(eight));
+            var afterRecovery = PyNavisConfig.Load(_configPath);
+            Assert.Equal(6, afterRecovery.PaneAssignments[six]);
+            Assert.Equal(8, afterRecovery.PaneAssignments[eight]);
+            Assert.Equal(7, afterRecovery.PaneAssignments[ghost]);
+        }
+
         private static void OnSta(Action action)
         {
             Exception failure = null;

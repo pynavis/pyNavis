@@ -141,6 +141,17 @@ namespace PyNavis.Runtime.Forms
         public static int ConflictCaptionCountOf(Window window) => PartsOf(window).RowUis
             .Count(r => r.ConflictCaption.Visibility == Visibility.Visible);
 
+        /// <summary>The badge beside a row's field ("Custom", "Disabled" or empty).</summary>
+        internal static string BadgeTextOf(Window window, string bundleKey) =>
+            RowUiOf(window, bundleKey).Badge.Text;
+
+        /// <summary>The conflict caption under a row's field, empty when it has none.</summary>
+        internal static string ConflictCaptionTextOf(Window window, string bundleKey) =>
+            RowUiOf(window, bundleKey).ConflictCaption.Text;
+
+        private static RowUi RowUiOf(Window window, string bundleKey) => PartsOf(window).RowUis
+            .First(r => string.Equals(r.Row.BundleKey, bundleKey, System.StringComparison.OrdinalIgnoreCase));
+
         // ---- construction ------------------------------------------------------
 
         private static FrameworkElement Header(Tokens t)
@@ -362,12 +373,12 @@ namespace PyNavis.Runtime.Forms
             foreach (var ui in parts.RowUis)
             {
                 var row = ui.Row;
-                ui.Badge.Text = !row.IsCustom ? "" : row.Current == null ? "disabled" : "custom";
+                ui.Badge.Text = !row.IsCustom ? "" : row.Current == null ? "Disabled" : "Custom";
                 ui.Reset.Visibility = row.IsCustom && row.DefaultChord != null
                     ? Visibility.Visible : Visibility.Hidden;
 
                 var conflict = row.ConflictWith != null;
-                ui.ConflictCaption.Text = conflict ? "conflicts with " + row.ConflictWith : "";
+                ui.ConflictCaption.Text = conflict ? "Conflicts with " + row.ConflictWith : "";
                 ui.ConflictCaption.Visibility = conflict ? Visibility.Visible : Visibility.Collapsed;
             }
             parts.Save.IsEnabled = parts.Model.IsDirty && !parts.Model.HasConflicts;

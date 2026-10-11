@@ -3,8 +3,8 @@
 into Navisworks Search objects, run them against a document, and write
 search/selection sets and folders back into the saved-sets tree.
 
-The pure half (query, _variant_kind, _split_path, _dedupe_name, _plan_folders,
-_validate_import) has no Navisworks dependency and runs anywhere; the API
+The pure half (query, _variant_kind, _split_path, _join_path, _dedupe_name,
+_plan_folders, _validate_import) has no Navisworks dependency and runs anywhere; the API
 half (compile_search, run, find_first, snapshot, find, items_of, select, create, update,
 rename, delete, create_folder, to_dict, export_all, import_dict) lazy-imports
 pynavis._api / pynavis.doc inside each function, same as viewpoints.py, so
@@ -149,6 +149,19 @@ def _split_path(path):
             i += 1
     parts.append(''.join(current))
     return parts
+
+
+def _join_path(segments):
+    """The inverse of _split_path: names joined with '/', every slash inside a
+    name written '\\/', so _split_path(_join_path(names)) == names.
+
+    Anything that builds a path out of display names (export_all's folder,
+    import_dict's replace lookup) goes through here, or a name such as
+    'Level 1/2' comes back from find() or create_folder() as two levels. One
+    case has no spelling in the escape: a name ending in a backslash, which
+    reads back joined to the name after it.
+    """
+    return '/'.join(segment.replace('/', '\\/') for segment in segments)
 
 
 def _dedupe_name(existing, name):
@@ -676,7 +689,9 @@ def export_all(doc=None, include_static=False):
     """Every SEARCH set in the document as {'sets': [{'name', 'folder',
     'query'}, ...]} - directly re-importable, since export_all(...) feeding
     import_dict(...) is the whole point of the pair. folder is a
-    '/'-separated path, or None at the root.
+    '/'-separated path, or None at the root, with a slash inside a folder's
+    own name written '\\/' (see _join_path), the form create() and find()
+    read; name is the set's display name as it is.
 
     Static/explicit sets are LEFT OUT by default: to_dict renders one as
     {'items': N}, a count with nothing to rebuild the set from, and
@@ -701,7 +716,7 @@ def export_all(doc=None, include_static=False):
             parts.append(folder_names.get(key, ''))
             key = parent_of.get(key, '')
         parts.reverse()
-        return '/'.join(parts) if parts else None
+        return _join_path(parts) if parts else None
 
     entries = []
     for row in rows:
@@ -758,7 +773,8 @@ def import_dict(data, doc=None, replace=False, progress=None):
             query = entry['query']
             try:
                 if replace:
-                    path = (folder + '/' + name) if folder else name
+                    # folder is already a path (escaped); name is a raw display name
+                    path = _join_path((_split_path(folder) if folder else []) + [name])
                     existing = find(path, d)
                     if existing is not None:
                         update(existing, query, d)

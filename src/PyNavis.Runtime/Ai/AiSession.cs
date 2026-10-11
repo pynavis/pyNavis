@@ -109,10 +109,18 @@ namespace PyNavis.Runtime.Ai
         {
             var error = LastError;
             if (error == null) throw new InvalidOperationException("There is no recorded error for this tool.");
-            FailureLog.Clear(CurrentBundleDir);
+            var bundle = CurrentBundleDir;
             Conversation.Turns.Add(new Turn("user",
                 "The tool failed when I ran it. Fix it and send the complete files again.\n\n```\n" + error + "\n```"));
-            return await RunAsync(token).ConfigureAwait(false);
+            var outcome = await RunAsync(token).ConfigureAwait(false);
+
+            // Cleared only once a reply has arrived: a failed or cancelled send keeps the
+            // error to send again. One recorded while the reply streamed is newer than the
+            // one sent, so it stays too.
+            if (outcome.Error == null && !outcome.Cancelled
+                && string.Equals(FailureLog.LastFor(bundle), error, StringComparison.Ordinal))
+                FailureLog.Clear(bundle);
+            return outcome;
         }
 
         private async Task<TurnOutcome> RunAsync(CancellationToken token)
@@ -129,6 +137,14 @@ namespace PyNavis.Runtime.Ai
                     sb.Append(delta);
                     TextStreamed?.Invoke(delta);
                 }, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (!token.IsCancellationRequested)
+            {
+                // HttpClient's own timeout is a TaskCanceledException as well, with this
+                // token untouched: a server that never answered, not the user cancelling.
+                outcome.Error = "The request failed: the server did not answer in time.";
+                Log.Error("AI request timed out", ex);
+                return outcome;
             }
             catch (OperationCanceledException)
             {

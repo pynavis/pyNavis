@@ -120,7 +120,7 @@ weekly report, without opening Clash Detective and adding the columns up by eye.
 <p>The tool's own files, word for word as shipped in <code>Clash.panel/Clash_Report.pushbutton</code>. Every pyNavis tool is an ordinary bundle: copy these into your own extension and change what you like.</p>
 <div class="code src"><div class="code-head"><span><code>script.py</code> <span class="src-note">Runs on a click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Report.pushbutton/script.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Summarizes every Clash Detective test (result counts by status), with CSV export.&quot;&quot;&quot;</span>
 
-<span class="tok-k">import</span> csv
+<span class="tok-k">import</span> csvexport
 
 <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> clash, forms, output
 
@@ -142,10 +142,7 @@ summaries = clash.summarize()
     <span class="tok-k">if</span> forms.confirm(<span class="tok-s">&#x27;Export this clash summary to CSV?&#x27;</span>):
         path = forms.save_file(default_name=<span class="tok-s">&#x27;clash_report.csv&#x27;</span>, title=<span class="tok-s">&#x27;Export clash report&#x27;</span>)
         <span class="tok-k">if</span> path <span class="tok-k">is</span> <span class="tok-k">not</span> <span class="tok-k">None</span>:
-            <span class="tok-k">with</span> open(path, <span class="tok-s">&#x27;w&#x27;</span>) <span class="tok-k">as</span> f:
-                writer = csv.writer(f, lineterminator=<span class="tok-s">&#x27;\n&#x27;</span>)
-                writer.writerow(headers)
-                writer.writerows(rows)
+            csvexport.write_rows(path, headers, rows)
             print(<span class="tok-s">&#x27;Exported to %s&#x27;</span> % path)</code></pre></div>
 <div class="code src"><div class="code-head"><span><code>bundle.yaml</code> <span class="src-note">The bundle contract: the keys pyNavis reads for this tool.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Report.pushbutton/bundle.yaml" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-k">title</span>: Clash\nReport</code></pre></div>
   <div class="pagenav">

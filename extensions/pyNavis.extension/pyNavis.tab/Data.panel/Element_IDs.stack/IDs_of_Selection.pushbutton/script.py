@@ -24,13 +24,19 @@ from pynavis import props, script, settings, toast
 _MAX_ANCESTORS = 8
 
 
-def summary(ids, without):
+def summary(ids, without, copied=True):
     """(level, message, detail) for the toast. One id is named rather than
     counted, and items that carry no id at all are always reported, so the
-    tool never finishes looking like it did nothing."""
+    tool never finishes looking like it did nothing. copied is False when the
+    clipboard refused the list (another application holding it open), and
+    the toast then says so instead of claiming a copy."""
     if not ids:
         return ('warning', 'No element IDs found',
                 'None of the %d selected item(s) carry an element ID.' % without)
+
+    if not copied:
+        return ('error', 'Could not copy the element IDs',
+                'Another application is using the clipboard. Try again.')
 
     if len(ids) == 1:
         message = 'Element ID %s copied' % ids[0]
@@ -109,9 +115,8 @@ def run():
             seen[found] = True
             ids.append(found)
 
-    if ids:
-        script.clipboard_copy(elementids.format_id_list(ids))
-    toast.show(*summary(ids, without))
+    copied = script.clipboard_copy(elementids.format_id_list(ids)) if ids else True
+    toast.show(*summary(ids, without, copied))
 
 
 if '__commandpath__' in globals():

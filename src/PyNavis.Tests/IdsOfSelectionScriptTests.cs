@@ -87,6 +87,18 @@ namespace PyNavis.Tests
                 "assert detail == 'None of the 4 selected item(s) carry an element ID.', detail");
         }
 
+        [Fact]
+        public void Summary_ClipboardRefusedTheCopy_SaysSoInsteadOfClaimingACopy()
+        {
+            // Another application holding the clipboard open makes the copy fail;
+            // the toast must not report IDs as copied when nothing reached it.
+            Run("level, message, detail = script.summary(['1', '2'], 1, copied=False)\n" +
+                "assert level == 'error', level\n" +
+                "assert message == 'Could not copy the element IDs', message\n" +
+                "assert 'clipboard' in detail and detail[:1].isupper(), detail\n" +
+                "assert script.summary(['1'], 0, copied=True) == script.summary(['1'], 0)");
+        }
+
         // ---- id_of: which node up the chain the id is read from -------------
 
         /// <summary>

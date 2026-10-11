@@ -152,23 +152,22 @@ namespace PyNavis.Runtime.Forms
             return text;
         }
 
+        /// <summary>
+        /// What the field shows for a capture error and the bound chord: the error's short
+        /// form, the placeholder when unbound, otherwise the chord itself.
+        /// </summary>
+        internal static string DisplayFor(string lastError, string chordText)
+        {
+            if (lastError != null)
+                return lastError.Contains("Ctrl or Alt") ? "Needs Ctrl or Alt" : "Unsupported key";
+            return chordText ?? "Press keys";
+        }
+
         private void Refresh()
         {
-            if (LastError != null)
-            {
-                _label.Text = LastError.Contains("Ctrl or Alt") ? "needs Ctrl or Alt" : "unsupported key";
-                _label.Foreground = DesignSystem.Brush(_t.Muted);
-            }
-            else if (_chordText == null)
-            {
-                _label.Text = "press keys";
-                _label.Foreground = DesignSystem.Brush(_t.Muted);
-            }
-            else
-            {
-                _label.Text = _chordText;
-                _label.Foreground = DesignSystem.Brush(_t.Ink);
-            }
+            _label.Text = DisplayFor(LastError, _chordText);
+            var muted = LastError != null || _chordText == null;
+            _label.Foreground = DesignSystem.Brush(muted ? _t.Muted : _t.Ink);
         }
     }
 }

@@ -182,6 +182,82 @@ namespace PyNavis.Tests
             Assert.Null(session.LastError);
         }
 
+        private async Task<(AiSession session, ScriptedProvider provider, string bundle)> WithAFailedTool()
+        {
+            var (session, provider, _) = Make();
+            provider.Replies.Enqueue(FirstReply);
+            await session.SendAsync("make it", false, CancellationToken.None);
+            var bundle = session.Apply();
+            FailureLog.Record(bundle, "Traceback (most recent call last): NameError: boom");
+            return (session, provider, bundle);
+        }
+
+        // The error used to be cleared before the request went out, so a request that
+        // failed lost it and "Send last error" had nothing left to send again.
+        [Fact]
+        public async Task AFailedSendOfTheLastError_KeepsItToSendAgain()
+        {
+            var (session, provider, _) = await WithAFailedTool();
+            provider.Throw = new ProviderException("The server is overloaded (HTTP 529).", 529);
+
+            var outcome = await session.SendLastErrorAsync(CancellationToken.None);
+
+            Assert.NotNull(outcome.Error);
+            Assert.Contains("NameError: boom", session.LastError);
+        }
+
+        [Fact]
+        public async Task ACancelledSendOfTheLastError_KeepsItToSendAgain()
+        {
+            var (session, provider, _) = await WithAFailedTool();
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            provider.Throw = new OperationCanceledException(cts.Token);
+
+            var outcome = await session.SendLastErrorAsync(cts.Token);
+
+            Assert.True(outcome.Cancelled);
+            Assert.Contains("NameError: boom", session.LastError);
+        }
+
+        // Clearing after the reply must not wipe a newer error the tool recorded while
+        // the reply streamed: the model has not seen that one.
+        [Fact]
+        public async Task AnErrorRecordedWhileTheReplyStreams_SurvivesTheReply()
+        {
+            var (session, provider, bundle) = await WithAFailedTool();
+            provider.Replies.Enqueue(RevisedReply);
+            var recorded = false;
+            session.TextStreamed += _ =>
+            {
+                if (recorded) return;
+                recorded = true;
+                FailureLog.Record(bundle, "Traceback (most recent call last): KeyError: later");
+            };
+
+            await session.SendLastErrorAsync(CancellationToken.None);
+
+            Assert.Contains("KeyError: later", session.LastError);
+        }
+
+        // HttpClient's own timeout surfaces as a TaskCanceledException too. With the
+        // session's token untouched it is a server that never answered: a failure to
+        // show and log, keeping the ask so it can be sent again, not a cancel.
+        [Fact]
+        public async Task ATimeout_IsAFailure_NotACancel_AndKeepsTheAsk()
+        {
+            var (session, provider, _) = Make();
+            provider.Throw = new TaskCanceledException();
+
+            var outcome = await session.SendAsync("hello", false, CancellationToken.None);
+
+            Assert.False(outcome.Cancelled);
+            Assert.Equal("The request failed: the server did not answer in time.", outcome.Error);
+            Assert.False(outcome.IsAuthFailure);
+            var ask = Assert.Single(session.Conversation.Turns);
+            Assert.Equal("hello", ask.Text);
+        }
+
         [Fact]
         public async Task AProviderFailure_LeavesTheUserTurn_AddsNoAssistantTurn_AndReportsTheMessage()
         {

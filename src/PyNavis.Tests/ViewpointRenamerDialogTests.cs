@@ -68,6 +68,20 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void ACollidingRow_SaysSo_InSentenceCase()
+        {
+            OnSta(() =>
+            {
+                var window = ViewpointRenamerDialog.Build(Rows(),
+                    _ => Preview(("North", "Same", false), ("South", "Same", true)));
+
+                Assert.Equal(new[] { "North", "Same" }, ViewpointRenamerDialog.DiffTextsOf(window, 0));
+                Assert.Equal(new[] { "South", "Same", "Collides with a sibling" },
+                    ViewpointRenamerDialog.DiffTextsOf(window, 1));
+            });
+        }
+
+        [Fact]
         public void ProblemFromTheEngine_IsShown_AndBlocks()
         {
             OnSta(() =>

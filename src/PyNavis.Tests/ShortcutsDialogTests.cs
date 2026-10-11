@@ -121,6 +121,26 @@ namespace PyNavis.Tests
             });
         }
 
+        [Fact]
+        public void Badges_And_Conflict_Captions_Start_With_A_Capital()
+        {
+            OnSta(() =>
+            {
+                var model = Model();
+                Assert.Null(model.TrySet("t/g/B.pushbutton", "Ctrl+Alt+B"));     // custom
+                model.Disable("t/g/A.pushbutton");                               // disabled
+                Assert.Null(model.TrySet("t/m/C.pushbutton", "Ctrl+Alt+B"));     // clashes with Beta
+
+                var window = ShortcutsDialog.Build(model);
+
+                Assert.Equal("Custom", ShortcutsDialog.BadgeTextOf(window, "t/g/B.pushbutton"));
+                Assert.Equal("Disabled", ShortcutsDialog.BadgeTextOf(window, "t/g/A.pushbutton"));
+                Assert.Equal("Conflicts with Beta",
+                    ShortcutsDialog.ConflictCaptionTextOf(window, "t/m/C.pushbutton"));
+                Assert.Equal("", ShortcutsDialog.ConflictCaptionTextOf(window, "t/g/B.pushbutton"));
+            });
+        }
+
         private static void OnSta(Action action)
         {
             Exception failure = null;

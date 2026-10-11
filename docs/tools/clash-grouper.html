@@ -139,9 +139,12 @@ and behave like any other in the report.</p>
 root-cause element, or chain custom rules (level, grid, proximity, model,
 status), with a live preview before anything is written.&quot;&quot;&quot;</span>
 
+<span class="tok-c"># Everything above the guard at the bottom imports without Navisworks, so the</span>
+<span class="tok-c"># pure reporting can be tested (src/PyNavis.Tests/ClashGrouperScriptTests.cs).</span>
+
 <span class="tok-k">import</span> clr
 
-<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app, clashgroup, forms, output, settings
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> clashgroup, forms, output, settings, toast
 <span class="tok-k">from</span> pynavis._markdown <span class="tok-k">import</span> escape <span class="tok-k">as</span> _escape
 
 <span class="tok-k">try</span>:
@@ -178,8 +181,11 @@ SETTINGS_DEFAULTS = {<span class="tok-s">&#x27;smart&#x27;</span>: <span class="
     defaults = GrouperConfig()
     defaults.Smart = bool(prefs[<span class="tok-s">&#x27;smart&#x27;</span>])
     defaults.KeepExisting = bool(prefs[<span class="tok-s">&#x27;keep_existing&#x27;</span>])
-    <span class="tok-c"># The cluster distance is shown and typed in the document&#x27;s units.</span>
+    <span class="tok-c"># The cluster distance is shown and typed in the document&#x27;s units. The</span>
+    <span class="tok-c"># import lives here, not at the top: pynavis.app needs the Navisworks API,</span>
+    <span class="tok-c"># and the rest of this file must import without it.</span>
     <span class="tok-k">try</span>:
+        <span class="tok-k">from</span> pynavis <span class="tok-k">import</span> app
         defaults.Units = str(app.get_doc().Units)
     <span class="tok-k">except</span> Exception:
         <span class="tok-k">pass</span>
@@ -489,21 +495,37 @@ SETTINGS_DEFAULTS = {<span class="tok-s">&#x27;smart&#x27;</span>: <span class="
     <span class="tok-k">finally</span>:
         scope.Dispose()
 
-    removed_total = <span class="tok-n">0</span>
-    <span class="tok-k">for</span> name, removed <span class="tok-k">in</span> removed_by_test:
-        removed_total += removed
-        <span class="tok-k">if</span> removed:
-            print(<span class="tok-s">&#x27;%s: removed %d group(s).&#x27;</span> % (name, removed))
-    <span class="tok-k">if</span> <span class="tok-k">not</span> removed_total:
-        print(<span class="tok-s">&#x27;No groups created by this tool were found in the selected tests. &#x27;</span>
-              <span class="tok-s">&#x27;Hand-made groups are never touched.&#x27;</span>)
+    level, message, detail, lines = ungroup_summary(removed_by_test)
+    <span class="tok-k">for</span> line <span class="tok-k">in</span> lines:
+        print(line)
+    toast.show(level, message, detail)
 
 
-<span class="tok-k">if</span> clash <span class="tok-k">is</span> <span class="tok-k">None</span>:
-    forms.alert(<span class="tok-s">&#x27;Clash Detective is not available in this Navisworks edition.\n&#x27;</span>
-                <span class="tok-s">&#x27;Clash Grouper needs Navisworks Manage.&#x27;</span>)
-<span class="tok-k">else</span>:
-    run()</code></pre></div>
+<span class="tok-k">def</span> ungroup_summary(removed_by_test):
+    <span class="tok-s">&quot;&quot;&quot;What Ungroup reports, from [(test name, groups removed)]: a toast as
+    (level, message, detail), plus the per-test lines for the output window.
+    Those only come when groups came out of more than one test; one test is a
+    single line, and the toast already says it.&quot;&quot;&quot;</span>
+    removed = [(name, count) <span class="tok-k">for</span> name, count <span class="tok-k">in</span> removed_by_test <span class="tok-k">if</span> count]
+    total = sum(count <span class="tok-k">for</span> _, count <span class="tok-k">in</span> removed)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> total:
+        <span class="tok-k">return</span> (<span class="tok-s">&#x27;info&#x27;</span>, <span class="tok-s">&#x27;No groups to remove&#x27;</span>,
+                <span class="tok-s">&#x27;None of the selected tests has groups this tool made. &#x27;</span>
+                <span class="tok-s">&#x27;Hand-made groups are never touched.&#x27;</span>, [])
+    message = <span class="tok-s">&#x27;Removed %d group(s)&#x27;</span> % total
+    <span class="tok-k">if</span> len(removed) == <span class="tok-n">1</span>:
+        <span class="tok-k">return</span> (<span class="tok-s">&#x27;success&#x27;</span>, message, <span class="tok-s">&#x27;From %s.&#x27;</span> % removed[<span class="tok-n">0</span>][<span class="tok-n">0</span>], [])
+    lines = [<span class="tok-s">&#x27;%s: removed %d group(s).&#x27;</span> % pair <span class="tok-k">for</span> pair <span class="tok-k">in</span> removed]
+    <span class="tok-k">return</span> (<span class="tok-s">&#x27;success&#x27;</span>, message,
+            <span class="tok-s">&#x27;From %d tests; see the output window.&#x27;</span> % len(removed), lines)
+
+
+<span class="tok-k">if</span> <span class="tok-s">&#x27;__commandpath__&#x27;</span> <span class="tok-k">in</span> globals():
+    <span class="tok-k">if</span> clash <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        forms.alert(<span class="tok-s">&#x27;Clash Detective is not available in this Navisworks edition.\n&#x27;</span>
+                    <span class="tok-s">&#x27;Clash Grouper needs Navisworks Manage.&#x27;</span>)
+    <span class="tok-k">else</span>:
+        run()</code></pre></div>
 <div class="code src"><div class="code-head"><span><code>config.py</code> <span class="src-note">Runs on Shift+Click.</span> <a href="https://github.com/pynavis/pyNavis/blob/main/extensions/pyNavis.extension/pyNavis.tab/Clash.panel/Clash_Grouper.pushbutton/config.py" rel="noopener">View on GitHub</a></span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Defaults for Clash Grouper (the Shift+Click settings).
 
 Presets what the grouper dialog opens with: mode, custom rule chain, cluster
@@ -681,13 +703,16 @@ seg_custom.Click += <span class="tok-k">lambda</span> s, e: set_mode(<span class
         rule_rows.Children[index].Children[<span class="tok-n">0</span>].Text = <span class="tok-s">&#x27;%d.&#x27;</span> % (index + <span class="tok-n">1</span>)
 
 
-<span class="tok-k">for</span> saved_id <span class="tok-k">in</span> values[<span class="tok-s">&#x27;rules&#x27;</span>]:
-    <span class="tok-k">if</span> saved_id <span class="tok-k">in</span> RULE_IDS:
-        add_rule_row(saved_id)
-
+<span class="tok-c"># Before the saved rows below: add_rule_row paints the mode, which shows or</span>
+<span class="tok-c"># hides this button, so it has to exist first. The rows go into rule_rows,</span>
+<span class="tok-c"># which is already in place above it, so the layout is unchanged.</span>
 add_btn = DesignSystem.Quiet(T, <span class="tok-s">&#x27;Add rule&#x27;</span>, <span class="tok-k">lambda</span>: add_rule_row())
 add_btn.HorizontalAlignment = HorizontalAlignment.Left
 body.Children.Add(add_btn)
+
+<span class="tok-k">for</span> saved_id <span class="tok-k">in</span> values[<span class="tok-s">&#x27;rules&#x27;</span>]:
+    <span class="tok-k">if</span> saved_id <span class="tok-k">in</span> RULE_IDS:
+        add_rule_row(saved_id)
 
 section(<span class="tok-s">&#x27;Cluster distance&#x27;</span>)
 tolerance_box = TextBox()

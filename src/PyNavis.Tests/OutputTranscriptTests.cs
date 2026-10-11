@@ -106,6 +106,66 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void Transcript_Coalesces_ManyFragments_ToTheSameContentAsPlainConcatenation()
+        {
+            // Two writes per print (the line, then its newline) is what IronPython's
+            // unbuffered stdout produces. Each same-kind run must replay exactly as
+            // the fragments joined end to end, with kind changes and html still
+            // splitting the runs.
+            var transcript = new OutputTranscript();
+            var text = new System.Text.StringBuilder();
+            var error = new System.Text.StringBuilder();
+            var tail = new System.Text.StringBuilder();
+            for (var i = 0; i < 2000; i++)
+            {
+                transcript.Record("text", "line " + i + " <" + i + ">");
+                transcript.Record("text", "\n");
+                text.Append("line " + i + " <" + i + ">").Append("\n");
+            }
+            for (var i = 0; i < 500; i++)
+            {
+                transcript.Record("error", "frame " + i + " & more\n");
+                error.Append("frame " + i + " & more\n");
+            }
+            transcript.Record("html", "<hr/>");
+            for (var i = 0; i < 500; i++)
+            {
+                transcript.Record("text", "after " + i + "\n");
+                tail.Append("after " + i + "\n");
+            }
+            var page = transcript.Transcript;
+
+            Assert.Equal(2, Regex.Matches(page, "<pre class=\"pynavis-text\"").Count);
+            Assert.Single(Regex.Matches(page, "<pre class=\"pynavis-error\""));
+            var expected =
+                "<pre class=\"pynavis-text\">" + Escape(text.ToString()) + "</pre>" +
+                "<pre class=\"pynavis-error\">" + Escape(error.ToString()) + "</pre>" +
+                "<hr/>" +
+                "<pre class=\"pynavis-text\">" + Escape(tail.ToString()) + "</pre>";
+            Assert.Contains(expected, page);
+        }
+
+        [Fact]
+        public void Record_Many_Small_Appends_Stays_Linear()
+        {
+            // Rebuilding the whole run on every append is quadratic: 100k one-character
+            // writes copied about five billion characters on the UI thread.
+            var transcript = new OutputTranscript();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            for (var i = 0; i < 100000; i++)
+                transcript.Record("text", "x");
+            clock.Stop();
+
+            Assert.True(clock.ElapsedMilliseconds < 1000,
+                "100k appends took " + clock.ElapsedMilliseconds + " ms");
+            Assert.Contains("<pre class=\"pynavis-text\">" + new string('x', 100000) + "</pre>",
+                transcript.Transcript);
+        }
+
+        private static string Escape(string text) =>
+            text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+
+        [Fact]
         public void OutputWindowWriter_Write_CharArray_RecordsOneBulkFragment()
         {
             // The regression itself: TextWriterStream calls this exact overload

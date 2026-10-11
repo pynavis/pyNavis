@@ -57,11 +57,20 @@ for _name in list(sys.modules.keys()):
                 scope.SetVariable(kv.Key, kv.Value);
 
             // Search paths and IO redirection are engine-global, shared by every run.
-            // Set them for this request, then put the baseline back in the finally so a
-            // nested run (a hook dispatched by a pump, a script calling Reload) cannot
-            // leave the engine pointed at a dead writer or a foreign bundle folder.
-            // Same discipline as CPythonEngine.Execute with sys.path/stdout/stderr.
+            // Capture what is there now, set this request's, and put exactly the captured
+            // state back in the finally: the baseline after a top-level run, the enclosing
+            // run's own after a nested one. Runs do nest on one thread: a script calling
+            // script.reload_pynavis() runs Reload, which runs dock pane, startup and
+            // smartbutton scripts through this engine, and a hook can be dispatched by a
+            // pump inside a run. Restoring the baseline instead would hand the outer script
+            // back with its bundle folder gone from sys.path and print() going to the
+            // console. Same discipline as CPythonEngine.Execute with sys.path/stdout/stderr.
             var io = _engine.Runtime.IO;
+            var outerPaths = _engine.GetSearchPaths();
+            var outerOutputStream = io.OutputStream;
+            var outerOutputWriter = io.OutputWriter;
+            var outerErrorStream = io.ErrorStream;
+            var outerErrorWriter = io.ErrorWriter;
 
             try
             {
@@ -112,8 +121,9 @@ for _name in list(sys.modules.keys()):
             {
                 try
                 {
-                    _engine.SetSearchPaths(_basePaths);
-                    io.RedirectToConsole();
+                    _engine.SetSearchPaths(outerPaths);
+                    io.SetOutput(outerOutputStream, outerOutputWriter);
+                    io.SetErrorOutput(outerErrorStream, outerErrorWriter);
                 }
                 catch (Exception ex)
                 {

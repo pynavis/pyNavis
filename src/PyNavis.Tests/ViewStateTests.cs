@@ -182,5 +182,25 @@ namespace PyNavis.Tests
             Assert.Contains("hid0=Everything visible", text);
             Assert.Contains("ovr=''", text);
         }
+
+        [Fact]
+        public void PasteResult_CountsTheMissing_WithoutAnEmptyModelName()
+        {
+            // Entries whose model recorded no name are left out of missing_models, and
+            // the detail then read '1 not found in .'
+            var text = Run(Preamble +
+                "def detail(missing, models):\n" +
+                "    return viewstate._item_result('Pasted Hidden Items', 'Everything', [1, 2, 3],\n" +
+                "                                  3 - missing, missing, models).detail\n" +
+                "print('none=' + detail(1, []))\n" +
+                "print('named=' + detail(2, ['A.nwc', 'B.nwc']))\n" +
+                "print('empty=' + detail(1, ['']))\n" +
+                "print('mixed=' + detail(2, ['A.nwc', '']))\n");
+
+            Assert.Contains("none=1 not found.", text);
+            Assert.Contains("named=2 not found in A.nwc, B.nwc.", text);
+            Assert.Contains("empty=1 not found in an unnamed model.", text);
+            Assert.Contains("mixed=2 not found in A.nwc, an unnamed model.", text);
+        }
     }
 }

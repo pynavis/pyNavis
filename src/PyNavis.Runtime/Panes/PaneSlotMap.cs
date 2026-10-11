@@ -7,8 +7,20 @@ namespace PyNavis.Runtime.Panes
     public class PaneAssignment
     {
         public string BundleKey { get; set; }
-        /// <summary>1-based slot, or 0 when every slot was already taken.</summary>
+        /// <summary>
+        /// 1-based slot, or 0 when the bundle has no slot this session: every slot was
+        /// already taken, or its claim is held (see <see cref="HeldSlot"/>).
+        /// </summary>
         public int Slot { get; set; }
+
+        /// <summary>
+        /// The bundle's existing claim on a slot that config still provides but that did
+        /// not register this session (the satellite failed to load), with
+        /// <see cref="Slot"/> 0 beside it; otherwise 0. The claim is kept as is, never
+        /// rehomed, so the next boot that loads the satellite gives the bundle its slot
+        /// (and the dock layout Navisworks keyed by that slot's plugin id) back.
+        /// </summary>
+        public int HeldSlot { get; set; }
     }
 
     /// <summary>
@@ -29,6 +41,19 @@ namespace PyNavis.Runtime.Panes
             IReadOnlyDictionary<string, int> existing,
             int slotCount)
         {
+            return Resolve(bundleKeys, existing, slotCount, slotCount);
+        }
+
+        /// <param name="slotCount">Slots that actually registered this session.</param>
+        /// <param name="configuredSlotCount">
+        /// Slots config provides. Above <paramref name="slotCount"/> only when the
+        /// satellite failed to load; a claim between the two is held, not reassigned.
+        /// </param>
+        public static List<PaneAssignment> Resolve(
+            IReadOnlyList<string> bundleKeys,
+            IReadOnlyDictionary<string, int> existing,
+            int slotCount, int configuredSlotCount)
+        {
             var result = new List<PaneAssignment>();
             var taken = new HashSet<int>();
             var newcomers = new List<PaneAssignment>();
@@ -38,13 +63,18 @@ namespace PyNavis.Runtime.Panes
                 var assignment = new PaneAssignment { BundleKey = key, Slot = 0 };
                 result.Add(assignment);
 
-                int slot;
-                // A claim past the end (slots removed since it was written) is stale:
-                // treat the bundle as new rather than pointing it at a slot type that
-                // no longer exists.
-                if (existing != null && existing.TryGetValue(key, out slot)
-                    && slot >= 1 && slot <= slotCount && taken.Add(slot))
-                    assignment.Slot = slot;
+                int claimed;
+                if (existing == null || !existing.TryGetValue(key, out claimed)) claimed = 0;
+
+                if (claimed >= 1 && claimed <= slotCount && taken.Add(claimed))
+                    assignment.Slot = claimed;
+                // Configured but not registered: the slot is coming back once the
+                // satellite loads, so moving the bundle now would cost it the claim.
+                else if (claimed > slotCount && claimed <= configuredSlotCount && taken.Add(claimed))
+                    assignment.HeldSlot = claimed;
+                // A claim past every configured slot (slots removed since it was
+                // written) is stale: treat the bundle as new rather than pointing it at
+                // a slot type that no longer exists.
                 else
                     newcomers.Add(assignment);
             }

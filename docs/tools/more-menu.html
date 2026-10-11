@@ -155,6 +155,9 @@ name = forms.ask_string(<span class="tok-s">&#x27;Name for the selection set&#x2
 state, rows = memory.contents()
 <span class="tok-k">if</span> <span class="tok-k">not</span> state[<span class="tok-s">&#x27;items&#x27;</span>]:
     output.print_md(<span class="tok-s">&#x27;**Memory is empty.** Select something and press Remember.&#x27;</span>)
+    note = memory.ignored_note(state)
+    <span class="tok-k">if</span> note:
+        output.print_md(note)
 <span class="tok-k">else</span>:
     output.print_html(memory.contents_html(rows, state))</code></pre></div>
   <div class="pagenav">

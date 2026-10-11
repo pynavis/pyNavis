@@ -138,7 +138,11 @@ for the formatting.
 
     units = str(doc.Units)
     text = coords.format_point(hit.point)
-    script.clipboard_copy(text)
+    <span class="tok-k">if</span> <span class="tok-k">not</span> script.clipboard_copy(text):
+        log.warning(<span class="tok-s">&#x27;could not copy %s (%s): the clipboard is busy&#x27;</span> % (text, units))
+        toast.error(<span class="tok-s">&#x27;Could not copy the coordinates&#x27;</span>,
+                    <span class="tok-s">&#x27;Another application is using the clipboard. Try again.&#x27;</span>)
+        <span class="tok-k">return</span>
     log.info(<span class="tok-s">&#x27;copied %s (%s)&#x27;</span> % (text, units))
     toast.success(<span class="tok-s">&#x27;Coordinates copied&#x27;</span>, <span class="tok-s">&#x27;%s %s&#x27;</span> % (text, units))
 

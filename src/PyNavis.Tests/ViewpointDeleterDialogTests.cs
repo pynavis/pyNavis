@@ -64,6 +64,25 @@ namespace PyNavis.Tests
             });
         }
 
+        [Fact]
+        public void ACriteriaShortcut_IsOneGesture_SoTheSelectionChangesOnce()
+        {
+            OnSta(() =>
+            {
+                var rows = Rows();
+                rows.Add(new ViewpointRow { Guid = "d", Key = "2", ParentKey = "", Folder = "", Name = "Fly", Kind = "animation" });
+                rows.Add(new ViewpointRow { Guid = "e", Key = "3", ParentKey = "", Folder = "", Name = "Orbit", Kind = "animation" });
+                var window = ViewpointDeleterDialog.Build(rows);
+                var fired = 0;
+                ViewpointDeleterDialog.SelectionOf(window).Changed += () => fired++;
+
+                ViewpointDeleterDialog.SelectAnimationsForTest(window);
+
+                Assert.Equal(1, fired);
+                Assert.Equal(3, ViewpointDeleterDialog.SelectedCountOf(window));
+            });
+        }
+
         private static void OnSta(Action action)
         {
             Exception failure = null;

@@ -332,8 +332,8 @@ different callers. Know which one you are in.</p>
 <tr><td><code>memory</code></td>
     <td>Every action function returns an error-level <code>Result</code> for expected
         failures and never raises. The exception is
-        <code>deserialize</code>, which raises <code>MemoryFormatError</code>, and
-        <code>load</code>, which lets that error travel.</td></tr>
+        <code>deserialize</code>, which raises <code>MemoryFormatError</code>;
+        <code>load</code> catches it and reads a bad file as empty.</td></tr>
 <tr><td><code>section</code></td>
     <td>Every action function returns an error-level or warning-level
         <code>Result</code>. The geometry walk degrades through three point sources rather
@@ -1426,7 +1426,10 @@ document.</p>
 
 <p>The model is a pocket calculator's memory: one register per document, stored on disk under
 <code>%APPDATA%\pyNavis\memory\</code>, with M+, M- and MR equivalents. An entry identifies
-one model item as <code>{'m': source file name, 'i': model index, 'p': PathId string}</code>.</p>
+one model item as <code>{'m': file name, 'f': full name, 'i': model index, 'p': PathId string}</code>.
+The full name is the model's <code>SourceFileName</code>, or its <code>FileName</code> when
+that is empty, and <code>'m'</code> is its last part. Entries saved before full names were
+kept carry no <code>'f'</code>, and still load and resolve as they always did.</p>
 
 <h3 id="memory-constants">memory.Result, MemoryFormatError and the constants<a class="anchor" href="#memory-constants" aria-label="Link to this section">#</a></h3>
 
@@ -1442,7 +1445,8 @@ reads a 50,000-row table.</p>
 
 <p><code>Result</code> is <a href="#two-results">one of the three result classes</a>, and is
 not the same class as <code>section.Result</code> or <code>viewstate.Result</code>.
-<code>MemoryFormatError</code> is the one exception this module raises.</p>
+<code>MemoryFormatError</code> is the one exception this module raises, and only
+<code>deserialize</code> raises it.</p>
 
 <h3 id="memory-memorize">memory.memorize, memory.recall and memory.clear<a class="anchor" href="#memory-memorize" aria-label="Link to this section">#</a></h3>
 
@@ -1458,7 +1462,8 @@ a <code>Result</code>. <code>memorize</code> sets the memory to the current sele
 memory whose items belong to a document that is not open all come back as an error-level
 <code>Result</code> with a detail line explaining what to do next. <code>recall</code>
 returns an info-level result when it found some but not all of the memorized items, with the
-count in <code>.count</code> and the missing models named in <code>.detail</code>.</p>
+count in <code>.count</code> and, where the entries recorded them, the missing models named in
+<code>.detail</code>.</p>
 
 <h3 id="memory-add">memory.add, memory.subtract and memory.intersect<a class="anchor" href="#memory-add" aria-label="Link to this section">#</a></h3>
 
@@ -1542,10 +1547,14 @@ bridge, and the only functions here whose <code>doc</code> is required rather th
 <code>encode_items</code> turns model items into entries. <code>resolve_entries</code> turns
 entries back into <code>(items, missing_count, missing_model_names)</code>.</p>
 
-<p>Resolution is deliberately forgiving about model order. The stored model index is only
-trusted when the model sitting at that index still has the recorded source file name;
-otherwise the model is found by name. Appending a model to a federated file, or reordering
-the models, therefore does not break a memory saved before the change.</p>
+<p>Resolution is deliberately forgiving about model order. An entry belongs to the model with
+its recorded full name, and the stored model index is only trusted when the model sitting at
+that index has that name; otherwise the model is found by name. Only when no open model has
+the full name (the files moved, or the entry was saved before full names were kept) does the
+file name alone decide, in the same way. Appending a model to a federated file, or reordering
+the models, therefore does not break a memory saved before the change, and two models that
+share a file name in different folders, such as <code>Zone A\Arch.nwc</code> and
+<code>Zone B\Arch.nwc</code>, stay apart.</p>
 
 <h3 id="memory-pure-half">The pure half: state, storage and set maths<a class="anchor" href="#memory-pure-half" aria-label="Link to this section">#</a></h3>
 
@@ -1559,6 +1568,7 @@ usable from your own tools when you want the same on-disk format.</p>
 <div class="sig"><span class="mod">memory.</span><span class="fn">memory_root</span>()</div>
 <div class="sig"><span class="mod">memory.</span><span class="fn">path_for</span>(document_path, root)</div>
 <div class="sig"><span class="mod">memory.</span><span class="fn">load</span>(document_path, root=None)</div>
+<div class="sig"><span class="mod">memory.</span><span class="fn">ignored_note</span>(state)</div>
 <div class="sig"><span class="mod">memory.</span><span class="fn">save</span>(state, root=None)</div>
 <div class="sig"><span class="mod">memory.</span><span class="fn">key</span>(entry)</div>
 <div class="sig"><span class="mod">memory.</span><span class="fn">union</span>(a, b)</div>
@@ -1585,14 +1595,23 @@ usable from your own tools when you want the same on-disk format.</p>
         same-named files in different folders do not collide and a differently cased path
         still lands on the same file. Unsaved documents share <code>untitled</code>.</td></tr>
 <tr><td><code>load</code></td><td>dict</td>
-    <td>The stored state, or a fresh empty one when there is no file. Lets
-        <code>MemoryFormatError</code> travel when the file exists but is unreadable.</td></tr>
+    <td>The stored state, or a fresh empty one when there is no file. A file that is
+        there but unusable (anything <code>deserialize</code> refuses, or bytes that are
+        not UTF-8 text) also reads as a fresh empty state, with the reason logged and kept
+        under <code>state['ignored']</code>; <code>serialize</code> never writes that key,
+        and the next <code>save</code> replaces the bad file.</td></tr>
+<tr><td><code>ignored_note</code></td><td>str</td>
+    <td>One sentence saying the stored file was ignored and why, or <code>''</code> when
+        <code>load</code> read it normally. The Show Contents tool prints it under an
+        empty memory.</td></tr>
 <tr><td><code>save</code></td><td>str</td>
     <td><strong>Atomic</strong>: writes a temp file, then replaces. Returns the path
         written.</td></tr>
 <tr><td><code>key</code></td><td>tuple</td>
-    <td>An entry's identity: lowercased model name plus path id. The set functions use
-        it.</td></tr>
+    <td>An entry's identity: the lowercased full model name (the file name, for an entry
+        saved before full names were kept) plus path id. The set functions use it, and let
+        an entry with only a file name match any entry with that file name and path
+        id.</td></tr>
 <tr><td><code>union</code></td><td>list</td><td>All of <code>a</code>, then all of <code>b</code> that is new. Order preserved, deduped.</td></tr>
 <tr><td><code>difference</code></td><td>list</td><td>Entries of <code>a</code> that <code>b</code> does not contain.</td></tr>
 <tr><td><code>intersection</code></td><td>list</td><td>Entries in both, in <code>a</code>'s order.</td></tr>
@@ -2378,13 +2397,15 @@ script.set_envvar(<span class="tok-s">&#x27;last_export_folder&#x27;</span>, cho
 <div class="sig"><span class="mod">script.</span><span class="fn">get_bundle_file</span>(name)</div>
 
 <p>Five small conveniences that reach outside Navisworks. <code>clipboard_copy</code> puts text
-on the Windows clipboard and <code>clipboard_text</code> reads it back, returning
-<code>''</code> when the clipboard holds no text or cannot be read at all. That read never
+on the Windows clipboard and returns <code>True</code>, or <code>False</code> when the
+clipboard could not be opened. <code>clipboard_text</code> reads it back, returning
+<code>''</code> when the clipboard holds no text or cannot be read at all. Neither one ever
 raises: the clipboard belongs to the whole machine, so another application holding it open
-must not take your tool down with it, which matters for a tool that checks it on every run.
+must not take your tool down with it. Check what <code>clipboard_copy</code> returns and say
+so in a toast when it is <code>False</code>, rather than reporting a copy that did not happen.
 <code>open_url</code> opens a URL in the default browser.
 <code>show_in_explorer</code> opens Explorer at a file, with that file selected, or at a folder
-when the path is not a file. All three return <code>None</code>.</p>
+when the path is not a file. Both return <code>None</code>.</p>
 
 <p><code>get_bundle_file(name)</code> is the full path of a file that sits beside
 <code>script.py</code> in the current command's bundle folder, for example a template or a
@@ -2396,8 +2417,10 @@ bundle-relative XAML file.</p>
 
 path = write_report()
 script.show_in_explorer(path)
-script.clipboard_copy(path)
-toast.success(<span class="tok-s">&#x27;Report saved&#x27;</span>, <span class="tok-s">&#x27;Path copied to the clipboard.&#x27;</span>)</pre>
+<span class="tok-k">if</span> script.clipboard_copy(path):
+    toast.success(<span class="tok-s">&#x27;Report saved&#x27;</span>, <span class="tok-s">&#x27;Path copied to the clipboard.&#x27;</span>)
+<span class="tok-k">else</span>:
+    toast.warning(<span class="tok-s">&#x27;Report saved&#x27;</span>, <span class="tok-s">&#x27;The clipboard is in use, so the path was not copied.&#x27;</span>)</pre>
 
 <h3 id="script-config">script.get_config, script.save_config and script.reset_config<a class="anchor" href="#script-config" aria-label="Link to this section">#</a></h3>
 
@@ -3068,13 +3091,13 @@ immediately before a slash is a literal character, not a path separator, so
 <code>find('A\\/B')</code> looks for one set named <code>A/B</code>, not a set named
 <code>B</code> inside a folder named <code>A</code>. Any other <code>/</code> in the path
 separates folder segments as usual.</p>
-<p>This escape convention applies to <strong>path lookups only</strong>, meaning
-<code>find</code> and the <code>folder</code> argument of <code>create</code>/
-<code>create_folder</code>. Everywhere else names are raw:
-<code>export_all</code>'s <code>folder</code> and <code>name</code> values, and the names
-<code>import_dict</code> reads back, carry the display name exactly as it is, unescaped. A set
-genuinely named <code>A/B</code> therefore exports as <code>A/B</code> and re-imports as two
-folder levels, not as one set with a slash in its name.</p>
+<p>The escape applies wherever a value is a <strong>path</strong>: <code>find</code>, the
+<code>folder</code> argument of <code>create</code>/<code>create_folder</code>, and the
+<code>folder</code> value <code>export_all</code> writes and <code>import_dict</code> reads.
+A folder genuinely named <code>A/B</code> therefore exports as <code>'A\/B'</code> and
+re-imports as that one folder. A <code>name</code> is never a path, so it stays raw
+everywhere: a set named <code>A/B</code> exports as <code>A/B</code>, and
+<code>import_dict(replace=True)</code> escapes it itself when it looks the set up.</p>
 </div>
 
 <p><code>items_of</code> returns the <code>ModelItemCollection</code> a saved set resolves to.
@@ -3698,8 +3721,8 @@ pasted back later, including in another Navisworks session of the same document.
 </div>
 
 <p>The hidden payload stores entries in the <a href="#memory"><code>memory</code></a> entry
-schema and resolves them the same way, so a renamed or reordered model falls back to matching
-by source file name, and items that no longer resolve are counted, never fatal. Section and
+schema and resolves them the same way, so a reordered model is still found by its full name
+and a moved one by its file name, and items that no longer resolve are counted, never fatal. Section and
 hidden state live in <code>%APPDATA%\pyNavis\viewstate</code>, one JSON file per document, so
 they survive a Navisworks restart. Overrides are different: no API, COM included, exposes
 applied overrides item by item, so copy stores Navisworks' own opaque snapshot
@@ -3832,10 +3855,16 @@ installed on the machine that runs it.</p>
 <p>Writes <code>rows</code>, each a list of <code>str</code>, <code>int</code>,
 <code>float</code>, <code>bool</code> or <code>None</code> cells, to <code>path</code> as an
 <code>.xlsx</code> workbook. When <code>headers</code> is given it is written as a bold first
-row.</p>
+row. An infinite or NaN float is written as the text <code>'inf'</code>, <code>'-inf'</code> or
+<code>'nan'</code>, since Excel has no number for it. <code>sheet</code> must be a name Excel
+accepts: 1 to 31 characters, none of <code>[ ] : * ? / \</code>, and no leading or trailing
+apostrophe; anything else raises <code>ValueError</code> before the file is touched.</p>
 
 <p>Writing to a path that already holds a workbook adds the named <code>sheet</code>, or
-replaces it when a sheet by that name already exists, and every other sheet keeps its name,
+replaces it when a sheet by that name already exists. Names match the way Excel matches them,
+without regard to case: writing <code>sheet='log'</code> to a workbook holding
+<code>Log</code> replaces <code>Log</code> in its position, and the sheet takes the spelling
+you passed. Every other sheet keeps its name,
 position and cell <strong>values</strong>. It works by reading the whole existing workbook back
 and rebuilding the package from scratch, which is simple and correct at the sizes a pyNavis
 script deals with, but it is a values-only round trip, not a byte-preserving one, which is why

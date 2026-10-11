@@ -13,8 +13,9 @@ pynavis._api lazily, inside the functions that need it, so this module stays
 importable anywhere.
 
 The hidden payload reuses the memory module's entry schema
-({'m': source file, 'i': model index, 'p': PathId}), so resolving it across
-sessions shares memory's model-by-name fallback. Same document only: entries
+({'m': file name, 'f': full name, 'i': model index, 'p': PathId}), so
+resolving it across sessions shares memory's model-by-name fallback. Same
+document only: entries
 resolve in another federated model exactly as far as memory entries do.
 """
 
@@ -223,8 +224,8 @@ def _item_result(message, detail, entries, applied, missing, missing_models):
         return Result('error', message.replace('Pasted', 'Could not paste'),
                       'None of the %d copied items are in this model.' % len(entries))
     if missing:
-        return Result('info', message,
-                      '%d not found in %s.' % (missing, ', '.join(missing_models)),
+        from pynavis import memory as _memory
+        return Result('info', message, _memory._missing_detail(missing, missing_models),
                       count=applied)
     return Result('success', message, detail, count=applied)
 

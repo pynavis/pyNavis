@@ -2,6 +2,9 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using PyNavis.Runtime.Ai;
 using PyNavis.Runtime.Forms;
 using Xunit;
@@ -207,6 +210,136 @@ namespace PyNavis.Tests
                 AiChatPane.ComposerOf(pane).Text = "   ";
 
                 Assert.False(AiChatPane.SendButtonOf(pane).IsEnabled);
+            });
+        }
+
+        // ---- rethemes on Reload --------------------------------------------------------
+
+        /// <summary>Runs body with the pane's theme sources swapped and no live pane
+        /// kept from another test, restoring both afterwards.</summary>
+        private static void WithTheme(Func<DesignSystem.Tokens> tokens, Func<Color> accent, Action body)
+        {
+            var oldTokens = AiChatPane.ThemeTokens;
+            var oldAccent = AiChatPane.ThemeAccent;
+            AiChatPane.ThemeTokens = tokens;
+            AiChatPane.ThemeAccent = accent;
+            AiChatPane.ForgetLiveForTest();
+            try { body(); }
+            finally
+            {
+                AiChatPane.ThemeTokens = oldTokens;
+                AiChatPane.ThemeAccent = oldAccent;
+                AiChatPane.ForgetLiveForTest();
+            }
+        }
+
+        private static string[] TranscriptTexts(UIElement pane)
+        {
+            var texts = new System.Collections.Generic.List<string>();
+            void Walk(DependencyObject node)
+            {
+                if (node is TextBlock block && !string.IsNullOrEmpty(block.Text)) texts.Add(block.Text);
+                if (node is TextBox box) texts.Add(box.Text);
+                foreach (var child in LogicalTreeHelper.GetChildren(node))
+                    if (child is DependencyObject element) Walk(element);
+            }
+            Walk(AiChatPane.TranscriptOf(pane));
+            return texts.ToArray();
+        }
+
+        private static Color BackgroundOf(object element) =>
+            ((SolidColorBrush)((element as Panel)?.Background ?? ((Border)element).Background)).Color;
+
+        [Fact]
+        public void AfterAThemeChange_LiveContent_RebuildsThePane_AroundTheSameConversation()
+        {
+            // The pane is kept across Reloads so the chat survives the Reload that
+            // Create triggers, but that kept the palette of the first show too: after a
+            // theme change every other window came up in the new theme and Ask AI stayed
+            // in the old one until Navisworks restarted.
+            OnSta(() =>
+            {
+                var light = DesignSystem.Tokens.For(false);
+                var dark = DesignSystem.Tokens.For(true);
+                var current = light;
+                WithTheme(() => current, () => Colors.Teal, () =>
+                {
+                    var session = Session();
+                    UIElement Build() => AiChatPane.Build(session, () => true, () => { });
+                    var first = AiChatPane.LiveContent(Build);
+                    AiChatPane.ComposerOf(first).Text = "make a tool";
+                    AiChatPane.SendForTest(first);      // the reply carries a complete proposal
+                    AiChatPane.ComposerOf(first).Text = "a draft";
+                    var said = TranscriptTexts(first);
+                    Assert.Contains("make a tool", said);
+                    Assert.Equal(light.Paper, BackgroundOf(first));
+
+                    Assert.Same(first, AiChatPane.LiveContent(Build));   // same theme: same pane
+
+                    current = dark;
+                    var second = AiChatPane.LiveContent(Build);
+
+                    Assert.NotSame(first, second);
+                    Assert.Same(session, AiChatPane.SessionOf(second));
+                    Assert.Equal(dark.Paper, BackgroundOf(second));
+                    Assert.Equal(dark.Surface, BackgroundOf(AiChatPane.LastUserBubbleOf(second)));
+                    Assert.Equal(said, TranscriptTexts(second));
+                    Assert.Equal(Visibility.Visible, AiChatPane.ProposalCardOf(second).Visibility);
+                    Assert.Equal(Visibility.Collapsed, AiChatPane.EmptyPanelOf(second).Visibility);
+                    Assert.Equal("a draft", AiChatPane.ComposerOf(second).Text);
+                    Assert.Same(second, AiChatPane.LiveContent(Build));
+                });
+            });
+        }
+
+        [Fact]
+        public void AfterAnAccentChange_LiveContent_RebuildsThePane()
+        {
+            OnSta(() =>
+            {
+                var accent = Colors.Teal;
+                WithTheme(() => DesignSystem.Tokens.For(false), () => accent, () =>
+                {
+                    var session = Session();
+                    UIElement Build() => AiChatPane.Build(session, () => true, () => { });
+                    var first = AiChatPane.LiveContent(Build);
+
+                    accent = Colors.OrangeRed;
+                    var second = AiChatPane.LiveContent(Build);
+
+                    Assert.NotSame(first, second);
+                    Assert.Same(session, AiChatPane.SessionOf(second));
+                });
+            });
+        }
+
+        [Fact]
+        public void WhileAReplyStreams_ThePaneWaitsForTheTurnToEnd_BeforeRetheming()
+        {
+            // The turn in flight writes into the pane it started in; swapping the pane
+            // under it would lose the reply.
+            OnSta(() =>
+            {
+                var current = DesignSystem.Tokens.For(false);
+                WithTheme(() => current, () => Colors.Teal, () =>
+                {
+                    var provider = new Blocking();
+                    var session = new AiSession(() => provider, () => new AiSettings(), "P",
+                        new GeneratedExtensionWriter(Path.Combine(_dir, "AI.extension"), new NoIcons()), () => null);
+                    UIElement Build() => AiChatPane.Build(session, () => true, () => { });
+                    var first = AiChatPane.LiveContent(Build);
+                    AiChatPane.ComposerOf(first).Text = "make a tool";
+                    AiChatPane.SendForTest(first);
+
+                    current = DesignSystem.Tokens.For(true);
+                    Assert.Same(first, AiChatPane.LiveContent(Build));
+
+                    provider.Release.SetResult(true);
+                    var second = AiChatPane.LiveContent(Build);
+
+                    Assert.NotSame(first, second);
+                    Assert.Contains("done", TranscriptTexts(second));
+                });
             });
         }
     }

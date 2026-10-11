@@ -169,6 +169,9 @@ foreach ($v in $built) {
     Copy-Item (Join-Path $repo 'pynavislib') (Join-Path $runtimeDst 'pynavislib') -Recurse -Force
     # Debug symbols are dev-time only; they would roughly double the download.
     Get-ChildItem $runtimeDst -Recurse -File -Filter '*.pdb' | Remove-Item -Force
+    # Bytecode a local CPython run left in pynavislib (the tests, a dev script) is
+    # machine-specific and never shipped, as for the extension below.
+    Get-ChildItem $runtimeDst -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
 }
 
 # The exe ships as pynavis.exe so "pynavis env" reads naturally at a prompt. The

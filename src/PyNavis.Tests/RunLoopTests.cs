@@ -91,6 +91,10 @@ namespace PyNavis.Tests
             return ((object[])json["models"]).Cast<Dictionary<string, object>>().ToArray();
         }
 
+        private Dictionary<string, object> Summary(string runDir = null) =>
+            (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(
+                File.ReadAllText(Path.Combine(runDir ?? RunDir, "results.json")));
+
         [Fact]
         public void NoModels_RunsOnce_WithANullModel()
         {
@@ -111,6 +115,7 @@ namespace PyNavis.Tests
             Assert.Null(outcome["model"]);
             Assert.True(_session.Disposed);
             Assert.Contains("Summary: " + Path.Combine(RunDir, "results.json"), _console.ToString());
+            Assert.Equal(false, Summary()["cancelled"]);
         }
 
         [Fact]
@@ -385,6 +390,7 @@ namespace PyNavis.Tests
             Assert.Equal(new object[] { "ok", "timed-out", "not-run" }, outcomes.Select(o => o["status"]).ToArray());
             Assert.Equal("Not run: the run ended after an earlier model.", outcomes[2]["error"]);
             Assert.Equal(new[] { _modelA, _modelB }, _session.Opened);
+            Assert.Equal(false, Summary()["cancelled"]);
         }
 
         [Fact]
@@ -413,6 +419,33 @@ namespace PyNavis.Tests
             Assert.Equal(new object[] { _modelA, _modelB, modelC }, outcomes.Select(o => o["model"]).ToArray());
             Assert.Equal(new object[] { "ok", "cancelled", "not-run" }, outcomes.Select(o => o["status"]).ToArray());
             Assert.Equal("Cancelled while the script was running.", outcomes[1]["error"]);
+            Assert.Equal("Not run: the run ended after an earlier model.", outcomes[2]["error"]);
+            Assert.Equal(true, Summary()["cancelled"]);
+        }
+
+        [Fact]
+        public void Cancel_BeforeAnyModelStarted_SaysSoForEveryModel()
+        {
+            RunLoop loop = null;
+            // Ctrl+C lands while Navisworks is still starting, before the first model.
+            loop = NewLoop(() =>
+            {
+                loop.Cancel();
+                return _session;
+            });
+            var args = RunArgs.Parse(new[] { _script, _modelA, _modelB }, out _);
+
+            var exit = loop.Run(args, "2026");
+
+            Assert.Equal(1, exit);
+            Assert.Empty(_session.Calls);
+            Assert.True(_session.Disposed);
+            Assert.Contains("Cancelled.", _console.ToString());
+            var outcomes = Outcomes();
+            Assert.Equal(new object[] { _modelA, _modelB }, outcomes.Select(o => o["model"]).ToArray());
+            Assert.All(outcomes, o => Assert.Equal("not-run", o["status"]));
+            Assert.All(outcomes, o => Assert.Equal("Not run: the run was cancelled before this model started.", o["error"]));
+            Assert.Equal(true, Summary()["cancelled"]);
         }
 
         [Fact]

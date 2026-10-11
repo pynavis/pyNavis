@@ -473,6 +473,37 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void Markdown_LeavesAsterisksInInlineCodeAlone()
+        {
+            // Emphasis ran before code, so the asterisks inside a code span became tags.
+            var r = Run(
+                "from pynavis import _markdown\n" +
+                "h = _markdown.to_html\n" +
+                "out = h('Use `a*b*c` and `**kwargs**`')\n" +
+                "assert out == '<p>Use <code>a*b*c</code> and <code>**kwargs**</code></p>', out\n" +
+                "out = h('**bold `x*y` bold** and *it*')\n" +
+                "assert out == '<p><strong>bold <code>x*y</code> bold</strong> and <em>it</em></p>', out\n" +
+                "out = h('[`x*y*z`](https://x.io)')\n" +
+                "assert out == '<p><a href=\"https://x.io\"><code>x*y*z</code></a></p>', out\n" +
+                "out = h('`<b>` stays text')\n" +
+                "assert out == '<p><code>&lt;b&gt;</code> stays text</p>', out\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void Markdown_EscapesDoubleQuotes_SoALinkCannotLeaveItsHref()
+        {
+            var r = Run(
+                "from pynavis import _markdown\n" +
+                "assert _markdown.escape('say \"hi\" & <go>') == 'say &quot;hi&quot; &amp; &lt;go&gt;'\n" +
+                "out = _markdown.to_html('[x](https://a.io\" onclick=\"alert)')\n" +
+                "assert out == '<p><a href=\"https://a.io&quot; onclick=&quot;alert\">x</a></p>', out\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
         public void OutputModule_RichHelpers_Exist_AndTableHtmlEscapes()
         {
             var r = Run(
@@ -499,7 +530,7 @@ namespace PyNavis.Tests
                 "output.print_html = lambda html: captured.append(html)\n" +
                 "output.print_code('<b>hi</b> & \"quote\"')\n" +
                 "html = captured[0]\n" +
-                "assert html == '<pre class=\"pynavis-code\">&lt;b&gt;hi&lt;/b&gt; &amp; \"quote\"</pre>', html\n");
+                "assert html == '<pre class=\"pynavis-code\">&lt;b&gt;hi&lt;/b&gt; &amp; &quot;quote&quot;</pre>', html\n");
 
             Assert.True(r.Succeeded, r.ErrorText);
         }
@@ -898,6 +929,30 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void ScriptModule_ClipboardCopy_ReportsSuccessAsABool_AndNeverThrows()
+        {
+            // Another process holding the clipboard open (CLIPBRD_E_CANT_OPEN) used
+            // to end Get Coordinates and IDs of Selection in an error window. The
+            // caller now gets False and says so in a toast. An MTA thread can never
+            // open the clipboard, so it stands in for the locked case here, and the
+            // test never touches the real clipboard of the machine running it.
+            var outw = new StringWriter();
+            ExecResult r = null;
+            var thread = new System.Threading.Thread(() =>
+                r = Run(
+                    "from pynavis import script\n" +
+                    "copied = script.clipboard_copy('12, 34, 56')\n" +
+                    "assert copied is False, repr(copied)\n" +
+                    "print('clipboard copy ok')", outw));
+            thread.SetApartmentState(System.Threading.ApartmentState.MTA);
+            thread.Start();
+            thread.Join();
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Contains("clipboard copy ok", outw.ToString());
+        }
+
+        [Fact]
         public void Memory_SerializeDeserialize_RoundTrips_AndRejectsBadInput()
         {
             var r = Run(
@@ -995,12 +1050,53 @@ namespace PyNavis.Tests
                 "f = open(path, 'w')\n" +
                 "f.write('{ truncated')\n" +
                 "f.close()\n" +
-                "try:\n" +
-                "    memory.load(doc, root)\n" +
-                "    raise AssertionError('corrupt file was accepted')\n" +
-                "except memory.MemoryFormatError:\n" +
-                "    pass\n" +
+                "assert memory.load(doc, root)['items'] == [], 'corrupt file must read as empty'\n" +
                 "shutil.rmtree(root)\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void Memory_Load_ReadsAnUnreadableOrIncompatibleFileAsEmpty_AndSaysWhy()
+        {
+            // A corrupt or future-version memory file used to raise out of load(),
+            // and every memory button reads through it, so one bad file in
+            // %APPDATA%\pyNavis\memory broke them all until it was deleted by hand.
+            var r = Run(
+                "import os, shutil, tempfile\n" +
+                "from pynavis import memory\n" +
+                "root = tempfile.mkdtemp()\n" +
+                "doc = 'D:\\\\Models\\\\Tower.nwf'\n" +
+                "path = memory.path_for(doc, root)\n" +
+                "logged = []\n" +
+                "original = getattr(memory, '_log_ignored', None)\n" +
+                "memory._log_ignored = lambda p, reason: logged.append((p, reason))\n" +
+                "try:\n" +
+                "    bad = [b'{ truncated', b'[1, 2]', b'{\"version\": 99, \"items\": []}',\n" +
+                "           b'{\"version\": 1}', b'\\xff\\xfe\\x00{']\n" +
+                "    for data in bad:\n" +
+                "        f = open(path, 'wb')\n" +
+                "        f.write(data)\n" +
+                "        f.close()\n" +
+                "        state = memory.load(doc, root)\n" +
+                "        assert state['items'] == [], data\n" +
+                "        assert state['document'] == doc, state\n" +
+                "        assert state.get('ignored'), data\n" +
+                "        note = memory.ignored_note(state)\n" +
+                "        assert note[:1].isupper() and note.endswith('.'), note\n" +
+                "    assert len(logged) == len(bad), logged\n" +
+                "    assert all(p == path for p, _reason in logged), logged\n" +
+                "    assert 'version 99' in logged[2][1], logged\n" +
+                "    # the reason belongs to this read only: the next save must not write it back\n" +
+                "    memory.save(memory.apply_entries(state, [{'m': 'A.nwc', 'i': 0, 'p': '1'}]), root)\n" +
+                "    again = memory.load(doc, root)\n" +
+                "    assert 'ignored' not in again, again\n" +
+                "    assert memory.ignored_note(again) == ''\n" +
+                "    assert [x['p'] for x in again['items']] == ['1'], again\n" +
+                "    assert len(logged) == len(bad), 'a good file was logged as ignored'\n" +
+                "finally:\n" +
+                "    memory._log_ignored = original\n" +
+                "    shutil.rmtree(root)\n");
 
             Assert.True(r.Succeeded, r.ErrorText);
         }
@@ -1079,8 +1175,205 @@ namespace PyNavis.Tests
                 "assert 'D:\\\\Tower.nwf' in html, html\n" +
                 "assert '2026-09-20T14:32:11' in html\n" +
                 "assert '<a href=\"#\">Duct D-104</a>' in html, 'link markup was escaped'\n" +
-                "assert 'not in this model' in html\n" +
-                "assert '<td class=\"muted\">' in html\n");
+                "assert 'Not in this model' in html\n" +
+                "assert '<td class=\"muted\">' in html\n" +
+                "assert 'Showing' not in html, 'no footer when every row is shown'\n" +
+                "state['items'] = state['items'] * 3\n" +
+                "assert 'Showing 2 of 3' in memory.contents_html(rows, state)\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void Memory_SetOperations_KeepSameNamedModelsInDifferentFoldersApart()
+        {
+            // Zone A\Arch.nwc and Zone B\Arch.nwc were both just 'Arch.nwc', so an item
+            // in one deduped against the item with the same path id in the other.
+            var r = Run(@"
+from pynavis import memory
+def e(full, path, index=0):
+    return {'m': full.split('\\')[-1], 'f': full, 'i': index, 'p': path}
+zone_a = e('D:\\Zone A\\Arch.nwc', '1', 0)
+zone_b = e('D:\\Zone B\\Arch.nwc', '1', 1)
+assert memory.key(zone_a) != memory.key(zone_b)
+assert memory.key(zone_a) == memory.key(e('d:\\zone a\\ARCH.NWC', '1', 5)), 'full name compare must ignore case'
+assert memory.union([zone_a], [zone_b]) == [zone_a, zone_b]
+assert memory.difference([zone_a, zone_b], [zone_b]) == [zone_a]
+assert memory.intersection([zone_a, zone_b], [zone_b]) == [zone_b]
+
+# an entry written before full names were kept says only 'Arch.nwc': it still
+# meets a current entry with that file name and path id, from either side
+legacy = {'m': 'Arch.nwc', 'i': 0, 'p': '1'}
+assert memory.union([legacy], [zone_a]) == [legacy]
+assert memory.union([zone_a], [legacy]) == [zone_a]
+assert memory.union([legacy, zone_a, zone_b], []) == [legacy]
+assert memory.difference([legacy], [zone_b]) == []
+assert memory.difference([zone_a], [legacy]) == []
+assert memory.intersection([legacy], [zone_b]) == [legacy]
+assert memory.intersection([zone_a], [legacy]) == [zone_a]
+assert memory.difference([legacy], [e('D:\\Zone A\\Arch.nwc', '2')]) == [legacy]
+assert memory.intersection([legacy], [e('D:\\Zone A\\Other.nwc', '1')]) == []
+");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        /// <summary>A stand-in for the Navisworks API half memory talks to: models
+        /// with SourceFileName/FileName, path ids, a selection, and the fake
+        /// pynavis._api the doc and selection modules import.</summary>
+        private const string MemoryFakes = @"
+import sys, types
+from pynavis import memory
+
+class Model(object):
+    def __init__(self, source, file_name=''):
+        self.SourceFileName = source
+        self.FileName = file_name
+
+class PathId(object):
+    def __init__(self):
+        self.ModelIndex = -1
+        self.PathId = ''
+
+class Models(object):
+    def __init__(self, models, items):
+        self._models = models
+        self._items = items                     # {(model index, path id): item}
+    @property
+    def Count(self):
+        return len(self._models)
+    def __getitem__(self, index):
+        return self._models[index]
+    def ResolvePathId(self, path_id):
+        return self._items.get((path_id.ModelIndex, path_id.PathId))
+    def CreatePathId(self, item):
+        for (index, path), known in self._items.items():
+            if known == item:
+                found = PathId()
+                found.ModelIndex = index
+                found.PathId = path
+                return found
+        raise KeyError(item)
+
+class Selection(object):
+    def __init__(self):
+        self.items = []
+    def CopyFrom(self, collection):
+        self.items = list(collection)
+
+class Doc(object):
+    def __init__(self, models, items, file_name='D:\\Site\\Tower.nwf'):
+        self.Models = Models(models, items)
+        self.FileName = file_name
+        self.CurrentSelection = Selection()
+
+class Collection(list):
+    def Add(self, item):
+        self.append(item)
+
+class FakeApi(object):
+    ModelItemCollection = Collection
+
+api = types.ModuleType('pynavis._api')
+api.Api = FakeApi
+api.Application = None
+sys.modules['pynavis._api'] = api
+import pynavis
+pynavis._api = api
+memory._path_id_type = lambda: PathId
+
+ZONE_A = 'D:\\Zone A\\Arch.nwc'
+ZONE_B = 'D:\\Zone B\\Arch.nwc'
+";
+
+        [Fact]
+        public void Memory_Entries_RecordTheFullModelName_AndRecallFindsTheRightSameNamedModel()
+        {
+            // Two models called Arch.nwc in different folders: the entry used to carry
+            // only the file name, and Recall trusted the stored index whenever the model
+            // there shared it, so reordered models resolved inside the wrong one.
+            var r = Run(MemoryFakes + @"
+doc = Doc([Model(ZONE_A), Model(ZONE_B)], {(0, '1'): 'a1', (1, '1'): 'b1'})
+entries = memory.encode_items(['b1'], doc)
+assert entries == [{'m': 'Arch.nwc', 'f': ZONE_B, 'i': 1, 'p': '1'}], entries
+
+# the same two models, appended the other way round
+swapped = Doc([Model(ZONE_B), Model(ZONE_A)], {(0, '1'): 'b1', (1, '1'): 'a1'})
+items, missing, models = memory.resolve_entries(entries, swapped)
+assert (items, missing, models) == (['b1'], 0, []), (items, missing, models)
+
+# a full name is matched without regard to case
+upper = [dict(entries[0], f=ZONE_B.upper())]
+assert memory.resolve_entries(upper, swapped)[0] == ['b1']
+
+# files that moved: no full name matches, so the file name decides, stored index first
+moved = [dict(entries[0], f='E:\\Archive\\Zone B\\Arch.nwc')]
+assert memory.resolve_entries(moved, swapped)[0] == ['a1']
+
+# a model with no SourceFileName is recorded under its FileName
+nwd = Doc([Model('', 'D:\\Out\\Site.nwd')], {(0, '7'): 's7'})
+assert memory.encode_items(['s7'], nwd) == [{'m': 'Site.nwd', 'f': 'D:\\Out\\Site.nwd', 'i': 0, 'p': '7'}]
+assert memory.resolve_entries(memory.encode_items(['s7'], nwd), nwd)[0] == ['s7']
+
+gone = [{'m': 'Gone.nwc', 'f': 'D:\\Gone.nwc', 'i': 0, 'p': '1'}]
+assert memory.resolve_entries(gone, swapped) == ([], 1, ['Gone.nwc'])
+");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void Memory_EntriesWithOnlyAFileName_StillResolveAsBefore()
+        {
+            // Memory files written before full names were kept hold only 'm'; they
+            // must load and resolve exactly as they did, so nobody loses a memory.
+            var r = Run(MemoryFakes + @"
+swapped = Doc([Model(ZONE_B), Model(ZONE_A)], {(0, '1'): 'b1', (1, '1'): 'a1'})
+legacy = [{'m': 'Arch.nwc', 'i': 1, 'p': '1'}]
+assert memory.resolve_entries(legacy, swapped)[0] == ['a1'], 'stored index trusted on a file name match'
+assert memory.resolve_entries([dict(legacy[0], i=9)], swapped)[0] == ['b1'], 'out of range: first by name'
+assert memory.resolve_entries([dict(legacy[0], m='ARCH.NWC')], swapped)[0] == ['a1'], 'case-insensitive'
+
+# the old file name was SourceFileName's alone, so an entry from a model without
+# one recorded '' and still finds that model
+nwd = Doc([Model('', 'D:\\Out\\Site.nwd')], {(0, '7'): 's7'})
+assert memory.resolve_entries([{'m': '', 'i': 0, 'p': '7'}], nwd)[0] == ['s7']
+
+text = memory.serialize(memory.new_state('D:\\Site\\Tower.nwf', legacy))
+assert memory.deserialize(text)['items'] == legacy
+");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void Memory_Recall_SaysHowManyWereNotFound_WithoutAnEmptyModelName()
+        {
+            // resolve_entries leaves a missing entry's model out of the names when it
+            // has none, and the detail then read '1 not found in .'
+            var r = Run(MemoryFakes + @"
+import os, shutil, tempfile
+root = tempfile.mkdtemp()
+memory.memory_root = lambda: root
+try:
+    doc = Doc([Model('D:\\A.nwc')], {(0, '1'): 'a1'})
+    entries = [{'m': 'A.nwc', 'f': 'D:\\A.nwc', 'i': 0, 'p': '1'}, {'m': '', 'i': 3, 'p': '9'}]
+    memory.save(memory.new_state(doc.FileName, entries))
+
+    result = memory.recall(doc)
+
+    assert result.level == 'info', result.level
+    assert result.message == 'Recalled 1 of 2', result.message
+    assert result.detail == '1 not found.', result.detail
+    assert doc.CurrentSelection.items == ['a1'], doc.CurrentSelection.items
+
+    assert memory._missing_detail(2, ['A.nwc', 'B.nwc']) == '2 not found in A.nwc, B.nwc.'
+    assert memory._missing_detail(2, []) == '2 not found.'
+    assert memory._missing_detail(1, ['']) == '1 not found in an unnamed model.'
+    assert memory._missing_detail(3, ['A.nwc', '']) == '3 not found in A.nwc, an unnamed model.'
+finally:
+    shutil.rmtree(root)
+");
 
             Assert.True(r.Succeeded, r.ErrorText);
         }
@@ -1180,6 +1473,41 @@ namespace PyNavis.Tests
                 "f = open(p, 'r'); text = f.read(); f.close()\n" +
                 "assert text == 'first', text\n" +
                 "assert os.listdir(root) == ['x.json'], os.listdir(root)\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        // With no encoding, IronPython on .NET Framework writes the ANSI code page and
+        // raises on anything it cannot hold, after the temp file is already open.
+        [Fact]
+        public void AtomicWrite_WritesUtf8_SoAnyNameSurvives()
+        {
+            var r = Run(
+                "from pynavis import _atomic\n" +
+                "import tempfile, os\n" +
+                "p = os.path.join(tempfile.mkdtemp(), 'x.json')\n" +
+                "_atomic.write_text(p, 'caf\\u00e9 \\u5ba4\\u5185')\n" +
+                "f = open(p, 'rb'); data = f.read(); f.close()\n" +
+                "assert data == b'caf\\xc3\\xa9 \\xe5\\xae\\xa4\\xe5\\x86\\x85', data\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void DatafilesModule_Store_OverCorruptFile_KeepsTheExactBytesAside()
+        {
+            // The kept-aside copy is the user's only way back to what the file held,
+            // so it is a byte-for-byte copy, not text decoded and written out again.
+            var r = Run(
+                "from pynavis import _datafiles\n" +
+                "import tempfile, os\n" +
+                "p = _datafiles.path_for(tempfile.mkdtemp(), 'cfg_my_tool')\n" +
+                "original = b'{\"caf\\xc3\\xa9\": 1, broken'\n" +
+                "f = open(p, 'wb'); f.write(original); f.close()\n" +
+                "_datafiles.store(p, 'k', 2)\n" +
+                "f = open(p + '.corrupt', 'rb'); kept = f.read(); f.close()\n" +
+                "assert kept == original, kept\n" +
+                "assert _datafiles.load_all(p) == {'k': 2}\n");
 
             Assert.True(r.Succeeded, r.ErrorText);
         }
@@ -1340,7 +1668,7 @@ namespace PyNavis.Tests
                 "svg2 = _charts.bar_svg(['<b>'], [1])\n" +
                 "assert '<b>' not in svg2 and '&lt;b&gt;' in svg2\n" +
                 "# degenerate\n" +
-                "assert 'no data' in _charts.bar_svg([], [])\n" +
+                "assert 'No data' in _charts.bar_svg([], [])\n" +
                 "pie = _charts.pie_svg(['A', 'B'], [1, 1])\n" +
                 "assert '50%' in pie\n" +
                 "line = _charts.line_svg(['x1', 'x2'], {'s': [1, 2]})\n" +
@@ -1495,6 +1823,104 @@ namespace PyNavis.Tests
         }
 
         [Fact]
+        public void XlModule_RefusesSheetNamesExcelForbids_BeforeWritingAnything()
+        {
+            // Excel refuses [ ] : * ? / \ in a sheet name, an empty name, one longer than 31
+            // characters and one that starts or ends with an apostrophe, and calls a workbook
+            // holding one corrupt. Only XML escaping stood between the name and the file.
+            var r = Run(
+                "from pynavis import xl, _xlsx\n" +
+                "import tempfile, os\n" +
+                "folder = tempfile.mkdtemp()\n" +
+                "path = os.path.join(folder, 'names.xlsx')\n" +
+                "def refused(name):\n" +
+                "    try:\n" +
+                "        xl.write(path, [['a']], sheet=name)\n" +
+                "    except ValueError as ex:\n" +
+                "        return str(ex)\n" +
+                "    raise AssertionError('accepted %r' % (name,))\n" +
+                "for bad in ('Q1/Q2', 'a\\\\b', 'x:y', 'why?', 'all*', '[x]', 'end]'):\n" +
+                "    message = refused(bad)\n" +
+                "    assert message.startswith('Sheet name %r cannot contain ' % (bad,)), message\n" +
+                "    assert message.endswith('Excel forbids [ ] : * ? / \\\\ in sheet names.'), message\n" +
+                "assert refused('') == 'A sheet name cannot be empty.', refused('')\n" +
+                "long_name = 'x' * 32\n" +
+                "assert refused(long_name) == 'Sheet name %r is 32 characters long; Excel allows at most 31.' % (long_name,), refused(long_name)\n" +
+                "for bad in (\"'quoted'\", \"'start\", \"end'\"):\n" +
+                "    assert refused(bad) == 'Sheet name %r cannot start or end with an apostrophe.' % (bad,), refused(bad)\n" +
+                "assert os.listdir(folder) == [], os.listdir(folder)\n" +
+                "# build_workbook refuses them too, and the names Excel allows still go through\n" +
+                "try:\n" +
+                "    _xlsx.build_workbook([('a/b', [])])\n" +
+                "    raise AssertionError('build_workbook accepted a/b')\n" +
+                "except ValueError:\n" +
+                "    pass\n" +
+                "fine = ['x' * 31, \"It's fine\", 'Q1 & Q2 <draft> \"v2\"', 'Pipes (ducts) #1']\n" +
+                "for name in fine:\n" +
+                "    xl.write(path, [[name]], sheet=name)\n" +
+                "assert xl.sheets(path) == fine, xl.sheets(path)\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void XlModule_Write_ReplacesASheetWhoseNameDiffersOnlyInCase()
+        {
+            // Excel compares sheet names without regard to case, so writing 'log' to a
+            // workbook holding 'Log' added a second sheet and Excel called the file damaged.
+            var r = Run(@"
+from pynavis import xl, _xlsx
+import tempfile, os, zipfile
+folder = tempfile.mkdtemp()
+path = os.path.join(folder, 'cased.xlsx')
+xl.write(path, [['first']], sheet='Summary')
+xl.write(path, [['old']], headers=['Entry'], sheet='Log')
+xl.write(path, [['tail']], sheet='Notes')
+
+xl.write(path, [['new']], headers=['Entry'], sheet='log')
+
+assert xl.sheets(path) == ['Summary', 'log', 'Notes'], xl.sheets(path)
+assert xl.read(path, sheet='log') == [['Entry'], ['new']], xl.read(path, sheet='log')
+assert xl.read(path, sheet='Notes') == [['tail']]
+
+# a workbook already holding both spellings (the old bug wrote those) gets the
+# exact one replaced and the other left alone
+damaged = os.path.join(folder, 'damaged.xlsx')
+parts = _xlsx.build_workbook([('Log', [['a']]), ('log', [['b']])])
+archive = zipfile.ZipFile(damaged, 'w')
+for name, content in parts.items():
+    archive.writestr(name, content)
+archive.close()
+xl.write(damaged, [['c']], sheet='log')
+assert xl.sheets(damaged) == ['Log', 'log'], xl.sheets(damaged)
+assert xl.read(damaged, sheet='Log') == [['a']]
+assert xl.read(damaged, sheet='log') == [['c']]
+");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
+        public void XlModule_WritesInfinityAndNaN_AsText_SoTheWorkbookStaysValid()
+        {
+            // str(float('inf')) is 'inf', which is no number in a <v> element: Excel
+            // called the whole workbook corrupt.
+            var r = Run(
+                "from pynavis import xl, _xlsx\n" +
+                "import tempfile, os\n" +
+                "parts = _xlsx.build_workbook([('S', [[float('inf'), float('-inf'), float('nan'), 1.5]])])\n" +
+                "sheet = parts['xl/worksheets/sheet1.xml']\n" +
+                "for bad in ('<v>inf</v>', '<v>-inf</v>', '<v>nan</v>'):\n" +
+                "    assert bad not in sheet, sheet\n" +
+                "path = os.path.join(tempfile.mkdtemp(), 'odd.xlsx')\n" +
+                "xl.write(path, [[float('inf'), float('-inf'), float('nan'), 1.5]])\n" +
+                "back = xl.read(path)\n" +
+                "assert back == [['inf', '-inf', 'nan', 1.5]], back\n");
+
+            Assert.True(r.Succeeded, r.ErrorText);
+        }
+
+        [Fact]
         public void ChartsModule_HandlesFullCircleSlices_AndRaggedValueLists()
         {
             var r = Run(
@@ -1516,10 +1942,10 @@ namespace PyNavis.Tests
                 "assert _charts.pie_svg(['A', 'B', 'C'], [1]).count('<circle') == 1\n" +
                 "# None and NaN are drawn as zero, never raised\n" +
                 "nan = float('nan')\n" +
-                "assert 'no data' not in _charts.bar_svg(['A', 'B'], [None, 5])\n" +
-                "assert 'no data' in _charts.bar_svg(['A', 'B'], [None, nan])\n" +
-                "assert 'no data' not in _charts.line_svg(['a', 'b'], {'s': [None, 3]})\n" +
-                "assert 'no data' not in _charts.pie_svg(['A', 'B'], [nan, 3])\n");
+                "assert 'No data' not in _charts.bar_svg(['A', 'B'], [None, 5])\n" +
+                "assert 'No data' in _charts.bar_svg(['A', 'B'], [None, nan])\n" +
+                "assert 'No data' not in _charts.line_svg(['a', 'b'], {'s': [None, 3]})\n" +
+                "assert 'No data' not in _charts.pie_svg(['A', 'B'], [nan, 3])\n");
 
             Assert.True(r.Succeeded, r.ErrorText);
         }
@@ -1556,6 +1982,28 @@ namespace PyNavis.Tests
                 "assert len(problems) == 1 and 'Group 1' in problems[0], problems\n" +
                 "# a query with NO groups at all is still fine (nothing to be empty)\n" +
                 "assert _query.validate(_query.Query.from_dict({'or': []})) == []\n" +
+                "print('all tests passed')",
+                outw);
+
+            Assert.True(r.Succeeded, r.ErrorText);
+            Assert.Contains("all tests passed", outw.ToString());
+        }
+
+        [Fact]
+        public void QueryValidate_ANonStringOp_IsReportedAsAProblem_NotRaised()
+        {
+            // An op read from an Excel cell can be empty (None) or a number, and
+            // building the message by concatenation turned that into a TypeError
+            // instead of the problem list validate() promises.
+            var outw = new StringWriter();
+            var r = Run(
+                "from pynavis import _query\n" +
+                "for op in (None, 1.5, 3, True):\n" +
+                "    q = _query.Query(groups=[[_query.Condition('Item', 'Type', op, 'Wall')]])\n" +
+                "    problems = _query.validate(q)\n" +
+                "    assert any(('unknown op: %r' % (op,)) in p for p in problems), problems\n" +
+                "q = _query.Query(groups=[[_query.Condition('Item', 'Type', 'nope', 'Wall')]])\n" +
+                "assert any(\"unknown op: 'nope'\" in p for p in _query.validate(q)), _query.validate(q)\n" +
                 "print('all tests passed')",
                 outw);
 
@@ -1636,6 +2084,10 @@ namespace PyNavis.Tests
                 "# a literal slash in a name is escaped as backslash-slash\n" +
                 "assert sets._split_path('A\\\\/B') == ['A/B']\n" +
                 "assert sets._split_path('Folder/A\\\\/B/Leaf') == ['Folder', 'A/B', 'Leaf']\n" +
+                "# _join_path is the inverse: it escapes every slash inside a segment\n" +
+                "assert sets._join_path(['Folder', 'A/B']) == 'Folder/A\\\\/B'\n" +
+                "for segments in (['Name'], ['A/B'], ['Folder', 'A/B', 'Leaf'], ['/lead', 'trail/'], ['a//b']):\n" +
+                "    assert sets._split_path(sets._join_path(segments)) == segments, segments\n" +
                 "print('all tests passed')",
                 outw);
 

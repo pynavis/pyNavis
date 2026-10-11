@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using PyNavis.Runtime.Execution.Runner;
 using PyNavis.Runtime.Output;
 using Tokens = PyNavis.Runtime.Forms.DesignSystem.Tokens;
 
@@ -39,6 +40,7 @@ namespace PyNavis.Runtime.Forms
         /// </summary>
         public static List<string> Show(IList<ViewpointRow> rows, string valuesSummary)
         {
+            RunnerContext.ThrowIfActive();
             var window = Build(rows, valuesSummary);
             window.ShowDialog();
             var parts = PartsOf(window);
@@ -97,11 +99,10 @@ namespace PyNavis.Runtime.Forms
 
         private static void AddWhere(ViewpointDialogShell shell, Func<ViewpointRow, bool> match)
         {
-            foreach (var index in shell.Browser.Visible)
-            {
-                var row = shell.Browser.Rows[index];
-                if (match(row)) shell.Browser.Selection.Set(row.Guid, true);
-            }
+            var browser = shell.Browser;
+            browser.Selection.SetMany(
+                browser.Visible.Select(i => browser.Rows[i]).Where(match).Select(r => r.Guid),
+                true);
         }
 
         // ---- test seams --------------------------------------------------------
@@ -123,6 +124,9 @@ namespace PyNavis.Runtime.Forms
 
         public static int SelectedCountOf(Window window) =>
             PartsOf(window).Shell.Browser.Selection.Count;
+
+        internal static ViewpointSelection SelectionOf(Window window) =>
+            PartsOf(window).Shell.Browser.Selection;
 
         // ---- state -> chrome ---------------------------------------------------
 

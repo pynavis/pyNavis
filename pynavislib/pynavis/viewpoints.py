@@ -213,7 +213,7 @@ def apply_deletes(guids, doc=None, progress=None, cancelled=None):
             try:
                 item = resolve(saved, guid)
                 if item is None:
-                    errors.append('an item is no longer there')
+                    errors.append('An item is no longer there')
                     continue
                 saved.Remove(item)
                 removed += 1
@@ -333,7 +333,7 @@ def apply_sort(rows, folder_keys=None, doc=None):
             parent = (saved.RootItem if parent_key == ''
                       else saved.ResolveIndexPath(_index_path(parent_key)))
             if parent is None:
-                errors.append('folder %s is no longer there' % parent_key)
+                errors.append('Folder %s is no longer there' % parent_key)
                 continue
             entries = [(child.DisplayName, isinstance(child, Api.FolderItem))
                        for child in parent.Children]
@@ -374,12 +374,12 @@ def apply_moves(rows, checked_keys, target_key, doc=None):
             try:
                 item = resolve(saved, guid)
                 if item is None:
-                    errors.append('an item is no longer there')
+                    errors.append('An item is no longer there')
                     continue
                 target = (saved.RootItem if target_guid is None
                           else resolve(saved, target_guid))
                 if target is None:
-                    return moved, ['the target folder is no longer there']
+                    return moved, ['The target folder is no longer there']
                 parent = item.Parent if item.Parent is not None else saved.RootItem
                 saved.Move(parent, _index_in(parent, item), target,
                            target.Children.Count)

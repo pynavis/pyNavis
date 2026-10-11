@@ -1161,5 +1161,154 @@ namespace PyNavis.Tests
                 Assert.DoesNotContain("Settings changed", ClashGrouperDialog.ReadoutNoteOf(window));
             });
         }
+
+        [Theory]
+        [InlineData("0")]
+        [InlineData("abc")]
+        [InlineData("")]
+        [InlineData("-1")]
+        public void AnUnreadableClusterDistance_BlocksPreviewAndApply_WhileAProximityRuleUsesIt(
+            string typed)
+        {
+            OnSta(() =>
+            {
+                // The red warning alone used to be all it did: ConfigFrom kept
+                // the class default of 2 m, and Apply wrote groups with a
+                // distance the user never chose.
+                var calls = 0;
+                var defaults = new Config { Smart = false };
+                defaults.RuleIds.Add("proximity");
+                var window = ClashGrouperDialog.Build(
+                    Tests(("A vs B", 100, true)), Rules(),
+                    (_, __) => { calls++; return PreviewWith(100, 4); }, defaults: defaults);
+                ClashGrouperDialog.RunPreviewForTest(window);
+                Assert.Equal("Done", ClashGrouperDialog.PreviewStateOf(window));
+                Assert.Equal(1, calls);
+
+                ClashGrouperDialog.SetToleranceForTest(window, typed);
+
+                Assert.Equal("NeedsTolerance", ClashGrouperDialog.PreviewStateOf(window));
+                Assert.False(ClashGrouperDialog.ApplyEnabledOf(window));
+                Assert.Contains("cluster distance", ClashGrouperDialog.MessageOf(window));
+
+                // Nothing runs on a distance that does not read.
+                ClashGrouperDialog.RunPreviewForTest(window);
+                Assert.Equal(1, calls);
+                Assert.Equal("NeedsTolerance", ClashGrouperDialog.PreviewStateOf(window));
+
+                // Typing the previewed distance back brings that result back.
+                ClashGrouperDialog.SetToleranceForTest(window, "2");
+                Assert.Equal("Done", ClashGrouperDialog.PreviewStateOf(window));
+                Assert.True(ClashGrouperDialog.ApplyEnabledOf(window));
+            });
+        }
+
+        [Fact]
+        public void AnUnreadableClusterDistance_DoesNotBlockAModeThatHidesTheField()
+        {
+            OnSta(() =>
+            {
+                // Smart hides the distance field, so a bad value left in it must
+                // not lock Apply with no visible reason; Smart falls back to the
+                // saved distance the field opened with.
+                Config seen = null;
+                var defaults = new Config { Smart = false, ToleranceMeters = 3.5 };
+                defaults.RuleIds.Add("proximity");
+                var window = ClashGrouperDialog.Build(
+                    Tests(("A vs B", 100, true)), Rules(),
+                    (config, __) => { seen = config; return PreviewWith(100, 4); },
+                    defaults: defaults);
+                ClashGrouperDialog.SetToleranceForTest(window, "abc");
+                Assert.Equal("NeedsTolerance", ClashGrouperDialog.PreviewStateOf(window));
+
+                ClashGrouperDialog.SetSmartForTest(window, true);
+                Assert.Equal("Ready", ClashGrouperDialog.PreviewStateOf(window));
+                ClashGrouperDialog.RunPreviewForTest(window);
+
+                Assert.Equal("Done", ClashGrouperDialog.PreviewStateOf(window));
+                Assert.True(ClashGrouperDialog.ApplyEnabledOf(window));
+                Assert.Equal(3.5, seen.ToleranceMeters, 6);
+
+                // A custom chain with no proximity rule never reads the distance.
+                var chain = ClashGrouperDialog.Build(
+                    Tests(("A vs B", 100, true)), Rules(), Static(100, 4));
+                ClashGrouperDialog.SetSmartForTest(chain, false);
+                ClashGrouperDialog.SetToleranceForTest(chain, "0");
+                Assert.Equal("Ready", ClashGrouperDialog.PreviewStateOf(chain));
+                ClashGrouperDialog.RunPreviewForTest(chain);
+                Assert.Equal("Done", ClashGrouperDialog.PreviewStateOf(chain));
+                Assert.True(ClashGrouperDialog.ApplyEnabledOf(chain));
+            });
+        }
+
+        [Fact]
+        public void ClosingTheWindow_StopsTheCountingPass()
+        {
+            OnSta(() =>
+            {
+                // Each tick calls into Python on the Navisworks main thread, so a
+                // pass still queued when the dialog closes must not keep walking
+                // every test's results behind the user's back (or behind Apply).
+                var asked = new List<int>();
+                var window = ClashGrouperDialog.Build(
+                    Tests(("A", -1, false), ("B", -1, false), ("C", -1, false)), Rules(),
+                    Static(10, 2),
+                    index =>
+                    {
+                        asked.Add(index);
+                        return new ClashGrouperDialog.TestCounts { Total = 5, Grouped = 0 };
+                    });
+
+                // A pass in flight: its next tick is queued, not yet run.
+                ClashGrouperDialog.BeginCountingForTest(window);
+                window.Close();
+                for (var i = 0; i < 6; i++)
+                    window.Dispatcher.Invoke((Action)(() => { }), DispatcherPriority.Background);
+
+                Assert.Empty(asked);
+            });
+        }
+
+        [Fact]
+        public void ADocumentWithNoTests_SummarisesTheListInSentenceCase()
+        {
+            OnSta(() =>
+            {
+                var window = ClashGrouperDialog.Build(
+                    Tests(), Rules(), Static(0, 0));
+
+                Assert.Equal("None found", ClashGrouperDialog.TestsSummaryOf(window));
+            });
+        }
+
+        [Fact]
+        public void PreviewException_IsLogged_WithItsStackTrace()
+        {
+            // The panel only has room for ex.Message; the log is where the rest
+            // of a Python traceback has to land, or it is gone for good.
+            var marker = "grouper preview " + Guid.NewGuid().ToString("N");
+            OnSta(() =>
+            {
+                var window = ClashGrouperDialog.Build(
+                    Tests(("A vs B", 10, true)), Rules(),
+                    (_, __) => throw new InvalidOperationException(marker));
+                ClashGrouperDialog.RunPreviewForTest(window);
+                Assert.Equal("Failed", ClashGrouperDialog.PreviewStateOf(window));
+            });
+
+            // The real runtime log, which only ever grows: read its tail, not
+            // all of it, and share it with any test still writing to it.
+            string log;
+            var path = System.IO.Path.Combine(PyNavis.Runtime.Log.LogDir, "pyNavis.log");
+            using (var stream = new System.IO.FileStream(path, System.IO.FileMode.Open,
+                System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite | System.IO.FileShare.Delete))
+            {
+                stream.Seek(Math.Max(0, stream.Length - (1 << 20)), System.IO.SeekOrigin.Begin);
+                using (var reader = new System.IO.StreamReader(stream))
+                    log = reader.ReadToEnd();
+            }
+            Assert.Contains("Clash Grouper preview failed" + Environment.NewLine
+                + "System.InvalidOperationException: " + marker, log);
+        }
     }
 }

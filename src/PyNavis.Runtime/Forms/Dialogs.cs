@@ -119,6 +119,10 @@ namespace PyNavis.Runtime.Forms
                 SizeToContent = SizeToContent.WidthAndHeight,
                 MinWidth = 380,
                 MaxWidth = 520,
+                // Sized to content but never past the screen: a long message (a whole
+                // file, a long traceback) scrolls inside instead of pushing the buttons
+                // off the bottom of a window the user cannot resize.
+                MaxHeight = MaxHeightFor(SystemParameters.WorkArea.Height),
                 ResizeMode = ResizeMode.NoResize,          // real OS titlebar, close only
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Background = DesignSystem.Brush(t.Paper),
@@ -128,14 +132,30 @@ namespace PyNavis.Runtime.Forms
             };
             FluentChrome.Apply(window);                    // rounded corners + dark titlebar attr
 
-            var body = new StackPanel { Margin = new Thickness(24, 20, 24, 20) };
+            // The message takes whatever height is left once the input field and the
+            // footer have theirs, and scrolls within it; both stay in view. Grid rows
+            // rather than a StackPanel, which would measure the message at infinite
+            // height and never scroll. Tab order is unchanged: input, then the buttons.
+            var body = new Grid { Margin = new Thickness(24, 20, 24, 20) };
+            body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
             parts.Message = DesignSystem.Text(message, 13, t.Ink);   // 13 is body
-            body.Children.Add(parts.Message);
+            var scroll = new ScrollViewer
+            {
+                Content = parts.Message,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,   // wrap, never pan
+                Focusable = false,           // keep Tab on the input and the buttons
+            };
+            DesignSystem.SlimScroll(scroll);
+            body.Children.Add(scroll);
 
             parts.Input = new TextBox { Text = inputDefault ?? "", Height = 32 };
             var inputField = DesignSystem.InputField(t, parts.Input);
             inputField.Margin = new Thickness(0, 16, 0, 0);
             inputField.Visibility = inputDefault != null ? Visibility.Visible : Visibility.Collapsed;
+            Grid.SetRow(inputField, 1);
             body.Children.Add(inputField);
 
             var footer = new Border
@@ -147,8 +167,11 @@ namespace PyNavis.Runtime.Forms
                 Child = BuildFooter(window, parts, buttons, t, defaultIsSafe, copyText),
             };
 
-            var layout = new StackPanel();
+            var layout = new Grid();
+            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             layout.Children.Add(body);
+            Grid.SetRow(footer, 1);
             layout.Children.Add(footer);
             window.Content = layout;
 
@@ -163,6 +186,13 @@ namespace PyNavis.Runtime.Forms
             };
             return window;
         }
+
+        /// <summary>
+        /// The tallest a message dialog may grow, in DIPs: most of the work area, so the
+        /// titlebar and the footer always fit on screen with a margin to spare.
+        /// </summary>
+        public static double MaxHeightFor(double workAreaHeight) =>
+            System.Math.Floor(workAreaHeight * 0.85);
 
         /// <summary>
         /// The answer buttons on the right and, when the caller offers something to copy,
