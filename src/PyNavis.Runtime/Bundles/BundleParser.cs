@@ -289,6 +289,7 @@ namespace PyNavis.Runtime.Bundles
                 Shortcut = yaml.TryGetValue("shortcut", out var chord) ? chord : null,
                 KeyTipOverride = yaml.TryGetValue("keytip", out var keyTip) ? keyTip : null,
                 BundleKey = RelativeKey(ext.Directory, buttonDir),
+                ExtensionName = ext.Name,
                 Status = ReadStatus(yaml, buttonDir, ext),
                 IconPath = icons.large,
                 DarkIconPath = icons.dark,

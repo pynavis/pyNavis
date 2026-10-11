@@ -163,6 +163,9 @@ namespace PyNavis.Runtime.Bundles
         public string KeyTipOverride { get; set; }
         /// <summary>Stable identity: bundle path relative to the extension folder, forward slashes.</summary>
         public string BundleKey { get; set; }
+        /// <summary>The name of the extension the button belongs to (ExtensionModel.Name),
+        /// which the key, being extension-relative, does not carry. Telemetry records it.</summary>
+        public string ExtensionName { get; set; }
         public string EngineId { get; set; } = "ironpython";
         /// <summary>Module search paths for this script: bundle dir, then extension lib.</summary>
         public List<string> SearchPaths { get; } = new List<string>();

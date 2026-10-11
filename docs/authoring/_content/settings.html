@@ -235,6 +235,7 @@ compatibility line a release later.</p>
     smart_clash_grouper.json
     count_selection.json
   memory\                  # per-document selection registers
+  telemetry\               # telemetry records waiting for an unreachable share or URL
   logs\
 </pre>
 
@@ -310,6 +311,19 @@ know about survives every save another one makes.</p>
         ribbon, hooks, dock panels, shortcuts, upgrade notices and update check as a normal
         session does. Absent, or any other value, skips them. See
         <a href="command-line.html#limits">Running without the ribbon</a>.</td></tr>
+<tr><td><code>telemetry.enabled</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Records every tool run for the firm. Off by default, and never sent to the pyNavis
+        developers. See <a href="telemetry.html">Telemetry</a>.</td></tr>
+<tr><td><code>telemetry.folder</code></td><td>string</td><td>absent</td>
+    <td>A folder, usually a network share, that receives the records as JSON Lines
+        files.</td></tr>
+<tr><td><code>telemetry.url</code></td><td>string</td><td>absent</td>
+    <td>An address the records are posted to as a JSON array. Either destination, or
+        both.</td></tr>
+<tr><td><code>telemetry.includeHooks</code></td><td>boolean</td><td><code>false</code></td>
+    <td>Records hook runs too. A <code>%PROGRAMDATA%\pyNavis\telemetry.json</code> deployed
+        by the firm, which only administrators can change, overrides all four
+        <code>telemetry</code> keys.</td></tr>
 <tr><td><code>ribbon.showShortcutMarker</code></td><td>boolean</td><td><code>true</code></td>
     <td>Whether a button a chord resolves to carries a marker after its name. The
         Settings window's first checkbox.</td></tr>
@@ -343,8 +357,10 @@ know about survives every save another one makes.</p>
 <span class="note-t">There is a window for most of this</span>
 <p><strong>Settings</strong> on the pyNavis panel edits <code>extensions</code>,
 <code>theme</code>, <code>pynavislib</code>, <code>cpython</code>,
-<code>shortcuts.allowBareKeys</code> and the two <code>ribbon</code> hints, and tells you
-whether your change needs a Reload or a Navisworks restart. It deliberately leaves
+<code>shortcuts.allowBareKeys</code>, the two <code>ribbon</code> hints and the
+<code>telemetry</code> section, and tells you
+whether your change needs a Reload or a Navisworks restart. A telemetry change applies as
+soon as you save. It deliberately leaves
 <code>shortcuts.bindings</code>, <code>panes</code> and <code>layout</code> alone, because
 those belong to the Shortcuts editor, the pane registry and the dialogs that wrote them.</p>
 </div>

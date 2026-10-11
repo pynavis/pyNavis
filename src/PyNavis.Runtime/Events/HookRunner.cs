@@ -78,6 +78,10 @@ namespace PyNavis.Runtime.Events
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
             var source = "hook " + hook.Id;
+            // Null unless telemetry is on with includeHooks: then one record per run.
+            var record = Telemetry.TelemetryHost.ForHook(hook);
+            var succeeded = false;
+            string error = null;
             // A hook is not a command, so it never sets a command context; without this its
             // log lines would be labelled with whichever button the user last clicked.
             Execution.PyNavisHost.Instance.LogSource = source;
@@ -102,12 +106,20 @@ namespace PyNavis.Runtime.Events
                 // True when the hook fires during pynavis run (its dialogs throw there too).
                 request.Globals["__runner__"] = Execution.Runner.RunnerContext.IsActive;
 
-                var result = EngineManager.GetEngine(hook.EngineId).Execute(request);
+                ExecResult result;
+                using (Execution.PyNavisHost.Instance.TelemetryScope(record))
+                    result = EngineManager.GetEngine(hook.EngineId).Execute(request);
+                succeeded = result.Succeeded;
                 if (result.Succeeded) Health.RecordSuccess(hook.Id);
-                else Fail(hook, result.ErrorText);
+                else
+                {
+                    error = result.ErrorText;
+                    Fail(hook, result.ErrorText);
+                }
             }
             catch (Exception ex)
             {
+                error = ex.Message;
                 Fail(hook, ex.Message);
             }
             finally
@@ -116,6 +128,7 @@ namespace PyNavis.Runtime.Events
                 // running, and a stale label is what caused this bug in the first place.
                 Execution.PyNavisHost.Instance.LogSource = null;
                 watch.Stop();
+                Telemetry.TelemetryHost.Finish(record, watch.ElapsedMilliseconds, succeeded, error);
                 if (watch.ElapsedMilliseconds > SoftBudgetMs)
                     Log.Info($"Hook {hook.Id} took {watch.ElapsedMilliseconds}ms " +
                              $"(soft budget {SoftBudgetMs}ms) - keep hooks fast.");

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Web.Script.Serialization;
 using PyNavis.Runtime.Ai;
+using PyNavis.Runtime.Telemetry;
 
 namespace PyNavis.Runtime.Config
 {
@@ -92,6 +93,10 @@ namespace PyNavis.Runtime.Config
 
         /// <summary>"updates.skip": the release the user chose to skip; null for none.</summary>
         public string UpdatesSkip { get; private set; }
+
+        /// <summary>"telemetry": the user's own telemetry settings (enabled, folder, url,
+        /// includeHooks). A firm file can override them: TelemetryConfig.Resolve.</summary>
+        public TelemetryConfig Telemetry { get; private set; } = new TelemetryConfig();
 
         /// <summary>"layout.&lt;dialog&gt;.&lt;part&gt;": remembered pane widths, keyed
         /// "dialog/part" (e.g. "viewpoints/tree"). Only positive finite numbers load.</summary>
@@ -195,6 +200,9 @@ namespace PyNavis.Runtime.Config
             public bool UpdatesCheck = true;
             public bool UpdatesInstallOnClose = true;
             public string UpdatesSkip;
+            /// <summary>The "telemetry" section. Null leaves the section in the file as it
+            /// is, so a window that does not show telemetry never resets it.</summary>
+            public TelemetryConfig Telemetry;
         }
 
         /// <summary>The current file as a UserSettings, for a window to edit and hand back.</summary>
@@ -213,6 +221,7 @@ namespace PyNavis.Runtime.Config
             UpdatesCheck = UpdatesCheck,
             UpdatesInstallOnClose = UpdatesInstallOnClose,
             UpdatesSkip = UpdatesSkip,
+            Telemetry = Telemetry.Clone(),
         };
 
         /// <summary>
@@ -287,6 +296,8 @@ namespace PyNavis.Runtime.Config
             else updates["skip"] = settings.UpdatesSkip.Trim();
             PutUpdatesSection(root, updates);
 
+            if (settings.Telemetry != null) PutTelemetrySection(root, settings.Telemetry);
+
             WriteRoot(path, root);
         }
 
@@ -303,6 +314,28 @@ namespace PyNavis.Runtime.Config
             else updates["skip"] = version.Trim();
             PutUpdatesSection(root, updates);
             WriteRoot(path, root);
+        }
+
+        /// <summary>
+        /// Rewrites ONLY the "telemetry" section, keys that differ from the defaults only
+        /// (keys it does not know are kept). Same failure contract as SaveShortcutBindings:
+        /// IO errors and an unparsable existing file propagate.
+        /// </summary>
+        public static void SaveTelemetry(string path, TelemetryConfig telemetry)
+        {
+            if (telemetry == null) throw new ArgumentNullException(nameof(telemetry));
+            var root = ReadRootForUpdate(path);
+            PutTelemetrySection(root, telemetry);
+            WriteRoot(path, root);
+        }
+
+        private static void PutTelemetrySection(Dictionary<string, object> root, TelemetryConfig telemetry)
+        {
+            var section = root.TryGetValue("telemetry", out var existing) && existing is Dictionary<string, object> found
+                ? found : new Dictionary<string, object>();
+            telemetry.WriteSection(section);
+            if (section.Count == 0) root.Remove("telemetry");
+            else root["telemetry"] = section;
         }
 
         private static Dictionary<string, object> UpdatesSection(Dictionary<string, object> root) =>
@@ -497,6 +530,11 @@ namespace PyNavis.Runtime.Config
                     if (updates.TryGetValue("skip", out var skip) && skip is string skipped
                         && !string.IsNullOrWhiteSpace(skipped))
                         config.UpdatesSkip = skipped.Trim();
+                }
+                if (data != null && data.TryGetValue("telemetry", out var tel)
+                    && tel is Dictionary<string, object> telemetry)
+                {
+                    config.Telemetry = TelemetryConfig.FromSection(telemetry);
                 }
                 if (data != null && data.TryGetValue("layout", out var layout)
                     && layout is Dictionary<string, object> layoutSection)

@@ -90,5 +90,80 @@ namespace PyNavis.Tests
         {
             Assert.False(MachineFolderTrust.IsAdminOnly(Path.Combine(Path.GetTempPath(), "pynavis-absent-" + Guid.NewGuid())));
         }
+
+        // ---- a single file, such as %PROGRAMDATA%\pyNavis\telemetry.json ---------------
+
+        private static FileSecurity LockedFile(SecurityIdentifier owner = null)
+        {
+            var security = new FileSecurity();
+            security.SetOwner(owner ?? Admins);
+            security.AddAccessRule(new FileSystemAccessRule(System, FileSystemRights.FullControl, AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(Admins, FileSystemRights.FullControl, AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(Users, FileSystemRights.ReadAndExecute, AccessControlType.Allow));
+            return security;
+        }
+
+        [Fact]
+        public void AnAdminOwnedFile_UsersMayOnlyRead_IsTrusted()
+        {
+            Assert.True(MachineFolderTrust.IsAdminOnly(LockedFile()));
+        }
+
+        [Fact]
+        public void AFileUsersMayModify_IsNotTrusted()
+        {
+            var security = LockedFile();
+            security.AddAccessRule(new FileSystemAccessRule(Users, FileSystemRights.Modify, AccessControlType.Allow));
+
+            Assert.False(MachineFolderTrust.IsAdminOnly(security));
+        }
+
+        [Fact]
+        public void AFileOwnedByAnOrdinaryUser_IsNotTrusted()
+        {
+            // What a login script, which runs as the user, leaves behind.
+            Assert.False(MachineFolderTrust.IsAdminOnly(LockedFile(SomeUser)));
+        }
+
+        [Fact]
+        public void AMissingFile_IsNotTrusted()
+        {
+            Assert.False(MachineFolderTrust.IsAdminOnlyFile(Path.Combine(Path.GetTempPath(), "pynavis-absent-" + Guid.NewGuid() + ".json")));
+        }
+
+        [Fact]
+        public void AFileThisUserJustWrote_IsNotTrusted()
+        {
+            // The test runs as an ordinary user, so the file is theirs: exactly the file
+            // a user could plant to send everyone's records somewhere of their choosing.
+            var path = Path.Combine(Path.GetTempPath(), "pynavis-trust-" + Guid.NewGuid() + ".json");
+            File.WriteAllText(path, "{}");
+            try
+            {
+                Assert.False(MachineFolderTrust.IsAdminOnlyFile(path));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public void AnOpenFileThisUserJustWrote_IsNotTrusted_CheckedOnItsHandle()
+        {
+            // The firm telemetry file is checked through the handle it is then read from.
+            var path = Path.Combine(Path.GetTempPath(), "pynavis-trust-" + Guid.NewGuid() + ".json");
+            File.WriteAllText(path, "{}");
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    Assert.False(MachineFolderTrust.IsAdminOnlyFile(stream));
+                Assert.False(MachineFolderTrust.IsAdminOnlyFile((FileStream)null));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
     }
 }

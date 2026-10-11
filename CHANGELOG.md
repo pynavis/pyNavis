@@ -7,6 +7,23 @@ a `bundle.yaml` or `config.json` key, a `pynavis` function, a Navisworks year), 
 something existing changes meaning or goes away. The number in each heading is the one that
 `pynavis.__version__`, the Settings window and the installer file name show.
 
+## [Unreleased]
+
+### Added
+
+- Telemetry, off by default: with it on, pyNavis writes one record for every tool run (a
+  click, a Shift+Click, a `pynavis run` script, and hooks when `includeHooks` is on) to a
+  shared folder, an HTTP endpoint, or both, never to the pyNavis developers. A record holds
+  the user, the machine, the model's file name, the tool, how long it took, whether it
+  worked and one line of any error. Records queue in memory and a background worker sends
+  them, keeping what it cannot deliver in a spool to retry, so a click never waits. Set it
+  in the new Telemetry section of Settings, which applies a change at once and has a Send
+  test record button, or in the `telemetry` section of `config.json`. A firm can deploy
+  `%PROGRAMDATA%\pyNavis\telemetry.json`, which overrides every user's settings when only
+  administrators can change it.
+- `pynavis.telemetry.note(**values)` adds a tool's own values, such as items changed or
+  minutes saved, to its run's record. Outside a run, or with telemetry off, it does nothing.
+
 ## [1.3.0] - 2026-10-10
 
 ### Added

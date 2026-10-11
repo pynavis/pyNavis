@@ -54,6 +54,16 @@ namespace PyNavis.Runtime.Forms
             public CheckBox UpdatesCheck;
             public CheckBox UpdatesInstallOnClose;
             public TextBlock UpdateStatus;
+            public CheckBox TelemetryEnabled;
+            public TextBox TelemetryFolder;
+            public TextBox TelemetryUrl;
+            public CheckBox TelemetryHooks;
+            public Button TelemetryTest;
+            public TextBlock TelemetryStatus;
+            public TextBlock TelemetryManagedNote;
+            /// <summary>The firm file decides: the section shows its values read-only and
+            /// Collect hands back the user's own, untouched.</summary>
+            public bool TelemetryManaged;
             public bool Saved;
         }
 
@@ -123,6 +133,11 @@ namespace PyNavis.Runtime.Forms
                 Log.Error("Settings saved, but the API key could not be written to " + secrets.FilePath, ex);
                 throw new InvalidOperationException("Everything else was saved, but not the API key: " + ex.Message, ex);
             }
+
+            // Telemetry takes effect now rather than at the next Reload, which the user
+            // may decline. Unchanged settings keep the running service as it is.
+            if (edited.Telemetry != null && !Telemetry.TelemetryHost.SameSettings(edited.Telemetry, current.Telemetry))
+                Telemetry.TelemetryHost.Configure(edited.Telemetry);
             return restart ? Outcome.NeedsRestart : Outcome.NeedsReload;
         }
 
@@ -146,8 +161,11 @@ namespace PyNavis.Runtime.Forms
 
         /// <summary><paramref name="hasKey"/>: whether a key is already stored, so the
         /// key box can say "saved" instead of looking empty; <paramref name="keySavedFor"/>:
-        /// the endpoint it belongs to (ApiKeys.SavedFor), named in the hint.</summary>
-        public static Window Build(PyNavisConfig.UserSettings current, bool hasKey, string keySavedFor = null)
+        /// the endpoint it belongs to (ApiKeys.SavedFor), named in the hint;
+        /// <paramref name="telemetryInForce"/>: the telemetry settings the running service
+        /// uses, which say whether a firm file manages them (null: ask TelemetryHost).</summary>
+        public static Window Build(PyNavisConfig.UserSettings current, bool hasKey, string keySavedFor = null,
+            Telemetry.TelemetryConfig telemetryInForce = null)
         {
             var t = Tokens.Current;
             var values = current ?? new PyNavisConfig.UserSettings();
@@ -173,6 +191,7 @@ namespace PyNavis.Runtime.Forms
             page.Children.Add(Engines(parts));
             page.Children.Add(Assistant(parts, hasKey, keySavedFor));
             page.Children.Add(Updates(parts));
+            page.Children.Add(TelemetrySection(parts, telemetryInForce ?? InForceOrDefault()));
             page.Children.Add(Actions(parts));
             page.Children.Add(About(parts));
 
@@ -595,6 +614,119 @@ namespace PyNavis.Runtime.Forms
             catch (Exception) { return null; }
         }
 
+        /// <summary>
+        /// The user's telemetry settings, or, when a firm file decides them, the firm's
+        /// values read-only with a line naming the file. Send test record sends one record
+        /// to what the section shows (saved or not) and answers on the status line; nothing
+        /// here touches the network or the share until it is pressed.
+        /// </summary>
+        private static UIElement TelemetrySection(Parts parts, Telemetry.TelemetryConfig inForce)
+        {
+            var t = parts.T;
+            var body = new StackPanel();
+            parts.TelemetryManaged = inForce != null && inForce.Managed;
+            var shown = parts.TelemetryManaged
+                ? inForce
+                : parts.Values.Telemetry ?? new Telemetry.TelemetryConfig();
+
+            parts.TelemetryEnabled = new CheckBox
+            {
+                Content = "Send tool runs to your firm's telemetry",
+                IsChecked = shown.Enabled,
+                Foreground = DesignSystem.Brush(t.Ink),
+            };
+            body.Children.Add(parts.TelemetryEnabled);
+
+            body.Children.Add(Caption(t, "Folder"));
+            parts.TelemetryFolder = new TextBox { Text = shown.Folder ?? "" };
+            body.Children.Add(DesignSystem.InputField(t, parts.TelemetryFolder));
+
+            body.Children.Add(Caption(t, "URL"));
+            parts.TelemetryUrl = new TextBox { Text = shown.Url ?? "" };
+            body.Children.Add(DesignSystem.InputField(t, parts.TelemetryUrl));
+
+            parts.TelemetryHooks = new CheckBox
+            {
+                Content = "Include hooks",
+                IsChecked = shown.IncludeHooks,
+                Foreground = DesignSystem.Brush(t.Ink),
+                Margin = new Thickness(0, 10, 0, 0),
+            };
+            body.Children.Add(parts.TelemetryHooks);
+
+            parts.TelemetryTest = DesignSystem.Secondary(t, "Send test record", () => SendTestRecord(parts));
+            parts.TelemetryTest.HorizontalAlignment = HorizontalAlignment.Left;
+            parts.TelemetryTest.Margin = new Thickness(0, 10, 0, 0);
+            body.Children.Add(parts.TelemetryTest);
+
+            parts.TelemetryStatus = Hint(t, TelemetryStatusOrNothing(), new Thickness(0, 6, 0, 0));
+            parts.TelemetryStatus.Foreground = DesignSystem.Brush(t.Ink);
+            body.Children.Add(parts.TelemetryStatus);
+
+            if (parts.TelemetryManaged)
+            {
+                parts.TelemetryEnabled.IsEnabled = false;
+                parts.TelemetryHooks.IsEnabled = false;
+                parts.TelemetryFolder.IsReadOnly = true;
+                parts.TelemetryUrl.IsReadOnly = true;
+                parts.TelemetryManagedNote = Note(t, "Managed by your firm from " + Telemetry.TelemetryHost.FirmPath + ".");
+                body.Children.Add(parts.TelemetryManagedNote);
+            }
+            else
+            {
+                body.Children.Add(Note(t,
+                    "Off unless you turn it on. Each tool run is recorded to the folder, the URL, or both, "
+                    + "and never sent to the pyNavis developers. Takes effect when you save."));
+            }
+            return DesignSystem.GroupFrame(t, "Telemetry", body);
+        }
+
+        /// <summary>The settings the section shows, as a TelemetryConfig.</summary>
+        private static Telemetry.TelemetryConfig EnteredTelemetry(Parts parts) => new Telemetry.TelemetryConfig
+        {
+            Enabled = parts.TelemetryEnabled.IsChecked == true,
+            Folder = (parts.TelemetryFolder.Text ?? "").Trim(),
+            Url = (parts.TelemetryUrl.Text ?? "").Trim(),
+            IncludeHooks = parts.TelemetryHooks.IsChecked == true,
+        };
+
+        /// <summary>Sends the test record off the UI thread and puts the answer on the
+        /// status line through the window's dispatcher; the window stays live meanwhile.</summary>
+        private static void SendTestRecord(Parts parts)
+        {
+            var entered = EnteredTelemetry(parts);
+            var dispatcher = parts.Window.Dispatcher;
+            parts.TelemetryTest.IsEnabled = false;
+            parts.TelemetryStatus.Text = "Sending a test record...";
+            System.Threading.Tasks.Task.Run(() => Telemetry.TelemetryHost.SendTestRecord(entered))
+                .ContinueWith(task =>
+                {
+                    var line = task.IsFaulted ? "The test failed; details are in the log." : task.Result;
+                    if (task.IsFaulted) Log.Error("Telemetry test from Settings failed", task.Exception);
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        parts.TelemetryStatus.Text = line;
+                        parts.TelemetryTest.IsEnabled = true;
+                    }));
+                });
+        }
+
+        private static string TelemetryStatusOrNothing()
+        {
+            try { return Telemetry.TelemetryHost.Current.Status(); }
+            catch (Exception ex)
+            {
+                Log.Error("Could not read the telemetry status", ex);
+                return "";
+            }
+        }
+
+        private static Telemetry.TelemetryConfig InForceOrDefault()
+        {
+            try { return Telemetry.TelemetryHost.Current.Config; }
+            catch (Exception) { return new Telemetry.TelemetryConfig(); }
+        }
+
         private static UIElement Actions(Parts parts)
         {
             var row = new StackPanel
@@ -659,6 +791,8 @@ namespace PyNavis.Runtime.Forms
                 UpdatesInstallOnClose = parts.UpdatesInstallOnClose.IsChecked == true,
                 // Skip this version saved itself at once; the window only carries it on.
                 UpdatesSkip = parts.Values.UpdatesSkip,
+                // A firm's values are only shown: the user's own go back untouched.
+                Telemetry = parts.TelemetryManaged ? parts.Values.Telemetry?.Clone() : EnteredTelemetry(parts),
             };
 
         // ---- test seams --------------------------------------------------------
@@ -703,6 +837,31 @@ namespace PyNavis.Runtime.Forms
         public static string AiSectionTextForTest(Window window) => PartsOf(window).AiText.ToString();
 
         public static string VersionLineOf(Window window) => PartsOf(window).VersionLine.Text;
+
+        public static void SetTelemetryForTest(Window window, bool enabled, string folder, string url, bool includeHooks)
+        {
+            var parts = PartsOf(window);
+            parts.TelemetryEnabled.IsChecked = enabled;
+            parts.TelemetryFolder.Text = folder;
+            parts.TelemetryUrl.Text = url;
+            parts.TelemetryHooks.IsChecked = includeHooks;
+        }
+
+        public static string TelemetryFolderOf(Window window) => PartsOf(window).TelemetryFolder.Text;
+
+        public static string TelemetryStatusOf(Window window) => PartsOf(window).TelemetryStatus.Text;
+
+        /// <summary>Null unless a firm file manages telemetry.</summary>
+        public static string TelemetryManagedNoteOf(Window window) => PartsOf(window).TelemetryManagedNote?.Text;
+
+        public static bool TelemetryIsReadOnlyForTest(Window window)
+        {
+            var parts = PartsOf(window);
+            return parts.TelemetryFolder.IsReadOnly && parts.TelemetryUrl.IsReadOnly
+                   && parts.TelemetryEnabled.IsEnabled == false && parts.TelemetryHooks.IsEnabled == false;
+        }
+
+        public static void PressSendTestRecordForTest(Window window) => SendTestRecord(PartsOf(window));
 
         // ---- small chrome ------------------------------------------------------
 

@@ -85,7 +85,10 @@ namespace PyNavis.Runtime.Panes
             PyNavisHost.Instance.SetCommandContext(
                 model.ScriptPath, model.Directory, model.Title, model.BundleKey);
 
-            var result = EngineManager.GetEngine(model.EngineId).Execute(request);
+            // Not a run telemetry records; a note in it goes nowhere.
+            ExecResult result;
+            using (PyNavisHost.Instance.TelemetryScope(null))
+                result = EngineManager.GetEngine(model.EngineId).Execute(request);
             if (!result.Succeeded)
             {
                 Log.Error($"Dockpane script '{model.Title}' failed:\n{result.ErrorText}");

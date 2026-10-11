@@ -1,21 +1,28 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Web.Script.Serialization;
 using PyNavis.Runtime.Bundles;
 using PyNavis.Runtime.Engine;
 using PyNavis.Runtime.Output;
+using PyNavis.Runtime.Telemetry;
 
 namespace PyNavis.Runtime.Execution
 {
     /// <summary>Routes a ribbon button click to the right engine with pyNavis globals.</summary>
     public static class ScriptExecutor
     {
-        public static void Run(PushButtonModel button) => RunScript(button, button.ScriptPath);
+        public static void Run(PushButtonModel button) => RunScript(button, button.ScriptPath, "click");
 
         /// <summary>Shift+Click secondary action: the bundle's config.py, same engine
         /// and globals contract with __file__ pointing at the config script.</summary>
         public static void RunConfig(PushButtonModel button) =>
-            RunScript(button, button.ConfigScriptPath);
+            RunScript(button, button.ConfigScriptPath, "config");
 
-        private static void RunScript(PushButtonModel button, string scriptPath)
+        /// <param name="kind">What telemetry records the run as: "click" or "config".</param>
+        private static void RunScript(PushButtonModel button, string scriptPath, string kind)
         {
             var block = HostGate.BlockMessage(button, RuntimeHost.HostYear);
             if (block != null)
@@ -39,6 +46,12 @@ namespace PyNavis.Runtime.Execution
             Events.NavisEvents.Raise(Events.NavisEvent.BeforeCommand, button.BundleKey);
             var writer = new OutputWindowWriter("pyNavis - " + button.Title);
 
+            // Every run that got past the gates is one record, written in the finally
+            // whatever happened; null (nothing recorded) while telemetry is off.
+            var record = TelemetryHost.ForButton(button, kind);
+            var succeeded = false;
+            string error = null;
+            var watch = Stopwatch.StartNew();
             try
             {
                 var request = new ScriptRequest
@@ -59,9 +72,14 @@ namespace PyNavis.Runtime.Execution
                 PyNavisHost.Instance.SetCommandContext(scriptPath, button.Directory, button.Title, button.BundleKey);
                 PyNavisHost.Instance.SetCurrentOutput(writer);
 
-                var result = EngineManager.GetEngine(button.EngineId).Execute(request);
+                ExecResult result;
+                using (PyNavisHost.Instance.TelemetryScope(record))
+                    result = EngineManager.GetEngine(button.EngineId).Execute(request);
+                watch.Stop();
+                succeeded = result.Succeeded;
                 if (!result.Succeeded)
                 {
+                    error = result.ErrorText;
                     Log.Error($"Script '{button.Title}' failed:\n{result.ErrorText}");
                     writer.WriteError(result.ErrorText + Environment.NewLine);
                     Ai.FailureLog.Record(button.Directory, result.ErrorText);   // "Send last error" in Ask AI
@@ -70,12 +88,15 @@ namespace PyNavis.Runtime.Execution
             catch (Exception ex)
             {
                 // e.g. unknown engine id, engine creation failure
+                error = ex.Message;
                 Log.Error($"Could not run '{button.Title}'", ex);
                 writer.WriteError(ex.Message + Environment.NewLine);
                 Ai.FailureLog.Record(button.Directory, ex.ToString());
             }
             finally
             {
+                watch.Stop();
+                TelemetryHost.Finish(record, watch.ElapsedMilliseconds, succeeded, error);
                 // A leaked ProgressScope leaves Navisworks unclickable, so sweep
                 // it however the script ended - the script's own try/finally is
                 // the first line of defence, this is the backstop.
@@ -220,6 +241,106 @@ namespace PyNavis.Runtime.Execution
             var line = $"[{source}] {message}";
             if (level == "error") Log.Error(line);
             else Log.Info($"[{level}] {line}");
+        }
+
+        // ---- telemetry: pynavis.telemetry.note ---------------------------------------
+
+        private readonly object _telemetryGate = new object();
+        private readonly List<TelemetryRecord> _telemetryRuns = new List<TelemetryRecord>();
+
+        /// <summary>
+        /// Called by the runtime just before a script runs: <paramref name="record"/> is
+        /// the record pynavis.telemetry.note adds to until the matching EndTelemetry, or
+        /// null for a run that is not recorded, so a note there goes nowhere instead of
+        /// into the run around it (startup.py during a Reload click, a smartbutton
+        /// refreshing at ribbon build). Calls nest; pair every one with EndTelemetry.
+        /// </summary>
+        public void BeginTelemetry(TelemetryRecord record)
+        {
+            lock (_telemetryGate) _telemetryRuns.Add(record);
+        }
+
+        /// <summary>Ends the innermost BeginTelemetry and returns its record (null for an
+        /// unrecorded run, or when nothing was begun).</summary>
+        public TelemetryRecord EndTelemetry()
+        {
+            lock (_telemetryGate)
+            {
+                if (_telemetryRuns.Count == 0) return null;
+                var last = _telemetryRuns[_telemetryRuns.Count - 1];
+                _telemetryRuns.RemoveAt(_telemetryRuns.Count - 1);
+                return last;
+            }
+        }
+
+        /// <summary>BeginTelemetry now, EndTelemetry on Dispose: wraps one Execute.</summary>
+        internal IDisposable TelemetryScope(TelemetryRecord record)
+        {
+            BeginTelemetry(record);
+            return new TelemetryEnd(this);
+        }
+
+        private sealed class TelemetryEnd : IDisposable
+        {
+            private PyNavisHost _host;
+            public TelemetryEnd(PyNavisHost host) { _host = host; }
+
+            public void Dispose()
+            {
+                _host?.EndTelemetry();
+                _host = null;
+            }
+        }
+
+        /// <summary>
+        /// Merges <paramref name="values"/> into the current run's record ("results"); a
+        /// name already there is replaced. The values are copied as plain JSON values now,
+        /// so changing them afterwards changes nothing. Returns false, and changes nothing,
+        /// outside a recorded run (telemetry off, or no run at all). Never throws.
+        /// </summary>
+        public bool TelemetryNote(IDictionary values)
+        {
+            try
+            {
+                if (values == null) return false;
+                lock (_telemetryGate)
+                {
+                    var record = _telemetryRuns.Count > 0 ? _telemetryRuns[_telemetryRuns.Count - 1] : null;
+                    if (record == null) return false;
+                    if (record.Results == null) record.Results = new Dictionary<string, object>();
+                    foreach (DictionaryEntry entry in values)
+                    {
+                        var name = Convert.ToString(entry.Key, CultureInfo.InvariantCulture);
+                        if (string.IsNullOrEmpty(name)) continue;
+                        record.Results[name] = TelemetryRecord.Snapshot(entry.Value);
+                    }
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// TelemetryNote for a JSON object, which is how pynavis.telemetry.note hands its
+        /// values over: text crosses from IronPython and CPython alike, where a Python dict
+        /// reaches .NET as an IDictionary only under IronPython. False for anything but a
+        /// JSON object. Never throws.
+        /// </summary>
+        public bool TelemetryNoteJson(string json)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(json)) return false;
+                return new JavaScriptSerializer().DeserializeObject(json) is Dictionary<string, object> values
+                       && TelemetryNote(values);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
     }
 }

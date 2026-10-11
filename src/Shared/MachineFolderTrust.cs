@@ -41,7 +41,40 @@ namespace PyNavis.Runtime.Install
             }
         }
 
-        public static bool IsAdminOnly(DirectorySecurity security)
+        /// <summary>The same rule for one file, such as a machine-wide settings file: owned
+        /// by SYSTEM, Administrators or TrustedInstaller and writable by nobody else. A
+        /// file a user created is theirs, so it fails. False for a missing or unreadable file.</summary>
+        public static bool IsAdminOnlyFile(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return false;
+                return IsAdminOnly(File.GetAccessControl(path,
+                    AccessControlSections.Owner | AccessControlSections.Access));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>The same rule for a file already open, read from its handle: whoever
+        /// then reads through that handle reads exactly the file that was checked, even if
+        /// someone renames or replaces the path in between. False for null or a handle
+        /// whose security cannot be read.</summary>
+        public static bool IsAdminOnlyFile(FileStream stream)
+        {
+            try
+            {
+                return stream != null && IsAdminOnly(stream.GetAccessControl());
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool IsAdminOnly(FileSystemSecurity security)
         {
             if (!(security.GetOwner(typeof(SecurityIdentifier)) is SecurityIdentifier owner) || !IsAdmin(owner))
                 return false;

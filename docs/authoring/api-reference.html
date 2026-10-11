@@ -39,13 +39,14 @@
 <a href="user-interface.html"><span class="num">11</span>Talking to the user</a>
 <a href="settings.html"><span class="num">12</span>Settings and per-tool state</a>
 <a href="command-line.html"><span class="num">13</span>Running without the ribbon</a>
+<a href="telemetry.html"><span class="num">14</span>Telemetry</a>
 <div class="grp">Reference</div>
-<a href="api-reference.html" class="active"><span class="num">14</span>Python API reference</a>
+<a href="api-reference.html" class="active"><span class="num">15</span>Python API reference</a>
 <div class="grp">Practice</div>
-<a href="cookbook.html"><span class="num">15</span>Cookbook</a>
-<a href="ai-assistant.html"><span class="num">16</span>Writing tools with an AI assistant</a>
-<a href="troubleshooting.html"><span class="num">17</span>Troubleshooting</a>
-<a href="style-guide.html"><span class="num">18</span>Design rules for tools</a>
+<a href="cookbook.html"><span class="num">16</span>Cookbook</a>
+<a href="ai-assistant.html"><span class="num">17</span>Writing tools with an AI assistant</a>
+<a href="troubleshooting.html"><span class="num">18</span>Troubleshooting</a>
+<a href="style-guide.html"><span class="num">19</span>Design rules for tools</a>
 </nav>
   <div class="side-foot">
     <span>pynavis 1.3.0</span>
@@ -151,6 +152,8 @@ just do not fail at import time.</p>
     <td>Build and run search queries, and read and write search and selection sets.</td><td>No</td></tr>
 <tr><td><a href="#settings"><code>settings</code></a></td>
     <td>Per-tool JSON settings for the Shift+Click convention.</td><td>No</td></tr>
+<tr><td><a href="#telemetry"><code>telemetry</code></a></td>
+    <td>Add the tool's own values to its telemetry record.</td><td>No</td></tr>
 <tr><td><a href="#toast"><code>toast</code></a></td>
     <td>Non-blocking status messages in the corner of the window.</td><td>No</td></tr>
 <tr><td><a href="#banner"><code>banner</code></a></td>
@@ -3273,6 +3276,44 @@ DEFAULTS = {<span class="tok-s">&#x27;include_hidden&#x27;</span>: <span class="
 values = settings.load(TOOL, DEFAULTS)       <span class="tok-c"># always exactly these two keys</span>
 decimals = int(values[<span class="tok-s">&#x27;decimals&#x27;</span>])</code></pre></div>
 
+<h2 id="telemetry">telemetry: the tool's own values in its record<a class="anchor" href="#telemetry" aria-label="Link to this section">#</a></h2>
+
+<p><span class="pill pure">Pure</span> at import; needs only the
+<code>PyNavis.Runtime</code> assembly, never the Navisworks API, and behaves the same in
+either engine. When a firm turns <a href="telemetry.html">telemetry</a> on, pyNavis writes
+one record for every tool run: who ran which button, on which model, how long it took and
+whether it worked. This module adds what only the tool knows, what the run achieved.</p>
+
+<h3 id="telemetry-note">telemetry.note<a class="anchor" href="#telemetry-note" aria-label="Link to this section">#</a></h3>
+
+<div class="sig"><span class="mod">telemetry.</span><span class="fn">note</span>(**values)</div>
+
+<p>Merges <code>values</code> into the current run's record, under <code>results</code>, and
+returns <code>None</code>. A name noted again replaces the earlier value. Strings, numbers,
+booleans, <code>None</code>, and lists and dicts of them are written as they are; anything
+else is written as its <code>str()</code>, and a number JSON cannot hold (NaN, infinity) as
+<code>null</code>. The values are copied at the call, so changing a list afterwards changes
+nothing. A record is capped at 64 KB: values that would make it larger are left out, and the
+record carries <code>"results_dropped": true</code> instead.</p>
+
+<p><strong>Never raises, and never needs a guard.</strong> With telemetry off, outside a run,
+or in a script that is not recorded (<code>startup.py</code>, a dock panel's script, a
+smartbutton's ribbon-build run, the console), the call does nothing. Clicks, Shift+Clicks,
+hooks and <code>pynavis run</code> scripts have a record to add to.</p>
+
+<div class="code"><div class="code-head"><span>python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="tok-s">&quot;&quot;&quot;Groups the clashes, and says how many for the firm&#x27;s telemetry.&quot;&quot;&quot;</span>
+<span class="tok-k">from</span> pynavis <span class="tok-k">import</span> telemetry, toast
+
+groups = <span class="tok-n">12</span>   <span class="tok-c"># ... the tool&#x27;s work ...</span>
+telemetry.note(groups=groups, minutes_saved=groups * <span class="tok-n">2</span>)
+toast.success(<span class="tok-s">&#x27;Made %d clash groups&#x27;</span> % groups)</code></pre></div>
+
+<div class="note warn">
+<span class="note-t">What you note leaves the machine</span>
+<p>The values go to the firm's share or URL with the rest of the record. Note counts and
+flags, not element names, property values or anything else from the model.</p>
+</div>
+
 <h2 id="toast">toast: non-blocking status<a class="anchor" href="#toast" aria-label="Link to this section">#</a></h2>
 
 <p><span class="pill pure">Pure</span> at import; needs only the
@@ -3985,7 +4026,7 @@ than importing: the public module it sits behind is where it should surface.</p>
     <span class="c-d">The injected globals, the module cache, and what a run looks like.</span></a>
 </div>
   <div class="pagenav">
-<a href="command-line.html"><span class="dir">Previous</span><span class="ttl">Running without the ribbon</span></a>
+<a href="telemetry.html"><span class="dir">Previous</span><span class="ttl">Telemetry</span></a>
 <a class="next" href="cookbook.html"><span class="dir">Next</span><span class="ttl">Cookbook</span></a>
 </div>
 </article>
@@ -4141,6 +4182,8 @@ than importing: the public module it sits behind is where it should surface.</p>
 <a href="#settings-load" class="h3">settings.load</a>
 <a href="#settings-save" class="h3">settings.save</a>
 <a href="#settings-merge" class="h3">settings.merge and settings.path_for</a>
+<a href="#telemetry">telemetry: the tool&#x27;s own values in its record</a>
+<a href="#telemetry-note" class="h3">telemetry.note</a>
 <a href="#toast">toast: non-blocking status</a>
 <a href="#toast-show" class="h3">toast.show</a>
 <a href="#toast-levels" class="h3">toast.success, toast.error, toast.info and toast.warning</a>

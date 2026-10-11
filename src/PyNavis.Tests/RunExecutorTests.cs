@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using PyNavis.Runtime.Engine;
 using PyNavis.Runtime.Execution;
 using PyNavis.Runtime.Execution.Runner;
+using PyNavis.Runtime.Telemetry;
 using PyNavis.Shared;
 using Xunit;
 
@@ -312,6 +314,90 @@ namespace PyNavis.Tests
         {
             Assert.Equal(CurrentPid(), Execute(Request("x = 1")).HostPid);
             Assert.Equal(CurrentPid(), Execute(Request("raise ValueError('x')")).HostPid);
+        }
+
+        // ---- telemetry ----------------------------------------------------------------
+
+        private Dictionary<string, object> RecordedRun(RunRequest request, out RunResponse response)
+        {
+            var sink = new CollectingSink();
+            var previous = TelemetryHost.Install(sink.Service(_dir));
+            try
+            {
+                response = Execute(request);
+                TelemetryHost.Current.Flush();
+            }
+            finally
+            {
+                TelemetryHost.Install(previous);
+            }
+            return Assert.Single(sink.Records);
+        }
+
+        [Fact]
+        public void Execute_RecordsTheRun_WithWhatTheScriptNoted()
+        {
+            var request = Request("from pynavis import telemetry\ntelemetry.note(items=4)");
+
+            var line = RecordedRun(request, out var response);
+
+            Assert.True(response.Succeeded, response.Error);
+            Assert.Equal("run", line["kind"]);
+            Assert.Equal("count_items.py", line["key"]);
+            Assert.Equal("count_items", line["title"]);
+            Assert.Equal("", line["extension"]);
+            Assert.Equal("ironpython", line["engine"]);
+            Assert.Equal(response.DurationMs, Convert.ToInt64(line["ms"]));
+            Assert.Equal("ok", line["result"]);
+            Assert.Equal(4, ((Dictionary<string, object>)line["results"])["items"]);
+        }
+
+        [Fact]
+        public void Execute_RecordsAFailedRun_WithTheLastLineOfItsTraceback()
+        {
+            var line = RecordedRun(Request("x = 1\nraise ValueError('no clash tests')"), out var response);
+
+            Assert.False(response.Succeeded);
+            Assert.Equal("error", line["result"]);
+            Assert.Equal("ValueError: no clash tests", line["error"]);
+        }
+
+        [Fact]
+        public void Execute_RecordsAnEngineThatThrows_AsAFailedRun()
+        {
+            var sink = new CollectingSink();
+            var previous = TelemetryHost.Install(sink.Service(_dir));
+            try
+            {
+                RunExecutor.Execute(Request("x = 1"), new ThrowingEngine(), PyNavisHost.Instance);
+                TelemetryHost.Current.Flush();
+            }
+            finally
+            {
+                TelemetryHost.Install(previous);
+            }
+
+            var line = Assert.Single(sink.Records);
+            Assert.Equal("error", line["result"]);
+            Assert.Equal("Engine is broken.", line["error"]);
+            Assert.Equal("throwing", line["engine"]);
+        }
+
+        [Fact]
+        public void Execute_WithTelemetryOff_RecordsNothing_AndANoteIsHarmless()
+        {
+            var previous = TelemetryHost.Install(null);
+            try
+            {
+                var response = Execute(Request("from pynavis import telemetry\ntelemetry.note(items=4)"));
+
+                Assert.True(response.Succeeded, response.Error);
+                Assert.Null(PyNavisHost.Instance.EndTelemetry());   // the run left nothing behind
+            }
+            finally
+            {
+                TelemetryHost.Install(previous);
+            }
         }
 
         [Fact]
